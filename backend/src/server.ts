@@ -59,6 +59,11 @@ app.register(evolucoesPacientesRoutes);
 app.register(authRoutes);
 app.register(usersRoutes);
 
+// Health check route
+app.get('/', async (request, reply) => {
+  return { status: 'ok', message: 'Probotec Clinica API is running' };
+});
+
 app.setErrorHandler((error, request, reply) => {
   if (error instanceof ZodError) {
     return reply
