@@ -1,0 +1,31 @@
+export interface Profissional {
+  id: string;
+  nome: string;
+  cpf: string;
+  email: string;
+  especialidadesIds: string[];
+  servicosIds: string[];
+  cnpj?: string | null;
+  razaoSocial?: string | null;
+  whatsapp?: string | null;
+  logradouro?: string | null;
+  numero?: string | null;
+  complemento?: string | null;
+  bairro?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  cep?: string | null;
+  comprovanteEndereco?: string | null;
+  conselhoId?: string | null;
+  numeroConselho?: string | null;
+  comprovanteRegistro?: string | null;
+  banco?: string | null;
+  agencia?: string | null;
+  conta?: string | null;
+  pix?: string | null;
+  tipo_pix?: string | null;
+  comprovanteBancario?: string | null;
+  userId?: string | null;
+  especialidades?: { id: string }[];
+  servicos?: { id: string }[];
+} 

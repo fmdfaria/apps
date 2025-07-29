@@ -1,0 +1,374 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Especialidade {
+  id            String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome          String                        @unique @db.VarChar(100)
+  createdAt     DateTime?                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime?                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profissionais ProfissionaisEspecialidades[]
+
+  @@map("especialidades")
+}
+
+model ConselhoProfissional {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sigla         String         @unique @db.VarChar(10)
+  nome          String         @db.VarChar(100)
+  createdAt     DateTime?      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime?      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profissionais Profissional[]
+
+  @@map("conselhos_profissionais")
+}
+
+model Profissional {
+  id                  String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome                String                        @db.VarChar(150)
+  cpf                 String                        @unique @db.VarChar(14)
+  cnpj                String?                       @db.VarChar(18)
+  razaoSocial         String?                       @map("razao_social") @db.VarChar(150)
+  email               String                        @unique @db.VarChar(100)
+  whatsapp            String?                       @db.VarChar(20)
+  logradouro          String?                       @db.VarChar(100)
+  numero              String?                       @db.VarChar(10)
+  complemento         String?                       @db.VarChar(50)
+  bairro              String?                       @db.VarChar(50)
+  cidade              String?                       @db.VarChar(50)
+  estado              String?                       @db.VarChar(2)
+  cep                 String?                       @db.VarChar(10)
+  comprovanteEndereco String?                       @map("comprovante_endereco")
+  conselhoId          String?                       @map("conselho_id") @db.Uuid
+  numeroConselho      String?                       @map("numero_conselho") @db.VarChar(30)
+  comprovanteRegistro String?                       @map("comprovante_registro")
+  banco               String?                       @db.VarChar(100)
+  agencia             String?                       @db.VarChar(20)
+  conta               String?                       @db.VarChar(20)
+  pix                 String?                       @db.VarChar(100)
+  tipo_pix            String?                       @db.VarChar(30)
+  comprovanteBancario String?                       @map("comprovante_bancario")
+  userId              String?                       @map("user_id") @db.Uuid
+  createdAt           DateTime?                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime?                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  agendamentos        Agendamento[]
+  contratos           ContratoProfissional[]
+  disponibilidades    DisponibilidadeProfissional[]
+  precos              PrecosServicosProfissionais[]
+  conselho            ConselhoProfissional?         @relation(fields: [conselhoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  especialidades      ProfissionaisEspecialidades[]
+  servicos            ProfissionaisServicos[]
+
+  @@index([cpf], map: "idx_profissionais_cpf")
+  @@index([email], map: "idx_profissionais_email")
+  @@map("profissionais")
+}
+
+model Paciente {
+  id                  String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nomeCompleto        String                       @map("nome_completo") @db.VarChar(150)
+  email               String?                      @unique @db.VarChar(100)
+  whatsapp            String?                      @db.VarChar(20)
+  cpf                 String                       @unique @db.VarChar(14)
+  dataNascimento      DateTime?                    @map("data_nascimento") @db.Date
+  tipoServico         String                       @map("tipo_servico") @db.VarChar(20)
+  convenioId          String?                      @map("convenio_id") @db.Uuid
+  numeroCarteirinha   String?                      @map("numero_carteirinha") @db.VarChar(50)
+  dataPedidoMedico    DateTime?                    @map("data_pedido_medico") @db.Date
+  crm                 String?                      @db.VarChar(20)
+  cbo                 String?                      @db.VarChar(20)
+  cid                 String?                      @db.VarChar(20)
+  userId              String?                      @map("user_id") @db.Uuid
+  createdAt           DateTime?                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime?                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  agendamentos        Agendamento[]
+  atendimentosServico AtendimentoPacienteServico[]
+  evolucoes           EvolucaoPaciente[]
+  convenio            Convenio?                    @relation(fields: [convenioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  precosParticulares  PrecosParticulares[]
+
+  @@index([cpf], map: "idx_pacientes_cpf")
+  @@index([email], map: "idx_pacientes_email")
+  @@map("pacientes")
+}
+
+model Convenio {
+  id           String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome         String              @unique @db.VarChar(100)
+  createdAt    DateTime?           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime?           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  agendamentos Agendamento[]
+  servicos     ConveniosServicos[]
+  pacientes    Paciente[]
+
+  @@map("convenios")
+}
+
+model Servico {
+  id                              String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome                            String                        @db.VarChar(150)
+  descricao                       String?
+  duracaoMinutos                  Int                           @map("duracao_minutos")
+  preco                           Decimal                       @db.Decimal(10, 2)
+  percentualClinica               Decimal?                      @map("percentual_clinica") @db.Decimal(5, 2)
+  percentualProfissional          Decimal?                      @map("percentual_profissional") @db.Decimal(5, 2)
+  procedimentoPrimeiroAtendimento String?                       @map("procedimento_primeiro_atendimento") @db.VarChar(100)
+  procedimentoDemaisAtendimentos  String?                       @map("procedimento_demais_atendimentos") @db.VarChar(100)
+  createdAt                       DateTime?                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime?                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  agendamentos                    Agendamento[]
+  atendimentosPaciente            AtendimentoPacienteServico[]
+  convenios                       ConveniosServicos[]
+  precosParticulares              PrecosParticulares[]
+  precosProfissionais             PrecosServicosProfissionais[]
+  profissionais                   ProfissionaisServicos[]
+
+  @@unique([nome, duracaoMinutos])
+  @@map("servicos")
+}
+
+model Recurso {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome         String        @db.VarChar(100)
+  descricao    String?
+  createdAt    DateTime?     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime?     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  agendamentos Agendamento[]
+
+  @@map("recursos")
+}
+
+model ProfissionaisEspecialidades {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profissionalId  String        @map("profissional_id") @db.Uuid
+  especialidadeId String        @map("especialidade_id") @db.Uuid
+  createdAt       DateTime?     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime?     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  especialidade   Especialidade @relation(fields: [especialidadeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  profissional    Profissional  @relation(fields: [profissionalId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([profissionalId, especialidadeId])
+  @@map("profissionais_especialidades")
+}
+
+model ConveniosServicos {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  convenioId String    @map("convenio_id") @db.Uuid
+  servicoId  String    @map("servico_id") @db.Uuid
+  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  convenio   Convenio  @relation(fields: [convenioId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  servico    Servico   @relation(fields: [servicoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([convenioId, servicoId])
+  @@map("convenios_servicos")
+}
+
+model ProfissionaisServicos {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profissionalId String       @map("profissional_id") @db.Uuid
+  servicoId      String       @map("servico_id") @db.Uuid
+  createdAt      DateTime?    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime?    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profissional   Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  servico        Servico      @relation(fields: [servicoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([profissionalId, servicoId])
+  @@map("profissionais_servicos")
+}
+
+model PrecosServicosProfissionais {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profissionalId    String       @map("profissional_id") @db.Uuid
+  servicoId         String       @map("servico_id") @db.Uuid
+  precoProfissional Decimal?     @map("preco_profissional") @db.Decimal(10, 2)
+  precoClinica      Decimal?     @map("preco_clinica") @db.Decimal(10, 2)
+  createdAt         DateTime?    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime?    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profissional      Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  servico           Servico      @relation(fields: [servicoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([profissionalId, servicoId])
+  @@map("precos_servicos_profissionais")
+}
+
+model PrecosParticulares {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pacienteId String    @map("paciente_id") @db.Uuid
+  servicoId  String    @map("servico_id") @db.Uuid
+  preco      Decimal   @db.Decimal(10, 2)
+  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  paciente   Paciente  @relation(fields: [pacienteId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  servico    Servico   @relation(fields: [servicoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([pacienteId, servicoId])
+  @@map("precos_particulares")
+}
+
+model Agendamento {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pacienteId         String             @map("paciente_id") @db.Uuid
+  profissionalId     String             @map("profissional_id") @db.Uuid
+  tipoAtendimento    String             @map("tipo_atendimento") @db.VarChar(20)
+  recursoId          String             @map("recurso_id") @db.Uuid
+  convenioId         String             @map("convenio_id") @db.Uuid
+  servicoId          String             @map("servico_id") @db.Uuid
+  dataHoraInicio     DateTime           @map("data_hora_inicio") @db.Timestamptz(6)
+  dataHoraFim        DateTime           @map("data_hora_fim") @db.Timestamptz(6)
+  codLiberacao       String?            @map("cod_liberacao") @db.VarChar(50)
+  statusCodLiberacao String?            @map("status_cod_liberacao") @db.VarChar(30)
+  dataCodLiberacao   DateTime?          @map("data_cod_liberacao") @db.Timestamptz(6)
+  status             String?            @default("agendamento") @db.VarChar(20)
+  createdAt          DateTime?          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime?          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  convenio           Convenio           @relation(fields: [convenioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paciente           Paciente           @relation(fields: [pacienteId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  profissional       Profissional       @relation(fields: [profissionalId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  recurso            Recurso            @relation(fields: [recursoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  servico            Servico            @relation(fields: [servicoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  evolucoes          EvolucaoPaciente[]
+
+  @@index([dataHoraInicio], map: "idx_agendamentos_data_hora_inicio")
+  @@index([pacienteId], map: "idx_agendamentos_paciente_id")
+  @@index([profissionalId], map: "idx_agendamentos_profissional_id")
+  @@map("agendamentos")
+}
+
+model DisponibilidadeProfissional {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profissionalId String       @map("profissional_id") @db.Uuid
+  diaSemana      Int?         @map("dia_semana") @db.SmallInt
+  dataEspecifica DateTime?    @map("data_especifica") @db.Date
+  horaInicio     DateTime     @map("hora_inicio") @db.Time(6)
+  horaFim        DateTime     @map("hora_fim") @db.Time(6)
+  observacao     String?
+  tipo           String?      @default("disponivel") @db.VarChar(20)
+  createdAt      DateTime?    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime?    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profissional   Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("disponibilidades_profissionais")
+}
+
+model ContratoProfissional {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profissionalId  String           @map("profissional_id") @db.Uuid
+  dataInicio      DateTime         @map("data_inicio") @db.Date
+  dataFim         DateTime?        @map("data_fim") @db.Date
+  arquivoContrato String?          @map("arquivo_contrato")
+  observacao      String?
+  createdAt       DateTime?        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime?        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  adendos         AdendoContrato[]
+  profissional    Profissional     @relation(fields: [profissionalId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("contratos_profissionais")
+}
+
+model AdendoContrato {
+  id            String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contratoId    String               @map("contrato_id") @db.Uuid
+  dataAdendo    DateTime             @map("data_adendo") @db.Date
+  arquivoAdendo String?              @map("arquivo_adendo")
+  descricao     String?
+  createdAt     DateTime?            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime?            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  contrato      ContratoProfissional @relation(fields: [contratoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("adendos_contratos")
+}
+
+model AtendimentoPacienteServico {
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pacienteId             String    @map("paciente_id") @db.Uuid
+  servicoId              String    @map("servico_id") @db.Uuid
+  atendimentosConcluidos Int?      @default(0) @map("atendimentos_concluidos")
+  createdAt              DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  paciente               Paciente  @relation(fields: [pacienteId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  servico                Servico   @relation(fields: [servicoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([pacienteId, servicoId])
+  @@map("atendimentos_paciente_servico")
+}
+
+model EvolucaoPaciente {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pacienteId        String       @map("paciente_id") @db.Uuid
+  agendamentoId     String?      @map("agendamento_id") @db.Uuid
+  dataEvolucao      DateTime     @map("data_evolucao") @db.Date
+  objetivoSessao    String?      @map("objetivo_sessao")
+  descricaoEvolucao String?      @map("descricao_evolucao")
+  createdAt         DateTime?    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime?    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  agendamento       Agendamento? @relation(fields: [agendamentoId], references: [id], onUpdate: NoAction)
+  paciente          Paciente     @relation(fields: [pacienteId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("evolucoes_pacientes")
+}
+
+model Anexo {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entidadeId  String    @map("entidade_id") @db.Uuid
+  bucket      String    @db.VarChar(100)
+  nomeArquivo String    @map("nome_arquivo") @db.VarChar(255)
+  descricao   String?
+  criadoPor   String?   @map("criado_por") @db.Uuid
+  url         String?
+  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("anexos")
+}
+
+model User {
+  id                     String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome                   String         @db.VarChar(150)
+  email                  String         @unique @db.VarChar(100)
+  senha                  String         @db.VarChar(255)
+  tipo                   UserType       @map("tipo")
+  ativo                  Boolean        @default(true)
+  profissionalId         String?        @map("profissional_id") @db.Uuid
+  pacienteId             String?        @map("paciente_id") @db.Uuid
+  criadoEm               DateTime?      @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm           DateTime?      @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  resetToken             String?        @map("reset_token") @db.VarChar(255)
+  resetTokenExpires      DateTime?      @map("reset_token_expires") @db.Timestamptz(6)
+  emailConfirmationToken String?        @map("email_confirmation_token") @db.VarChar(255)
+  emailConfirmed         Boolean?       @default(false) @map("email_confirmed")
+  refreshTokens          RefreshToken[]
+
+  @@index([email], map: "idx_users_email")
+  @@index([tipo], map: "idx_users_tipo")
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  token     String    @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  criadoEm  DateTime? @default(now()) @map("criado_em") @db.Timestamptz(6)
+  ip        String?   @db.VarChar(50)
+  userAgent String?   @map("user_agent")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([token], map: "idx_refresh_tokens_token")
+  @@index([userId], map: "idx_refresh_tokens_user_id")
+  @@map("refresh_tokens")
+}
+
+enum UserType {
+  ADMIN
+  RECEPCIONISTA
+  PROFISSIONAL
+  PACIENTE
+
+  @@map("user_type")
+}

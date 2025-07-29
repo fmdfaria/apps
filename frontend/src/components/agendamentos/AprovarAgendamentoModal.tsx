@@ -1,0 +1,350 @@
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ClipboardCheck, XCircle, User, Calendar, Clock, FileText, CreditCard, CheckCircle2, Stethoscope } from 'lucide-react';
+import type { Agendamento } from '@/types/Agendamento';
+import { aprovarAgendamento, cancelarAgendamento } from '@/services/agendamentos';
+import { toast } from 'sonner';
+
+interface AprovarAgendamentoModalProps {
+  isOpen: boolean;
+  agendamento: Agendamento | null;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = ({
+  isOpen,
+  agendamento,
+  onClose,
+  onSuccess
+}) => {
+  const [loading, setLoading] = useState(false);
+  const [acao, setAcao] = useState<'APROVAR' | 'REPROVAR' | null>(null);
+  const [formData, setFormData] = useState({
+    aprovadoPor: '',
+    motivoCancelamento: ''
+  });
+
+  const resetForm = () => {
+    setFormData({
+      aprovadoPor: '',
+      motivoCancelamento: ''
+    });
+    setAcao(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!agendamento || !acao) return;
+    
+    // Validações
+    if (!formData.aprovadoPor) {
+      toast.error('Informe quem está realizando a avaliação');
+      return;
+    }
+
+    if (acao === 'REPROVAR' && !formData.motivoCancelamento) {
+      toast.error('O motivo da reprovação é obrigatório');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const dataAprovacao = new Date().toISOString();
+      
+      if (acao === 'APROVAR') {
+        await aprovarAgendamento(agendamento.id, {
+          dataAprovacao,
+          aprovadoPor: formData.aprovadoPor
+        });
+        toast.success('Agendamento aprovado com sucesso!');
+      } else {
+        await cancelarAgendamento(agendamento.id, {
+          dataAprovacao,
+          aprovadoPor: formData.aprovadoPor,
+          motivoCancelamento: formData.motivoCancelamento
+        });
+        toast.success('Agendamento reprovado com sucesso!');
+      }
+      
+      resetForm();
+      onSuccess();
+      onClose();
+    } catch (error) {
+      console.error('Erro ao processar agendamento:', error);
+      toast.error(`Erro ao ${acao === 'APROVAR' ? 'aprovar' : 'reprovar'} agendamento`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (!loading) {
+      resetForm();
+      onClose();
+    }
+  };
+
+  const formatarDataHora = (dataISO: string) => {
+    const data = new Date(dataISO);
+    return {
+      data: data.toLocaleDateString('pt-BR'),
+      hora: data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    };
+  };
+
+  if (!agendamento) return null;
+
+  const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <ClipboardCheck className="w-6 h-6 text-blue-600" />
+            Avaliar Atendimento
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Informações do Agendamento */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <FileText className="w-5 h-5" />
+                Informações do Agendamento
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-gray-500" />
+                  <span className="font-medium">Paciente:</span>
+                  <span>{agendamento.pacienteNome}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Profissional:</span>
+                  <span>{agendamento.profissionalNome}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-gray-500" />
+                  <span className="font-medium">Serviço:</span>
+                  <span>{agendamento.servicoNome}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-gray-500" />
+                  <span className="font-medium">Convênio:</span>
+                  <span>{agendamento.convenioNome}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-gray-500" />
+                  <span className="font-medium">Data:</span>
+                  <span>{data}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-gray-500" />
+                  <span className="font-medium">Horário:</span>
+                  <span>{hora}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Status:</span>
+                  <Badge className="bg-yellow-100 text-yellow-700">
+                    {agendamento.status}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Tipo:</span>
+                  <Badge variant="outline">
+                    {agendamento.tipoAtendimento}
+                  </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Dados de Liberação */}
+          {agendamento.codLiberacao && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <CheckCircle2 className="w-5 h-5 text-green-600" />
+                  Dados da Liberação
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Código:</span>
+                    <span className="font-mono bg-gray-100 px-2 py-1 rounded text-sm">
+                      {agendamento.codLiberacao}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Status:</span>
+                    <Badge 
+                      className={agendamento.statusCodLiberacao === 'APROVADO' 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-yellow-100 text-yellow-700'
+                      }
+                    >
+                      {agendamento.statusCodLiberacao}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Data:</span>
+                    <span>{agendamento.dataCodLiberacao ? new Date(agendamento.dataCodLiberacao).toLocaleDateString('pt-BR') : '-'}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Dados do Atendimento */}
+          {agendamento.dataAtendimento && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Stethoscope className="w-5 h-5 text-blue-600" />
+                  Dados do Atendimento
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-500" />
+                    <span className="font-medium">Data do Atendimento:</span>
+                    <span>{new Date(agendamento.dataAtendimento).toLocaleDateString('pt-BR')}</span>
+                  </div>
+                </div>
+                {agendamento.observacoesAtendimento && (
+                  <div className="space-y-2">
+                    <span className="font-medium">Observações:</span>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-sm text-gray-700">{agendamento.observacoesAtendimento}</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Seleção de Ação */}
+          {!acao && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <ClipboardCheck className="w-5 h-5" />
+                  Avaliar Atendimento
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-4 justify-center">
+                  <Button
+                    onClick={() => setAcao('APROVAR')}
+                    className="bg-green-600 hover:bg-green-700 flex items-center gap-2 px-8 py-4 text-lg"
+                  >
+                    <ClipboardCheck className="w-5 h-5" />
+                    Concluir Atendimento
+                  </Button>
+                  <Button
+                    onClick={() => setAcao('REPROVAR')}
+                    variant="outline"
+                    className="border-red-200 text-red-600 hover:bg-red-600 hover:text-white flex items-center gap-2 px-8 py-4 text-lg"
+                  >
+                    <XCircle className="w-5 h-5" />
+                    Reprovar Atendimento
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Formulário de Avaliação */}
+          {acao && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  {acao === 'APROVAR' ? (
+                    <>
+                      <ClipboardCheck className="w-5 h-5 text-green-600" />
+                      Concluir Atendimento
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="w-5 h-5 text-red-600" />
+                      Reprovar Atendimento
+                    </>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* Aprovado Por */}
+                  <div className="space-y-2">
+                    <Label htmlFor="aprovadoPor">Avaliado por *</Label>
+                    <Input
+                      id="aprovadoPor"
+                      type="text"
+                      placeholder="Nome do responsável pela avaliação"
+                      value={formData.aprovadoPor}
+                      onChange={(e) => setFormData(prev => ({ ...prev, aprovadoPor: e.target.value }))}
+                      required
+                    />
+                  </div>
+
+                  {/* Motivo da Reprovação - apenas se reprovar */}
+                  {acao === 'REPROVAR' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="motivoCancelamento">Motivo da Reprovação *</Label>
+                      <Textarea
+                        id="motivoCancelamento"
+                        placeholder="Descreva detalhadamente o motivo da reprovação..."
+                        value={formData.motivoCancelamento}
+                        onChange={(e) => setFormData(prev => ({ ...prev, motivoCancelamento: e.target.value }))}
+                        rows={4}
+                        className="resize-none"
+                        required
+                      />
+                    </div>
+                  )}
+
+                  <DialogFooter className="gap-2 mt-6">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => setAcao(null)}
+                      disabled={loading}
+                    >
+                      Voltar
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      className={acao === 'APROVAR' 
+                        ? 'bg-green-600 hover:bg-green-700' 
+                        : 'bg-red-600 hover:bg-red-700'
+                      }
+                      disabled={loading}
+                    >
+                      {loading 
+                        ? (acao === 'APROVAR' ? 'Aprovando...' : 'Reprovando...') 
+                        : (acao === 'APROVAR' ? 'Confirmar Aprovação' : 'Confirmar Reprovação')
+                      }
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}; 
