@@ -7,9 +7,11 @@ import { DeleteAnexoUseCase } from '../../../core/application/use-cases/anexo/De
 import { UpdateAnexoUseCase } from '../../../core/application/use-cases/anexo/UpdateAnexoUseCase';
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_API_URL = process.env.SUPABASE_API_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(SUPABASE_API_URL, SUPABASE_SERVICE_ROLE_KEY);
+const SUPABASE_API_URL = process.env.SUPABASE_API_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase = SUPABASE_API_URL && SUPABASE_SERVICE_ROLE_KEY 
+  ? createClient(SUPABASE_API_URL, SUPABASE_SERVICE_ROLE_KEY)
+  : null;
 
 const anexoMultipartSchema = z.object({
   entidadeId: z.string().uuid(),
@@ -20,6 +22,10 @@ const anexoMultipartSchema = z.object({
 
 export class AnexosController {
   async create(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    if (!supabase) {
+      return reply.status(503).send({ message: 'Serviço de armazenamento não configurado.' });
+    }
+
     const mp = await request.file();
 
     if (!mp) {
@@ -76,6 +82,10 @@ export class AnexosController {
   }
 
   async delete(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    if (!supabase) {
+      return reply.status(503).send({ message: 'Serviço de armazenamento não configurado.' });
+    }
+
     const paramsSchema = z.object({ id: z.string().uuid() });
     const { id } = paramsSchema.parse(request.params);
     // Buscar anexo antes de deletar
@@ -101,6 +111,10 @@ export class AnexosController {
   }
 
   async update(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    if (!supabase) {
+      return reply.status(503).send({ message: 'Serviço de armazenamento não configurado.' });
+    }
+
     const paramsSchema = z.object({ id: z.string().uuid() });
     const { id } = paramsSchema.parse(request.params);
 

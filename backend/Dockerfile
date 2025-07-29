@@ -1,7 +1,7 @@
 # Multi-stage build for Node.js TypeScript application
 FROM node:18-alpine AS base
 
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl curl
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -61,8 +61,8 @@ USER nodejs
 EXPOSE 3001
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3001/', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })" || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
+  CMD curl -f http://localhost:3001/ || exit 1
 
 # Start the application with proper signal handling
 CMD ["node", "build/server.js"]
