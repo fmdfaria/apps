@@ -461,8 +461,10 @@ export class ProfissionaisController {
 
       dadosBancarios = {
         banco: body.banco,
+        tipoConta: body.tipo_conta,
         agencia: body.agencia,
-        conta: body.conta,
+        contaNumero: body.conta_numero,
+        contaDigito: body.conta_digito,
         tipo_pix: body.tipo_pix,
         pix: body.pix,
       };
@@ -470,8 +472,10 @@ export class ProfissionaisController {
       // Se não é multipart, pegar dados do body JSON
       const bodySchema = z.object({
         banco: z.string().optional(),
+        tipoConta: z.string().optional(),
         agencia: z.string().optional(),
-        conta: z.string().optional(),
+        contaNumero: z.string().optional(),
+        contaDigito: z.string().optional(),
         tipo_pix: z.string().optional(),
         pix: z.string().optional(),
       });

@@ -8,6 +8,6 @@ export interface Servico {
   percentualProfissional?: number | null;
   procedimentoPrimeiroAtendimento?: string | null;
   procedimentoDemaisAtendimentos?: string | null;
-  conveniosIds: string[];
-  convenios?: { id: string }[];
+  convenioId?: string | null;
+  convenio?: { id: string; nome: string } | null;
 } 

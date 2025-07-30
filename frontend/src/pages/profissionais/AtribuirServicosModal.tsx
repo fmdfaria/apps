@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Search } from 'lucide-react';
 
 interface Convenio { id: string; nome: string; }
-interface Servico { id: string; nome: string; duracao: number; conveniosIds: string[]; }
+interface Servico { id: string; nome: string; duracao: number; convenioId?: string; }
 interface Profissional { id: string; nome: string; }
 
 interface Props {
@@ -47,9 +47,7 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
     
     // Filtrar por categoria/convênio
     if (categoria !== 'todos') {
-      lista = lista.filter(s => 
-        Array.isArray(s.conveniosIds) && s.conveniosIds.includes(categoria)
-      );
+      lista = lista.filter(s => s.convenioId === categoria);
     }
     
     // Filtrar por busca

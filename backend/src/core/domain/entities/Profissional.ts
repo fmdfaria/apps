@@ -23,8 +23,10 @@ export class Profissional {
   numeroConselho?: string | null;
   comprovanteRegistro?: string | null;
   banco?: string | null;
+  tipoConta?: string | null;
   agencia?: string | null;
-  conta?: string | null;
+  contaNumero?: string | null;
+  contaDigito?: string | null;
   pix?: string | null;
   tipo_pix?: string | null;
   comprovanteBancario?: string | null;

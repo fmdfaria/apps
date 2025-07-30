@@ -16,9 +16,9 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { FormErrorMessage } from '@/components/form-error-message';
 
-// Adiciona um tipo local para refletir o retorno real da API
-interface ServicoComConvenios extends Servico {
-  convenios?: { id: string; nome: string }[];
+// Interface para compatibilidade com API atual
+interface ServicoAPI extends Servico {
+  convenio?: { id: string; nome: string } | null;
 }
 
 // Definir tipo de formulário separado
@@ -31,7 +31,7 @@ interface FormularioServico {
   percentualProfissional?: number | null;
   procedimentoPrimeiroAtendimento?: string | null;
   procedimentoDemaisAtendimentos?: string | null;
-  conveniosIds: string[];
+  convenioId?: string;
 }
 
 // Função utilitária para formatar como moeda BRL
@@ -47,8 +47,37 @@ function formatarMoedaBRL(valor: string | number) {
   return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// Função para gerar cores diferentes para cada convênio
+function getConvenioColor(convenioId: string) {
+  const colors = [
+    { bg: 'bg-blue-100', text: 'text-blue-800' },
+    { bg: 'bg-green-100', text: 'text-green-800' },
+    { bg: 'bg-purple-100', text: 'text-purple-800' },
+    { bg: 'bg-orange-100', text: 'text-orange-800' },
+    { bg: 'bg-pink-100', text: 'text-pink-800' },
+    { bg: 'bg-indigo-100', text: 'text-indigo-800' },
+    { bg: 'bg-cyan-100', text: 'text-cyan-800' },
+    { bg: 'bg-teal-100', text: 'text-teal-800' },
+    { bg: 'bg-lime-100', text: 'text-lime-800' },
+    { bg: 'bg-amber-100', text: 'text-amber-800' },
+    { bg: 'bg-rose-100', text: 'text-rose-800' },
+    { bg: 'bg-violet-100', text: 'text-violet-800' },
+  ];
+  
+  // Gera um hash simples do ID para sempre ter a mesma cor para o mesmo convênio
+  let hash = 0;
+  for (let i = 0; i < convenioId.length; i++) {
+    const char = convenioId.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
+}
+
 export const ServicosPage = () => {
-  const [servicos, setServicos] = useState<ServicoComConvenios[]>([]);
+  const [servicos, setServicos] = useState<ServicoAPI[]>([]);
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -63,7 +92,7 @@ export const ServicosPage = () => {
     percentualProfissional: null,
     procedimentoPrimeiroAtendimento: '',
     procedimentoDemaisAtendimentos: '',
-    conveniosIds: [],
+    convenioId: '',
   });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
@@ -124,13 +153,13 @@ export const ServicosPage = () => {
       percentualProfissional: null,
       procedimentoPrimeiroAtendimento: '',
       procedimentoDemaisAtendimentos: '',
-      conveniosIds: [],
+      convenioId: '',
     });
     setFormError('');
     setShowModal(true);
   };
 
-  const abrirModalEditar = (s: ServicoComConvenios) => {
+  const abrirModalEditar = (s: ServicoAPI) => {
     setEditando(s);
     let precoValue = '';
     if (s.preco !== undefined && s.preco !== null) {
@@ -145,7 +174,7 @@ export const ServicosPage = () => {
       percentualProfissional: s.percentualProfissional != null ? s.percentualProfissional : 62,
       procedimentoPrimeiroAtendimento: s.procedimentoPrimeiroAtendimento || '',
       procedimentoDemaisAtendimentos: s.procedimentoDemaisAtendimentos || '',
-      conveniosIds: s.convenios && s.convenios.length > 0 ? [s.convenios[0].id] : [],
+      convenioId: s.convenio?.id || '',
     });
     setFormError('');
     setShowModal(true);
@@ -163,7 +192,7 @@ export const ServicosPage = () => {
       percentualProfissional: null,
       procedimentoPrimeiroAtendimento: '',
       procedimentoDemaisAtendimentos: '',
-      conveniosIds: [],
+      convenioId: '',
     });
     setFormError('');
   };
@@ -185,14 +214,13 @@ export const ServicosPage = () => {
       setFormError('O preço deve ser maior ou igual a 1.');
       return;
     }
-    if (!form.conveniosIds || form.conveniosIds.length === 0) {
+    if (!form.convenioId) {
       setFormError('Selecione um convênio.');
       return;
     }
     const nomeDuplicado = servicos.some(s =>
       s.nome.trim().toLowerCase() === form.nome.trim().toLowerCase() &&
-      s.convenios &&
-      s.convenios[0]?.id === form.conveniosIds[0] &&
+      s.convenio?.id === form.convenioId &&
       String(s.duracaoMinutos) === String(form.duracaoMinutos) &&
       (!editando || s.id !== editando.id)
     );
@@ -203,7 +231,7 @@ export const ServicosPage = () => {
     }
     setFormLoading(true);
     try {
-      const payload = { ...form, duracaoMinutos: duracaoNumber, preco: precoNumber, conveniosIds: [form.conveniosIds[0]] };
+      const payload = { ...form, duracaoMinutos: duracaoNumber, preco: precoNumber, convenioId: form.convenioId };
       console.log('Payload enviado para o backend:', payload);
       if (editando) {
         await updateServico(editando.id, payload);
@@ -278,7 +306,7 @@ export const ServicosPage = () => {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted">
-              <TableHead className="py-2 text-sm">Convênios</TableHead>
+              <TableHead className="text-center py-2 text-sm">Convênios</TableHead>
               <TableHead className="py-2 text-sm">Nome</TableHead>
               <TableHead className="py-2 text-sm">Descrição</TableHead>
               <TableHead className="text-center py-2 text-sm">Duração (min)</TableHead>
@@ -296,16 +324,15 @@ export const ServicosPage = () => {
             ) : (
               servicosPaginados.map((s) => (
                 <TableRow key={s.id} className="hover:bg-gray-50 h-12">
-                  <TableCell className="py-2">
-                    {s.convenios && s.convenios.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {s.convenios.map((c) => (
-                          <span key={c.id} className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded">
-                            {c.nome}
-                      </span>
-                        ))}
-                      </div>
-                    ) : (
+                  <TableCell className="text-center py-2">
+                    {s.convenio ? (() => {
+                      const colors = getConvenioColor(s.convenio.id);
+                      return (
+                        <span className={`${colors.bg} ${colors.text} text-xs font-medium px-2 py-0.5 rounded`}>
+                          {s.convenio.nome}
+                        </span>
+                      );
+                    })() : (
                       <span className="text-gray-400 text-xs">Nenhum</span>
                     )}
                   </TableCell>
@@ -329,7 +356,7 @@ export const ServicosPage = () => {
                   </TableCell>
                   <TableCell className="py-2">
                       <div className="flex gap-1">
-                      <Button variant="default" size="sm" className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-400 h-7 w-7 p-0" onClick={() => abrirModalEditar(s as ServicoComConvenios)}>
+                      <Button variant="default" size="sm" className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-400 h-7 w-7 p-0" onClick={() => abrirModalEditar(s)}>
                         <Edit className="w-3 h-3" />
                       </Button>
                         <Button
@@ -414,8 +441,8 @@ export const ServicosPage = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Convênio <span className="text-red-500">*</span></label>
                 <Select
-                  value={form.conveniosIds[0] || ''}
-                  onValueChange={value => setForm(f => ({ ...f, conveniosIds: [value] }))}
+                  value={form.convenioId || ''}
+                  onValueChange={value => setForm(f => ({ ...f, convenioId: value }))}
                   disabled={formLoading}
                 >
                   <SelectTrigger className="w-full">
