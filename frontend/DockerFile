@@ -1,5 +1,5 @@
 # ---- Estágio 1: Builder ----
-# Usa uma imagem Node.js para construir sua aplicação
+# Usa uma imagem Node.js para construir sua aplicação.
 FROM node:18-alpine AS builder
 
 # Define o diretório de trabalho dentro do contêiner
