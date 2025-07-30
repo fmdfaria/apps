@@ -21,8 +21,10 @@ interface EditarDadosBancariosModalProps {
 export default function EditarDadosBancariosModal({ open, onClose, profissional, onSalvar }: EditarDadosBancariosModalProps) {
   const [form, setForm] = useState({
     banco: '',
+    tipoConta: '',
     agencia: '',
-    conta: '',
+    contaNumero: '',
+    contaDigito: '',
     tipo_pix: '',
     pix: '',
   });
@@ -32,8 +34,9 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const maskAgencia = useInputMask('9999-9');
-  const maskConta = useInputMask('99999999-9');
+  const maskAgencia = useInputMask('9999');
+  const maskContaNumero = useInputMask('999999999');
+  const maskContaDigito = useInputMask('99');
   const maskPixCPF = useInputMask('999.999.999-99');
   const maskPixCNPJ = useInputMask('99.999.999/9999-99');
   const maskPixTelefone = useInputMask('(99) 99999-9999');
@@ -42,8 +45,10 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
     if (open && profissional) {
       setForm({
         banco: profissional.banco || '',
+        tipoConta: profissional.tipoConta || '',
         agencia: profissional.agencia || '',
-        conta: profissional.conta || '',
+        contaNumero: profissional.contaNumero || '',
+        contaDigito: profissional.contaDigito || '',
         tipo_pix: profissional.tipo_pix || '',
         pix: profissional.pix || '',
       });
@@ -95,10 +100,19 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
     setError('');
 
     try {
-      await updateProfissionalDadosBancarios(profissional.id, {
-        ...form,
+      // Converter os campos para o formato esperado pelo backend (snake_case)
+      const payload = {
+        banco: form.banco,
+        tipo_conta: form.tipoConta,
+        agencia: form.agencia,
+        conta_numero: form.contaNumero, 
+        conta_digito: form.contaDigito,
+        tipo_pix: form.tipo_pix,
+        pix: form.pix,
         file: comprovanteFile,
-      });
+      };
+      
+      await updateProfissionalDadosBancarios(profissional.id, payload);
       onSalvar();
       onClose();
     } catch (err: any) {
@@ -165,7 +179,21 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Conta</label>
+              <Select value={form.tipoConta} onValueChange={v => setForm(f => ({ ...f, tipoConta: v }))}>
+                <SelectTrigger className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <SelectValue placeholder="Selecione o tipo de conta" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CORRENTE">Conta Corrente</SelectItem>
+                  <SelectItem value="POUPANCA">Poupança</SelectItem>
+                  <SelectItem value="SALARIO">Conta Salário</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Agência</label>
                 <input
@@ -174,16 +202,29 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
                   onChange={e => setForm(f => ({ ...f, agencia: maskAgencia(e.target.value) }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   disabled={loading}
+                  placeholder="1234"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Conta</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Número da Conta</label>
                 <input
                   type="text"
-                  value={form.conta}
-                  onChange={e => setForm(f => ({ ...f, conta: maskConta(e.target.value) }))}
+                  value={form.contaNumero}
+                  onChange={e => setForm(f => ({ ...f, contaNumero: maskContaNumero(e.target.value) }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   disabled={loading}
+                  placeholder="123456789"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Dígito</label>
+                <input
+                  type="text"
+                  value={form.contaDigito}
+                  onChange={e => setForm(f => ({ ...f, contaDigito: maskContaDigito(e.target.value) }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={loading}
+                  placeholder="12"
                 />
               </div>
             </div>

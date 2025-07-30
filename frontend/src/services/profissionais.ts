@@ -4,7 +4,7 @@ import type { Profissional } from '@/types/Profissional';
 const allowedFields = [
   'nome', 'cpf', 'email', 'cnpj', 'razaoSocial', 'logradouro', 'numero', 'complemento',
   'bairro', 'cidade', 'estado', 'cep', 'comprovanteEndereco', 'conselhoId', 'numeroConselho',
-  'comprovanteRegistro', 'banco', 'agencia', 'conta', 'pix', 'tipo_pix', 'comprovanteBancario',
+  'comprovanteRegistro', 'banco', 'tipoConta', 'agencia', 'contaNumero', 'contaDigito', 'pix', 'tipo_pix', 'comprovanteBancario',
   'userId', 'especialidadesIds', 'whatsapp'
 ];
 
@@ -108,8 +108,8 @@ export async function updateProfissionalInfoProfissional(id: string, payload: an
 export async function updateProfissionalDadosBancarios(id: string, payload: any): Promise<Profissional> {
   const formData = new FormData();
   
-  // Campos bancários
-  const bancarioFields = ['banco', 'agencia', 'conta', 'tipo_pix', 'pix'];
+  // Campos bancários - usando snake_case para compatibilidade com backend
+  const bancarioFields = ['banco', 'tipo_conta', 'agencia', 'conta_numero', 'conta_digito', 'tipo_pix', 'pix'];
   
   bancarioFields.forEach(field => {
     if (payload[field] !== undefined && payload[field] !== null && payload[field] !== '') {
