@@ -17,7 +17,7 @@ export class ServicosController {
       percentualProfissional: z.number().min(0).max(100).optional(),
       procedimentoPrimeiroAtendimento: z.string().optional(),
       procedimentoDemaisAtendimentos: z.string().optional(),
-      conveniosIds: z.array(z.string().uuid()).min(1),
+      convenioId: z.string().uuid().optional(),
     });
     const data = createBodySchema.parse(request.body);
     const useCase = container.resolve(CreateServicoUseCase);
@@ -42,7 +42,7 @@ export class ServicosController {
       percentualProfissional: z.number().min(0).max(100).optional().nullable(),
       procedimentoPrimeiroAtendimento: z.string().optional(),
       procedimentoDemaisAtendimentos: z.string().optional(),
-      conveniosIds: z.array(z.string().uuid()).min(1),
+      convenioId: z.string().uuid().optional(),
     });
     const { id } = updateParamsSchema.parse(request.params);
     const data = updateBodySchema.parse(request.body);

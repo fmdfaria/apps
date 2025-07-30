@@ -8,11 +8,7 @@ import { inject, injectable } from 'tsyringe';
 import { Convenio } from '../../../../core/domain/entities/Convenio';
 
 const servicoInclude = {
-  convenios: {
-    include: {
-      convenio: true,
-    },
-  },
+  convenio: true,
 };
 
 // Helper para converter os campos Decimal do Prisma para number e mapear relacionamentos
@@ -24,9 +20,7 @@ function toDomain(
     preco: servico.preco.toNumber(),
     percentualClinica: servico.percentualClinica?.toNumber() ?? null,
     percentualProfissional: servico.percentualProfissional?.toNumber() ?? null,
-    convenios: servico.convenios.map(
-      (cs) => cs.convenio as Convenio
-    ),
+    convenio: servico.convenio as Convenio | null,
   };
 }
 
@@ -37,19 +31,11 @@ export class PrismaServicosRepository implements IServicosRepository {
     private prisma: PrismaClient
   ) {}
 
-  async create({ conveniosIds, ...data }: ICreateServicoDTO): Promise<Servico> {
+  async create({ convenioId, ...data }: ICreateServicoDTO): Promise<Servico> {
     const servico = await this.prisma.servico.create({
       data: {
         ...data,
-        convenios: {
-          create: conveniosIds.map((convenioId) => ({
-            convenio: {
-              connect: {
-                id: convenioId,
-              },
-            },
-          })),
-        },
+        convenioId,
       },
       include: servicoInclude,
     });
@@ -92,32 +78,20 @@ export class PrismaServicosRepository implements IServicosRepository {
   }
 
   async save(servico: Servico): Promise<Servico> {
-    const { id, conveniosIds, ...data } = servico as any;
+    const { id, convenioId, ...data } = servico as any;
 
-    // Remove a propriedade 'convenios' do objeto data para evitar conflito
-    delete data.convenios;
+    // Remove a propriedade 'convenio' do objeto data para evitar conflito
+    delete data.convenio;
 
-    const transactionResult = await this.prisma.$transaction([
-      this.prisma.conveniosServicos.deleteMany({
-        where: { servicoId: id },
-      }),
-      this.prisma.servico.update({
-        where: { id },
-        data: {
-          ...data,
-          convenios: {
-            create: conveniosIds.map((convenioId: string) => ({
-              convenio: {
-                connect: { id: convenioId },
-              },
-            })),
-          },
-        },
-        include: servicoInclude,
-      }),
-    ]);
+    const updatedServico = await this.prisma.servico.update({
+      where: { id },
+      data: {
+        ...data,
+        convenioId,
+      },
+      include: servicoInclude,
+    });
 
-    const updatedServico = transactionResult[1];
     return toDomain(updatedServico as any);
   }
 

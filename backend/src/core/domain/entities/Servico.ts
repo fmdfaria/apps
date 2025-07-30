@@ -13,10 +13,11 @@ export class Servico {
   procedimentoDemaisAtendimentos?: string | null;
   createdAt!: Date;
   updatedAt!: Date;
-  convenios?: Convenio[];
+  convenio?: Convenio | null;
+  convenioId?: string | null;
 
   constructor(
-    props: Omit<Servico, 'id' | 'createdAt' | 'updatedAt' | 'convenios'>,
+    props: Omit<Servico, 'id' | 'createdAt' | 'updatedAt' | 'convenio'>,
     id?: string
   ) {
     Object.assign(this, props);

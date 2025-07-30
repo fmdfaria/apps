@@ -9,7 +9,7 @@ export interface ICreateServicoDTO {
   percentualProfissional?: number | null;
   procedimentoPrimeiroAtendimento?: string | null;
   procedimentoDemaisAtendimentos?: string | null;
-  conveniosIds: string[];
+  convenioId?: string | null;
 }
 
 export interface IServicosRepository {

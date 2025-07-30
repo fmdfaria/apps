@@ -10,11 +10,11 @@ interface IRequest {
   descricao?: string;
   duracaoMinutos: number;
   preco: number;
-  percentualClinica?: number;
-  percentualProfissional?: number;
+  percentualClinica?: number | null;
+  percentualProfissional?: number | null;
   procedimentoPrimeiroAtendimento?: string;
   procedimentoDemaisAtendimentos?: string;
-  conveniosIds: string[];
+  convenioId?: string;
 }
 
 @injectable()
@@ -42,10 +42,10 @@ export class UpdateServicoUseCase {
       throw new AppError('Já existe um serviço com este nome e duração.');
     }
 
-    for (const convenioId of data.conveniosIds) {
-      const convenio = await this.conveniosRepository.findById(convenioId);
+    if (data.convenioId) {
+      const convenio = await this.conveniosRepository.findById(data.convenioId);
       if (!convenio) {
-        throw new AppError(`Convênio com ID ${convenioId} não encontrado.`, 404);
+        throw new AppError(`Convênio com ID ${data.convenioId} não encontrado.`, 404);
       }
     }
 

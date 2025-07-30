@@ -9,11 +9,11 @@ interface IRequest {
   descricao?: string;
   duracaoMinutos: number;
   preco: number;
-  percentualClinica?: number;
-  percentualProfissional?: number;
+  percentualClinica?: number | null;
+  percentualProfissional?: number | null;
   procedimentoPrimeiroAtendimento?: string;
   procedimentoDemaisAtendimentos?: string;
-  conveniosIds: string[];
+  convenioId?: string;
 }
 
 @injectable()
@@ -34,7 +34,7 @@ export class CreateServicoUseCase {
     percentualProfissional,
     procedimentoPrimeiroAtendimento,
     procedimentoDemaisAtendimentos,
-    conveniosIds,
+    convenioId,
   }: IRequest): Promise<Servico> {
     const servicoExists = await this.servicosRepository.findByNameAndDuration(nome, duracaoMinutos);
 
@@ -42,7 +42,7 @@ export class CreateServicoUseCase {
       throw new AppError('Já existe um serviço com este nome e duração.');
     }
 
-    for (const convenioId of conveniosIds) {
+    if (convenioId) {
       const convenio = await this.conveniosRepository.findById(convenioId);
       if (!convenio) {
         throw new AppError(`Convênio com ID ${convenioId} não encontrado.`, 404);
@@ -58,7 +58,7 @@ export class CreateServicoUseCase {
       percentualProfissional,
       procedimentoPrimeiroAtendimento,
       procedimentoDemaisAtendimentos,
-      conveniosIds,
+      convenioId,
     });
 
     return servico;
