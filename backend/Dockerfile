@@ -46,7 +46,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 
 # Copy built application
 COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/build ./build
 COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma
 COPY --chown=nodejs:nodejs package*.json ./
 
@@ -61,4 +61,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:3001/ || exit 1
 
 # Start the application with proper signal handling
-CMD ["node", "dist/server.js"]
+CMD ["node", "build/server.js"]
