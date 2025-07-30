@@ -82,8 +82,11 @@ app.setErrorHandler((error, request, reply) => {
 
 const start = async () => {
   try {
-    await app.listen({ port: 3001, host: '0.0.0.0' });
-    app.log.info(`Server listening on http://localhost:3001`);
+    const port = Number(process.env.PORT) || 3333;
+    const host = process.env.HOST || '0.0.0.0';
+    
+    await app.listen({ port, host });
+    app.log.info(`Server listening on http://${host}:${port}`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

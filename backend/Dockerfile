@@ -12,8 +12,7 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # Install dependencies
-RUN npm ci --only=production && \
-    npx prisma generate
+RUN npm ci --only=production
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -47,12 +46,9 @@ RUN addgroup --system --gid 1001 nodejs && \
 
 # Copy built application
 COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/build ./build
+COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma
 COPY --chown=nodejs:nodejs package*.json ./
-
-# Generate Prisma client in production
-RUN npx prisma generate
 
 # Switch to non-root user
 USER nodejs
@@ -65,4 +61,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:3001/ || exit 1
 
 # Start the application with proper signal handling
-CMD ["node", "build/server.js"]
+CMD ["node", "dist/server.js"]
