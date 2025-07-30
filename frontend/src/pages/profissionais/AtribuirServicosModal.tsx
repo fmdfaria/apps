@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
-
-interface Convenio { id: string; nome: string; }
-interface Servico { id: string; nome: string; duracao: number; convenioId?: string; }
-interface Profissional { id: string; nome: string; }
+import type { Servico } from '@/types/Servico';
+import type { Convenio } from '@/types/Convenio';
+import type { Profissional } from '@/types/Profissional';
 
 interface Props {
   open: boolean;
@@ -13,15 +13,14 @@ interface Props {
   profissional: Profissional;
   convenios: Convenio[];
   servicos: Servico[];
-  servicosAtribuidos: string[];
   onSalvar: (servicosIds: string[]) => Promise<void>;
 }
 
-export default function AtribuirServicosModal({ open, onClose, profissional, convenios, servicos, servicosAtribuidos, onSalvar }: Props) {
+export default function AtribuirServicosModal({ open, onClose, profissional, convenios, servicos, onSalvar }: Props) {
   if (!profissional) return null;
   const [categoria, setCategoria] = useState<string>('todos');
   const [busca, setBusca] = useState('');
-  const [selecionados, setSelecionados] = useState<string[]>(servicosAtribuidos);
+  const [selecionados, setSelecionados] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
 
@@ -34,12 +33,12 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
     return null;
   }
 
-  // Sincronizar selecionados ao abrir o modal ou mudar servicosAtribuidos
+  // Sincronizar selecionados ao abrir o modal com os serviços já atribuídos ao profissional
   useEffect(() => {
-    if (open) {
-      setSelecionados(servicosAtribuidos);
+    if (open && profissional) {
+      setSelecionados(profissional.servicosIds || []);
     }
-  }, [open, servicosAtribuidos]);
+  }, [open, profissional]);
 
   // Filtra serviços por categoria e busca
   const servicosFiltrados = useMemo(() => {
@@ -109,30 +108,55 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
         </DialogHeader>
         <div className="flex h-[60vh] divide-x">
           {/* Sidebar categorias */}
-          <div className="w-56 p-4 overflow-y-auto">
-            <div className="font-semibold mb-2">Categorias</div>
+          <div className="w-56 p-4 overflow-y-auto bg-gradient-to-b from-gray-50 to-white border-r">
+            <div className="font-semibold mb-3 text-gray-800 flex items-center gap-2">
+              <span className="text-lg">📋</span>
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Categorias</span>
+            </div>
             <ul>
-              <li>
+              <li className="mb-2">
                 <button 
-                  className={`w-full text-left py-1 px-2 rounded flex justify-between items-center ${categoria === 'todos' ? 'bg-blue-100 font-bold' : ''}`} 
+                  className={`w-full text-left py-3 px-3 rounded-xl flex justify-between items-center transition-all duration-200 shadow-sm hover:shadow-md ${
+                    categoria === 'todos' 
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold transform scale-105' 
+                      : 'bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300'
+                  }`} 
                   onClick={() => setCategoria('todos')}
                 >
-                  <span>Todos os serviços</span>
-                  <span className="text-xs text-gray-500 bg-gray-100 px-1 rounded">{servicos.length}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-sm">🏥</span>
+                    <span>Todos os serviços</span>
+                  </span>
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    categoria === 'todos' 
+                      ? 'bg-white/20 text-white' 
+                      : 'bg-blue-100 text-blue-600'
+                  }`}>{servicos.length}</span>
                 </button>
               </li>
               {convenios.map(c => {
                 const servicosDoConvenio = servicos.filter(s => 
-                  Array.isArray(s.conveniosIds) && s.conveniosIds.includes(c.id)
+                  s.convenioId === c.id
                 );
                 return (
-                <li key={c.id}>
+                <li key={c.id} className="mb-2">
                     <button 
-                      className={`w-full text-left py-1 px-2 rounded flex justify-between items-center ${categoria === c.id ? 'bg-blue-100 font-bold' : ''}`} 
+                      className={`w-full text-left py-3 px-3 rounded-xl flex justify-between items-center transition-all duration-200 shadow-sm hover:shadow-md ${
+                        categoria === c.id 
+                          ? 'bg-gradient-to-r from-green-500 to-teal-600 text-white font-semibold transform scale-105' 
+                          : 'bg-white hover:bg-green-50 border border-gray-200 hover:border-green-300'
+                      }`} 
                       onClick={() => setCategoria(c.id)}
                     >
-                      <span>{c.nome}</span>
-                      <span className="text-xs text-gray-500 bg-gray-100 px-1 rounded">{servicosDoConvenio.length}</span>
+                      <span className="flex items-center gap-2">
+                        <span className="text-sm">🏢</span>
+                        <span className="truncate">{c.nome}</span>
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        categoria === c.id 
+                          ? 'bg-white/20 text-white' 
+                          : 'bg-green-100 text-green-600'
+                      }`}>{servicosDoConvenio.length}</span>
                     </button>
                 </li>
                 );
@@ -141,25 +165,49 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
           </div>
           {/* Coluna serviços */}
           <div className="flex-1 flex flex-col">
-            <div className="flex items-center gap-2 p-4 border-b">
-              <Search className="w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={busca}
-                onChange={e => setBusca(e.target.value)}
-                placeholder="Pesquisar serviços..."
-                className="w-full border-none outline-none bg-transparent text-gray-900 placeholder:text-gray-400"
-              />
+            <div className="p-4 border-b bg-gradient-to-r from-gray-50 to-white">
+              <div className="relative">
+                <Search className="w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Input
+                  type="text"
+                  value={busca}
+                  onChange={e => setBusca(e.target.value)}
+                  placeholder="Pesquisar serviços..."
+                  className="pl-12 pr-4 py-3 hover:border-blue-300 focus:border-blue-500 focus:ring-blue-100"
+                />
+              </div>
             </div>
             {/* Contador de selecionados */}
-            <div className="px-4 py-2 text-sm text-gray-600 flex items-center gap-2">
-              <span className="font-medium">Selecionados:</span>
-              <span className="font-bold text-blue-600">{selecionados.length}</span>
+            <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-purple-50 border-b flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">✅</span>
+                <span className="text-sm font-medium text-gray-700">Selecionados:</span>
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-bold px-3 py-1 rounded-full shadow-sm">{selecionados.length}</span>
+              </div>
+              {categoria !== 'todos' && (
+                <button
+                  onClick={() => setCategoria('todos')}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline transition-colors"
+                >
+                  Ver todos
+                </button>
+              )}
             </div>
             <div className="flex-1 overflow-y-auto">
-              <div className="flex items-center gap-2 px-4 py-2 border-b">
-                <input type="checkbox" checked={todosSelecionados} onChange={toggleTodos} />
-                <span className="font-medium">Selecionar tudo</span>
+              <div className="flex items-center gap-3 px-4 py-3 border-b bg-gradient-to-r from-gray-50 to-white hover:from-blue-50 hover:to-purple-50 transition-all duration-200">
+                <input 
+                  type="checkbox" 
+                  checked={todosSelecionados} 
+                  onChange={toggleTodos}
+                  className="w-4 h-4 text-blue-600 border-2 border-gray-300 rounded focus:ring-blue-500 focus:ring-2" 
+                />
+                <span className="font-semibold text-gray-700 flex items-center gap-2">
+                  <span className="text-sm">🎯</span>
+                  <span>Selecionar todos visíveis</span>
+                </span>
+                {servicosFiltrados.length > 0 && (
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">({servicosFiltrados.length})</span>
+                )}
               </div>
               {servicosFiltrados.length === 0 ? (
                 <div className="px-4 py-8 text-gray-400 text-center">
@@ -190,7 +238,11 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
                   {servicosFiltrados.map(s => (
                     <li
                       key={s.id}
-                      className={`flex items-center gap-3 px-4 py-2 border-b hover:bg-blue-50 cursor-pointer ${selecionados.includes(s.id) ? 'bg-blue-50' : ''}`}
+                      className={`flex items-center gap-3 px-4 py-3 border-b cursor-pointer transition-all duration-200 ${
+                        selecionados.includes(s.id) 
+                          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-l-green-500 hover:from-green-100 hover:to-emerald-100' 
+                          : 'hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50'
+                      }`}
                       onClick={() => toggleServico(s.id)}
                     >
                       <input
@@ -198,9 +250,18 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
                         checked={selecionados.includes(s.id)}
                         onChange={e => { e.stopPropagation(); toggleServico(s.id); }}
                         onClick={e => e.stopPropagation()}
+                        className="w-4 h-4 text-green-600 border-2 border-gray-300 rounded focus:ring-green-500 focus:ring-2"
                       />
-                      <span className="flex-1">{s.nome}</span>
-                      <span className="text-xs text-gray-500 w-12 text-right">{s.duracao}min</span>
+                      <div className="flex-1 flex items-center gap-2">
+                        <span className="text-sm">🔧</span>
+                        <span className="font-medium text-gray-800">{s.nome}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">{s.duracaoMinutos}min</span>
+                        {selecionados.includes(s.id) && (
+                          <span className="text-green-600 text-sm">✓</span>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -209,17 +270,22 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
           </div>
         </div>
         <DialogFooter className="flex items-center justify-between p-4 border-t">
-          <Button type="button" variant="outline" className="text-pink-600 border-pink-200 hover:bg-pink-50" onClick={limparTodos} disabled={loading}>LIMPAR TODOS OS SERVIÇOS</Button>
+          <Button type="button" variant="outline" className="text-pink-600 border-pink-200 hover:bg-pink-50 hover:text-pink-700" onClick={limparTodos} disabled={loading}>LIMPAR TODOS OS SERVIÇOS</Button>
           <div className="flex gap-2">
             <DialogClose asChild>
               <Button type="button" variant="cancel" disabled={loading}>Cancelar</Button>
             </DialogClose>
             <Button type="button" className="bg-blue-600 hover:bg-blue-700" onClick={handleSalvar} disabled={loading}>
-              {loading ? 'Salvando...' : 'Salvar'}
+              {loading ? 'Salvando...' : 'Salvar Alterações'}
             </Button>
           </div>
         </DialogFooter>
-        {erro && <div className="text-red-500 text-sm px-6 pb-2">{erro}</div>}
+        {erro && (
+          <div className="mx-6 mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+            <span className="text-red-500 text-lg">⚠️</span>
+            <span className="text-red-700 text-sm font-medium">{erro}</span>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

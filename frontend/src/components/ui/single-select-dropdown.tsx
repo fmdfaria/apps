@@ -1,20 +1,22 @@
 import React, { useState, useRef } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { X, ChevronDown, Search } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 
 interface Option {
   id: string;
   nome: string;
+  sigla?: string;
 }
 
-interface MultiSelectDropdownProps {
+interface SingleSelectDropdownProps {
   options: Option[];
-  selected: Option[];
-  onChange: (selected: Option[]) => void;
+  selected?: Option | null;
+  onChange: (selected: Option | null) => void;
   placeholder?: string;
+  formatOption?: (option: Option) => string;
 }
 
-export function MultiSelectDropdown({ options, selected, onChange, placeholder = 'Selecione...' }: MultiSelectDropdownProps) {
+export function SingleSelectDropdown({ options, selected, onChange, placeholder = 'Selecione...', formatOption }: SingleSelectDropdownProps) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [inputFocused, setInputFocused] = useState(false);
@@ -53,16 +55,23 @@ export function MultiSelectDropdown({ options, selected, onChange, placeholder =
     return str.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
   }
   const lowerInput = normalize(input);
-  const filtered = options.filter(opt => normalize(opt.nome).includes(lowerInput) && !selected.some(s => s.id === opt.id));
-  const showOptions = input.trim() === '' ? options.filter(opt => !selected.some(s => s.id === opt.id)) : filtered;
+  const filtered = options.filter(opt => {
+    const nomeMatch = normalize(opt.nome).includes(lowerInput);
+    const siglaMatch = opt.sigla ? normalize(opt.sigla).includes(lowerInput) : false;
+    return nomeMatch || siglaMatch;
+  });
+  const showOptions = input.trim() === '' ? options : filtered;
 
   function handleSelect(opt: Option) {
-    onChange([...selected, opt]);
+    onChange(opt);
     setInput('');
-    if (inputRef.current) inputRef.current.focus();
+    setOpen(false);
+    if (inputRef.current) inputRef.current.blur();
   }
-  function handleRemove(id: string) {
-    onChange(selected.filter(s => s.id !== id));
+
+  function handleClear() {
+    onChange(null);
+    setInput('');
     if (inputRef.current) inputRef.current.focus();
   }
 
@@ -70,27 +79,7 @@ export function MultiSelectDropdown({ options, selected, onChange, placeholder =
   const popoverOpen = open || inputFocused || input.length > 0;
 
   return (
-    <div className="space-y-3">
-      {/* Items selecionados acima */}
-      {selected.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {selected.map(opt => (
-            <span key={opt.id} className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-2.5 py-1 rounded-full text-xs flex items-center gap-1.5 shadow-sm hover:shadow-md transition-shadow duration-200">
-              <span className="font-medium">{opt.nome}</span>
-              <button 
-                type="button" 
-                onClick={e => { e.stopPropagation(); handleRemove(opt.id); }} 
-                className="flex-shrink-0 hover:bg-white/20 rounded-full p-0.5 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-white/50"
-                title={`Remover ${opt.nome}`}
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Campo de busca */}
+    <div className="w-full max-w-full">
       <Popover open={popoverOpen} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <div
@@ -102,7 +91,30 @@ export function MultiSelectDropdown({ options, selected, onChange, placeholder =
               if (inputRef.current) inputRef.current.focus();
             }}
           >
-            <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          
+          {/* Mostrar item selecionado ou input de busca */}
+          {selected && !inputFocused && input === '' ? (
+            <div className="flex items-center flex-1 min-w-0">
+              <span 
+                className="text-gray-700 font-medium truncate flex-1" 
+                title={formatOption ? formatOption(selected) : selected.nome}
+              >
+                {formatOption ? formatOption(selected) : selected.nome}
+              </span>
+              <button 
+                type="button" 
+                onClick={e => { 
+                  e.stopPropagation(); 
+                  handleClear(); 
+                }} 
+                className="flex-shrink-0 hover:bg-gray-100 rounded-full p-1 transition-colors duration-150 focus:outline-none ml-2"
+                title={`Remover ${selected.nome}`}
+              >
+                <span className="w-4 h-4 flex items-center justify-center text-gray-400 hover:text-gray-600 text-sm font-bold">×</span>
+              </button>
+            </div>
+          ) : (
             <input
               ref={inputRef}
               type="text"
@@ -110,13 +122,15 @@ export function MultiSelectDropdown({ options, selected, onChange, placeholder =
               onChange={e => setInput(e.target.value)}
               onFocus={() => setInputFocused(true)}
               onBlur={() => setInputFocused(false)}
-              placeholder={placeholder}
+              placeholder={selected ? (formatOption ? formatOption(selected) : selected.nome) : placeholder}
               className="flex-1 border-none outline-none bg-transparent text-gray-700 placeholder:text-gray-400 font-medium"
               autoComplete="off"
             />
-            <ChevronDown className={`w-5 h-5 text-gray-400 flex-shrink-0 transition-transform duration-200 ${popoverOpen ? 'rotate-180' : ''}`} />
-          </div>
-        </PopoverTrigger>
+          )}
+          
+          <ChevronDown className={`w-5 h-5 text-gray-400 flex-shrink-0 transition-transform duration-200 ${popoverOpen ? 'rotate-180' : ''}`} />
+        </div>
+      </PopoverTrigger>
       <PopoverContent 
         className="bg-white border-2 border-gray-200 shadow-xl rounded-xl p-0 text-gray-900 z-50" 
         onOpenAutoFocus={(e) => e.preventDefault()}
@@ -131,11 +145,11 @@ export function MultiSelectDropdown({ options, selected, onChange, placeholder =
         align="start"
         sideOffset={4}
       >
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200 px-4 py-3 flex-shrink-0">
+        <div className="bg-gradient-to-r from-green-50 to-blue-50 border-b border-gray-200 px-4 py-3 flex-shrink-0">
           <div className="flex items-center gap-2">
-            <Search className="w-4 h-4 text-blue-600" />
+            <Search className="w-4 h-4 text-green-600" />
             <span className="text-sm font-semibold text-gray-700">
-              {input.trim() ? `Resultados para "${input.trim()}"` : 'Especialidades disponíveis'}
+              {input.trim() ? `Resultados para "${input.trim()}"` : 'Conselhos disponíveis'}
             </span>
           </div>
         </div>
@@ -155,7 +169,7 @@ export function MultiSelectDropdown({ options, selected, onChange, placeholder =
               <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
                 <Search className="w-6 h-6 text-gray-400" />
               </div>
-              <p className="text-sm text-gray-500 font-medium">Nenhuma especialidade encontrada</p>
+              <p className="text-sm text-gray-500 font-medium">Nenhum conselho encontrado</p>
               <p className="text-xs text-gray-400 mt-1">Tente buscar com outros termos</p>
             </div>
           )}
@@ -163,11 +177,13 @@ export function MultiSelectDropdown({ options, selected, onChange, placeholder =
           {showOptions.map(opt => (
             <div
               key={opt.id}
-              className="group cursor-pointer px-3 py-2.5 rounded-lg text-sm hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:border-blue-200 border border-transparent transition-all duration-150 flex items-center gap-3"
+              className="group cursor-pointer px-3 py-2.5 rounded-lg text-sm hover:bg-gradient-to-r hover:from-green-50 hover:to-blue-50 hover:border-green-200 border border-transparent transition-all duration-150 flex items-center gap-3"
               onClick={() => handleSelect(opt)}
             >
-              <div className="w-2 h-2 bg-blue-400 rounded-full group-hover:bg-blue-600 transition-colors duration-150"></div>
-              <span className="font-medium text-gray-700 group-hover:text-gray-900">{opt.nome}</span>
+              <div className="w-2 h-2 bg-green-400 rounded-full group-hover:bg-green-600 transition-colors duration-150"></div>
+              <span className="font-medium text-gray-700 group-hover:text-gray-900">
+                {formatOption ? formatOption(opt) : opt.nome}
+              </span>
             </div>
           ))}
           
@@ -176,4 +192,4 @@ export function MultiSelectDropdown({ options, selected, onChange, placeholder =
     </Popover>
     </div>
   );
-} 
+}

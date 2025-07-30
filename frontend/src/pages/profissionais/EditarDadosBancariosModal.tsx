@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { FormErrorMessage } from '@/components/form-error-message';
 import { FileUpload } from '@/components/ui/FileUpload';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
+import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import { updateProfissionalDadosBancarios, deleteProfissionalComprovanteBancario } from '@/services/profissionais';
 import { uploadAnexo, getAnexos, deleteAnexo } from '@/services/anexos';
 import { useInputMask } from '@/hooks/useInputMask';
@@ -19,6 +21,20 @@ interface EditarDadosBancariosModalProps {
 }
 
 export default function EditarDadosBancariosModal({ open, onClose, profissional, onSalvar }: EditarDadosBancariosModalProps) {
+  // Opções para os selects
+  const tiposContaOptions = [
+    { id: 'CORRENTE', nome: 'Conta Corrente' },
+    { id: 'POUPANCA', nome: 'Poupança' },
+    { id: 'SALARIO', nome: 'Conta Salário' }
+  ];
+
+  const tiposPixOptions = [
+    { id: 'cpf', nome: 'CPF' },
+    { id: 'cnpj', nome: 'CNPJ' },
+    { id: 'email', nome: 'E-mail' },
+    { id: 'telefone', nome: 'Telefone' },
+    { id: 'chave_aleatoria', nome: 'Chave Aleatória' }
+  ];
   const [form, setForm] = useState({
     banco: '',
     tipoConta: '',
@@ -166,127 +182,155 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
             <DialogTitle>Editar Dados Bancários - {profissional?.nome}</DialogTitle>
           </DialogHeader>
 
-          <div className="py-4 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Banco</label>
-              <input
-                type="text"
-                value={form.banco}
-                onChange={e => setForm(f => ({ ...f, banco: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={loading}
-                placeholder="Nome do banco"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Conta</label>
-              <Select value={form.tipoConta} onValueChange={v => setForm(f => ({ ...f, tipoConta: v }))}>
-                <SelectTrigger className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                  <SelectValue placeholder="Selecione o tipo de conta" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CORRENTE">Conta Corrente</SelectItem>
-                  <SelectItem value="POUPANCA">Poupança</SelectItem>
-                  <SelectItem value="SALARIO">Conta Salário</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="py-3 space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+              <div>
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">🏪</span>
+                  <span className="bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent font-semibold">Banco</span>
+                </label>
+                <Input
+                  type="text"
+                  value={form.banco}
+                  onChange={e => setForm(f => ({ ...f, banco: e.target.value }))}
+                  className="hover:border-indigo-300 focus:border-indigo-500 focus:ring-indigo-100"
+                  disabled={loading}
+                  placeholder="Nome do banco"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">🏦</span>
+                  <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent font-semibold">Tipo de Conta</span>
+                </label>
+                <SingleSelectDropdown
+                  options={tiposContaOptions}
+                  selected={tiposContaOptions.find(t => t.id === form.tipoConta) || null}
+                  onChange={opt => setForm(f => ({ ...f, tipoConta: opt?.id || '' }))}
+                  placeholder="Digite para buscar..."
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Agência</label>
-                <input
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">🏢</span>
+                  <span className="bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent font-semibold">Agência</span>
+                </label>
+                <Input
                   type="text"
                   value={form.agencia}
                   onChange={e => setForm(f => ({ ...f, agencia: maskAgencia(e.target.value) }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="hover:border-orange-300 focus:border-orange-500 focus:ring-orange-100 font-mono"
                   disabled={loading}
                   placeholder="1234"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Número da Conta</label>
-                <input
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">🔢</span>
+                  <span className="bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent font-semibold">Número da Conta</span>
+                </label>
+                <Input
                   type="text"
                   value={form.contaNumero}
                   onChange={e => setForm(f => ({ ...f, contaNumero: maskContaNumero(e.target.value) }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="hover:border-cyan-300 focus:border-cyan-500 focus:ring-cyan-100 font-mono"
                   disabled={loading}
                   placeholder="123456789"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Dígito</label>
-                <input
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">✔️</span>
+                  <span className="bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent font-semibold">Dígito</span>
+                </label>
+                <Input
                   type="text"
                   value={form.contaDigito}
                   onChange={e => setForm(f => ({ ...f, contaDigito: maskContaDigito(e.target.value) }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="hover:border-emerald-300 focus:border-emerald-500 focus:ring-emerald-100 font-mono"
                   disabled={loading}
                   placeholder="12"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo PIX</label>
-                <Select value={form.tipo_pix} onValueChange={v => setForm(f => ({ ...f, tipo_pix: v, pix: '' }))}>
-                  <SelectTrigger className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <SelectValue placeholder="Selecione o tipo de PIX" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cpf">CPF</SelectItem>
-                    <SelectItem value="cnpj">CNPJ</SelectItem>
-                    <SelectItem value="email">E-mail</SelectItem>
-                    <SelectItem value="telefone">Telefone</SelectItem>
-                    <SelectItem value="chave_aleatoria">Chave Aleatória</SelectItem>
-                  </SelectContent>
-                </Select>
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">🔑</span>
+                  <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-semibold">Tipo PIX</span>
+                </label>
+                <SingleSelectDropdown
+                  options={tiposPixOptions}
+                  selected={tiposPixOptions.find(t => t.id === form.tipo_pix) || null}
+                  onChange={opt => setForm(f => ({ ...f, tipo_pix: opt?.id || '', pix: '' }))}
+                  placeholder="Digite para buscar..."
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">PIX</label>
-                <input
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">💳</span>
+                  <span className="bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent font-semibold">PIX</span>
+                </label>
+                <Input
                   type="text"
                   value={form.pix}
                   onChange={e => handlePixChange(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
                   disabled={loading}
+                  placeholder="Digite sua chave PIX"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Comprovante Bancário</label>
-              {comprovanteAnexo ? (
-                <div className="flex items-center gap-2 bg-gray-50 rounded p-2">
-                  <a
-                    href={comprovanteAnexo.url || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:text-blue-600 truncate max-w-[300px] block"
-                  >
-                    {comprovanteAnexo.nomeArquivo}
-                  </a>
-                  <button
-                    type="button"
-                    className="text-red-600 hover:text-red-700 ml-2"
-                    onClick={handleRemoveComprovante}
-                    title="Remover comprovante"
-                  >
-                    ×
-                  </button>
-                </div>
-              ) : (
-                <FileUpload
-                  files={comprovanteFile ? [comprovanteFile] : []}
-                  onFilesChange={handleUploadComprovante}
-                  acceptedTypes=".pdf,.jpg,.jpeg,.png"
-                  maxFiles={1}
-                  label="Comprovante Bancário"
-                />
-              )}
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-800 mb-2 flex items-center gap-2">
+                <span className="text-lg">📄</span>
+                <span className="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent font-semibold">Comprovante Bancário</span>
+              </label>
+              <div className="relative">
+                {comprovanteAnexo ? (
+                  <div className="flex items-center gap-3 bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 shadow-sm">
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <span className="text-green-600 text-lg">📎</span>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <a
+                        href={comprovanteAnexo.url || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 font-medium underline decoration-2 underline-offset-2 transition-colors duration-200 truncate block"
+                      >
+                        {comprovanteAnexo.nomeArquivo}
+                      </a>
+                      <p className="text-gray-500 text-xs mt-1">Clique para visualizar o arquivo</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="flex-shrink-0 w-8 h-8 bg-red-100 hover:bg-red-200 rounded-full flex items-center justify-center text-red-600 hover:text-red-700 transition-colors duration-200"
+                      onClick={handleRemoveComprovante}
+                      title="Remover comprovante"
+                    >
+                      <span className="text-sm font-bold">×</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-gray-300 rounded-xl hover:border-violet-400 transition-colors duration-200">
+                    <FileUpload
+                      files={comprovanteFile ? [comprovanteFile] : []}
+                      onFilesChange={handleUploadComprovante}
+                      acceptedTypes=".pdf,.jpg,.jpeg,.png"
+                      maxFiles={1}
+                      label="📤 Arraste o arquivo aqui ou clique para selecionar"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

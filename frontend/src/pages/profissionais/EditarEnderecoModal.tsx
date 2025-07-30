@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { FormErrorMessage } from '@/components/form-error-message';
 import { FileUpload } from '@/components/ui/FileUpload';
 import { updateProfissionalEndereco, deleteProfissionalComprovanteEndereco } from '@/services/profissionais';
@@ -152,115 +153,157 @@ export default function EditarEnderecoModal({ open, onClose, profissional, onSal
             <DialogTitle>Editar Endereço - {profissional?.nome}</DialogTitle>
           </DialogHeader>
 
-          <div className="py-4 space-y-4">
+          <div className="py-3 space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-10 gap-4">
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">CEP</label>
-                <input
+              <div className="col-span-2 space-y-1">
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">📮</span>
+                  <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent font-semibold">CEP</span>
+                </label>
+                <Input
                   type="text"
                   value={form.cep}
                   onChange={e => handleCepChange(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="hover:border-blue-300 focus:border-blue-500 focus:ring-blue-100 font-mono"
                   disabled={loading}
                   maxLength={9}
-                  placeholder="00000-000"
+                  placeholder="00000000"
                 />
               </div>
-              <div className="col-span-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Logradouro</label>
-                <input
+              <div className="col-span-4 space-y-1">
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">🛣️</span>
+                  <span className="bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent font-semibold">Logradouro</span>
+                </label>
+                <Input
                   type="text"
                   value={form.logradouro}
                   onChange={e => setForm(f => ({ ...f, logradouro: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
                   disabled={loading}
+                  placeholder="Rua, Avenida, etc."
                 />
               </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Número</label>
-                <input
+              <div className="col-span-2 space-y-1">
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">🔢</span>
+                  <span className="bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent font-semibold">Número</span>
+                </label>
+                <Input
                   type="text"
                   value={form.numero}
                   onChange={e => setForm(f => ({ ...f, numero: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="hover:border-orange-300 focus:border-orange-500 focus:ring-orange-100 font-mono"
                   disabled={loading}
+                  placeholder="123"
                 />
               </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
-                <input
+              <div className="col-span-2 space-y-1">
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">🏠</span>
+                  <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-semibold">Complemento</span>
+                </label>
+                <Input
                   type="text"
                   value={form.complemento}
                   onChange={e => setForm(f => ({ ...f, complemento: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="hover:border-purple-300 focus:border-purple-500 focus:ring-purple-100"
                   disabled={loading}
+                  placeholder="Apto..."
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-10 gap-4">
-              <div className="col-span-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Bairro</label>
-                <input
+              <div className="col-span-4 space-y-1">
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">🏘️</span>
+                  <span className="bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent font-semibold">Bairro</span>
+                </label>
+                <Input
                   type="text"
                   value={form.bairro}
                   onChange={e => setForm(f => ({ ...f, bairro: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="hover:border-indigo-300 focus:border-indigo-500 focus:ring-indigo-100"
                   disabled={loading}
+                  placeholder="Nome do bairro"
                 />
               </div>
-              <div className="col-span-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
-                <input
+              <div className="col-span-4 space-y-1">
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">🏙️</span>
+                  <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent font-semibold">Cidade</span>
+                </label>
+                <Input
                   type="text"
                   value={form.cidade}
                   onChange={e => setForm(f => ({ ...f, cidade: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="hover:border-emerald-300 focus:border-emerald-500 focus:ring-emerald-100"
                   disabled={loading}
+                  placeholder="Nome da cidade"
                 />
               </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                <input
+              <div className="col-span-2 space-y-1">
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">🗺️</span>
+                  <span className="bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent font-semibold">Estado</span>
+                </label>
+                <Input
                   type="text"
                   value={form.estado}
                   onChange={e => setForm(f => ({ ...f, estado: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="hover:border-red-300 focus:border-red-500 focus:ring-red-100 font-mono"
                   disabled={loading}
+                  placeholder="SP"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Comprovante de Endereço</label>
-              {comprovanteAnexo ? (
-                <div className="flex items-center gap-2 bg-gray-50 rounded p-2">
-                  <a
-                    href={comprovanteAnexo.url || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:text-blue-600 truncate max-w-[300px] block"
-                  >
-                    {comprovanteAnexo.nomeArquivo}
-                  </a>
-                  <button
-                    type="button"
-                    className="text-red-600 hover:text-red-700 ml-2"
-                    onClick={handleRemoveComprovante}
-                    title="Remover comprovante"
-                  >
-                    ×
-                  </button>
-                </div>
-              ) : (
-                <FileUpload
-                  files={comprovanteFile ? [comprovanteFile] : []}
-                  onFilesChange={handleUploadComprovante}
-                  acceptedTypes=".pdf,.jpg,.jpeg,.png"
-                  maxFiles={1}
-                  label="Comprovante de Endereço"
-                />
-              )}
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-800 mb-2 flex items-center gap-2">
+                <span className="text-lg">📄</span>
+                <span className="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent font-semibold">Comprovante de Endereço</span>
+              </label>
+              <div className="relative">
+                {comprovanteAnexo ? (
+                  <div className="flex items-center gap-3 bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 shadow-sm">
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <span className="text-green-600 text-lg">📎</span>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <a
+                        href={comprovanteAnexo.url || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 font-medium underline decoration-2 underline-offset-2 transition-colors duration-200 truncate block"
+                      >
+                        {comprovanteAnexo.nomeArquivo}
+                      </a>
+                      <p className="text-gray-500 text-xs mt-1">Clique para visualizar o arquivo</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="flex-shrink-0 w-8 h-8 bg-red-100 hover:bg-red-200 rounded-full flex items-center justify-center text-red-600 hover:text-red-700 transition-colors duration-200"
+                      onClick={handleRemoveComprovante}
+                      title="Remover comprovante"
+                    >
+                      <span className="text-sm font-bold">×</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-gray-300 rounded-xl hover:border-violet-400 transition-colors duration-200">
+                    <FileUpload
+                      files={comprovanteFile ? [comprovanteFile] : []}
+                      onFilesChange={handleUploadComprovante}
+                      acceptedTypes=".pdf,.jpg,.jpeg,.png"
+                      maxFiles={1}
+                      label="📤 Arraste o arquivo aqui ou clique para selecionar"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

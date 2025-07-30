@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { FormErrorMessage } from '@/components/form-error-message';
 import { updateProfissionalEmpresaContrato } from '@/services/profissionais';
 import { useInputMask } from '@/hooks/useInputMask';
@@ -71,26 +72,34 @@ export default function EditarEmpresaContratoModal({ open, onClose, profissional
             <DialogTitle>Editar Empresa/Contrato - {profissional?.nome}</DialogTitle>
           </DialogHeader>
 
-          <div className="py-4 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">CNPJ</label>
-              <input
+          <div className="py-2 space-y-4">
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <span className="text-lg">🏢</span>
+                <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent font-semibold">CNPJ</span>
+              </label>
+              <Input
                 type="text"
                 value={form.cnpj}
                 onChange={e => setForm(f => ({ ...f, cnpj: maskCNPJ(e.target.value) }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="hover:border-blue-300 focus:border-blue-500 focus:ring-blue-100 font-mono"
                 maxLength={18}
                 disabled={loading}
+                placeholder="00.000.000/0000-00"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Razão Social</label>
-              <input
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <span className="text-lg">🏛️</span>
+                <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-semibold">Razão Social</span>
+              </label>
+              <Input
                 type="text"
                 value={form.razaoSocial}
                 onChange={e => setForm(f => ({ ...f, razaoSocial: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="hover:border-purple-300 focus:border-purple-500 focus:ring-purple-100"
                 disabled={loading}
+                placeholder="Nome completo da empresa"
               />
             </div>
           </div>

@@ -1,17 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, Trash2, MapPin, User, CreditCard, Building, List } from 'lucide-react';
+import { Plus, Search, Trash2, MapPin, User, CreditCard, Building, List, Edit } from 'lucide-react';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
-import { FormErrorMessage } from '@/components/form-error-message';
-import { getProfissionais, createProfissional, deleteProfissional, updateProfissionalServicos } from '@/services/profissionais';
+import { getProfissionais, deleteProfissional, updateProfissionalServicos } from '@/services/profissionais';
 import type { Profissional } from '@/types/Profissional';
 import type { Servico } from '@/types/Servico';
 import type { Convenio } from '@/types/Convenio';
-import { useInputMask } from '@/hooks/useInputMask';
 import { getConvenios } from '@/services/convenios';
 import { getServicos } from '@/services/servicos';
+import CriarProfissionalModal from './CriarProfissionalModal';
+import EditarProfissionalModal from './EditarProfissionalModal';
 import AtribuirServicosModal from './AtribuirServicosModal';
 import EditarEnderecoModal from './EditarEnderecoModal';
 import EditarInfoProfissionalModal from './EditarInfoProfissionalModal';
@@ -21,15 +20,6 @@ import EditarEmpresaContratoModal from './EditarEmpresaContratoModal';
 export default function ProfissionaisPage() {
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [busca, setBusca] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({
-    nome: '',
-    cpf: '',
-    email: '',
-    whatsapp: '',
-  });
-  const [formError, setFormError] = useState('');
-  const [formLoading, setFormLoading] = useState(false);
   const [excluindo, setExcluindo] = useState<Profissional | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [itensPorPagina, setItensPorPagina] = useState(10);
@@ -40,14 +30,56 @@ export default function ProfissionaisPage() {
   const [servicos, setServicos] = useState<Servico[]>([]);
 
   // Modais específicos
+  const [modalCriar, setModalCriar] = useState(false);
+  const [modalEditar, setModalEditar] = useState<{ open: boolean, profissional: Profissional | null }>({ open: false, profissional: null });
   const [modalAtribuir, setModalAtribuir] = useState<{ open: boolean, profissional: Profissional | null }>({ open: false, profissional: null });
   const [modalEndereco, setModalEndereco] = useState<{ open: boolean, profissional: Profissional | null }>({ open: false, profissional: null });
   const [modalInfoProfissional, setModalInfoProfissional] = useState<{ open: boolean, profissional: Profissional | null }>({ open: false, profissional: null });
   const [modalDadosBancarios, setModalDadosBancarios] = useState<{ open: boolean, profissional: Profissional | null }>({ open: false, profissional: null });
   const [modalEmpresaContrato, setModalEmpresaContrato] = useState<{ open: boolean, profissional: Profissional | null }>({ open: false, profissional: null });
 
-  const maskTelefone = useInputMask('(99) 99 99999-9999');
-  const maskCPF = useInputMask('999.999.999-99');
+  // Função para formatar WhatsApp completo (13 dígitos) para exibição
+  const formatWhatsApp = (whatsapp: string) => {
+    if (!whatsapp) return '';
+    const numbers = whatsapp.replace(/\D/g, '');
+    if (numbers.length === 13) {
+      // Formato: 5599999999999 -> +55 (99) 99999-9999
+      return `+${numbers.slice(0, 2)} (${numbers.slice(2, 4)}) ${numbers.slice(4, 9)}-${numbers.slice(9)}`;
+    }
+    return whatsapp;
+  };
+
+  // Função para aplicar máscara durante a digitação  
+  const applyWhatsAppMask = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    
+    // Se está vazio, retorna vazio
+    if (numbers.length === 0) {
+      return '';
+    }
+    
+    // Se começar digitando qualquer número, assume que será brasileiro (+55)
+    let finalNumbers = numbers;
+    if (numbers.length <= 11 && !numbers.startsWith('55')) {
+      finalNumbers = '55' + numbers;
+    }
+    
+    // Aplicar formatação baseada no comprimento
+    if (finalNumbers.length <= 2) {
+      return `+${finalNumbers}`;
+    } else if (finalNumbers.length <= 4) {
+      return `+${finalNumbers.slice(0, 2)} (${finalNumbers.slice(2)}`;
+    } else if (finalNumbers.length <= 5) {
+      return `+${finalNumbers.slice(0, 2)} (${finalNumbers.slice(2, 4)}) ${finalNumbers.slice(4)}`;
+    } else if (finalNumbers.length <= 9) {
+      return `+${finalNumbers.slice(0, 2)} (${finalNumbers.slice(2, 4)}) ${finalNumbers.slice(4)}`;
+    } else if (finalNumbers.length <= 13) {
+      return `+${finalNumbers.slice(0, 2)} (${finalNumbers.slice(2, 4)}) ${finalNumbers.slice(4, 9)}-${finalNumbers.slice(9, 13)}`;
+    }
+    
+    // Máximo de 13 dígitos
+    return `+${finalNumbers.slice(0, 2)} (${finalNumbers.slice(2, 4)}) ${finalNumbers.slice(4, 9)}-${finalNumbers.slice(9, 13)}`;
+  };
 
   useEffect(() => {
     carregarProfissionais();
@@ -72,7 +104,7 @@ export default function ProfissionaisPage() {
   const normalizarTelefone = (tel: string) => tel.replace(/\D/g, '');
   const normalizarBusca = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
   
-  const profissionaisFiltrados = busca.trim() === ''
+  const profissionaisFiltrados = (busca.trim() === ''
     ? profissionais
     : profissionais.filter(p => {
         const buscaNormalizada = normalizarBusca(busca);
@@ -89,7 +121,8 @@ export default function ProfissionaisPage() {
           match = match || cpf.includes(buscaNumeros) || whatsapp.includes(buscaNumeros);
         }
         return match;
-      });
+      })
+  ).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }));
 
   const totalPaginas = Math.ceil(profissionaisFiltrados.length / itensPorPagina);
   const profissionaisPaginados = profissionaisFiltrados.slice(
@@ -101,83 +134,6 @@ export default function ProfissionaisPage() {
     setPaginaAtual(1);
   }, [busca, itensPorPagina]);
 
-  // Funções do modal de criação
-  const abrirModalNovo = () => {
-    setForm({
-      nome: '',
-      cpf: '',
-      email: '',
-      whatsapp: '',
-    });
-    setFormError('');
-    setShowModal(true);
-  };
-
-  const fecharModal = () => {
-    setShowModal(false);
-    setForm({
-      nome: '',
-      cpf: '',
-      email: '',
-      whatsapp: '',
-    });
-    setFormError('');
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.nome.trim() || form.nome.trim().length < 2) {
-      setFormError('O nome deve ter pelo menos 2 caracteres.');
-      return;
-    }
-    const cpfLimpo = form.cpf.replace(/\D/g, '');
-    if (!cpfLimpo || cpfLimpo.length !== 11) {
-      setFormError('CPF inválido. Exemplo: xxx.xxx.xxx-xx.');
-      return;
-    }
-    if (!form.email.trim() || !form.email.includes('@')) {
-      setFormError('E-mail inválido. Exemplo: nome@email.com');
-      return;
-    }
-    const telefoneValido = /^\(\d{2}\) \d{2} \d{5}-\d{4}$/.test(form.whatsapp.trim());
-    if (form.whatsapp && !telefoneValido) {
-      setFormError('Telefone inválido. Exemplo: (55) 12 98144-0779');
-      return;
-    }
-    
-    setFormLoading(true);
-    setFormError('');
-    
-    try {
-      const profissionalPayload = {
-        nome: form.nome.trim(),
-        cpf: form.cpf,
-        email: form.email.trim(),
-        whatsapp: form.whatsapp ? form.whatsapp.replace(/\D/g, '') : null,
-      };
-      await createProfissional(profissionalPayload);
-      await carregarProfissionais();
-      fecharModal();
-    } catch (err: any) {
-      let msg = 'Erro ao salvar profissional.';
-      if (err?.response?.data) {
-        if (typeof err.response.data === 'string') {
-          msg = err.response.data;
-        } else if (err.response.data.message) {
-          msg = err.response.data.message;
-        } else if (err.response.data.error) {
-          msg = err.response.data.error;
-        } else if (Array.isArray(err.response.data.errors)) {
-          msg = err.response.data.errors.map((e: any) => e.message || e).join(' \n ');
-        }
-      } else if (err?.message) {
-        msg = err.message;
-      }
-      setFormError(msg);
-    } finally {
-      setFormLoading(false);
-    }
-  };
 
   // Funções de exclusão
   const confirmarExclusao = (p: Profissional) => setExcluindo(p);
@@ -196,6 +152,7 @@ export default function ProfissionaisPage() {
       setDeleteLoading(false);
     }
   };
+
 
   return (
     <div className="pt-2 pl-6 pr-6 h-full flex flex-col">
@@ -216,7 +173,7 @@ export default function ProfissionaisPage() {
               className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
-          <Button onClick={abrirModalNovo} className="bg-blue-600 hover:bg-blue-700 ml-2">
+          <Button onClick={() => setModalCriar(true)} className="bg-blue-600 hover:bg-blue-700 ml-2">
             <Plus className="w-4 h-4 mr-2" />
             Novo Profissional
           </Button>
@@ -258,10 +215,19 @@ export default function ProfissionaisPage() {
                       <span className="text-sm">{p.email}</span>
                     </TableCell>
                     <TableCell className="py-2">
-                      <span className="text-sm">{maskTelefone(p.whatsapp || '')}</span>
+                      <span className="text-sm">{formatWhatsApp(p.whatsapp || '')}</span>
                     </TableCell>
                     <TableCell className="py-2">
                       <div className="flex gap-1 flex-wrap">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-400 h-7 w-7 p-0"
+                          onClick={() => setModalEditar({ open: true, profissional: p })}
+                          title="Editar Dados Básicos"
+                        >
+                          <Edit className="w-3 h-3" />
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -383,107 +349,80 @@ export default function ProfissionaisPage() {
         )}
       </div>
 
-      {/* Modal de criação */}
-      <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="max-w-lg">
-          <form onSubmit={handleSubmit} className="flex flex-col h-full">
-            <DialogHeader>
-              <DialogTitle>Novo Profissional - Dados Básicos</DialogTitle>
-            </DialogHeader>
-            <div className="py-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo <span className="text-red-500">*</span></label>
-                <input type="text" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" minLength={2} disabled={formLoading} autoFocus />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">CPF <span className="text-red-500">*</span></label>
-                <input type="text" value={form.cpf} onChange={e => setForm(f => ({ ...f, cpf: maskCPF(e.target.value) }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" minLength={14} disabled={formLoading} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">E-mail <span className="text-red-500">*</span></label>
-                <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" disabled={formLoading} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp</label>
-                <input type="text" value={form.whatsapp} onChange={e => setForm(f => ({ ...f, whatsapp: maskTelefone(e.target.value) }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" disabled={formLoading} />
-              </div>
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-700">
-                  <strong>📝 Informação:</strong> Após criar o profissional, você poderá editar para adicionar informações complementares como endereço, especialidades, dados bancários e anexos.
-                </p>
-              </div>
-            </div>
-            <DialogFooter className="flex items-center justify-between">
-              <div className="flex-1">
-                {formError && <FormErrorMessage>{formError}</FormErrorMessage>}
-              </div>
-              <div className="flex gap-2">
-                <DialogClose asChild>
-                  <Button type="button" variant="cancel" disabled={formLoading}>Cancelar</Button>
-                </DialogClose>
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={formLoading}>
-                  {formLoading ? 'Salvando...' : 'Salvar'}
-                </Button>
-              </div>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
       {/* Modal de confirmação de exclusão */}
-      <AlertDialog open={!!excluindo} onOpenChange={open => !open && cancelarExclusao()}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+      <AlertDialog open={excluindo !== null} onOpenChange={() => !deleteLoading && cancelarExclusao()}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader className="text-center pb-4">
+            <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <span className="text-3xl">⚠️</span>
+            </div>
+            <AlertDialogTitle className="text-xl font-bold text-gray-900">
+              <span className="bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
+                Confirmar Exclusão
+              </span>
+            </AlertDialogTitle>
           </AlertDialogHeader>
-          <div className="py-2">
-            Tem certeza que deseja excluir o profissional <b>{excluindo?.nome}</b>?
+          <div className="text-center py-4">
+            <p className="text-gray-700 mb-3">
+              Tem certeza que deseja excluir o profissional
+            </p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+              <span className="font-bold text-red-800 text-lg">{excluindo?.nome}</span>
+            </div>
+            <div className="flex items-center justify-center gap-2 text-sm text-red-600 bg-red-50 rounded-lg p-3">
+              <span className="text-lg">🚨</span>
+              <span className="font-medium">Esta ação não pode ser desfeita</span>
+            </div>
           </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteLoading} onClick={cancelarExclusao} className="hover:bg-red-50 hover:text-red-600">Cancelar</AlertDialogCancel>
-            <AlertDialogAction disabled={deleteLoading} onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
-              {deleteLoading ? 'Excluindo...' : 'Excluir'}
+          <AlertDialogFooter className="flex gap-3 pt-6">
+            <AlertDialogCancel 
+              disabled={deleteLoading} 
+              onClick={cancelarExclusao} 
+              className="flex-1 border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 hover:text-gray-700 font-semibold transition-all duration-200"
+            >
+              <span className="mr-2">↩️</span>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              disabled={deleteLoading} 
+              onClick={handleDelete}
+              className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 font-semibold shadow-md hover:shadow-lg transition-all duration-200"
+            >
+              <span className="mr-2">{deleteLoading ? '⏳' : '🗑️'}</span>
+              {deleteLoading ? 'Excluindo...' : 'Excluir Profissional'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Modais de criação e edição */}
+      <CriarProfissionalModal
+        open={modalCriar}
+        onClose={() => setModalCriar(false)}
+        onSuccess={() => {
+          carregarProfissionais();
+          setModalCriar(false);
+        }}
+      />
+      
+      <EditarProfissionalModal
+        open={modalEditar.open}
+        onClose={() => setModalEditar({ open: false, profissional: null })}
+        profissional={modalEditar.profissional}
+        onSuccess={() => {
+          carregarProfissionais();
+          setModalEditar({ open: false, profissional: null });
+        }}
+      />
       {/* Modais de edição específicos */}
       <AtribuirServicosModal
         open={modalAtribuir.open}
         onClose={() => setModalAtribuir({ open: false, profissional: null })}
         profissional={modalAtribuir.profissional}
         convenios={convenios}
-        servicos={servicos.map(s => {
-          // Normalizar conveniosIds - suporta diferentes formatos do backend
-          let conveniosIds: string[] = [];
-          
-          if (Array.isArray(s.conveniosIds)) {
-            // Formato direto: conveniosIds: ["id1", "id2"]
-            conveniosIds = s.conveniosIds;
-          } else if (Array.isArray(s.convenios)) {
-            // Formato com objetos: convenios: [{id: "id1"}, {id: "id2"}]
-            conveniosIds = s.convenios.map((c: any) => typeof c === 'string' ? c : c.id).filter(Boolean);
-          } else if (s.convenios && typeof s.convenios === 'object') {
-            // Formato single object
-            conveniosIds = [typeof s.convenios === 'string' ? s.convenios : (s.convenios as any).id].filter(Boolean);
-          }
-          
-          return {
-          id: s.id,
-          nome: s.nome,
-          duracao: s.duracaoMinutos || 0,
-            conveniosIds: conveniosIds,
-          };
-        })}
-        servicosAtribuidos={modalAtribuir.profissional && Array.isArray(modalAtribuir.profissional.servicos)
-          ? modalAtribuir.profissional.servicos.map((s: any) => s.id)
-          : []}
-        onSalvar={async (servicosIds: string[]) => {
-          if (modalAtribuir.profissional) {
-            await updateProfissionalServicos(modalAtribuir.profissional.id, servicosIds);
+        servicos={servicos}
+        onSalvar={async () => {
           await carregarProfissionais();
-          }
           setModalAtribuir({ open: false, profissional: null });
         }}
       />
@@ -529,4 +468,4 @@ export default function ProfissionaisPage() {
       />
     </div>
   );
-} 
+}

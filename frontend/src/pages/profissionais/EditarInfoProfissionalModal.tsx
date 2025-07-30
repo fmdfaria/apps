@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { FormErrorMessage } from '@/components/form-error-message';
 import { FileUpload } from '@/components/ui/FileUpload';
 import { MultiSelectDropdown } from '@/components/ui/multiselect-dropdown';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
+import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import { updateProfissionalInfoProfissional, deleteProfissionalComprovanteRegistro } from '@/services/profissionais';
 import { getEspecialidades } from '@/services/especialidades';
-import { getConselhos } from '@/services/conselhos';
+import { getConselhos, type ConselhoProfissional } from '@/services/conselhos';
 import { uploadAnexo, getAnexos, deleteAnexo } from '@/services/anexos';
 import type { Profissional } from '@/types/Profissional';
 import type { Especialidade } from '@/types/Especialidade';
@@ -33,7 +35,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [especialidades, setEspecialidades] = useState<Especialidade[]>([]);
-  const [conselhos, setConselhos] = useState<{ id: string, nome: string }[]>([]);
+  const [conselhos, setConselhos] = useState<ConselhoProfissional[]>([]);
 
   useEffect(() => {
     if (open) {
@@ -140,73 +142,102 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
             <DialogTitle>Editar Informações Profissionais - {profissional?.nome}</DialogTitle>
           </DialogHeader>
 
-          <div className="py-4 space-y-4">
+          <div className="py-2 space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Especialidades <span className="text-red-500">*</span></label>
-              <MultiSelectDropdown
-                options={especialidades}
-                selected={especialidades.filter(e => form.especialidadesIds.includes(e.id))}
-                onChange={opts => setForm(f => ({ ...f, especialidadesIds: opts.map(o => o.id) }))}
-                placeholder="Digite para buscar ou criar uma especialidade"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Conselho</label>
-                <Select value={form.conselhoId} onValueChange={v => setForm(f => ({ ...f, conselhoId: v }))}>
-                  <SelectTrigger className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <SelectValue placeholder="Selecione o conselho" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {conselhos.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Número Conselho</label>
-                <input
-                  type="text"
-                  value={form.numeroConselho}
-                  onChange={e => setForm(f => ({ ...f, numeroConselho: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={loading}
+              <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <span className="text-lg">🎯</span>
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">Especialidades</span>
+                <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <MultiSelectDropdown
+                  options={especialidades}
+                  selected={especialidades.filter(e => form.especialidadesIds.includes(e.id))}
+                  onChange={opts => setForm(f => ({ ...f, especialidadesIds: opts.map(o => o.id) }))}
+                  placeholder="Digite para buscar especialidades..."
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Comprovante de Registro</label>
-              {comprovanteAnexo ? (
-                <div className="flex items-center gap-2 bg-gray-50 rounded p-2">
-                  <a
-                    href={comprovanteAnexo.url || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:text-blue-600 truncate max-w-[300px] block"
-                  >
-                    {comprovanteAnexo.nomeArquivo}
-                  </a>
-                  <button
-                    type="button"
-                    className="text-red-600 hover:text-red-700 ml-2"
-                    onClick={handleRemoveComprovante}
-                    title="Remover comprovante"
-                  >
-                    ×
-                  </button>
+            <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
+              <div className="space-y-1 min-w-0 overflow-hidden">
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">⚖️</span>
+                  <span className="bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent font-semibold">Conselho</span>
+                </label>
+                <div className="relative w-full max-w-full overflow-hidden">
+                  <SingleSelectDropdown
+                    options={conselhos}
+                    selected={conselhos.find(c => c.id === form.conselhoId) || null}
+                    onChange={opt => setForm(f => ({ ...f, conselhoId: opt?.id || '' }))}
+                    placeholder="Digite para buscar conselhos..."
+                    formatOption={(conselho) => `${conselho.sigla} | ${conselho.nome}`}
+                  />
                 </div>
-              ) : (
-                <FileUpload
-                  files={comprovanteFile ? [comprovanteFile] : []}
-                  onFilesChange={handleUploadComprovante}
-                  acceptedTypes=".pdf,.jpg,.jpeg,.png"
-                  maxFiles={1}
-                  label="Comprovante de Registro"
-                />
-              )}
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">🔢</span>
+                  <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent font-semibold">Número do Conselho</span>
+                </label>
+                <div className="relative">
+                  <Input
+                    type="text"
+                    value={form.numeroConselho}
+                    onChange={e => setForm(f => ({ ...f, numeroConselho: e.target.value }))}
+                    className="hover:border-orange-300 focus:border-orange-500 focus:ring-orange-100 font-mono"
+                    disabled={loading}
+                    placeholder="Ex: 12345/SP"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <span className="text-lg">📄</span>
+                <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-semibold">Comprovante de Registro</span>
+              </label>
+              <div className="relative">
+                {comprovanteAnexo ? (
+                  <div className="flex items-center gap-3 bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 shadow-sm">
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <span className="text-green-600 text-lg">📎</span>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <a
+                        href={comprovanteAnexo.url || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 font-medium underline decoration-2 underline-offset-2 transition-colors duration-200 truncate block"
+                      >
+                        {comprovanteAnexo.nomeArquivo}
+                      </a>
+                      <p className="text-gray-500 text-xs mt-1">Clique para visualizar o arquivo</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="flex-shrink-0 w-8 h-8 bg-red-100 hover:bg-red-200 rounded-full flex items-center justify-center text-red-600 hover:text-red-700 transition-colors duration-200"
+                      onClick={handleRemoveComprovante}
+                      title="Remover comprovante"
+                    >
+                      <span className="text-sm font-bold">×</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-gray-300 rounded-xl hover:border-purple-400 transition-colors duration-200">
+                    <FileUpload
+                      files={comprovanteFile ? [comprovanteFile] : []}
+                      onFilesChange={handleUploadComprovante}
+                      acceptedTypes=".pdf,.jpg,.jpeg,.png"
+                      maxFiles={1}
+                      label="📤 Arraste o arquivo aqui ou clique para selecionar"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
