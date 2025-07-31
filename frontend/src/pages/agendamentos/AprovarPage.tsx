@@ -245,23 +245,76 @@ export const AprovarPage = () => {
     <div className="rounded-lg bg-white">
               <Table>
           <TableHeader>
-            <TableRow className="bg-muted">
-              <TableHead className="text-center py-2 text-sm">Data Agendamento</TableHead>
-              <TableHead className="text-center py-2 text-sm">Horário</TableHead>
-              <TableHead className="py-2 text-sm">Convênio</TableHead>
-              <TableHead className="py-2 text-sm">Serviço</TableHead>
-              <TableHead className="text-center py-2 text-sm">Tipo</TableHead>
-              <TableHead className="py-2 text-sm">Paciente</TableHead>
-              <TableHead className="py-2 text-sm">Profissional</TableHead>
-              <TableHead className="text-center py-2 text-sm">Data Atendimento</TableHead>
-              <TableHead className="text-right py-2 text-sm">Ações</TableHead>
+            <TableRow className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
+              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-lg">📅</span>
+                  Data Agendamento
+                </div>
+              </TableHead>
+              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-lg">⏰</span>
+                  Horário
+                </div>
+              </TableHead>
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🏥</span>
+                  Convênio
+                </div>
+              </TableHead>
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🩺</span>
+                  Serviço
+                </div>
+              </TableHead>
+              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-lg">🏷️</span>
+                  Tipo
+                </div>
+              </TableHead>
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">👤</span>
+                  Paciente
+                </div>
+              </TableHead>
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">👨‍⚕️</span>
+                  Profissional
+                </div>
+              </TableHead>
+              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-lg">📅</span>
+                  Data Atendimento
+                </div>
+              </TableHead>
+              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-lg">⚙️</span>
+                  Ações
+                </div>
+              </TableHead>
             </TableRow>
           </TableHeader>
         <TableBody>
           {agendamentosPaginados.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="text-center py-6 text-gray-500 text-sm">
-                {(busca || temFiltrosAtivos) ? 'Nenhum resultado encontrado com os filtros aplicados.' : 'Nenhum agendamento atendido para aprovação.'}
+              <TableCell colSpan={9} className="py-12 text-center">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                    <span className="text-3xl">🔍</span>
+                  </div>
+                  <p className="text-gray-500 font-medium">
+                    {(busca || temFiltrosAtivos) ? 'Nenhum resultado encontrado' : 'Nenhum agendamento para aprovação'}
+                  </p>
+                  <p className="text-gray-400 text-sm">Tente ajustar os filtros de busca</p>
+                </div>
               </TableCell>
             </TableRow>
           ) : (
@@ -269,7 +322,7 @@ export const AprovarPage = () => {
               const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
               
               return (
-                <TableRow key={agendamento.id} className="hover:bg-gray-50 h-12">
+                <TableRow key={agendamento.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200 h-12">
                   <TableCell className="text-center py-2">
                     <span className="text-sm">{data}</span>
                   </TableCell>
@@ -348,7 +401,6 @@ export const AprovarPage = () => {
       <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Conclusão de Agendamentos</h1>
-          <p className="text-gray-600">Avalie e aprove/reprove agendamentos atendidos</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative">

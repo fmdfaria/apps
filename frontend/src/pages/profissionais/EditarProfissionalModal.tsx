@@ -24,6 +24,11 @@ const applyWhatsAppMask = (value: string) => {
   return `+${numbers.slice(0, 2)} (${numbers.slice(2, 4)}) ${numbers.slice(4, 9)}-${numbers.slice(9, 13)}`;
 };
 
+// Função para remover máscara e retornar apenas números
+const removeWhatsAppMask = (value: string) => {
+  return value.replace(/\D/g, '');
+};
+
 export default function EditarProfissionalModal({ open, onClose, profissional, onSuccess }: EditarProfissionalModalProps) {
   const [form, setForm] = useState({
     nome: '',
@@ -90,7 +95,7 @@ export default function EditarProfissionalModal({ open, onClose, profissional, o
         nome: form.nome.trim(),
         cpf: form.cpf,
         email: form.email.trim(),
-        whatsapp: form.whatsapp || null,
+        whatsapp: form.whatsapp ? removeWhatsAppMask(form.whatsapp) : null,
       };
       
       await updateProfissional(profissional.id, profissionalPayload);

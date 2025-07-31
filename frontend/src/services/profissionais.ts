@@ -13,6 +13,11 @@ export async function getProfissionais(): Promise<Profissional[]> {
   return data;
 }
 
+export async function getProfissional(id: string): Promise<Profissional> {
+  const { data } = await api.get(`/profissionais/${id}`);
+  return data;
+}
+
 export async function createProfissional(payload: any): Promise<Profissional> {
   // ✅ REFATORAÇÃO: Criação simples com JSON - apenas campos essenciais
   const profissionalPayload = {

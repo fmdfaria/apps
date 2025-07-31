@@ -453,9 +453,11 @@ export default function ProfissionaisPage() {
         profissional={modalAtribuir.profissional}
         convenios={convenios}
         servicos={servicos}
-        onSalvar={async () => {
-          await carregarProfissionais();
-          setModalAtribuir({ open: false, profissional: null });
+        onSalvar={async (servicosIds: string[]) => {
+          if (modalAtribuir.profissional) {
+            await updateProfissionalServicos(modalAtribuir.profissional.id, servicosIds);
+            await carregarProfissionais();
+          }
         }}
       />
       

@@ -29,5 +29,5 @@ export interface Profissional {
   comprovanteBancario?: string | null;
   userId?: string | null;
   especialidades?: { id: string }[];
-  servicos?: { id: string }[];
+  servicos?: Array<{ id: string; nome?: string; [key: string]: any }>;
 } 

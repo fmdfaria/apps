@@ -6,6 +6,7 @@ import { Search } from 'lucide-react';
 import type { Servico } from '@/types/Servico';
 import type { Convenio } from '@/types/Convenio';
 import type { Profissional } from '@/types/Profissional';
+import { getProfissional } from '@/services/profissionais';
 
 interface Props {
   open: boolean;
@@ -23,21 +24,57 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
   const [selecionados, setSelecionados] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
-
-
-
-
+  const [profissionalCompleto, setProfissionalCompleto] = useState<Profissional | null>(null);
+  const [carregandoProfissional, setCarregandoProfissional] = useState(false);
 
   // Se não há dados carregados ainda, não mostrar o modal
   if (!convenios.length || !servicos.length) {
     return null;
   }
 
-  // Sincronizar selecionados ao abrir o modal com os serviços já atribuídos ao profissional
+  // Carregar dados completos do profissional quando o modal abrir
   useEffect(() => {
-    if (open && profissional) {
-      setSelecionados(profissional.servicosIds || []);
+    async function carregarProfissionalCompleto() {
+      if (open && profissional) {
+        setCarregandoProfissional(true);
+        try {
+          const profCompleto = await getProfissional(profissional.id);
+          setProfissionalCompleto(profCompleto);
+          
+          // A API pode retornar servicosIds (array de strings) ou servicos (array de objetos)
+          let servicosIdsArray: string[] = [];
+          
+          if (profCompleto.servicosIds && Array.isArray(profCompleto.servicosIds)) {
+            // Se tem servicosIds, usar diretamente
+            servicosIdsArray = profCompleto.servicosIds;
+          } else if (profCompleto.servicos && Array.isArray(profCompleto.servicos)) {
+            // Se tem servicos (objetos), extrair os IDs
+            servicosIdsArray = profCompleto.servicos.map(s => s.id);
+          }
+          
+          
+          setSelecionados(servicosIdsArray);
+        } catch (error) {
+          console.error('Erro ao carregar profissional completo:', error);
+          // Fallback para os dados básicos
+          setProfissionalCompleto(profissional);
+          
+          // Mesmo fallback logic
+          let servicosIdsArray: string[] = [];
+          if (profissional.servicosIds && Array.isArray(profissional.servicosIds)) {
+            servicosIdsArray = profissional.servicosIds;
+          } else if (profissional.servicos && Array.isArray(profissional.servicos)) {
+            servicosIdsArray = profissional.servicos.map(s => s.id);
+          }
+          
+          setSelecionados(servicosIdsArray);
+        } finally {
+          setCarregandoProfissional(false);
+        }
+      }
     }
+
+    carregarProfissionalCompleto();
   }, [open, profissional]);
 
   // Filtra serviços por categoria e busca
@@ -105,6 +142,12 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
       <DialogContent className="max-w-4xl p-0">
         <DialogHeader className="p-6 border-b">
           <DialogTitle>Serviços para {profissional.nome}</DialogTitle>
+          {carregandoProfissional && (
+            <div className="text-sm text-gray-500 flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              Carregando dados do profissional...
+            </div>
+          )}
         </DialogHeader>
         <div className="flex h-[60vh] divide-x">
           {/* Sidebar categorias */}
