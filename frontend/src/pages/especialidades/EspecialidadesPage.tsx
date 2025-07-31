@@ -5,10 +5,10 @@ import { Plus, Search, Edit, Trash2 } from 'lucide-react';
 import { getEspecialidades, createEspecialidade, updateEspecialidade, deleteEspecialidade } from '@/services/especialidades';
 import type { Especialidade } from '@/types/Especialidade';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { useToast, toast } from '@/components/ui/use-toast';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { FormErrorMessage } from '@/components/form-error-message';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 
 export const EspecialidadesPage = () => {
   const [especialidades, setEspecialidades] = useState<Especialidade[]>([]);
@@ -138,10 +138,6 @@ export const EspecialidadesPage = () => {
               Especialidades
             </span>
           </h1>
-          <p className="text-gray-600 flex items-center gap-2">
-            <span className="text-lg">📋</span>
-            Gerenciar especialidades da clínica
-          </p>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -151,7 +147,7 @@ export const EspecialidadesPage = () => {
               placeholder="Buscar especialidades..."
               value={busca}
               onChange={e => setBusca(e.target.value)}
-              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all duration-200 hover:border-purple-300"
+              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all duration-200 hover:border-purple-300"
             />
           </div>
           <Button 
@@ -343,28 +339,18 @@ export const EspecialidadesPage = () => {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!excluindo} onOpenChange={open => !open && cancelarExclusao()}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-          </AlertDialogHeader>
-          <div className="py-2">
-            Tem certeza que deseja excluir a especialidade 
-            <b
-              className="inline-block max-w-xs truncate align-bottom"
-              title={excluindo?.nome}
-            >
-              {excluindo?.nome}
-            </b>?
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteLoading} onClick={cancelarExclusao}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction disabled={deleteLoading} onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
-              {deleteLoading ? 'Excluindo...' : 'Excluir'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Modal de confirmação de exclusão */}
+      <ConfirmDeleteModal
+        open={!!excluindo}
+        onClose={() => setExcluindo(null)}
+        onConfirm={handleDelete}
+        title="Confirmar Exclusão de Especialidade"
+        entityName={excluindo?.nome || ''}
+        entityType="especialidade"
+        isLoading={deleteLoading}
+        loadingText="Excluindo especialidade..."
+        confirmText="Excluir Especialidade"
+      />
     </div>
   );
 }; 

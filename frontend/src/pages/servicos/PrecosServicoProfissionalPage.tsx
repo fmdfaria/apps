@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Plus, Search, Edit, Trash2, User, Briefcase, DollarSign, Percent, Clock } from 'lucide-react';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { FormErrorMessage } from '@/components/form-error-message';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 
@@ -19,6 +18,7 @@ import {
 } from '@/services/precos-servicos-profissionais';
 import { getProfissionais } from '@/services/profissionais';
 import { getServicos } from '@/services/servicos';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 
 interface FormData {
   profissionalId: string;
@@ -344,10 +344,6 @@ export default function PrecosServicoProfissionalPage() {
               Preços Serviços Profissionais
             </span>
           </h1>
-          <p className="text-gray-600 flex items-center gap-2">
-            <span className="text-lg">📋</span>
-            Gerencie preços personalizados por profissional
-          </p>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -357,7 +353,7 @@ export default function PrecosServicoProfissionalPage() {
               placeholder="Buscar por profissional ou serviço..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all duration-200 hover:border-indigo-300"
+              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all duration-200 hover:border-indigo-300"
             />
           </div>
           <Button 
@@ -982,36 +978,21 @@ export default function PrecosServicoProfissionalPage() {
       </Dialog>
 
       {/* Modal de Confirmação de Exclusão */}
-      <AlertDialog open={!!excluindo} onOpenChange={() => setExcluindo(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-          </AlertDialogHeader>
-          <div className="py-4">
-            <p className="text-gray-600">
-              Tem certeza que deseja excluir este preço personalizado?
-            </p>
-            {excluindo && (
-              <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                <p className="text-sm">
-                  <strong>Profissional:</strong> {profissionais.find(p => p.id === excluindo.profissionalId)?.nome}
-                </p>
-                <p className="text-sm">
-                  <strong>Serviço:</strong> {servicos.find(s => s.id === excluindo.servicoId)?.nome}
-                </p>
-              </div>
-            )}
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancelarExclusao} disabled={deleteLoading}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={deleteLoading} className="bg-red-600 hover:bg-red-700">
-              {deleteLoading ? 'Excluindo...' : 'Excluir'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteModal
+        open={!!excluindo}
+        onClose={() => setExcluindo(null)}
+        onConfirm={handleDelete}
+        title="Confirmar Exclusão de Preço Personalizado"
+        entityName={
+          excluindo 
+            ? `${profissionais.find(p => p.id === excluindo.profissionalId)?.nome} - ${servicos.find(s => s.id === excluindo.servicoId)?.nome}`
+            : ''
+        }
+        entityType="preço personalizado"
+        isLoading={deleteLoading}
+        loadingText="Excluindo preço personalizado..."
+        confirmText="Excluir Preço"
+      />
     </div>
   );
 }

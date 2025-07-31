@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Search, Trash2, MapPin, User, CreditCard, Building, List, Edit } from 'lucide-react';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { getProfissionais, deleteProfissional, updateProfissionalServicos } from '@/services/profissionais';
 import type { Profissional } from '@/types/Profissional';
 import type { Servico } from '@/types/Servico';
@@ -16,6 +15,7 @@ import EditarEnderecoModal from './EditarEnderecoModal';
 import EditarInfoProfissionalModal from './EditarInfoProfissionalModal';
 import EditarDadosBancariosModal from './EditarDadosBancariosModal';
 import EditarEmpresaContratoModal from './EditarEmpresaContratoModal';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 
 export default function ProfissionaisPage() {
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
@@ -174,7 +174,7 @@ export default function ProfissionaisPage() {
               placeholder="Buscar por nome, CPF, email ou WhatsApp..."
               value={busca}
               onChange={e => setBusca(e.target.value)}
-              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 hover:border-blue-300"
+              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 hover:border-blue-300"
             />
           </div>
           <Button 
@@ -416,50 +416,16 @@ export default function ProfissionaisPage() {
       </div>
 
       {/* Modal de confirmação de exclusão */}
-      <AlertDialog open={excluindo !== null} onOpenChange={() => !deleteLoading && cancelarExclusao()}>
-        <AlertDialogContent className="max-w-md">
-          <AlertDialogHeader className="text-center pb-4">
-            <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-              <span className="text-3xl">⚠️</span>
-            </div>
-            <AlertDialogTitle className="text-xl font-bold text-gray-900">
-              <span className="bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
-                Confirmar Exclusão
-              </span>
-            </AlertDialogTitle>
-          </AlertDialogHeader>
-          <div className="text-center py-4">
-            <p className="text-gray-700 mb-3">
-              Tem certeza que deseja excluir o profissional
-            </p>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-              <span className="font-bold text-red-800 text-lg">{excluindo?.nome}</span>
-            </div>
-            <div className="flex items-center justify-center gap-2 text-sm text-red-600 bg-red-50 rounded-lg p-3">
-              <span className="text-lg">🚨</span>
-              <span className="font-medium">Esta ação não pode ser desfeita</span>
-            </div>
-          </div>
-          <AlertDialogFooter className="flex gap-3 pt-6">
-            <AlertDialogCancel 
-              disabled={deleteLoading} 
-              onClick={cancelarExclusao} 
-              className="flex-1 border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 hover:text-gray-700 font-semibold transition-all duration-200"
-            >
-              <span className="mr-2">↩️</span>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              disabled={deleteLoading} 
-              onClick={handleDelete}
-              className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 font-semibold shadow-md hover:shadow-lg transition-all duration-200"
-            >
-              <span className="mr-2">{deleteLoading ? '⏳' : '🗑️'}</span>
-              {deleteLoading ? 'Excluindo...' : 'Excluir Profissional'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteModal
+        open={excluindo !== null}
+        onClose={cancelarExclusao}
+        onConfirm={handleDelete}
+        entityName={excluindo?.nome || ''}
+        entityType="profissional"
+        isLoading={deleteLoading}
+        loadingText="Excluindo..."
+        confirmText="Excluir Profissional"
+      />
 
       {/* Modais de criação e edição */}
       <CriarProfissionalModal

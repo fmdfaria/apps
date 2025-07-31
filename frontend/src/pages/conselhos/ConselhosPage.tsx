@@ -3,10 +3,10 @@ import { Button } from '@/components/ui/button';
 import { Plus, Search, Edit, Trash2 } from 'lucide-react';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { useToast, toast } from '@/components/ui/use-toast';
 import { getConselhos, createConselho, updateConselho, deleteConselho, ConselhoProfissional } from '@/services/conselhos';
 import { FormErrorMessage } from '@/components/form-error-message';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 
 export const ConselhosPage = () => {
   const [conselhos, setConselhos] = useState<ConselhoProfissional[]>([]);
@@ -145,10 +145,6 @@ export const ConselhosPage = () => {
               Conselhos Profissionais
             </span>
           </h1>
-          <p className="text-gray-600 flex items-center gap-2">
-            <span className="text-lg">📋</span>
-            Gerenciar conselhos profissionais da clínica
-          </p>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -158,7 +154,7 @@ export const ConselhosPage = () => {
               placeholder="Buscar conselhos..."
               value={busca}
               onChange={e => setBusca(e.target.value)}
-              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all duration-200 hover:border-indigo-300"
+              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all duration-200 hover:border-indigo-300"
             />
           </div>
           <Button 
@@ -361,28 +357,17 @@ export const ConselhosPage = () => {
         </DialogContent>
       </Dialog>
       {/* Modal de confirmação de exclusão */}
-      <AlertDialog open={!!excluindo} onOpenChange={open => !open && cancelarExclusao()}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-          </AlertDialogHeader>
-          <div className="py-2">
-            Tem certeza que deseja excluir o conselho 
-            <b
-              className="inline-block max-w-xs truncate align-bottom"
-              title={excluindo?.nome}
-            >
-              {excluindo?.nome}
-            </b>?
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteLoading} onClick={cancelarExclusao}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction disabled={deleteLoading} onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
-              {deleteLoading ? 'Excluindo...' : 'Excluir'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteModal
+        open={!!excluindo}
+        onClose={() => setExcluindo(null)}
+        onConfirm={handleDelete}
+        title="Confirmar Exclusão de Conselho"
+        entityName={excluindo?.nome || ''}
+        entityType="conselho"
+        isLoading={deleteLoading}
+        loadingText="Excluindo conselho..."
+        confirmText="Excluir Conselho"
+      />
     </div>
   );
 }; 
