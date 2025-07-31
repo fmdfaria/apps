@@ -5,6 +5,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { FormErrorMessage } from '@/components/form-error-message';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
+import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 
 import { Badge } from '@/components/ui/badge';
 import type { PrecoServicoProfissional } from '@/types/PrecoServicoProfissional';
@@ -627,36 +628,32 @@ export default function PrecosServicoProfissionalPage() {
 
       {/* Modal de Criação/Edição */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="max-w-2xl">
-          <form onSubmit={handleSubmit}>
-            <DialogHeader>
-              <DialogTitle>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <form onSubmit={handleSubmit} className="flex flex-col h-full">
+            <DialogHeader className="flex-shrink-0 bg-gradient-to-r from-indigo-50 to-purple-50 -mx-6 -mt-6 px-6 pt-6 pb-4 border-b border-gray-200">
+              <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                <span className="text-2xl">💼</span>
                 {editando ? 'Editar Preço Personalizado' : 'Novo Preço Personalizado'}
               </DialogTitle>
             </DialogHeader>
 
-            <div className="py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Profissional <span className="text-red-500">*</span>
                   </label>
-                  <Select
-                    value={form.profissionalId}
-                    onValueChange={(value) => setForm(f => ({ ...f, profissionalId: value, servicoId: '' }))}
-                    disabled={formLoading || !!editando}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o profissional" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {profissionais.map(profissional => (
-                        <SelectItem key={profissional.id} value={profissional.id}>
-                          {profissional.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className={`${formLoading || !!editando ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <SingleSelectDropdown
+                      options={profissionais
+                        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
+                        .map(p => ({ id: p.id, nome: p.nome }))}
+                      selected={profissionais.find(p => p.id === form.profissionalId) ? { id: form.profissionalId, nome: profissionais.find(p => p.id === form.profissionalId)!.nome } : null}
+                      onChange={(selected) => setForm(f => ({ ...f, profissionalId: selected?.id || '', servicoId: '' }))}
+                      placeholder="Selecione o profissional"
+                      headerText="Profissionais disponíveis"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -693,200 +690,112 @@ export default function PrecosServicoProfissionalPage() {
                       return null;
                     })()}
                   </label>
-                  <Select
-                    value={form.servicoId}
-                    onValueChange={(value) => setForm(f => ({ ...f, servicoId: value }))}
-                    disabled={formLoading || !!editando || !form.profissionalId}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={
-                        !form.profissionalId 
-                          ? "Selecione primeiro o profissional" 
-                          : "Selecione o serviço"
-                      } />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(() => {
-                        if (!form.profissionalId) return null;
-                        
-                        const profissionalSelecionado = profissionais.find(p => p.id === form.profissionalId);
-                        
-                        // Buscar pelos serviços vinculados - usar campo 'servicos' que vem da API
-                        const servicosVinculados = servicos.filter(servico => {
-                          // Verificar se existe no array servicosIds (se vier como string[])
-                          if (profissionalSelecionado?.servicosIds?.includes(servico.id)) {
-                            return true;
-                          }
-                          
-                          // Verificar se existe no array servicos (se vier como objeto[])
-                          if (profissionalSelecionado?.servicos?.some(s => s.id === servico.id)) {
-                            return true;
-                          }
-                          
-                          return false;
-                        });
-
-                        if (servicosVinculados.length === 0) {
-                          return (
-                            <div className="px-3 py-2 text-sm text-gray-500">
-                              Nenhum serviço vinculado a este profissional
-                            </div>
-                          );
-                        }
-
-                        // Verificar quantos serviços ainda não têm preço personalizado
-                        const servicosDisponiveis = servicosVinculados.filter(servico => {
-                          return !precos.some(p => 
-                            p.profissionalId === form.profissionalId && 
-                            p.servicoId === servico.id &&
-                            (!editando || p.id !== editando.id)
-                          );
-                        });
-
-                        // Se todos os serviços já têm preço personalizado
-                        if (servicosDisponiveis.length === 0 && !editando) {
-                          return (
-                            <div className="px-3 py-2 text-sm text-amber-600 bg-amber-50">
-                              Todos os serviços já possuem preços personalizados. Use a opção "Editar" na tabela.
-                            </div>
-                          );
-                        }
-
-                        return servicosVinculados.map(servico => {
-                          // Verificar se já existe preço personalizado para este profissional + serviço
-                          const jaTemPrecoPersonalizado = precos.some(p => 
-                            p.profissionalId === form.profissionalId && 
-                            p.servicoId === servico.id &&
-                            (!editando || p.id !== editando.id) // Permitir editar o próprio registro
-                          );
-
-                          if (jaTemPrecoPersonalizado) {
-                            return (
-                              <div key={servico.id} className="px-3 py-2 text-sm text-gray-400 bg-gray-50 cursor-not-allowed">
-                                <div className="flex items-center justify-between">
-                                  <span>{servico.nome} - {servico.duracaoMinutos}min - {formatarMoeda(servico.preco)}</span>
-                                  <span className="text-xs text-orange-600 font-medium ml-2">
-                                    Já cadastrado - Use "Editar"
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          }
-
-                          return (
-                            <SelectItem key={servico.id} value={servico.id}>
-                              {servico.nome} - {servico.duracaoMinutos}min - {formatarMoeda(servico.preco)}
-                            </SelectItem>
-                          );
-                        });
-                      })()}
-                    </SelectContent>
-                  </Select>
-                  {form.profissionalId && (() => {
-                    const profissionalSelecionado = profissionais.find(p => p.id === form.profissionalId);
-                    
-                    // Buscar pelos serviços vinculados - usar campo 'servicos' que vem da API
-                    const servicosVinculados = servicos.filter(servico => {
-                      // Verificar se existe no array servicosIds (se vier como string[])
-                      if (profissionalSelecionado?.servicosIds?.includes(servico.id)) {
-                        return true;
+                  <div className={`${formLoading || !!editando || !form.profissionalId ? 'opacity-50 pointer-events-none' : ''}`}>
+                    {(() => {
+                      if (!form.profissionalId) {
+                        return (
+                          <div className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3 min-h-[44px] bg-gray-50 text-gray-500">
+                            <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <span className="text-sm">Selecione primeiro o profissional</span>
+                          </div>
+                        );
                       }
+
+                      const profissionalSelecionado = profissionais.find(p => p.id === form.profissionalId);
                       
-                      // Verificar se existe no array servicos (se vier como objeto[])
-                      if (profissionalSelecionado?.servicos?.some(s => s.id === servico.id)) {
-                        return true;
+                      // Buscar pelos serviços vinculados
+                      const servicosVinculados = servicos.filter(servico => {
+                        if (profissionalSelecionado?.servicosIds?.includes(servico.id)) return true;
+                        if (profissionalSelecionado?.servicos?.some(s => s.id === servico.id)) return true;
+                        return false;
+                      });
+
+                      if (servicosVinculados.length === 0) {
+                        return (
+                          <div className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3 min-h-[44px] bg-orange-50 text-orange-600">
+                            <Search className="w-4 h-4 text-orange-400 flex-shrink-0" />
+                            <span className="text-sm">Nenhum serviço vinculado a este profissional</span>
+                          </div>
+                        );
                       }
-                      
-                      return false;
-                    });
-                    
-                    if (servicosVinculados.length === 0) {
+
+                      // Filtrar serviços disponíveis (que não têm preço personalizado ainda)
+                      const servicosDisponiveis = servicosVinculados.filter(servico => {
+                        return !precos.some(p => 
+                          p.profissionalId === form.profissionalId && 
+                          p.servicoId === servico.id &&
+                          (!editando || p.id !== editando.id)
+                        );
+                      });
+
+                      // Se todos os serviços já têm preço personalizado
+                      if (servicosDisponiveis.length === 0 && !editando) {
+                        return (
+                          <div className="w-full border-2 border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3 min-h-[44px] bg-amber-50 text-amber-600">
+                            <Search className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                            <span className="text-sm">Todos os serviços já possuem preços personalizados</span>
+                          </div>
+                        );
+                      }
+
+                      // Para edição, mostrar todos os serviços vinculados
+                      const servicosParaExibir = editando ? servicosVinculados : servicosDisponiveis;
+
                       return (
-                        <p className="text-sm text-orange-600 mt-1">
-                          ⚠️ Este profissional não possui serviços vinculados. Configure os serviços no cadastro do profissional primeiro.
-                        </p>
+                        <SingleSelectDropdown
+                          options={servicosParaExibir
+                            .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
+                            .map(s => ({ 
+                              id: s.id, 
+                              nome: `${s.nome} - ${formatarMoeda(s.preco)}` 
+                            }))}
+                          selected={servicos.find(s => s.id === form.servicoId) ? { 
+                            id: form.servicoId, 
+                            nome: `${servicos.find(s => s.id === form.servicoId)!.nome} - ${formatarMoeda(servicos.find(s => s.id === form.servicoId)!.preco)}` 
+                          } : null}
+                          onChange={(selected) => setForm(f => ({ ...f, servicoId: selected?.id || '' }))}
+                          placeholder="Selecione o serviço"
+                          headerText="Serviços disponíveis"
+                        />
                       );
-                    }
-                    
-                    return (
-                      <p className="text-sm text-gray-500 mt-1">
-                        {servicosVinculados.length} serviço(s) disponível(is) para este profissional
-                      </p>
-                    );
-                  })()}
+                    })()}
+                  </div>
                 </div>
               </div>
 
               {form.servicoId && (
                 <>
-                  {/* Informações do Serviço Selecionado */}
-                  <div className="bg-blue-50 rounded-lg p-4 mb-4">
-                    <h4 className="font-medium text-gray-900 mb-3">📋 Dados Atuais do Serviço</h4>
+                  {/* Informações do Serviço Selecionado - Compacto */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <span className="text-lg">📋</span>
+                      Dados do Serviço Selecionado
+                    </h4>
                     {(() => {
                       const servicoSelecionado = servicos.find(s => s.id === form.servicoId);
                       if (!servicoSelecionado) return null;
 
                       return (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-600 mb-1">Preço Tabelado</label>
-                            <input
-                              type="text"
-                              value={formatarMoeda(servicoSelecionado.preco)}
-                              className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-100 text-gray-700"
-                              disabled
-                              readOnly
-                            />
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+                          <div className="text-center p-2 bg-white rounded-lg border border-blue-100">
+                            <p className="text-xs text-gray-600">Preço Base</p>
+                            <p className="font-bold text-green-600 text-sm">{formatarMoeda(servicoSelecionado.preco)}</p>
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-600 mb-1">% Profissional Padrão</label>
-                            <input
-                              type="text"
-                              value={`${(servicoSelecionado.percentualProfissional || 0).toFixed(1)}%`}
-                              className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-100 text-gray-700"
-                              disabled
-                              readOnly
-                            />
+                          <div className="text-center p-2 bg-white rounded-lg border border-blue-100">
+                            <p className="text-xs text-gray-600">Valor Prof. Padrão</p>
+                            <p className="font-bold text-blue-700 text-sm">{formatarMoeda((servicoSelecionado.preco * (servicoSelecionado.percentualProfissional || 0)) / 100)}</p>
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-600 mb-1">% Clínica Padrão</label>
-                            <input
-                              type="text"
-                              value={`${(servicoSelecionado.percentualClinica || 0).toFixed(1)}%`}
-                              className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-100 text-gray-700"
-                              disabled
-                              readOnly
-                            />
+                          <div className="text-center p-2 bg-white rounded-lg border border-blue-100">
+                            <p className="text-xs text-gray-600">Valor Clín. Padrão</p>
+                            <p className="font-bold text-purple-700 text-sm">{formatarMoeda((servicoSelecionado.preco * (servicoSelecionado.percentualClinica || 0)) / 100)}</p>
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-600 mb-1">Valor Profissional Padrão</label>
-                            <input
-                              type="text"
-                              value={formatarMoeda((servicoSelecionado.preco * (servicoSelecionado.percentualProfissional || 0)) / 100)}
-                              className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-100 text-blue-700 font-medium"
-                              disabled
-                              readOnly
-                            />
+                          <div className="text-center p-2 bg-white rounded-lg border border-blue-100">
+                            <p className="text-xs text-gray-600">% Prof. Padrão</p>
+                            <p className="font-bold text-blue-600 text-sm">{(servicoSelecionado.percentualProfissional || 0).toFixed(1)}%</p>
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-600 mb-1">Valor Clínica Padrão</label>
-                            <input
-                              type="text"
-                              value={formatarMoeda((servicoSelecionado.preco * (servicoSelecionado.percentualClinica || 0)) / 100)}
-                              className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-100 text-purple-700 font-medium"
-                              disabled
-                              readOnly
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-600 mb-1">Duração</label>
-                            <input
-                              type="text"
-                              value={`${servicoSelecionado.duracaoMinutos} minutos`}
-                              className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-100 text-gray-700"
-                              disabled
-                              readOnly
-                            />
+                          <div className="text-center p-2 bg-white rounded-lg border border-blue-100">
+                            <p className="text-xs text-gray-600">% Clín. Padrão</p>
+                            <p className="font-bold text-purple-600 text-sm">{(servicoSelecionado.percentualClinica || 0).toFixed(1)}%</p>
                           </div>
                         </div>
                       );
@@ -894,107 +803,113 @@ export default function PrecosServicoProfissionalPage() {
                   </div>
 
                   {/* Configurar Percentuais Personalizados */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-3">⚙️ Configurar Valor Personalizado</h4>
-                  
-                  <div className="grid grid-cols-1 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Valor Profissional (R$) <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">R$</span>
-                        <input
-                          type="text"
-                          value={form.valorProfissional}
-                          onChange={(e) => {
-                            const valorFormatado = formatarMoedaInput(e.target.value);
-                            setForm(f => ({ ...f, valorProfissional: valorFormatado }));
-                          }}
-                          className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="0,00"
-                          disabled={formLoading}
-                        />
+                  <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-4 border-2 border-yellow-200">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                          <span className="text-lg">💰</span>
+                          Valor Profissional Personalizado <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">R$</span>
+                          <input
+                            type="text"
+                            value={form.valorProfissional}
+                            onChange={(e) => {
+                              const valorFormatado = formatarMoedaInput(e.target.value);
+                              setForm(f => ({ ...f, valorProfissional: valorFormatado }));
+                            }}
+                            className="w-full pl-10 pr-4 py-3 border-2 border-yellow-300 rounded-xl focus:ring-4 focus:ring-yellow-100 focus:border-yellow-500 transition-all duration-200 font-semibold text-lg text-gray-800 bg-white hover:border-yellow-400"
+                            placeholder="0,00"
+                            disabled={formLoading}
+                          />
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Digite o valor em reais que o profissional deve receber
-                      </p>
                     </div>
-                  </div>
 
-                  {form.servicoId && form.valorProfissional && valorProfissionalNumerico > 0 && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <h5 className="font-medium text-gray-900 mb-2">📊 Valores Calculados:</h5>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                        {(() => {
-                          const { percentualProfissional, percentualClinica } = calcularPercentuais(form.servicoId, valorProfissionalNumerico);
-                          
-                          return (
-                            <>
-                              <div className="text-center p-3 bg-blue-50 rounded border border-blue-200">
-                                <p className="text-xs text-gray-600 mb-1">% Profissional</p>
-                                <p className="text-lg font-bold text-blue-700">
-                                  {percentualProfissional.toFixed(2)}%
-                                </p>
-                              </div>
-                              <div className="text-center p-3 bg-purple-50 rounded border border-purple-200">
-                                <p className="text-xs text-gray-600 mb-1">% Clínica</p>
-                                <p className="text-lg font-bold text-purple-700">
-                                  {percentualClinica.toFixed(2)}%
-                                </p>
-                              </div>
-                            </>
-                          );
-                        })()}
+                    {form.servicoId && form.valorProfissional && valorProfissionalNumerico > 0 && (
+                      <div className="mt-2 pt-2">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                          {(() => {
+                            const { percentualProfissional, percentualClinica } = calcularPercentuais(form.servicoId, valorProfissionalNumerico);
+                            const servico = servicos.find(s => s.id === form.servicoId);
+                            const valorClinica = servico ? servico.preco - valorProfissionalNumerico : 0;
+                            
+                            return (
+                              <>
+                                <div className="text-center p-2 bg-white rounded-lg border border-gray-200">
+                                  <p className="text-xs text-gray-600">Preço Base</p>
+                                  <p className="font-bold text-green-600 text-sm">
+                                    {formatarMoeda(servico?.preco || 0)}
+                                  </p>
+                                </div>
+                                <div className="text-center p-2 bg-white rounded-lg border border-blue-200">
+                                  <p className="text-xs text-gray-600">Valor Prof.</p>
+                                  <p className="font-bold text-blue-600 text-sm">
+                                    {formatarMoeda(valorProfissionalNumerico)}
+                                  </p>
+                                </div>
+                                <div className="text-center p-2 bg-white rounded-lg border border-purple-200">
+                                  <p className="text-xs text-gray-600">Valor Clín.</p>
+                                  <p className="font-bold text-purple-600 text-sm">
+                                    {formatarMoeda(Math.max(0, valorClinica))}
+                                  </p>
+                                </div>
+                                <div className="text-center p-2 bg-blue-50 rounded-lg border border-blue-200">
+                                  <p className="text-xs text-gray-600">% Prof.</p>
+                                  <p className="font-bold text-blue-700 text-sm">
+                                    {percentualProfissional.toFixed(1)}%
+                                  </p>
+                                </div>
+                                <div className="text-center p-2 bg-purple-50 rounded-lg border border-purple-200">
+                                  <p className="text-xs text-gray-600">% Clín.</p>
+                                  <p className="font-bold text-purple-700 text-sm">
+                                    {percentualClinica.toFixed(1)}%
+                                  </p>
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        {(() => {
-                          const servico = servicos.find(s => s.id === form.servicoId);
-                          const valorClinica = servico ? servico.preco - valorProfissionalNumerico : 0;
-                          
-                          return (
-                            <>
-                              <div className="text-center p-2 bg-white rounded border">
-                                <p className="text-xs text-gray-500">Preço Base</p>
-                                <p className="font-semibold text-green-600">
-                                  {formatarMoeda(servico?.preco || 0)}
-                                </p>
-                              </div>
-                              <div className="text-center p-2 bg-white rounded border">
-                                <p className="text-xs text-gray-500">Valor Profissional</p>
-                                <p className="font-semibold text-blue-600">
-                                  {formatarMoeda(valorProfissionalNumerico)}
-                                </p>
-                              </div>
-                              <div className="text-center p-2 bg-white rounded border">
-                                <p className="text-xs text-gray-500">Valor Clínica</p>
-                                <p className="font-semibold text-purple-600">
-                                  {formatarMoeda(Math.max(0, valorClinica))}
-                                </p>
-                              </div>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  )}
+                    )}
                   </div>
                 </>
               )}
             </div>
 
-            <DialogFooter className="flex items-center justify-between">
-              <div className="flex-1">
+            <DialogFooter className="flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-gradient-to-r from-gray-50 to-gray-100 -mx-6 -mb-6 px-6 py-4 border-t border-gray-200">
+              <div className="flex-1 order-2 sm:order-1">
                 {formError && <FormErrorMessage>{formError}</FormErrorMessage>}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-3 order-1 sm:order-2">
                 <DialogClose asChild>
-                  <Button type="button" variant="outline" disabled={formLoading}>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    disabled={formLoading}
+                    className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
+                  >
+                    <span className="mr-2">❌</span>
                     Cancelar
                   </Button>
                 </DialogClose>
-                <Button type="submit" disabled={formLoading} className="bg-blue-600 hover:bg-blue-700">
-                  {formLoading ? 'Salvando...' : editando ? 'Atualizar' : 'Salvar'}
+                <Button 
+                  type="submit" 
+                  disabled={formLoading}
+                  className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold px-6"
+                >
+                  {formLoading ? (
+                    <>
+                      <span className="mr-2">⏳</span>
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <span className="mr-2">{editando ? '✏️' : '💾'}</span>
+                      {editando ? 'Atualizar Preço' : 'Salvar Preço'}
+                    </>
+                  )}
                 </Button>
               </div>
             </DialogFooter>
