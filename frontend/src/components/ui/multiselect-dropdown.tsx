@@ -12,9 +12,10 @@ interface MultiSelectDropdownProps {
   selected: Option[];
   onChange: (selected: Option[]) => void;
   placeholder?: string;
+  headerText?: string;
 }
 
-export function MultiSelectDropdown({ options, selected, onChange, placeholder = 'Selecione...' }: MultiSelectDropdownProps) {
+export function MultiSelectDropdown({ options, selected, onChange, placeholder = 'Selecione...', headerText = 'Opções disponíveis' }: MultiSelectDropdownProps) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [inputFocused, setInputFocused] = useState(false);
@@ -135,7 +136,7 @@ export function MultiSelectDropdown({ options, selected, onChange, placeholder =
           <div className="flex items-center gap-2">
             <Search className="w-4 h-4 text-blue-600" />
             <span className="text-sm font-semibold text-gray-700">
-              {input.trim() ? `Resultados para "${input.trim()}"` : 'Especialidades disponíveis'}
+              {input.trim() ? `Resultados para "${input.trim()}"` : headerText}
             </span>
           </div>
         </div>
@@ -155,7 +156,7 @@ export function MultiSelectDropdown({ options, selected, onChange, placeholder =
               <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
                 <Search className="w-6 h-6 text-gray-400" />
               </div>
-              <p className="text-sm text-gray-500 font-medium">Nenhuma especialidade encontrada</p>
+              <p className="text-sm text-gray-500 font-medium">Nenhuma opção encontrada</p>
               <p className="text-xs text-gray-400 mt-1">Tente buscar com outros termos</p>
             </div>
           )}

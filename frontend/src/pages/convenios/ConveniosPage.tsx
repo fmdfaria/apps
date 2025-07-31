@@ -131,8 +131,16 @@ export const ConveniosPage = () => {
     <div className="pt-2 pl-6 pr-6 h-full flex flex-col">
       <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Convênios</h1>
-          <p className="text-gray-600">Gerenciar convênios médicos</p>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <span className="text-4xl">🏥</span>
+            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Convênios
+            </span>
+          </h1>
+          <p className="text-gray-600 flex items-center gap-2">
+            <span className="text-lg">📋</span>
+            Gerenciar convênios médicos
+          </p>
         </div>
         <div className="flex items-center gap-4">
             <div className="relative">
@@ -142,46 +150,79 @@ export const ConveniosPage = () => {
                 placeholder="Buscar convênios..."
               value={busca}
               onChange={e => setBusca(e.target.value)}
-              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 hover:border-blue-300"
               />
           </div>
-          <Button onClick={abrirModalNovo} className="bg-blue-600 hover:bg-blue-700 ml-2">
+          <Button 
+            onClick={abrirModalNovo} 
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
+          >
             <Plus className="w-4 h-4 mr-2" />
             Novo Convênio
           </Button>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto rounded-lg bg-white">
+      <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-sm border border-gray-100">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted">
-              <TableHead className="py-2 text-sm">Nome</TableHead>
-              <TableHead className="py-2 text-sm">Ações</TableHead>
+            <TableRow className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🏥</span>
+                  Nome
+                </div>
+              </TableHead>
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">⚙️</span>
+                  Ações
+                </div>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {conveniosPaginados.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={2} className="py-6 text-center text-gray-500 text-sm">Nenhum convênio encontrado.</TableCell>
+                <TableCell colSpan={2} className="py-12 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                      <span className="text-3xl">🏥</span>
+                    </div>
+                    <p className="text-gray-500 font-medium">Nenhum convênio encontrado</p>
+                    <p className="text-gray-400 text-sm">Tente ajustar os filtros de busca</p>
+                  </div>
+                </TableCell>
               </TableRow>
             ) : (
               conveniosPaginados.map((c) => (
-                <TableRow key={c.id} className="hover:bg-gray-50 h-12">
+                <TableRow key={c.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200 h-12">
                   <TableCell className="py-2">
-                    <span className="text-sm font-medium">{c.nome}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                        {c.nome.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-sm font-medium">{c.nome}</span>
+                    </div>
                   </TableCell>
                   <TableCell className="py-2">
-                      <div className="flex gap-1">
-                      <Button variant="default" size="sm" className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-400 h-7 w-7 p-0" onClick={() => abrirModalEditar(c)}>
-                        <Edit className="w-3 h-3" />
+                      <div className="flex gap-1.5 flex-wrap">
+                      <Button 
+                        variant="default" 
+                        size="sm" 
+                        className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform" 
+                        onClick={() => abrirModalEditar(c)}
+                        title="Editar Convênio"
+                      >
+                        <Edit className="w-4 h-4" />
                       </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                        className="group border-red-200 text-red-600 hover:bg-red-600 hover:text-white focus:ring-2 focus:ring-red-400 h-7 w-7 p-0"
+                        className="group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                         onClick={() => confirmarExclusao(c)}
+                        title="Excluir Convênio"
                         >
-                        <Trash2 className="w-3 h-3 group-hover:text-white transition-colors" />
+                        <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
                         </Button>
                       </div>
                   </TableCell>
@@ -191,11 +232,14 @@ export const ConveniosPage = () => {
           </TableBody>
         </Table>
       </div>
-      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-3 px-6 z-10">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Exibir</span>
+      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-600 flex items-center gap-2">
+            <span className="text-lg">📊</span>
+            Exibir
+          </span>
           <select
-            className="border rounded px-2 py-1 text-sm"
+            className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 hover:border-blue-300"
             value={itensPorPagina}
             onChange={e => setItensPorPagina(Number(e.target.value))}
           >
@@ -206,18 +250,21 @@ export const ConveniosPage = () => {
           <span className="text-sm text-gray-600">itens por página</span>
         </div>
         
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-gray-600 flex items-center gap-2">
+          <span className="text-lg">📈</span>
           Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, conveniosFiltrados.length)} de {conveniosFiltrados.length} resultados
         </div>
 
         {totalPaginas > 1 && (
-          <div className="flex gap-1">
+          <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
               disabled={paginaAtual === 1}
+              className="border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             >
+              <span className="mr-1 text-gray-600 group-hover:text-blue-600 transition-colors">⬅️</span>
               Anterior
             </Button>
             {(() => {
@@ -229,7 +276,10 @@ export const ConveniosPage = () => {
                   variant={page === paginaAtual ? "default" : "outline"}
                   size="sm"
                   onClick={() => setPaginaAtual(page)}
-                  className={page === paginaAtual ? "bg-blue-600 text-white" : ""}
+                  className={page === paginaAtual 
+                    ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg font-semibold" 
+                    : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+                  }
                 >
                   {page}
                 </Button>
@@ -240,8 +290,10 @@ export const ConveniosPage = () => {
               size="sm"
               onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
               disabled={paginaAtual === totalPaginas}
+              className="border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             >
               Próximo
+              <span className="ml-1 text-gray-600 group-hover:text-blue-600 transition-colors">➡️</span>
             </Button>
           </div>
         )}

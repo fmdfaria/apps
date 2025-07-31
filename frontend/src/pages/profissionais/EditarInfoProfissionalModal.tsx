@@ -155,6 +155,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
                   selected={especialidades.filter(e => form.especialidadesIds.includes(e.id))}
                   onChange={opts => setForm(f => ({ ...f, especialidadesIds: opts.map(o => o.id) }))}
                   placeholder="Digite para buscar especialidades..."
+                  headerText="Especialidades disponíveis"
                 />
               </div>
             </div>
@@ -172,6 +173,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
                     onChange={opt => setForm(f => ({ ...f, conselhoId: opt?.id || '' }))}
                     placeholder="Digite para buscar conselhos..."
                     formatOption={(conselho) => `${conselho.sigla} | ${conselho.nome}`}
+                    headerText="Conselhos disponíveis"
                   />
                 </div>
               </div>

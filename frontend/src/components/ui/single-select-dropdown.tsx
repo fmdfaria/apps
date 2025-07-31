@@ -14,9 +14,10 @@ interface SingleSelectDropdownProps {
   onChange: (selected: Option | null) => void;
   placeholder?: string;
   formatOption?: (option: Option) => string;
+  headerText?: string;
 }
 
-export function SingleSelectDropdown({ options, selected, onChange, placeholder = 'Selecione...', formatOption }: SingleSelectDropdownProps) {
+export function SingleSelectDropdown({ options, selected, onChange, placeholder = 'Selecione...', formatOption, headerText = 'Opções disponíveis' }: SingleSelectDropdownProps) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [inputFocused, setInputFocused] = useState(false);
@@ -149,7 +150,7 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
           <div className="flex items-center gap-2">
             <Search className="w-4 h-4 text-green-600" />
             <span className="text-sm font-semibold text-gray-700">
-              {input.trim() ? `Resultados para "${input.trim()}"` : 'Conselhos disponíveis'}
+              {input.trim() ? `Resultados para "${input.trim()}"` : headerText}
             </span>
           </div>
         </div>
@@ -169,7 +170,7 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
               <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
                 <Search className="w-6 h-6 text-gray-400" />
               </div>
-              <p className="text-sm text-gray-500 font-medium">Nenhum conselho encontrado</p>
+              <p className="text-sm text-gray-500 font-medium">Nenhuma opção encontrada</p>
               <p className="text-xs text-gray-400 mt-1">Tente buscar com outros termos</p>
             </div>
           )}

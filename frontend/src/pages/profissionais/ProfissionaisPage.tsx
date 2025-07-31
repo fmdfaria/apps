@@ -159,8 +159,12 @@ export default function ProfissionaisPage() {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Profissionais</h1>
-          <p className="text-gray-600">Gerenciar profissionais cadastrados</p>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <span className="text-4xl">👨‍⚕️</span>
+            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Profissionais
+            </span>
+          </h1>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -170,10 +174,13 @@ export default function ProfissionaisPage() {
               placeholder="Buscar por nome, CPF, email ou WhatsApp..."
               value={busca}
               onChange={e => setBusca(e.target.value)}
-              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 hover:border-blue-300"
             />
           </div>
-          <Button onClick={() => setModalCriar(true)} className="bg-blue-600 hover:bg-blue-700 ml-2">
+          <Button 
+            onClick={() => setModalCriar(true)} 
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
+          >
             <Plus className="w-4 h-4 mr-2" />
             Novo Profissional
           </Button>
@@ -181,106 +188,154 @@ export default function ProfissionaisPage() {
       </div>
 
       {/* Tabela */}
-      <div className="flex-1 overflow-y-auto rounded-lg bg-white">
+      <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-sm border border-gray-100">
         {loading ? (
-          <div className="py-12 text-center text-gray-400">Carregando...</div>
+          <div className="py-16 text-center">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-3xl">⏳</span>
+            </div>
+            <p className="text-gray-500 font-medium">Carregando profissionais...</p>
+          </div>
         ) : apiError ? (
-          <div className="py-12 text-center text-red-500">{apiError}</div>
+          <div className="py-16 text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-3xl">⚠️</span>
+            </div>
+            <p className="text-red-500 font-medium">{apiError}</p>
+          </div>
         ) : (
           <Table>
             <TableHeader>
-              <TableRow className="bg-muted">
-                <TableHead className="py-2 text-sm">Nome</TableHead>
-                <TableHead className="py-2 text-sm">CPF</TableHead>
-                <TableHead className="py-2 text-sm">Email</TableHead>
-                <TableHead className="py-2 text-sm">WhatsApp</TableHead>
-                <TableHead className="py-2 text-sm">Ações</TableHead>
+              <TableRow className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
+                <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">👤</span>
+                    Nome
+                  </div>
+                </TableHead>
+                <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🆔</span>
+                    CPF
+                  </div>
+                </TableHead>
+                <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">📧</span>
+                    Email
+                  </div>
+                </TableHead>
+                <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">📱</span>
+                    WhatsApp
+                  </div>
+                </TableHead>
+                <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">⚙️</span>
+                    Ações
+                  </div>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {profissionaisPaginados.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-6 text-center text-gray-500 text-sm">Nenhum profissional encontrado.</TableCell>
+                  <TableCell colSpan={5} className="py-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                        <span className="text-3xl">👥</span>
+                      </div>
+                      <p className="text-gray-500 font-medium">Nenhum profissional encontrado</p>
+                      <p className="text-gray-400 text-sm">Tente ajustar os filtros de busca</p>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ) : (
                 profissionaisPaginados.map((p) => (
-                  <TableRow key={p.id} className="hover:bg-gray-50 h-12">
+                  <TableRow key={p.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200 h-12">
                     <TableCell className="py-2">
-                      <span className="text-sm font-medium">{p.nome}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                          {p.nome.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-sm font-semibold text-gray-800">{p.nome}</span>
+                      </div>
                     </TableCell>
                     <TableCell className="py-2">
-                      <span className="text-sm">{p.cpf}</span>
+                      <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded text-gray-700">{p.cpf}</span>
                     </TableCell>
                     <TableCell className="py-2">
-                      <span className="text-sm">{p.email}</span>
+                      <span className="text-sm text-blue-600 hover:text-blue-800 transition-colors">{p.email}</span>
                     </TableCell>
                     <TableCell className="py-2">
-                      <span className="text-sm">{formatWhatsApp(p.whatsapp || '')}</span>
+                      <span className="text-sm font-mono bg-green-100 px-2 py-1 rounded text-green-700">{formatWhatsApp(p.whatsapp || '')}</span>
                     </TableCell>
                     <TableCell className="py-2">
-                      <div className="flex gap-1 flex-wrap">
+                      <div className="flex gap-1.5 flex-wrap">
                         <Button
                           variant="default"
                           size="sm"
-                          className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-400 h-7 w-7 p-0"
+                          className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                           onClick={() => setModalEditar({ open: true, profissional: p })}
                           title="Editar Dados Básicos"
                         >
-                          <Edit className="w-3 h-3" />
+                          <Edit className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="group border-green-200 text-green-600 hover:bg-green-600 hover:text-white focus:ring-2 focus:ring-green-400 h-7 w-7 p-0"
+                          className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                           onClick={() => setModalEndereco({ open: true, profissional: p })}
                           title="Editar Endereço"
                         >
-                          <MapPin className="w-3 h-3" />
+                          <MapPin className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="group border-purple-200 text-purple-600 hover:bg-purple-600 hover:text-white focus:ring-2 focus:ring-purple-400 h-7 w-7 p-0"
+                          className="group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                           onClick={() => setModalInfoProfissional({ open: true, profissional: p })}
                           title="Editar Informações Profissionais"
                         >
-                          <User className="w-3 h-3" />
+                          <User className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="group border-yellow-200 text-yellow-600 hover:bg-yellow-600 hover:text-white focus:ring-2 focus:ring-yellow-400 h-7 w-7 p-0"
+                          className="group border-2 border-yellow-300 text-yellow-600 hover:bg-yellow-600 hover:text-white hover:border-yellow-600 focus:ring-4 focus:ring-yellow-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                           onClick={() => setModalDadosBancarios({ open: true, profissional: p })}
                           title="Editar Dados Bancários"
                         >
-                          <CreditCard className="w-3 h-3" />
+                          <CreditCard className="w-4 h-4 text-yellow-600 group-hover:text-white transition-colors" />
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="group border-indigo-200 text-indigo-600 hover:bg-indigo-600 hover:text-white focus:ring-2 focus:ring-indigo-400 h-7 w-7 p-0"
+                          className="group border-2 border-indigo-300 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 focus:ring-4 focus:ring-indigo-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                           onClick={() => setModalEmpresaContrato({ open: true, profissional: p })}
                           title="Editar Empresa/Contrato"
                         >
-                          <Building className="w-3 h-3" />
+                          <Building className="w-4 h-4 text-indigo-600 group-hover:text-white transition-colors" />
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="group border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white focus:ring-2 focus:ring-blue-400 h-7 w-7 p-0"
+                          className="group border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                           onClick={() => setModalAtribuir({ open: true, profissional: p })}
                           title="Atribuir Serviços"
                         >
-                          <List className="w-3 h-3" />
+                          <List className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="group border-red-200 text-red-600 hover:bg-red-600 hover:text-white focus:ring-2 focus:ring-red-400 h-7 w-7 p-0"
+                          className="group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                           onClick={() => confirmarExclusao(p)}
                           title="Excluir Profissional"
                         >
-                          <Trash2 className="w-3 h-3 group-hover:text-white transition-colors" />
+                          <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
                         </Button>
                       </div>
                     </TableCell>
@@ -293,11 +348,14 @@ export default function ProfissionaisPage() {
       </div>
 
       {/* Paginação */}
-      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-3 px-6 z-10">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Exibir</span>
+      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-600 flex items-center gap-2">
+            <span className="text-lg">📊</span>
+            Exibir
+          </span>
           <select
-            className="border rounded px-2 py-1 text-sm"
+            className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 hover:border-blue-300"
             value={itensPorPagina}
             onChange={e => setItensPorPagina(Number(e.target.value))}
           >
@@ -308,18 +366,21 @@ export default function ProfissionaisPage() {
           <span className="text-sm text-gray-600">itens por página</span>
         </div>
         
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-gray-600 flex items-center gap-2">
+          <span className="text-lg">📈</span>
           Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, profissionaisFiltrados.length)} de {profissionaisFiltrados.length} resultados
         </div>
 
         {totalPaginas > 1 && (
-          <div className="flex gap-1">
+          <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
               disabled={paginaAtual === 1}
+              className="border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             >
+              <span className="mr-1 text-gray-600 group-hover:text-blue-600 transition-colors">⬅️</span>
               Anterior
             </Button>
             {(() => {
@@ -331,7 +392,10 @@ export default function ProfissionaisPage() {
                   variant={page === paginaAtual ? "default" : "outline"}
                   size="sm"
                   onClick={() => setPaginaAtual(page)}
-                  className={page === paginaAtual ? "bg-blue-600 text-white" : ""}
+                  className={page === paginaAtual 
+                    ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg font-semibold" 
+                    : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+                  }
                 >
                   {page}
                 </Button>
@@ -342,8 +406,10 @@ export default function ProfissionaisPage() {
               size="sm"
               onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
               disabled={paginaAtual === totalPaginas}
+              className="border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             >
               Próximo
+              <span className="ml-1 text-gray-600 group-hover:text-blue-600 transition-colors">➡️</span>
             </Button>
           </div>
         )}

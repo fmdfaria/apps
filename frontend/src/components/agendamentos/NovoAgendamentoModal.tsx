@@ -273,9 +273,9 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                       </SelectItem>
                     ) : (
                       profissionais.map(profissional => (
-                        <SelectItem key={profissional.id} value={profissional.id}>
-                          {profissional.nome}
-                        </SelectItem>
+                      <SelectItem key={profissional.id} value={profissional.id}>
+                        {profissional.nome}
+                      </SelectItem>
                       ))
                     )}
                   </SelectContent>
@@ -304,9 +304,9 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                       </SelectItem>
                     ) : (
                       servicos.map(servico => (
-                        <SelectItem key={servico.id} value={servico.id}>
-                          {servico.nome}
-                        </SelectItem>
+                      <SelectItem key={servico.id} value={servico.id}>
+                        {servico.nome}
+                      </SelectItem>
                       ))
                     )}
                   </SelectContent>
@@ -335,9 +335,9 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                       </SelectItem>
                     ) : (
                       convenios.map(convenio => (
-                        <SelectItem key={convenio.id} value={convenio.id}>
-                          {convenio.nome}
-                        </SelectItem>
+                      <SelectItem key={convenio.id} value={convenio.id}>
+                        {convenio.nome}
+                      </SelectItem>
                       ))
                     )}
                   </SelectContent>
@@ -366,9 +366,9 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                       </SelectItem>
                     ) : (
                       recursos.map(recurso => (
-                        <SelectItem key={recurso.id} value={recurso.id}>
-                          {recurso.nome}
-                        </SelectItem>
+                      <SelectItem key={recurso.id} value={recurso.id}>
+                        {recurso.nome}
+                      </SelectItem>
                       ))
                     )}
                   </SelectContent>
@@ -398,95 +398,95 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
           {/* Seção Data/Hora e Recorrência */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Data e Hora */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Clock className="w-5 h-5" />
-                  Data e Horário
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <Label htmlFor="dataHoraInicio">Data e Hora do Agendamento *</Label>
-                  <Input
-                    id="dataHoraInicio"
-                    type="datetime-local"
-                    value={formData.dataHoraInicio}
-                    onChange={(e) => setFormData(prev => ({ ...prev, dataHoraInicio: e.target.value }))}
-                    required
-                    min={new Date().toISOString().slice(0, 16)}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Clock className="w-5 h-5" />
+                Data e Horário
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label htmlFor="dataHoraInicio">Data e Hora do Agendamento *</Label>
+                <Input
+                  id="dataHoraInicio"
+                  type="datetime-local"
+                  value={formData.dataHoraInicio}
+                  onChange={(e) => setFormData(prev => ({ ...prev, dataHoraInicio: e.target.value }))}
+                  required
+                  min={new Date().toISOString().slice(0, 16)}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
             {/* Recorrência */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Repeat className="w-5 h-5" />
-                  Recorrência (Opcional)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="temRecorrencia"
-                    checked={temRecorrencia}
-                    onCheckedChange={(checked) => setTemRecorrencia(checked === true)}
-                  />
-                  <Label htmlFor="temRecorrencia">
-                    Criar agendamentos recorrentes
-                  </Label>
-                </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Repeat className="w-5 h-5" />
+                Recorrência (Opcional)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="temRecorrencia"
+                  checked={temRecorrencia}
+                  onCheckedChange={(checked) => setTemRecorrencia(checked === true)}
+                />
+                <Label htmlFor="temRecorrencia">
+                  Criar agendamentos recorrentes
+                </Label>
+              </div>
 
-                {temRecorrencia && (
+              {temRecorrencia && (
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="tipoRecorrencia">Tipo de Recorrência</Label>
-                      <Select 
-                        value={recorrencia.tipo} 
-                        onValueChange={(value: TipoRecorrencia) => setRecorrencia(prev => ({ ...prev, tipo: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="semanal">Semanal</SelectItem>
-                          <SelectItem value="quinzenal">Quinzenal</SelectItem>
-                          <SelectItem value="mensal">Mensal</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="tipoRecorrencia">Tipo de Recorrência</Label>
+                    <Select 
+                      value={recorrencia.tipo} 
+                      onValueChange={(value: TipoRecorrencia) => setRecorrencia(prev => ({ ...prev, tipo: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="semanal">Semanal</SelectItem>
+                        <SelectItem value="quinzenal">Quinzenal</SelectItem>
+                        <SelectItem value="mensal">Mensal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="space-y-2">
+                  <div className="space-y-2">
                         <Label htmlFor="repeticoes">Repetições</Label>
-                        <Input
-                          id="repeticoes"
-                          type="number"
-                          min="1"
-                          max="52"
-                          value={recorrencia.repeticoes}
-                          onChange={(e) => setRecorrencia(prev => ({ ...prev, repeticoes: parseInt(e.target.value) }))}
+                    <Input
+                      id="repeticoes"
+                      type="number"
+                      min="1"
+                      max="52"
+                      value={recorrencia.repeticoes}
+                      onChange={(e) => setRecorrencia(prev => ({ ...prev, repeticoes: parseInt(e.target.value) }))}
                           placeholder="Ex: 4"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="ate">Ou até a data</Label>
-                        <Input
-                          id="ate"
-                          type="date"
-                          value={recorrencia.ate}
-                          onChange={(e) => setRecorrencia(prev => ({ ...prev, ate: e.target.value }))}
-                        />
-                      </div>
-                    </div>
+                    />
                   </div>
-                )}
-              </CardContent>
-            </Card>
+
+                  <div className="space-y-2">
+                        <Label htmlFor="ate">Ou até a data</Label>
+                    <Input
+                      id="ate"
+                      type="date"
+                      value={recorrencia.ate}
+                      onChange={(e) => setRecorrencia(prev => ({ ...prev, ate: e.target.value }))}
+                    />
+                      </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
           </div>
 
           <DialogFooter className="gap-2">

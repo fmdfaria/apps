@@ -544,38 +544,38 @@ export default function DisponibilidadeProfissionaisPage() {
                   </div>
                 ) : (
                   <>
-                    {/* Grid de horários semanais */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
-                      {horariosSemana.map(horario => (
-                        <DiaHorarioCard
-                          key={horario.diaSemana}
-                          horario={horario}
-                          tipoEdicao={tipoEdicao}
-                          onChange={handleAlterarHorario}
-                        />
-                      ))}
-                    </div>
+                {/* Grid de horários semanais */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
+                  {horariosSemana.map(horario => (
+                    <DiaHorarioCard
+                      key={horario.diaSemana}
+                      horario={horario}
+                      tipoEdicao={tipoEdicao}
+                      onChange={handleAlterarHorario}
+                    />
+                  ))}
+                </div>
 
-                    {/* Ações para horários semanais */}
-                    <div className="flex items-center justify-between">
-                      <Button
-                        variant="outline"
-                        onClick={handleResetarHorarios}
-                        className="flex items-center gap-2"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                        Resetar Horários
-                      </Button>
+                {/* Ações para horários semanais */}
+                <div className="flex items-center justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={handleResetarHorarios}
+                    className="flex items-center gap-2"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Resetar Horários
+                  </Button>
 
-                      <Button
-                        onClick={handleSalvar}
+                  <Button
+                    onClick={handleSalvar}
                         disabled={salvando || loading || carregandoDisponibilidades}
-                        className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
-                      >
-                        <Save className="w-4 h-4" />
-                        {salvando ? 'Salvando...' : 'Salvar Horários'}
-                      </Button>
-                    </div>
+                    className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    {salvando ? 'Salvando...' : 'Salvar Horários'}
+                  </Button>
+                </div>
                   </>
                 )}
               </TabsContent>
@@ -590,18 +590,18 @@ export default function DisponibilidadeProfissionaisPage() {
                   </div>
                 ) : (
                   <>
-                    {/* Informação sobre data específica */}
-                    <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="flex items-start gap-3">
-                        <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <h4 className="font-medium text-blue-900 mb-1">Configurar Data Específica</h4>
-                          <p className="text-sm text-blue-700">
-                            Use esta aba para configurar disponibilidades ou folgas em datas específicas (feriados, férias, plantões especiais, etc.).
-                          </p>
-                        </div>
-                      </div>
+                {/* Informação sobre data específica */}
+                <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-medium text-blue-900 mb-1">Configurar Data Específica</h4>
+                      <p className="text-sm text-blue-700">
+                        Use esta aba para configurar disponibilidades ou folgas em datas específicas (feriados, férias, plantões especiais, etc.).
+                      </p>
                     </div>
+                  </div>
+                </div>
 
                 {/* Formulário para data específica */}
                 <div className="space-y-6">

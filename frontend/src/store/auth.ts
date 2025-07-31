@@ -36,12 +36,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setUser: (user) => {
     try {
-      if (user) {
-        localStorage.setItem('user', JSON.stringify(user));
-      } else {
-        localStorage.removeItem('user');
-      }
-      set({ user });
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('user');
+    }
+    set({ user });
     } catch (error) {
       console.error('Erro ao salvar usuário no localStorage:', error);
       set({ user });
@@ -58,7 +58,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
       if (user) {
         try {
-          localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('user', JSON.stringify(user));
         } catch (jsonError) {
           console.error('Erro ao serializar usuário:', jsonError);
         }
@@ -75,9 +75,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     try {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
     } catch (error) {
       console.error('Erro ao limpar localStorage:', error);
     }
@@ -98,7 +98,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       
       if (accessToken) {
         try {
-          localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('accessToken', accessToken);
         } catch (storageError) {
           console.error('Erro ao salvar token no localStorage:', storageError);
         }

@@ -132,8 +132,16 @@ export const EspecialidadesPage = () => {
     <div className="pt-2 pl-6 pr-6 h-full flex flex-col">
       <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Especialidades</h1>
-          <p className="text-gray-600">Gerenciar especialidades da clínica</p>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <span className="text-4xl">🎯</span>
+            <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              Especialidades
+            </span>
+          </h1>
+          <p className="text-gray-600 flex items-center gap-2">
+            <span className="text-lg">📋</span>
+            Gerenciar especialidades da clínica
+          </p>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -143,49 +151,89 @@ export const EspecialidadesPage = () => {
               placeholder="Buscar especialidades..."
               value={busca}
               onChange={e => setBusca(e.target.value)}
-              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all duration-200 hover:border-purple-300"
             />
           </div>
-          <Button onClick={abrirModalNova} className="bg-blue-600 hover:bg-blue-700 ml-2">
+          <Button 
+            onClick={abrirModalNova} 
+            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
+          >
             <Plus className="w-4 h-4 mr-2" />
             Nova Especialidade
           </Button>
         </div>
       </div>
       {loading ? (
-        <div className="py-8 text-center text-gray-500">Carregando...</div>
+        <div className="py-12 text-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+              <span className="text-3xl">⏳</span>
+            </div>
+            <p className="text-gray-500 font-medium">Carregando especialidades...</p>
+          </div>
+        </div>
       ) : (
-        <div className="flex-1 overflow-y-auto rounded-lg bg-white">
+        <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-sm border border-gray-100">
           <Table>
             <TableHeader>
-              <TableRow className="bg-muted">
-                <TableHead className="py-2 text-sm">Nome</TableHead>
-                <TableHead className="py-2 text-sm">Ações</TableHead>
+              <TableRow className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200">
+                <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🎯</span>
+                    Nome
+                  </div>
+                </TableHead>
+                <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">⚙️</span>
+                    Ações
+                  </div>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {especialidadesPaginadas.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={2} className="py-6 text-center text-gray-500 text-sm">Nenhuma especialidade encontrada.</TableCell>
+                  <TableCell colSpan={2} className="py-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                        <span className="text-3xl">🎯</span>
+                      </div>
+                      <p className="text-gray-500 font-medium">Nenhuma especialidade encontrada</p>
+                      <p className="text-gray-400 text-sm">Tente ajustar os filtros de busca</p>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ) : (
                 especialidadesPaginadas.map((esp) => (
-                  <TableRow key={esp.id} className="hover:bg-gray-50 h-12">
+                  <TableRow key={esp.id} className="hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 transition-all duration-200 h-12">
                     <TableCell className="py-2">
-                      <span className="text-sm font-medium">{esp.nome}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                          {esp.nome.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-sm font-medium">{esp.nome}</span>
+                      </div>
                     </TableCell>
                     <TableCell className="py-2">
-                      <div className="flex gap-1">
-                        <Button variant="default" size="sm" className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-400 h-7 w-7 p-0" onClick={() => abrirModalEditar(esp)}>
-                          <Edit className="w-3 h-3" />
+                      <div className="flex gap-1.5 flex-wrap">
+                        <Button 
+                          variant="default" 
+                          size="sm" 
+                          className="bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform" 
+                          onClick={() => abrirModalEditar(esp)}
+                          title="Editar Especialidade"
+                        >
+                          <Edit className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="group border-red-200 text-red-600 hover:bg-red-600 hover:text-white focus:ring-2 focus:ring-red-400 h-7 w-7 p-0"
+                          className="group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                           onClick={() => confirmarExclusao(esp)}
+                          title="Excluir Especialidade"
                         >
-                          <Trash2 className="w-3 h-3 group-hover:text-white transition-colors" />
+                          <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
                         </Button>
                       </div>
                     </TableCell>
@@ -197,11 +245,14 @@ export const EspecialidadesPage = () => {
         </div>
       )}
 
-      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-3 px-6 z-10">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Exibir</span>
+      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-600 flex items-center gap-2">
+            <span className="text-lg">📊</span>
+            Exibir
+          </span>
           <select
-            className="border rounded px-2 py-1 text-sm"
+            className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-100 focus:border-purple-500 transition-all duration-200 hover:border-purple-300"
             value={itensPorPagina}
             onChange={e => setItensPorPagina(Number(e.target.value))}
           >
@@ -212,18 +263,21 @@ export const EspecialidadesPage = () => {
           <span className="text-sm text-gray-600">itens por página</span>
         </div>
         
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-gray-600 flex items-center gap-2">
+          <span className="text-lg">📈</span>
           Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, especialidadesFiltradas.length)} de {especialidadesFiltradas.length} resultados
         </div>
 
         {totalPaginas > 1 && (
-          <div className="flex gap-1">
+          <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
               disabled={paginaAtual === 1}
+              className="border-2 border-gray-200 text-gray-700 hover:border-purple-500 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 hover:text-purple-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             >
+              <span className="mr-1 text-gray-600 group-hover:text-purple-600 transition-colors">⬅️</span>
               Anterior
             </Button>
             {(() => {
@@ -235,7 +289,10 @@ export const EspecialidadesPage = () => {
                   variant={page === paginaAtual ? "default" : "outline"}
                   size="sm"
                   onClick={() => setPaginaAtual(page)}
-                  className={page === paginaAtual ? "bg-blue-600 text-white" : ""}
+                  className={page === paginaAtual 
+                    ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg font-semibold" 
+                    : "border-2 border-gray-200 text-gray-700 hover:border-purple-500 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 hover:text-purple-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+                  }
                 >
                   {page}
                 </Button>
@@ -246,8 +303,10 @@ export const EspecialidadesPage = () => {
               size="sm"
               onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
               disabled={paginaAtual === totalPaginas}
+              className="border-2 border-gray-200 text-gray-700 hover:border-purple-500 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 hover:text-purple-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             >
               Próximo
+              <span className="ml-1 text-gray-600 group-hover:text-purple-600 transition-colors">➡️</span>
             </Button>
           </div>
         )}
