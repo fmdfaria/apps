@@ -78,6 +78,29 @@ function getConvenioColor(convenioId: string) {
   return colors[index];
 }
 
+// Função para determinar a cor de fundo baseada no percentual do profissional
+// Padrão: 62% profissional (verde) - quanto maior que 62%, mais vermelho
+// Usada também para clínica: se profissional está verde, clínica também está
+function getPercentualProfissionalColor(percentual: number | null) {
+  if (percentual === null) return { bg: 'bg-gray-100', text: 'text-gray-600' };
+  
+  const padrao = 62; // Percentual padrão para profissionais
+  
+  if (percentual <= padrao) {
+    // Verde: percentual menor ou igual ao padrão
+    return { bg: 'bg-green-100', text: 'text-green-800' };
+  } else if (percentual <= padrao + 5) {
+    // Amarelo: até 5% acima do padrão (62% a 67%)
+    return { bg: 'bg-yellow-100', text: 'text-yellow-800' };
+  } else if (percentual <= padrao + 10) {
+    // Laranja: até 10% acima do padrão (67% a 72%)
+    return { bg: 'bg-orange-100', text: 'text-orange-800' };
+  } else {
+    // Vermelho: mais de 10% acima do padrão (>72%)
+    return { bg: 'bg-red-100', text: 'text-red-800' };
+  }
+}
+
 export const ServicosPage = () => {
   const [servicos, setServicos] = useState<ServicoAPI[]>([]);
   const [busca, setBusca] = useState('');
@@ -282,7 +305,7 @@ export const ServicosPage = () => {
 
   return (
     <div className="pt-2 pl-6 pr-6 h-full flex flex-col">
-      <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
+      <div className="bg-white border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <span className="text-4xl">🩺</span>
@@ -347,6 +370,18 @@ export const ServicosPage = () => {
               </TableHead>
               <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
                 <div className="flex items-center justify-center gap-2">
+                  <span className="text-lg">💰</span>
+                  Valor Clínica
+                </div>
+              </TableHead>
+              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-lg">💵</span>
+                  Valor Profissional
+                </div>
+              </TableHead>
+              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center justify-center gap-2">
                   <span className="text-lg">🏥</span>
                   Clínica (%)
                 </div>
@@ -368,7 +403,7 @@ export const ServicosPage = () => {
           <TableBody>
             {servicosPaginados.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-12 text-center">
+                <TableCell colSpan={10} className="py-12 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                       <span className="text-3xl">🩺</span>
@@ -406,10 +441,40 @@ export const ServicosPage = () => {
                     <span className="text-sm font-medium text-green-600">{s.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                   </TableCell>
                   <TableCell className="text-center py-2">
-                    <span className="text-sm">{s.percentualClinica != null ? s.percentualClinica.toFixed(2) : '-'}</span>
+                    <span className="text-sm font-medium text-blue-600">
+                      {s.percentualClinica != null && s.preco != null 
+                        ? ((s.percentualClinica / 100) * s.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                        : '-'
+                      }
+                    </span>
                   </TableCell>
                   <TableCell className="text-center py-2">
-                    <span className="text-sm">{s.percentualProfissional != null ? s.percentualProfissional.toFixed(2) : '-'}</span>
+                    <span className="text-sm font-medium text-emerald-600">
+                      {s.percentualProfissional != null && s.preco != null 
+                        ? ((s.percentualProfissional / 100) * s.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                        : '-'
+                      }
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center py-2">
+                    {(() => {
+                      const colors = getPercentualProfissionalColor(s.percentualProfissional);
+                      return (
+                        <span className={`text-sm px-2 py-1 rounded-md font-medium ${colors.bg} ${colors.text}`}>
+                          {s.percentualClinica != null ? `${s.percentualClinica.toFixed(2).replace('.', ',')}%` : '-'}
+                        </span>
+                      );
+                    })()} 
+                  </TableCell>
+                  <TableCell className="text-center py-2">
+                    {(() => {
+                      const colors = getPercentualProfissionalColor(s.percentualProfissional);
+                      return (
+                        <span className={`text-sm px-2 py-1 rounded-md font-medium ${colors.bg} ${colors.text}`}>
+                          {s.percentualProfissional != null ? `${s.percentualProfissional.toFixed(2).replace('.', ',')}%` : '-'}
+                        </span>
+                      );
+                    })()} 
                   </TableCell>
                   <TableCell className="py-2">
                       <div className="flex gap-1.5 flex-wrap">

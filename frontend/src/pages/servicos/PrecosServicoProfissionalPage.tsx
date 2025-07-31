@@ -26,6 +26,29 @@ interface FormData {
   valorProfissional: string;
 }
 
+// Função para determinar a cor de fundo baseada no percentual do profissional
+// Padrão: 62% profissional (verde) - quanto maior que 62%, mais vermelho
+// Usada também para clínica: se profissional está verde, clínica também está
+function getPercentualProfissionalColor(percentual: number | null) {
+  if (percentual === null) return { bg: 'bg-gray-100', text: 'text-gray-600' };
+  
+  const padrao = 62; // Percentual padrão para profissionais
+  
+  if (percentual <= padrao) {
+    // Verde: percentual menor ou igual ao padrão
+    return { bg: 'bg-green-100', text: 'text-green-800' };
+  } else if (percentual <= padrao + 5) {
+    // Amarelo: até 5% acima do padrão (62% a 67%)
+    return { bg: 'bg-yellow-100', text: 'text-yellow-800' };
+  } else if (percentual <= padrao + 10) {
+    // Laranja: até 10% acima do padrão (67% a 72%)
+    return { bg: 'bg-orange-100', text: 'text-orange-800' };
+  } else {
+    // Vermelho: mais de 10% acima do padrão (>72%)
+    return { bg: 'bg-red-100', text: 'text-red-800' };
+  }
+}
+
 export default function PrecosServicoProfissionalPage() {
   const [precos, setPrecos] = useState<PrecoServicoProfissional[]>([]);
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
@@ -392,19 +415,13 @@ export default function PrecosServicoProfissionalPage() {
                 <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
                   <div className="flex items-center justify-center gap-2">
                     <span className="text-lg">💰</span>
-                    Preço Base
+                    Preço (R$)
                   </div>
                 </TableHead>
                 <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
                   <div className="flex items-center justify-center gap-2">
-                    <span className="text-lg">👨‍⚕️</span>
-                    % Profissional
-                  </div>
-                </TableHead>
-                <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-lg">🏥</span>
-                    % Clínica
+                    <span className="text-lg">💰</span>
+                    Valor Clínica
                   </div>
                 </TableHead>
                 <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
@@ -416,7 +433,13 @@ export default function PrecosServicoProfissionalPage() {
                 <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
                   <div className="flex items-center justify-center gap-2">
                     <span className="text-lg">🏥</span>
-                    Valor Clínica
+                    Clínica (%)
+                  </div>
+                </TableHead>
+                <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-lg">👨‍⚕️</span>
+                    Profissional (%)
                   </div>
                 </TableHead>
                 <TableHead className="text-right py-3 text-sm font-semibold text-gray-700">
@@ -472,35 +495,37 @@ export default function PrecosServicoProfissionalPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-center py-2">
-                        <span className="font-medium text-green-600 text-sm bg-green-50 px-2 py-1 rounded">
-                          {formatarMoeda(servico?.preco || 0)}
+                        <span className="text-sm font-medium text-green-600">{formatarMoeda(servico?.preco || 0)}</span>
+                      </TableCell>
+                      <TableCell className="text-center py-2">
+                        <span className="text-sm font-medium text-blue-600">
+                          {formatarMoeda(calcularValorEmReais(preco, 'clinica'))}
                         </span>
                       </TableCell>
                       <TableCell className="text-center py-2">
-                        <div className="flex justify-center">
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 text-xs py-1 px-2">
-                            <Percent className="w-2 h-2 mr-1" />
-                            {percentualAtual.toFixed(2)}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-2">
-                        <div className="flex justify-center">
-                          <Badge variant="outline" className="bg-purple-50 text-purple-700 text-xs py-1 px-2">
-                            <Percent className="w-2 h-2 mr-1" />
-                            {(preco.precoClinica || 0).toFixed(2)}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-2">
-                        <span className="font-medium text-blue-600 text-sm">
+                        <span className="text-sm font-medium text-emerald-600">
                           {formatarMoeda(calcularValorEmReais(preco, 'profissional'))}
                         </span>
                       </TableCell>
                       <TableCell className="text-center py-2">
-                        <span className="font-medium text-purple-600 text-sm">
-                          {formatarMoeda(calcularValorEmReais(preco, 'clinica'))}
-                        </span>
+                        {(() => {
+                          const colors = getPercentualProfissionalColor(percentualAtual);
+                          return (
+                            <span className={`text-sm px-2 py-1 rounded-md font-medium ${colors.bg} ${colors.text}`}>
+                              {(preco.precoClinica || 0).toFixed(2).replace('.', ',')}%
+                            </span>
+                          );
+                        })()} 
+                      </TableCell>
+                      <TableCell className="text-center py-2">
+                        {(() => {
+                          const colors = getPercentualProfissionalColor(percentualAtual);
+                          return (
+                            <span className={`text-sm px-2 py-1 rounded-md font-medium ${colors.bg} ${colors.text}`}>
+                              {percentualAtual.toFixed(2).replace('.', ',')}%
+                            </span>
+                          );
+                        })()} 
                       </TableCell>
                       <TableCell className="text-right py-2">
                         <div className="flex justify-end gap-1.5 flex-wrap">
