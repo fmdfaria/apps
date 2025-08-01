@@ -40,9 +40,11 @@ export const EspecialidadesPage = () => {
     }
   };
 
-  const especialidadesFiltradas = especialidades.filter(e =>
-    e.nome.toLowerCase().includes(busca.toLowerCase())
-  );
+  const especialidadesFiltradas = especialidades
+    .filter(e =>
+      e.nome.toLowerCase().includes(busca.toLowerCase())
+    )
+    .sort((a, b) => a.nome.localeCompare(b.nome));
 
   const totalPaginas = Math.ceil(especialidadesFiltradas.length / itensPorPagina);
   const especialidadesPaginadas = especialidadesFiltradas.slice(

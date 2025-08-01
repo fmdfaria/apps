@@ -213,10 +213,6 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
           <div className="mt-4 space-y-6">
             {/* Seção Principal */}
             <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                <span className="text-xl">👤</span>
-                Informações do Agendamento
-              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Paciente */}
                 <div>
@@ -228,12 +224,12 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                     options={pacientes.map(p => ({
                       id: p.id,
                       nome: p.nomeCompleto,
-                      sigla: p.cpf
+                      sigla: p.whatsapp
                     }))}
                     selected={pacientes.find(p => p.id === formData.pacienteId) ? {
                       id: formData.pacienteId,
                       nome: pacientes.find(p => p.id === formData.pacienteId)?.nomeCompleto || '',
-                      sigla: pacientes.find(p => p.id === formData.pacienteId)?.cpf
+                      sigla: pacientes.find(p => p.id === formData.pacienteId)?.whatsapp
                     } : null}
                     onChange={(selected) => {
                       setFormData(prev => ({ ...prev, pacienteId: selected?.id || '' }));
@@ -253,51 +249,41 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                     Profissional <span className="text-red-500">*</span>
                   </label>
                   <SingleSelectDropdown
-                    options={profissionais.map(p => ({
-                      id: p.id,
-                      nome: p.nome,
-                      sigla: p.cpf
-                    }))}
+                    options={(() => {
+                      // Se serviço selecionado, filtrar profissionais que oferecem esse serviço
+                      if (formData.servicoId) {
+                        return profissionais
+                          .filter(p => p.servicosIds && p.servicosIds.includes(formData.servicoId))
+                          .map(p => ({
+                            id: p.id,
+                            nome: p.nome,
+                            sigla: undefined
+                          }));
+                      }
+                      // Se não há serviço selecionado, mostrar todos os profissionais
+                      return profissionais.map(p => ({
+                        id: p.id,
+                        nome: p.nome,
+                        sigla: undefined
+                      }));
+                    })()}
                     selected={profissionais.find(p => p.id === formData.profissionalId) ? {
                       id: formData.profissionalId,
                       nome: profissionais.find(p => p.id === formData.profissionalId)?.nome || '',
-                      sigla: profissionais.find(p => p.id === formData.profissionalId)?.cpf
+                      sigla: undefined
                     } : null}
                     onChange={(selected) => {
-                      setFormData(prev => ({ ...prev, profissionalId: selected?.id || '' }));
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        profissionalId: selected?.id || '',
+                        // Não limpar convênio/serviço se foram selecionados primeiro
+                        ...(!formData.servicoId && { convenioId: '', servicoId: '' })
+                      }));
                     }}
                     placeholder={loadingData ? "Carregando profissionais..." : "Buscar profissional..."}
                     headerText="Profissionais disponíveis"
                     formatOption={(option) => {
-                      return option.sigla ? `${option.nome} - ${option.sigla}` : option.nome;
-                    }}
-                  />
-                </div>
-
-                {/* Serviço */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <span className="text-lg">🩺</span>
-                    Serviço <span className="text-red-500">*</span>
-                  </label>
-                  <SingleSelectDropdown
-                    options={servicos.map(s => ({
-                      id: s.id,
-                      nome: s.nome,
-                      sigla: s.duracaoMinutos ? `${s.duracaoMinutos} min` : undefined
-                    }))}
-                    selected={servicos.find(s => s.id === formData.servicoId) ? {
-                      id: formData.servicoId,
-                      nome: servicos.find(s => s.id === formData.servicoId)?.nome || '',
-                      sigla: servicos.find(s => s.id === formData.servicoId)?.duracaoMinutos ? `${servicos.find(s => s.id === formData.servicoId)?.duracaoMinutos} min` : undefined
-                    } : null}
-                    onChange={(selected) => {
-                      setFormData(prev => ({ ...prev, servicoId: selected?.id || '' }));
-                    }}
-                    placeholder={loadingData ? "Carregando serviços..." : "Buscar serviço..."}
-                    headerText="Serviços disponíveis"
-                    formatOption={(option) => {
-                      return option.sigla ? `${option.nome} - ${option.sigla}` : option.nome;
+                      return option.nome;
                     }}
                   />
                 </div>
@@ -309,21 +295,100 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                     Convênio <span className="text-red-500">*</span>
                   </label>
                   <SingleSelectDropdown
-                    options={convenios.map(c => ({
-                      id: c.id,
-                      nome: c.nome,
-                      sigla: undefined
-                    }))}
+                    options={(() => {
+                      // Se profissional selecionado, filtrar convênios pelos serviços do profissional
+                      if (formData.profissionalId) {
+                        const profissional = profissionais.find(p => p.id === formData.profissionalId);
+                        if (profissional && profissional.servicosIds) {
+                          const servicosDoProfissional = servicos.filter(s => 
+                            profissional.servicosIds.includes(s.id)
+                          );
+                          const conveniosUnicos = [...new Set(servicosDoProfissional
+                            .filter(s => s.convenioId)
+                            .map(s => s.convenioId))]
+                            .map(convenioId => convenios.find(c => c.id === convenioId))
+                            .filter(Boolean);
+                          return conveniosUnicos.map(c => ({
+                            id: c!.id,
+                            nome: c!.nome,
+                            sigla: undefined
+                          }));
+                        }
+                      }
+                      // Se não há profissional selecionado, mostrar todos os convênios
+                      return convenios.map(c => ({
+                        id: c.id,
+                        nome: c.nome,
+                        sigla: undefined
+                      }));
+                    })()}
                     selected={convenios.find(c => c.id === formData.convenioId) ? {
                       id: formData.convenioId,
                       nome: convenios.find(c => c.id === formData.convenioId)?.nome || '',
                       sigla: undefined
                     } : null}
                     onChange={(selected) => {
-                      setFormData(prev => ({ ...prev, convenioId: selected?.id || '' }));
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        convenioId: selected?.id || '',
+                        servicoId: '' // Limpar serviço quando trocar convênio
+                      }));
                     }}
                     placeholder={loadingData ? "Carregando convênios..." : "Buscar convênio..."}
                     headerText="Convênios disponíveis"
+                    formatOption={(option) => {
+                      return option.nome;
+                    }}
+                  />
+                </div>
+
+                {/* Serviço */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <span className="text-lg">🩺</span>
+                    Serviço <span className="text-red-500">*</span>
+                  </label>
+                  <SingleSelectDropdown
+                    options={formData.convenioId ? (() => {
+                      let servicosFiltrados = servicos.filter(s => s.convenioId === formData.convenioId);
+                      
+                      // Se profissional selecionado, filtrar apenas serviços que o profissional oferece
+                      if (formData.profissionalId) {
+                        const profissional = profissionais.find(p => p.id === formData.profissionalId);
+                        if (profissional && profissional.servicosIds) {
+                          servicosFiltrados = servicosFiltrados.filter(s => 
+                            profissional.servicosIds.includes(s.id)
+                          );
+                        }
+                      }
+                      
+                      return servicosFiltrados.map(s => ({
+                        id: s.id,
+                        nome: s.nome,
+                        sigla: s.duracaoMinutos ? `${s.duracaoMinutos} min` : undefined
+                      }));
+                    })() : []}
+                    selected={servicos.find(s => s.id === formData.servicoId) ? {
+                      id: formData.servicoId,
+                      nome: servicos.find(s => s.id === formData.servicoId)?.nome || '',
+                      sigla: servicos.find(s => s.id === formData.servicoId)?.duracaoMinutos ? `${servicos.find(s => s.id === formData.servicoId)?.duracaoMinutos} min` : undefined
+                    } : null}
+                    onChange={(selected) => {
+                      setFormData(prev => {
+                        const newServiceId = selected?.id || '';
+                        // Se mudou o serviço e há profissional selecionado, verificar se profissional oferece o novo serviço
+                        if (prev.profissionalId && newServiceId) {
+                          const profissional = profissionais.find(p => p.id === prev.profissionalId);
+                          if (profissional && profissional.servicosIds && !profissional.servicosIds.includes(newServiceId)) {
+                            // Profissional não oferece o novo serviço, limpar profissional
+                            return { ...prev, servicoId: newServiceId, profissionalId: '' };
+                          }
+                        }
+                        return { ...prev, servicoId: newServiceId };
+                      });
+                    }}
+                    placeholder={!formData.convenioId ? "Selecione um convênio primeiro..." : loadingData ? "Carregando serviços..." : "Buscar serviço..."}
+                    headerText="Serviços disponíveis"
                     formatOption={(option) => {
                       return option.sigla ? `${option.nome} - ${option.sigla}` : option.nome;
                     }}

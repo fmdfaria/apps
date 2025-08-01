@@ -40,10 +40,12 @@ export const BancosPage = () => {
     }
   };
 
-  const bancosFiltrados = bancos.filter(b =>
-    b.nome.toLowerCase().includes(busca.toLowerCase()) ||
-    b.codigo.toLowerCase().includes(busca.toLowerCase())
-  );
+  const bancosFiltrados = bancos
+    .filter(b =>
+      b.nome.toLowerCase().includes(busca.toLowerCase()) ||
+      b.codigo.toLowerCase().includes(busca.toLowerCase())
+    )
+    .sort((a, b) => a.codigo.localeCompare(b.codigo));
 
   const totalPaginas = Math.ceil(bancosFiltrados.length / itensPorPagina);
   const bancosPaginados = bancosFiltrados.slice(

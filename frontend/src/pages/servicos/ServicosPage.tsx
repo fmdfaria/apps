@@ -359,13 +359,13 @@ export const ServicosPage = () => {
               <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-lg">⏱️</span>
-                  Duração (min)
+                  Duração
                 </div>
               </TableHead>
               <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-lg">💰</span>
-                  Preço (R$)
+                  Preço
                 </div>
               </TableHead>
               <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
@@ -383,13 +383,13 @@ export const ServicosPage = () => {
               <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-lg">🏥</span>
-                  Clínica (%)
+                  Clínica
                 </div>
               </TableHead>
               <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-lg">👨‍⚕️</span>
-                  Profissional (%)
+                  Profissional
                 </div>
               </TableHead>
               <TableHead className="py-3 text-sm font-semibold text-gray-700">
@@ -435,7 +435,7 @@ export const ServicosPage = () => {
                     <span className="text-sm">{s.descricao}</span>
                   </TableCell>
                   <TableCell className="text-center py-2">
-                    <span className="text-sm">{s.duracaoMinutos}</span>
+                    <span className="text-sm">{s.duracaoMinutos} min</span>
                   </TableCell>
                   <TableCell className="text-center py-2">
                     <span className="text-sm font-medium text-green-600">{s.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
