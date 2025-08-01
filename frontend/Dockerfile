@@ -37,21 +37,19 @@ FROM nginx:stable-alpine AS runner
 RUN apk add --no-cache curl
 
 # Create nginx user for better security
-# Using existing group/user in alpine is often safer, but creating one works too.
 RUN addgroup -g 101 -S nginx || true
 RUN adduser -S -D -H -u 101 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx || true
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# ======================================================================
+# CORREÇÃO FINAL: Copia nosso arquivo de configuração para o local correto,
+# substituindo o arquivo principal do Nginx.
+# ======================================================================
+COPY nginx.conf /etc/nginx/nginx.conf
 
 # Copy built application from builder stage
 COPY --from=builder --chown=nginx:nginx /app/dist /usr/share/nginx/html
 
-# ======================================================================
-# CORREÇÃO: Definir permissões para os diretórios padrão do Nginx.
-# Removemos a criação do /run/nginx, pois usaremos /tmp para o arquivo PID,
-# que já é gravável por padrão.
-# ======================================================================
+# Definir permissões para os diretórios que o Nginx usa
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
     chown -R nginx:nginx /var/cache/nginx && \
     chown -R nginx:nginx /var/log/nginx
