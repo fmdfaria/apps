@@ -48,15 +48,13 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder --chown=nginx:nginx /app/dist /usr/share/nginx/html
 
 # ======================================================================
-# CORREÇÃO: Criar diretórios necessários e definir permissões
-# O Nginx precisa escrever o arquivo PID aqui.
-# Também garantimos permissões para outros diretórios que o Nginx usa.
+# CORREÇÃO: Definir permissões para os diretórios padrão do Nginx.
+# Removemos a criação do /run/nginx, pois usaremos /tmp para o arquivo PID,
+# que já é gravável por padrão.
 # ======================================================================
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
     chown -R nginx:nginx /var/cache/nginx && \
-    chown -R nginx:nginx /var/log/nginx && \
-    mkdir -p /run/nginx && \
-    chown -R nginx:nginx /run/nginx
+    chown -R nginx:nginx /var/log/nginx
 
 # Switch to non-root user
 USER nginx
