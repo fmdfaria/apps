@@ -1,38 +1,64 @@
-# ---- Estágio 1: Builder ----
-# Usa uma imagem Node.js para construir sua aplicação.
-FROM node:18-alpine AS builder
+# Multi-stage build for React/Vite application
+FROM node:18-alpine AS base
 
-# Define o diretório de trabalho dentro do contêiner
+# Install curl for healthcheck
+RUN apk add --no-cache curl
+
+# Install dependencies only when needed
+FROM base AS deps
 WORKDIR /app
 
-# Copia package.json e package-lock.json para instalar as dependências
+# Copy package files
 COPY package*.json ./
 
-# Instala as dependências do projeto
-RUN npm install
+# Install dependencies with clean install for production builds
+RUN npm ci --only=production && npm cache clean --force
 
-# Copia todo o resto do código do seu projeto
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including devDependencies)
+RUN npm ci && npm cache clean --force
+
+# Copy source code
 COPY . .
 
-# Executa o comando de build para gerar os arquivos estáticos
-# (Verifique no seu package.json se o comando é 'build')
+# Build the application
 RUN npm run build
 
+# Production image with Nginx
+FROM nginx:stable-alpine AS runner
 
-# ---- Estágio 2: Server ----
-# Usa uma imagem leve do Nginx para servir os arquivos
-FROM nginx:stable-alpine
+# Install curl for healthcheck
+RUN apk add --no-cache curl
 
-# Copia a configuração do Nginx (próximo passo)
+# Create nginx user for better security
+RUN addgroup -g 101 -S nginx || true
+RUN adduser -S -D -H -u 101 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx || true
+
+# Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copia os arquivos estáticos gerados no Estágio 1
-# ATENÇÃO: Verifique se sua pasta de build se chama 'dist'.
-# Se for 'build' (comum no Create React App), altere a linha abaixo para /app/build
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Copy built application from builder stage
+COPY --from=builder --chown=nginx:nginx /app/dist /usr/share/nginx/html
 
-# Expõe a porta 80, que é a porta padrão do Nginx
+# Set proper permissions
+RUN chown -R nginx:nginx /usr/share/nginx/html && \
+    chown -R nginx:nginx /var/cache/nginx
+
+# Switch to non-root user
+USER nginx
+
+# Expose port 80
 EXPOSE 80
 
-# Comando para iniciar o servidor Nginx
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
+  CMD curl -f http://localhost/ || exit 1
+
+# Start nginx
 CMD ["nginx", "-g", "daemon off;"]
