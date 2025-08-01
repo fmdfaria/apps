@@ -331,6 +331,7 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
           </DialogClose>
           <Button
             type="submit"
+            onClick={handleSalvar}
             disabled={loading}
             className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200 "
           >
