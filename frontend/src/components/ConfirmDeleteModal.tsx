@@ -63,7 +63,7 @@ export default function ConfirmDeleteModal({
             onClick={onConfirm}
             className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 font-semibold shadow-md hover:shadow-lg transition-all duration-200"
           >
-            <span className="mr-2">{isLoading ? '⏳' : '🗑️'}</span>
+            <span className="mr-2">{isLoading ? '⏳' : '♻️'}</span>
             {isLoading ? loadingText : confirmText}
           </AlertDialogAction>
         </AlertDialogFooter>

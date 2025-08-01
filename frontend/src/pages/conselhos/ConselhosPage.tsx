@@ -157,8 +157,8 @@ export const ConselhosPage = () => {
               className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all duration-200 hover:border-indigo-300"
             />
           </div>
-          <Button 
-            onClick={abrirModalNovo} 
+          <Button
+            onClick={abrirModalNovo}
             className="bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-700 hover:to-cyan-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -219,10 +219,10 @@ export const ConselhosPage = () => {
                   </TableCell>
                   <TableCell className="py-2">
                     <div className="flex gap-1.5 flex-wrap">
-                      <Button 
-                        variant="default" 
-                        size="sm" 
-                        className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white hover:from-indigo-700 hover:to-indigo-800 focus:ring-4 focus:ring-indigo-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform" 
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white hover:from-indigo-700 hover:to-indigo-800 focus:ring-4 focus:ring-indigo-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                         onClick={() => abrirModalEditar(c)}
                         title="Editar Conselho"
                       >
@@ -262,7 +262,7 @@ export const ConselhosPage = () => {
           </select>
           <span className="text-sm text-gray-600">itens por página</span>
         </div>
-        
+
         <div className="text-sm text-gray-600 flex items-center gap-2">
           <span className="text-lg">📈</span>
           Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, conselhosFiltrados.length)} de {conselhosFiltrados.length} resultados
@@ -289,8 +289,8 @@ export const ConselhosPage = () => {
                   variant={page === paginaAtual ? "default" : "outline"}
                   size="sm"
                   onClick={() => setPaginaAtual(page)}
-                  className={page === paginaAtual 
-                    ? "bg-gradient-to-r from-indigo-600 to-cyan-600 text-white shadow-lg font-semibold" 
+                  className={page === paginaAtual
+                    ? "bg-gradient-to-r from-indigo-600 to-cyan-600 text-white shadow-lg font-semibold"
                     : "border-2 border-gray-200 text-gray-700 hover:border-indigo-500 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-cyan-50 hover:text-indigo-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
                   }
                 >
@@ -347,10 +347,32 @@ export const ConselhosPage = () => {
             </div>
             <DialogFooter className="mt-6">
               <DialogClose asChild>
-                <Button type="button" variant="cancel" disabled={formLoading}>Cancelar</Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={formLoading}
+                  className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
+                >
+                  <span className="mr-2">🔴</span>
+                  Cancelar
+                </Button>
               </DialogClose>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={formLoading}>
-                {formLoading ? 'Salvando...' : (editando ? 'Salvar Alterações' : 'Cadastrar')}
+              <Button 
+                type="submit" 
+                disabled={formLoading}
+                className="bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-700 hover:to-cyan-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200 "
+              >
+                {formLoading ? (
+                  <>
+                    <span className="mr-2">⏳</span>
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-2">🟢</span>
+                    Salvar
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </form>

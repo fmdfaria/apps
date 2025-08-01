@@ -48,7 +48,7 @@ export default function EditarEnderecoModal({ open, onClose, profissional, onSal
       setComprovanteAnexo(null);
       setShowDeleteConfirm(false);
       setError('');
-      
+
       // Verificar se há comprovante existente no campo direto do profissional
       if (profissional.comprovanteEndereco) {
         setComprovanteAnexo({
@@ -101,7 +101,7 @@ export default function EditarEnderecoModal({ open, onClose, profissional, onSal
   const handleCepChange = async (cep: string) => {
     const cepLimpo = cep.replace(/\D/g, '');
     setForm(f => ({ ...f, cep }));
-    
+
     if (cepLimpo.length === 8) {
       try {
         const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
@@ -115,7 +115,7 @@ export default function EditarEnderecoModal({ open, onClose, profissional, onSal
             estado: data.uf || '',
           }));
         }
-      } catch {}
+      } catch { }
     }
   };
 
@@ -125,12 +125,12 @@ export default function EditarEnderecoModal({ open, onClose, profissional, onSal
 
   const handleConfirmDelete = async () => {
     if (!profissional) return;
-    
+
     try {
       setLoading(true);
       await deleteProfissionalComprovanteEndereco(profissional.id);
-    setComprovanteAnexo(null);
-    setComprovanteFile(null);
+      setComprovanteAnexo(null);
+      setComprovanteFile(null);
       setShowDeleteConfirm(false);
       onSalvar(); // Atualizar a lista de profissionais
     } catch (err) {
@@ -307,20 +307,35 @@ export default function EditarEnderecoModal({ open, onClose, profissional, onSal
             </div>
           </div>
 
-          <DialogFooter className="flex items-center justify-between">
-            <div className="flex-1">
-              {error && <FormErrorMessage>{error}</FormErrorMessage>}
-            </div>
-            <div className="flex gap-2">
-              <DialogClose asChild>
-                <Button type="button" variant="cancel" disabled={loading}>
-                  Cancelar
-                </Button>
-              </DialogClose>
-              <Button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700">
-                {loading ? 'Salvando...' : 'Salvar Endereço'}
+          <DialogFooter className="mt-6">
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={loading}
+                className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
+              >
+                <span className="mr-2">🔴</span>
+                Cancelar
               </Button>
-            </div>
+            </DialogClose>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl  font-semibold px-8 transition-all duration-200 "
+            >
+              {loading ? (
+                <>
+                  <span className="mr-2">⏳</span>
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <span className="mr-2">🟢</span>
+                  Salvar
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -340,8 +355,8 @@ export default function EditarEnderecoModal({ open, onClose, profissional, onSal
             <AlertDialogCancel disabled={loading} className="hover:bg-gray-50">
               Cancelar
             </AlertDialogCancel>
-            <AlertDialogAction 
-              disabled={loading} 
+            <AlertDialogAction
+              disabled={loading}
               onClick={handleConfirmDelete}
               className="bg-red-600 hover:bg-red-700"
             >

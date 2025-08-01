@@ -14,7 +14,7 @@ interface CriarProfissionalModalProps {
 
 const applyWhatsAppMask = (value: string) => {
   const numbers = value.replace(/\D/g, '');
-  
+
   if (numbers.length === 0) return '';
   if (numbers.length <= 2) return `+${numbers}`;
   if (numbers.length <= 4) return `+${numbers.slice(0, 2)} (${numbers.slice(2)}`;
@@ -70,10 +70,10 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
       setFormError('WhatsApp inválido. Exemplo: +55 (11) 99999-9999');
       return;
     }
-    
+
     setFormLoading(true);
     setFormError('');
-    
+
     try {
       const profissionalPayload = {
         nome: form.nome.trim(),
@@ -81,7 +81,7 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
         email: form.email.trim(),
         whatsapp: form.whatsapp ? removeWhatsAppMask(form.whatsapp) : null,
       };
-      
+
       await createProfissional(profissionalPayload);
       onSuccess();
       fecharModal();
@@ -116,13 +116,13 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
                 <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">Nome Completo</span>
                 <span className="text-red-500">*</span>
               </label>
-              <Input 
-                type="text" 
-                value={form.nome} 
-                onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} 
-                minLength={2} 
-                disabled={formLoading} 
-                autoFocus 
+              <Input
+                type="text"
+                value={form.nome}
+                onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
+                minLength={2}
+                disabled={formLoading}
+                autoFocus
                 placeholder="Nome completo do profissional"
               />
             </div>
@@ -132,13 +132,13 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
                 <span className="bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent font-semibold">CPF</span>
                 <span className="text-red-500">*</span>
               </label>
-              <Input 
-                type="text" 
-                value={form.cpf} 
-                onChange={e => setForm(f => ({ ...f, cpf: maskCPF(e.target.value) }))} 
-                className="hover:border-green-300 focus:border-green-500 focus:ring-green-100 font-mono" 
-                minLength={14} 
-                disabled={formLoading} 
+              <Input
+                type="text"
+                value={form.cpf}
+                onChange={e => setForm(f => ({ ...f, cpf: maskCPF(e.target.value) }))}
+                className="hover:border-green-300 focus:border-green-500 focus:ring-green-100 font-mono"
+                minLength={14}
+                disabled={formLoading}
                 placeholder="000.000.000-00"
               />
             </div>
@@ -148,12 +148,12 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
                 <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent font-semibold">E-mail</span>
                 <span className="text-red-500">*</span>
               </label>
-              <Input 
-                type="email" 
-                value={form.email} 
-                onChange={e => setForm(f => ({ ...f, email: e.target.value }))} 
-                className="hover:border-orange-300 focus:border-orange-500 focus:ring-orange-100" 
-                disabled={formLoading} 
+              <Input
+                type="email"
+                value={form.email}
+                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                className="hover:border-orange-300 focus:border-orange-500 focus:ring-orange-100"
+                disabled={formLoading}
                 placeholder="email@exemplo.com"
               />
             </div>
@@ -162,13 +162,13 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
                 <span className="text-lg">📱</span>
                 <span className="bg-gradient-to-r from-emerald-600 to-cyan-600 bg-clip-text text-transparent font-semibold">WhatsApp</span>
               </label>
-              <Input 
-                type="text" 
-                value={form.whatsapp} 
-                onChange={e => setForm(f => ({ ...f, whatsapp: applyWhatsAppMask(e.target.value) }))} 
-                className="hover:border-emerald-300 focus:border-emerald-500 focus:ring-emerald-100 font-mono" 
-                disabled={formLoading} 
-                placeholder="+55 (11) 99999-9999" 
+              <Input
+                type="text"
+                value={form.whatsapp}
+                onChange={e => setForm(f => ({ ...f, whatsapp: applyWhatsAppMask(e.target.value) }))}
+                className="hover:border-emerald-300 focus:border-emerald-500 focus:ring-emerald-100 font-mono"
+                disabled={formLoading}
+                placeholder="+55 (11) 99999-9999"
               />
             </div>
             <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl shadow-sm">
@@ -180,18 +180,35 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
               </p>
             </div>
           </div>
-          <DialogFooter className="flex items-center justify-between">
-            <div className="flex-1">
-              {formError && <FormErrorMessage>{formError}</FormErrorMessage>}
-            </div>
-            <div className="flex gap-2">
-              <DialogClose asChild>
-                <Button type="button" variant="cancel" disabled={formLoading}>Cancelar</Button>
-              </DialogClose>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={formLoading}>
-                {formLoading ? 'Salvando...' : 'Salvar'}
+          <DialogFooter className="mt-6">
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={formLoading}
+                className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
+              >
+                <span className="mr-2">🔴</span>
+                Cancelar
               </Button>
-            </div>
+            </DialogClose>
+            <Button
+              type="submit"
+              disabled={formLoading}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl  font-semibold px-8 transition-all duration-200 "
+            >
+              {formLoading ? (
+                <>
+                  <span className="mr-2">⏳</span>
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <span className="mr-2">🟢</span>
+                  Salvar
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

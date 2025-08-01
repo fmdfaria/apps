@@ -72,7 +72,7 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
       setComprovanteAnexo(null);
       setShowDeleteConfirm(false);
       setError('');
-      
+
       // Verificar se há comprovante existente no campo direto do profissional
       if (profissional.comprovanteBancario) {
         setComprovanteAnexo({
@@ -121,13 +121,13 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
         banco: form.banco,
         tipo_conta: form.tipoConta,
         agencia: form.agencia,
-        conta_numero: form.contaNumero, 
+        conta_numero: form.contaNumero,
         conta_digito: form.contaDigito,
         tipo_pix: form.tipo_pix,
         pix: form.pix,
         file: comprovanteFile,
       };
-      
+
       await updateProfissionalDadosBancarios(profissional.id, payload);
       onSalvar();
       onClose();
@@ -154,7 +154,7 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
 
   const handleConfirmDelete = async () => {
     if (!profissional) return;
-    
+
     try {
       setLoading(true);
       await deleteProfissionalComprovanteBancario(profissional.id);
@@ -334,20 +334,35 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
             </div>
           </div>
 
-          <DialogFooter className="flex items-center justify-between">
-            <div className="flex-1">
-              {error && <FormErrorMessage>{error}</FormErrorMessage>}
-            </div>
-            <div className="flex gap-2">
-              <DialogClose asChild>
-                <Button type="button" variant="cancel" disabled={loading}>
-                  Cancelar
-                </Button>
-              </DialogClose>
-              <Button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700">
-                {loading ? 'Salvando...' : 'Salvar Dados Bancários'}
+          <DialogFooter className="mt-6">
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={loading}
+                className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
+              >
+                <span className="mr-2">🔴</span>
+                Cancelar
               </Button>
-            </div>
+            </DialogClose>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl  font-semibold px-8 transition-all duration-200 "
+            >
+              {loading ? (
+                <>
+                  <span className="mr-2">⏳</span>
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <span className="mr-2">🟢</span>
+                  Salvar
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -364,11 +379,11 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
             <span className="text-sm text-gray-600">Esta ação não pode ser desfeita.</span>
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={loading} className="hover:bg-gray-50">
+            <AlertDialogCancel disabled={loading} className="border-2 border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50 hover:text-gray-700 font-semibold">
               Cancelar
             </AlertDialogCancel>
-            <AlertDialogAction 
-              disabled={loading} 
+            <AlertDialogAction
+              disabled={loading}
               onClick={handleConfirmDelete}
               className="bg-red-600 hover:bg-red-700"
             >

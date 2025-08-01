@@ -889,21 +889,36 @@ export const ServicosPage = () => {
                   </div>
                 </div>
               </div>
-            </div>
-            <DialogFooter className="flex items-center justify-between">
-              <div className="flex-1">
-                {formError && <FormErrorMessage>{formError}</FormErrorMessage>}
-              </div>
-              <div className="flex gap-2">
-                <DialogClose asChild>
-                  <Button type="button" variant="cancel" disabled={formLoading}>
-                    Cancelar
-                  </Button>
-                </DialogClose>
-                <Button type="submit" disabled={formLoading} className="bg-blue-600 hover:bg-blue-700">
-                  {formLoading ? 'Salvando...' : (editando ? 'Salvar Alterações' : 'Cadastrar')}
+            </div> 
+            <DialogFooter className="mt-6">
+              <DialogClose asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={formLoading}
+                  className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
+                >
+                  <span className="mr-2">🔴</span>
+                  Cancelar
                 </Button>
-              </div>
+              </DialogClose>
+              <Button 
+                type="submit" 
+                disabled={formLoading}
+                className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200 "
+              >
+                {formLoading ? (
+                  <>
+                    <span className="mr-2">⏳</span>
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-2">🟢</span>
+                    Salvar
+                  </>
+                )}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

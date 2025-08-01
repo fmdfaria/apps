@@ -189,18 +189,35 @@ export default function EditarProfissionalModal({ open, onClose, profissional, o
               />
             </div>
           </div>
-          <DialogFooter className="flex items-center justify-between">
-            <div className="flex-1">
-              {formError && <FormErrorMessage>{formError}</FormErrorMessage>}
-            </div>
-            <div className="flex gap-2">
-              <DialogClose asChild>
-                <Button type="button" variant="cancel" disabled={formLoading}>Cancelar</Button>
-              </DialogClose>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={formLoading}>
-                {formLoading ? 'Salvando...' : 'Salvar Alterações'}
+          <DialogFooter className="mt-6">
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={formLoading}
+                className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
+              >
+                <span className="mr-2">🔴</span>
+                Cancelar
               </Button>
-            </div>
+            </DialogClose>
+            <Button
+              type="submit"
+              disabled={formLoading}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl  font-semibold px-8 transition-all duration-200 "
+            >
+              {formLoading ? (
+                <>
+                  <span className="mr-2">⏳</span>
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <span className="mr-2">🟢</span>
+                  Salvar
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

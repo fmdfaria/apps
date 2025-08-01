@@ -40,10 +40,10 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
         try {
           const profCompleto = await getProfissional(profissional.id);
           setProfissionalCompleto(profCompleto);
-          
+
           // A API pode retornar servicosIds (array de strings) ou servicos (array de objetos)
           let servicosIdsArray: string[] = [];
-          
+
           if (profCompleto.servicosIds && Array.isArray(profCompleto.servicosIds)) {
             // Se tem servicosIds, usar diretamente
             servicosIdsArray = profCompleto.servicosIds;
@@ -51,14 +51,14 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
             // Se tem servicos (objetos), extrair os IDs
             servicosIdsArray = profCompleto.servicos.map(s => s.id);
           }
-          
-          
+
+
           setSelecionados(servicosIdsArray);
         } catch (error) {
           console.error('Erro ao carregar profissional completo:', error);
           // Fallback para os dados básicos
           setProfissionalCompleto(profissional);
-          
+
           // Mesmo fallback logic
           let servicosIdsArray: string[] = [];
           if (profissional.servicosIds && Array.isArray(profissional.servicosIds)) {
@@ -66,7 +66,7 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
           } else if (profissional.servicos && Array.isArray(profissional.servicos)) {
             servicosIdsArray = profissional.servicos.map(s => s.id);
           }
-          
+
           setSelecionados(servicosIdsArray);
         } finally {
           setCarregandoProfissional(false);
@@ -80,20 +80,20 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
   // Filtra serviços por categoria e busca
   const servicosFiltrados = useMemo(() => {
     let lista = servicos;
-    
+
     // Filtrar por categoria/convênio
     if (categoria !== 'todos') {
       lista = lista.filter(s => s.convenioId === categoria);
     }
-    
+
     // Filtrar por busca
     if (busca.trim()) {
       const termoBusca = busca.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
-      lista = lista.filter(s => 
+      lista = lista.filter(s =>
         s.nome.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(termoBusca)
       );
     }
-    
+
     return lista;
   }, [servicos, categoria, busca]);
 
@@ -158,50 +158,46 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
             </div>
             <ul>
               <li className="mb-2">
-                <button 
-                  className={`w-full text-left py-3 px-3 rounded-xl flex justify-between items-center transition-all duration-200 shadow-sm hover:shadow-md ${
-                    categoria === 'todos' 
-                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold transform scale-105' 
+                <button
+                  className={`w-full text-left py-3 px-3 rounded-xl flex justify-between items-center transition-all duration-200 shadow-sm hover:shadow-md ${categoria === 'todos'
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold transform scale-105'
                       : 'bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300'
-                  }`} 
+                    }`}
                   onClick={() => setCategoria('todos')}
                 >
                   <span className="flex items-center gap-2">
                     <span className="text-sm">🏥</span>
                     <span>Todos os serviços</span>
                   </span>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    categoria === 'todos' 
-                      ? 'bg-white/20 text-white' 
+                  <span className={`text-xs px-2 py-1 rounded-full ${categoria === 'todos'
+                      ? 'bg-white/20 text-white'
                       : 'bg-blue-100 text-blue-600'
-                  }`}>{servicos.length}</span>
+                    }`}>{servicos.length}</span>
                 </button>
               </li>
               {convenios.map(c => {
-                const servicosDoConvenio = servicos.filter(s => 
+                const servicosDoConvenio = servicos.filter(s =>
                   s.convenioId === c.id
                 );
                 return (
-                <li key={c.id} className="mb-2">
-                    <button 
-                      className={`w-full text-left py-3 px-3 rounded-xl flex justify-between items-center transition-all duration-200 shadow-sm hover:shadow-md ${
-                        categoria === c.id 
-                          ? 'bg-gradient-to-r from-green-500 to-teal-600 text-white font-semibold transform scale-105' 
+                  <li key={c.id} className="mb-2">
+                    <button
+                      className={`w-full text-left py-3 px-3 rounded-xl flex justify-between items-center transition-all duration-200 shadow-sm hover:shadow-md ${categoria === c.id
+                          ? 'bg-gradient-to-r from-green-500 to-teal-600 text-white font-semibold transform scale-105'
                           : 'bg-white hover:bg-green-50 border border-gray-200 hover:border-green-300'
-                      }`} 
+                        }`}
                       onClick={() => setCategoria(c.id)}
                     >
                       <span className="flex items-center gap-2">
                         <span className="text-sm">🏢</span>
                         <span className="truncate">{c.nome}</span>
                       </span>
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        categoria === c.id 
-                          ? 'bg-white/20 text-white' 
+                      <span className={`text-xs px-2 py-1 rounded-full ${categoria === c.id
+                          ? 'bg-white/20 text-white'
                           : 'bg-green-100 text-green-600'
-                      }`}>{servicosDoConvenio.length}</span>
+                        }`}>{servicosDoConvenio.length}</span>
                     </button>
-                </li>
+                  </li>
                 );
               })}
             </ul>
@@ -238,11 +234,11 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
             </div>
             <div className="flex-1 overflow-y-auto">
               <div className="flex items-center gap-3 px-4 py-3 border-b bg-gradient-to-r from-gray-50 to-white hover:from-blue-50 hover:to-purple-50 transition-all duration-200">
-                <input 
-                  type="checkbox" 
-                  checked={todosSelecionados} 
+                <input
+                  type="checkbox"
+                  checked={todosSelecionados}
                   onChange={toggleTodos}
-                  className="w-4 h-4 text-blue-600 border-2 border-gray-300 rounded focus:ring-blue-500 focus:ring-2" 
+                  className="w-4 h-4 text-blue-600 border-2 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                 />
                 <span className="font-semibold text-gray-700 flex items-center gap-2">
                   <span className="text-sm">🎯</span>
@@ -259,7 +255,7 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
                     <div className="text-sm">
                       Não há serviços vinculados ao convênio selecionado.
                       <br />
-                      <button 
+                      <button
                         className="text-blue-500 underline mt-2"
                         onClick={() => setCategoria('todos')}
                       >
@@ -281,11 +277,10 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
                   {servicosFiltrados.map(s => (
                     <li
                       key={s.id}
-                      className={`flex items-center gap-3 px-4 py-3 border-b cursor-pointer transition-all duration-200 ${
-                        selecionados.includes(s.id) 
-                          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-l-green-500 hover:from-green-100 hover:to-emerald-100' 
+                      className={`flex items-center gap-3 px-4 py-3 border-b cursor-pointer transition-all duration-200 ${selecionados.includes(s.id)
+                          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-l-green-500 hover:from-green-100 hover:to-emerald-100'
                           : 'hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50'
-                      }`}
+                        }`}
                       onClick={() => toggleServico(s.id)}
                     >
                       <input
@@ -313,15 +308,44 @@ export default function AtribuirServicosModal({ open, onClose, profissional, con
           </div>
         </div>
         <DialogFooter className="flex items-center justify-between p-4 border-t">
-          <Button type="button" variant="outline" className="text-pink-600 border-pink-200 hover:bg-pink-50 hover:text-pink-700" onClick={limparTodos} disabled={loading}>LIMPAR TODOS OS SERVIÇOS</Button>
-          <div className="flex gap-2">
-            <DialogClose asChild>
-              <Button type="button" variant="cancel" disabled={loading}>Cancelar</Button>
-            </DialogClose>
-            <Button type="button" className="bg-blue-600 hover:bg-blue-700" onClick={handleSalvar} disabled={loading}>
-              {loading ? 'Salvando...' : 'Salvar Alterações'}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={loading}
+            onClick={limparTodos}
+            className="border-2 border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 font-semibold transition-all duration-200"
+          >
+            <span className="mr-2">🔵</span>
+            Limpar Serviços
+          </Button>
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={loading}
+              className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
+            >
+              <span className="mr-2">🔴</span>
+              Cancelar
             </Button>
-          </div>
+          </DialogClose>
+          <Button
+            type="submit"
+            disabled={loading}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200 "
+          >
+            {loading ? (
+              <>
+                <span className="mr-2">⏳</span>
+                Salvando...
+              </>
+            ) : (
+              <>
+                <span className="mr-2">🟢</span>
+                Salvar
+              </>
+            )}
+          </Button>
         </DialogFooter>
         {erro && (
           <div className="mx-6 mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
