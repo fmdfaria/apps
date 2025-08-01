@@ -20,6 +20,7 @@ import PrecosServicoProfissionalPage from '@/pages/servicos/PrecosServicoProfiss
 import { ConveniosPage } from '@/pages/convenios/ConveniosPage';
 import { EspecialidadesPage } from '@/pages/especialidades/EspecialidadesPage';
 import { ConselhosPage } from '@/pages/conselhos/ConselhosPage';
+import { BancosPage } from '@/pages/bancos/BancosPage';
 import { RecursosPage } from '@/pages/recursos/RecursosPage';
 import { AgendamentosPage } from '@/pages/agendamentos/AgendamentosPage';
 import { LiberarPage } from '@/pages/agendamentos/LiberarPage';
@@ -61,6 +62,7 @@ export default function App() {
             <Route path="convenios" element={<ConveniosPage />} />
             <Route path="especialidades" element={<EspecialidadesPage />} />
             <Route path="conselhos" element={<ConselhosPage />} />
+            <Route path="bancos" element={<BancosPage />} />
             <Route path="recursos" element={<RecursosPage />} />
             <Route path="agendamentos" element={<AgendamentosPage />} />
             <Route path="agendamentos/liberacao" element={<LiberarPage />} />

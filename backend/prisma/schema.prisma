@@ -99,6 +99,16 @@ model Paciente {
   @@map("pacientes")
 }
 
+model Banco {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo    String    @unique @db.VarChar(10)
+  nome      String    @db.VarChar(100)
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("bancos")
+}
+
 model Convenio {
   id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nome         String        @unique @db.VarChar(100)

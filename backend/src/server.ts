@@ -24,6 +24,7 @@ import { agendamentosRoutes } from './infra/http/routes/agendamentos.routes';
 import { evolucoesPacientesRoutes } from './infra/http/routes/evolucoes-pacientes.routes';
 import { authRoutes } from './infra/http/routes/auth.routes';
 import { usersRoutes } from './infra/http/routes/users.routes';
+import { bancosRoutes } from './infra/http/routes/bancos.routes';
 
 const app = fastify({
   logger: true,
@@ -58,6 +59,7 @@ app.register(agendamentosRoutes);
 app.register(evolucoesPacientesRoutes);
 app.register(authRoutes);
 app.register(usersRoutes);
+app.register(bancosRoutes);
 
 // Health check route
 app.get('/', async (request, reply) => {

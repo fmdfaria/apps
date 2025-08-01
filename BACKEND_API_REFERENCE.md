@@ -713,6 +713,36 @@
 
 ---
 
+## 16. Bancos
+- **POST /bancos**
+- **GET /bancos**
+- **PUT /bancos/:id**
+- **DELETE /bancos/:id**
+
+**Campos obrigatórios:**
+- codigo (string)
+- nome (string)
+
+**Campos opcionais:**
+(nenhum)
+
+**Exemplo de JSON:**
+```json
+{
+  "codigo": "001",
+  "nome": "Banco do Brasil S.A."
+}
+```
+
+**Restrições e Observações:**
+- `codigo`: string única, identificador do banco (ex: "001", "104", "237").
+- `nome`: mínimo 1 caractere, nome completo do banco.
+- Não é permitido cadastrar bancos com códigos duplicados.
+- A listagem retorna os bancos ordenados alfabeticamente por nome.
+- Usado para cadastro de dados bancários de profissionais.
+
+---
+
 ## Observações Gerais
 - Todos os endpoints seguem o padrão REST.
 - Os campos `id` são sempre UUIDs.

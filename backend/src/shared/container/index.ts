@@ -73,6 +73,13 @@ import { PrismaUsersRepository } from '../../infra/database/prisma/repositories/
 import { IRefreshTokensRepository } from '../../core/domain/repositories/IRefreshTokensRepository';
 import { PrismaRefreshTokensRepository } from '../../infra/database/prisma/repositories/PrismaRefreshTokensRepository';
 
+import { IBancosRepository } from '../../core/domain/repositories/IBancosRepository';
+import { PrismaBancosRepository } from '../../infra/database/prisma/repositories/PrismaBancosRepository';
+import { CreateBancoUseCase } from '../../core/application/use-cases/banco/CreateBancoUseCase';
+import { ListBancosUseCase } from '../../core/application/use-cases/banco/ListBancosUseCase';
+import { UpdateBancoUseCase } from '../../core/application/use-cases/banco/UpdateBancoUseCase';
+import { DeleteBancoUseCase } from '../../core/application/use-cases/banco/DeleteBancoUseCase';
+
 container.registerInstance('PrismaClient', prisma);
 
 container.register<IEspecialidadesRepository>(
@@ -202,3 +209,13 @@ container.registerSingleton<IRefreshTokensRepository>(
   'RefreshTokensRepository',
   PrismaRefreshTokensRepository
 );
+
+container.registerSingleton<IBancosRepository>(
+  'BancosRepository',
+  PrismaBancosRepository
+);
+
+container.register('CreateBancoUseCase', CreateBancoUseCase);
+container.register('ListBancosUseCase', ListBancosUseCase);
+container.register('UpdateBancoUseCase', UpdateBancoUseCase);
+container.register('DeleteBancoUseCase', DeleteBancoUseCase);

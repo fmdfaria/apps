@@ -1,4 +1,4 @@
-import { Calendar, Users, UserCheck, Briefcase, Building, Building2, LayoutDashboard, LogOut, ChevronLeft, ChevronRight, Clock, DollarSign, CheckCircle, Stethoscope, ClipboardCheck, User } from 'lucide-react';
+import { Calendar, Users, UserCheck, Briefcase, Building, Building2, LayoutDashboard, LogOut, ChevronLeft, ChevronRight, Clock, DollarSign, CheckCircle, Stethoscope, ClipboardCheck, User, Landmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
@@ -53,6 +53,7 @@ const menuItems = [
   { id: 'recursos', label: 'Recursos', icon: Building2, adminOnly: true },
   { id: 'especialidades', label: 'Especialidades', icon: Briefcase, adminOnly: true },
   { id: 'conselhos', label: 'Conselhos Profissionais', icon: Building, adminOnly: true },
+  { id: 'bancos', label: 'Bancos', icon: Landmark, adminOnly: true },
 ];
 
 export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedProp, setIsCollapsed: setIsCollapsedProp }: SidebarProps) => {
