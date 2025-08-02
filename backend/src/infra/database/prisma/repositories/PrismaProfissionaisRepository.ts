@@ -5,6 +5,7 @@ import {
   ICreateProfissionalDTO,
   IProfissionaisRepository,
   IUpdateProfissionalDTO,
+  ProfissionalServico,
 } from '../../../../core/domain/repositories/IProfissionaisRepository';
 
 const profissionalInclude = {
@@ -143,5 +144,76 @@ export class PrismaProfissionaisRepository implements IProfissionaisRepository {
 
   async delete(id: string): Promise<void> {
     await this.prisma.profissional.delete({ where: { id } });
+  }
+
+  async listProfissionaisServicos(): Promise<ProfissionalServico[]> {
+    const profissionaisServicos = await this.prisma.profissionaisServicos.findMany({
+      include: {
+        profissional: {
+          select: {
+            id: true,
+            nome: true,
+            cpf: true,
+            email: true,
+          },
+        },
+        servico: {
+          select: {
+            id: true,
+            nome: true,
+            duracaoMinutos: true,
+            preco: true,
+          },
+        },
+      },
+    });
+
+    return profissionaisServicos.map((ps) => ({
+      id: ps.id,
+      profissionalId: ps.profissionalId,
+      servicoId: ps.servicoId,
+      profissional: ps.profissional,
+      servico: {
+        ...ps.servico,
+        preco: Number(ps.servico.preco),
+      },
+    }));
+  }
+
+  async listProfissionaisByServico(servicoId: string): Promise<ProfissionalServico[]> {
+    const profissionaisServicos = await this.prisma.profissionaisServicos.findMany({
+      where: {
+        servicoId,
+      },
+      include: {
+        profissional: {
+          select: {
+            id: true,
+            nome: true,
+            cpf: true,
+            email: true,
+          },
+        },
+        servico: {
+          select: {
+            id: true,
+            nome: true,
+            duracaoMinutos: true,
+            preco: true,
+          },
+        },
+      },
+    });
+
+    return profissionaisServicos.map((ps) => ({
+      id: ps.id,
+      profissionalId: ps.profissionalId,
+      servicoId: ps.servicoId,
+      profissional: ps.profissional,
+      servico: {
+        ...ps.servico,
+        preco: Number(ps.servico.preco),
+      },
+    }));
   }
 } 

@@ -8,6 +8,24 @@ export interface ICreateProfissionalDTO extends Omit<Profissional, 'id' | 'creat
 
 export interface IUpdateProfissionalDTO extends Partial<Omit<ICreateProfissionalDTO, 'cpf'>> {}
 
+export interface ProfissionalServico {
+  id: string;
+  profissionalId: string;
+  servicoId: string;
+  profissional: {
+    id: string;
+    nome: string;
+    cpf: string;
+    email: string;
+  };
+  servico: {
+    id: string;
+    nome: string;
+    duracaoMinutos: number;
+    preco: number;
+  };
+}
+
 export interface IProfissionaisRepository {
   create(data: ICreateProfissionalDTO): Promise<Profissional>;
   update(id: string, data: IUpdateProfissionalDTO): Promise<Profissional>;
@@ -16,4 +34,6 @@ export interface IProfissionaisRepository {
   findByEmail(email: string): Promise<Profissional | null>;
   findAll(): Promise<Profissional[]>;
   delete(id: string): Promise<void>;
+  listProfissionaisServicos(): Promise<ProfissionalServico[]>;
+  listProfissionaisByServico(servicoId: string): Promise<ProfissionalServico[]>;
 } 
