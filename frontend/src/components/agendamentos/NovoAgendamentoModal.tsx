@@ -213,7 +213,8 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
           <div className="mt-4 space-y-6">
             {/* Seção Principal */}
             <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Linha 1: Paciente, Convênio, Serviço */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 {/* Paciente */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -242,52 +243,6 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                   />
                 </div>
 
-                {/* Profissional */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <span className="text-lg">👨‍⚕️</span>
-                    Profissional <span className="text-red-500">*</span>
-                  </label>
-                  <SingleSelectDropdown
-                    options={(() => {
-                      // Se serviço selecionado, filtrar profissionais que oferecem esse serviço
-                      if (formData.servicoId) {
-                        return profissionais
-                          .filter(p => p.servicosIds && p.servicosIds.includes(formData.servicoId))
-                          .map(p => ({
-                            id: p.id,
-                            nome: p.nome,
-                            sigla: undefined
-                          }));
-                      }
-                      // Se não há serviço selecionado, mostrar todos os profissionais
-                      return profissionais.map(p => ({
-                        id: p.id,
-                        nome: p.nome,
-                        sigla: undefined
-                      }));
-                    })()}
-                    selected={profissionais.find(p => p.id === formData.profissionalId) ? {
-                      id: formData.profissionalId,
-                      nome: profissionais.find(p => p.id === formData.profissionalId)?.nome || '',
-                      sigla: undefined
-                    } : null}
-                    onChange={(selected) => {
-                      setFormData(prev => ({ 
-                        ...prev, 
-                        profissionalId: selected?.id || '',
-                        // Não limpar convênio/serviço se foram selecionados primeiro
-                        ...(!formData.servicoId && { convenioId: '', servicoId: '' })
-                      }));
-                    }}
-                    placeholder={loadingData ? "Carregando profissionais..." : "Buscar profissional..."}
-                    headerText="Profissionais disponíveis"
-                    formatOption={(option) => {
-                      return option.nome;
-                    }}
-                  />
-                </div>
-
                 {/* Convênio */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -295,33 +250,11 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                     Convênio <span className="text-red-500">*</span>
                   </label>
                   <SingleSelectDropdown
-                    options={(() => {
-                      // Se profissional selecionado, filtrar convênios pelos serviços do profissional
-                      if (formData.profissionalId) {
-                        const profissional = profissionais.find(p => p.id === formData.profissionalId);
-                        if (profissional && profissional.servicosIds) {
-                          const servicosDoProfissional = servicos.filter(s => 
-                            profissional.servicosIds.includes(s.id)
-                          );
-                          const conveniosUnicos = [...new Set(servicosDoProfissional
-                            .filter(s => s.convenioId)
-                            .map(s => s.convenioId))]
-                            .map(convenioId => convenios.find(c => c.id === convenioId))
-                            .filter(Boolean);
-                          return conveniosUnicos.map(c => ({
-                            id: c!.id,
-                            nome: c!.nome,
-                            sigla: undefined
-                          }));
-                        }
-                      }
-                      // Se não há profissional selecionado, mostrar todos os convênios
-                      return convenios.map(c => ({
-                        id: c.id,
-                        nome: c.nome,
-                        sigla: undefined
-                      }));
-                    })()}
+                    options={convenios.map(c => ({
+                      id: c.id,
+                      nome: c.nome,
+                      sigla: undefined
+                    }))}
                     selected={convenios.find(c => c.id === formData.convenioId) ? {
                       id: formData.convenioId,
                       nome: convenios.find(c => c.id === formData.convenioId)?.nome || '',
@@ -331,7 +264,10 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                       setFormData(prev => ({ 
                         ...prev, 
                         convenioId: selected?.id || '',
-                        servicoId: '' // Limpar serviço quando trocar convênio
+                        servicoId: '', // Limpar serviço quando trocar convênio
+                        profissionalId: '', // Limpar profissional quando trocar convênio
+                        recursoId: '', // Limpar recurso quando trocar convênio
+                        tipoAtendimento: 'presencial' // Reset tipo de atendimento
                       }));
                     }}
                     placeholder={loadingData ? "Carregando convênios..." : "Buscar convênio..."}
@@ -349,48 +285,64 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                     Serviço <span className="text-red-500">*</span>
                   </label>
                   <SingleSelectDropdown
-                    options={formData.convenioId ? (() => {
-                      let servicosFiltrados = servicos.filter(s => s.convenioId === formData.convenioId);
-                      
-                      // Se profissional selecionado, filtrar apenas serviços que o profissional oferece
-                      if (formData.profissionalId) {
-                        const profissional = profissionais.find(p => p.id === formData.profissionalId);
-                        if (profissional && profissional.servicosIds) {
-                          servicosFiltrados = servicosFiltrados.filter(s => 
-                            profissional.servicosIds.includes(s.id)
-                          );
-                        }
-                      }
-                      
-                      return servicosFiltrados.map(s => ({
+                    options={formData.convenioId ? servicos
+                      .filter(s => s.convenioId === formData.convenioId)
+                      .map(s => ({
                         id: s.id,
                         nome: s.nome,
                         sigla: s.duracaoMinutos ? `${s.duracaoMinutos} min` : undefined
-                      }));
-                    })() : []}
+                      })) : []}
                     selected={servicos.find(s => s.id === formData.servicoId) ? {
                       id: formData.servicoId,
                       nome: servicos.find(s => s.id === formData.servicoId)?.nome || '',
                       sigla: servicos.find(s => s.id === formData.servicoId)?.duracaoMinutos ? `${servicos.find(s => s.id === formData.servicoId)?.duracaoMinutos} min` : undefined
                     } : null}
                     onChange={(selected) => {
-                      setFormData(prev => {
-                        const newServiceId = selected?.id || '';
-                        // Se mudou o serviço e há profissional selecionado, verificar se profissional oferece o novo serviço
-                        if (prev.profissionalId && newServiceId) {
-                          const profissional = profissionais.find(p => p.id === prev.profissionalId);
-                          if (profissional && profissional.servicosIds && !profissional.servicosIds.includes(newServiceId)) {
-                            // Profissional não oferece o novo serviço, limpar profissional
-                            return { ...prev, servicoId: newServiceId, profissionalId: '' };
-                          }
-                        }
-                        return { ...prev, servicoId: newServiceId };
-                      });
+                      setFormData(prev => ({
+                        ...prev,
+                        servicoId: selected?.id || '',
+                        profissionalId: '', // Limpar profissional quando trocar serviço
+                        recursoId: '', // Limpar recurso quando trocar serviço
+                        tipoAtendimento: 'presencial' // Reset tipo de atendimento
+                      }));
                     }}
                     placeholder={!formData.convenioId ? "Selecione um convênio primeiro..." : loadingData ? "Carregando serviços..." : "Buscar serviço..."}
                     headerText="Serviços disponíveis"
                     formatOption={(option) => {
                       return option.sigla ? `${option.nome} - ${option.sigla}` : option.nome;
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Linha 2: Profissional, Recurso, Tipo de Atendimento */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Profissional */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <span className="text-lg">👨‍⚕️</span>
+                    Profissional <span className="text-red-500">*</span>
+                  </label>
+                  <SingleSelectDropdown
+                    options={formData.servicoId ? profissionais
+                      .filter(p => p.servicosIds && p.servicosIds.includes(formData.servicoId))
+                      .map(p => ({
+                        id: p.id,
+                        nome: p.nome,
+                        sigla: undefined
+                      })) : []}
+                    selected={profissionais.find(p => p.id === formData.profissionalId) ? {
+                      id: formData.profissionalId,
+                      nome: profissionais.find(p => p.id === formData.profissionalId)?.nome || '',
+                      sigla: undefined
+                    } : null}
+                    onChange={(selected) => {
+                      setFormData(prev => ({ ...prev, profissionalId: selected?.id || '' }));
+                    }}
+                    placeholder={!formData.servicoId ? "Selecione um serviço primeiro..." : loadingData ? "Carregando profissionais..." : "Buscar profissional..."}
+                    headerText="Profissionais disponíveis"
+                    formatOption={(option) => {
+                      return option.nome;
                     }}
                   />
                 </div>
@@ -402,11 +354,11 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                     Recurso <span className="text-red-500">*</span>
                   </label>
                   <SingleSelectDropdown
-                    options={recursos.map(r => ({
+                    options={formData.servicoId ? recursos.map(r => ({
                       id: r.id,
                       nome: r.nome,
                       sigla: r.descricao
-                    }))}
+                    })) : []}
                     selected={recursos.find(r => r.id === formData.recursoId) ? {
                       id: formData.recursoId,
                       nome: recursos.find(r => r.id === formData.recursoId)?.nome || '',
@@ -415,7 +367,7 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                     onChange={(selected) => {
                       setFormData(prev => ({ ...prev, recursoId: selected?.id || '' }));
                     }}
-                    placeholder={loadingData ? "Carregando recursos..." : "Buscar recurso..."}
+                    placeholder={!formData.servicoId ? "Selecione um serviço primeiro..." : loadingData ? "Carregando recursos..." : "Buscar recurso..."}
                     headerText="Recursos disponíveis"
                     formatOption={(option) => {
                       return option.sigla ? `${option.nome} - ${option.sigla}` : option.nome;
@@ -430,19 +382,19 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                     Tipo de Atendimento <span className="text-red-500">*</span>
                   </label>
                   <SingleSelectDropdown
-                    options={[
+                    options={formData.servicoId ? [
                       { id: 'presencial', nome: 'Presencial', sigla: '🏥' },
                       { id: 'online', nome: 'Online', sigla: '📱' }
-                    ]}
-                    selected={{
+                    ] : []}
+                    selected={formData.servicoId ? {
                       id: formData.tipoAtendimento,
                       nome: formData.tipoAtendimento === 'presencial' ? 'Presencial' : 'Online',
                       sigla: formData.tipoAtendimento === 'presencial' ? '🏥' : '📱'
-                    }}
+                    } : null}
                     onChange={(selected) => {
                       setFormData(prev => ({ ...prev, tipoAtendimento: selected?.id as TipoAtendimento || 'presencial' }));
                     }}
-                    placeholder="Selecione o tipo..."
+                    placeholder={!formData.servicoId ? "Selecione um serviço primeiro..." : "Selecione o tipo..."}
                     headerText="Tipos de atendimento"
                     formatOption={(option) => {
                       return `${option.sigla} ${option.nome}`;

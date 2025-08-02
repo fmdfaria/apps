@@ -9,9 +9,11 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import { updateProfissionalDadosBancarios, deleteProfissionalComprovanteBancario } from '@/services/profissionais';
 import { uploadAnexo, getAnexos, deleteAnexo } from '@/services/anexos';
+import { getBancos } from '@/services/bancos';
 import { useInputMask } from '@/hooks/useInputMask';
 import type { Profissional } from '@/types/Profissional';
 import type { Anexo } from '@/types/Anexo';
+import type { Banco } from '@/types/Banco';
 
 interface EditarDadosBancariosModalProps {
   open: boolean;
@@ -49,6 +51,8 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [bancos, setBancos] = useState<Banco[]>([]);
+  const [loadingBancos, setLoadingBancos] = useState(false);
 
   const maskAgencia = useInputMask('9999');
   const maskContaNumero = useInputMask('999999999');
@@ -86,6 +90,24 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
       }
     }
   }, [open, profissional]);
+
+  useEffect(() => {
+    const fetchBancos = async () => {
+      try {
+        setLoadingBancos(true);
+        const bancosData = await getBancos();
+        setBancos(bancosData);
+      } catch (err) {
+        console.error('Erro ao carregar bancos:', err);
+      } finally {
+        setLoadingBancos(false);
+      }
+    };
+
+    if (open) {
+      fetchBancos();
+    }
+  }, [open]);
 
   const handlePixChange = (value: string) => {
     let maskedValue = value;
@@ -189,13 +211,19 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
                   <span className="text-lg">🏪</span>
                   <span className="bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent font-semibold">Banco</span>
                 </label>
-                <Input
-                  type="text"
-                  value={form.banco}
-                  onChange={e => setForm(f => ({ ...f, banco: e.target.value }))}
-                  className="hover:border-indigo-300 focus:border-indigo-500 focus:ring-indigo-100"
-                  disabled={loading}
-                  placeholder="Nome do banco"
+                <SingleSelectDropdown
+                  options={bancos
+                    .sort((a, b) => a.codigo.localeCompare(b.codigo))
+                    .map(banco => ({
+                      id: `${banco.codigo} - ${banco.nome}`,
+                      nome: `${banco.codigo} - ${banco.nome}`
+                    }))}
+                  selected={form.banco ? {
+                    id: form.banco,
+                    nome: form.banco
+                  } : null}
+                  onChange={opt => setForm(f => ({ ...f, banco: opt?.id || '' }))}
+                  placeholder={loadingBancos ? "Carregando bancos..." : "Digite para buscar..."}
                 />
               </div>
               <div>
