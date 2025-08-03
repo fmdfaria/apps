@@ -1,0 +1,68 @@
+import type { CreateAgendamentoData } from '@/services/agendamentos';
+import type { TipoRecorrencia } from '@/types/Agendamento';
+import type { Paciente } from '@/types/Paciente';
+import type { Profissional } from '@/types/Profissional';
+import type { Convenio } from '@/types/Convenio';
+import type { Servico } from '@/types/Servico';
+import type { Recurso } from '@/types/Recurso';
+import type { ProfissionalServico } from '@/services/profissionais-servicos';
+
+export type TipoFluxo = 'por-profissional' | 'por-data';
+
+export interface CriarAgendamentoModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  preenchimentoInicial?: {
+    profissionalId?: string;
+    dataHoraInicio?: string;
+  };
+}
+
+export interface RecorrenciaState {
+  tipo: TipoRecorrencia;
+  repeticoes: number;
+  ate: string;
+}
+
+export interface AgendamentoFormState {
+  formData: CreateAgendamentoData;
+  dataAgendamento: string;
+  horaAgendamento: string;
+  temRecorrencia: boolean;
+  recorrencia: RecorrenciaState;
+  tipoFluxo: TipoFluxo | null;
+}
+
+export interface AgendamentoDataState {
+  pacientes: Paciente[];
+  profissionais: Profissional[];
+  profissionaisPorServico: ProfissionalServico[];
+  convenios: Convenio[];
+  servicos: Servico[];
+  recursos: Recurso[];
+  conveniosDoProfissional: Convenio[];
+  servicosDoProfissional: Servico[];
+}
+
+export interface AgendamentoLoadingState {
+  loading: boolean;
+  loadingData: boolean;
+  loadingProfissionaisPorServico: boolean;
+}
+
+export interface AgendamentoFormContext {
+  state: AgendamentoFormState;
+  dataState: AgendamentoDataState;
+  loadingState: AgendamentoLoadingState;
+  updateFormData: (data: Partial<CreateAgendamentoData>) => void;
+  updateDataAgendamento: (data: string) => void;
+  updateHoraAgendamento: (hora: string) => void;
+  updateTemRecorrencia: (tem: boolean) => void;
+  updateRecorrencia: (recorrencia: Partial<RecorrenciaState>) => void;
+  updateTipoFluxo: (tipo: TipoFluxo | null) => void;
+  resetForm: () => void;
+  carregarDados: () => Promise<void>;
+  carregarDadosDoProfissional: (profissionalId: string) => Promise<void>;
+  carregarProfissionaisPorServico: (servicoId: string) => Promise<void>;
+} 
