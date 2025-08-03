@@ -24,11 +24,15 @@ import {
   Activity,
   X,
   Filter,
-  FilterX
+  FilterX,
+  Eye,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import type { Agendamento, StatusAgendamento } from '@/types/Agendamento';
-import { getAgendamentos } from '@/services/agendamentos';
+import { getAgendamentos, deleteAgendamento } from '@/services/agendamentos';
 import { NovoAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 
 export const AgendamentosPage = () => {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
@@ -54,6 +58,10 @@ export const AgendamentosPage = () => {
     dataFim: ''
   });
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  
+  // Estados para exclusão
+  const [agendamentoExcluindo, setAgendamentoExcluindo] = useState<Agendamento | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     carregarAgendamentos();
@@ -104,7 +112,7 @@ export const AgendamentosPage = () => {
       
       return true;
     })
-    .sort((a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime());
+    .sort((a, b) => a.dataHoraInicio.localeCompare(b.dataHoraInicio));
 
   const totalPaginas = Math.ceil(agendamentosFiltrados.length / itensPorPagina);
   const agendamentosPaginados = agendamentosFiltrados.slice(
@@ -112,11 +120,16 @@ export const AgendamentosPage = () => {
     paginaAtual * itensPorPagina
   );
 
-  const formatarDataHora = (dataISO: string) => {
-    const data = new Date(dataISO);
+  const formatarDataHora = (dataHoraISO: string) => {
+    // Parse da string sem conversão de timezone
+    // Formato esperado: "2025-08-04T10:00:00.000Z" 
+    const [datePart, timePart] = dataHoraISO.split('T');
+    const [ano, mes, dia] = datePart.split('-');
+    const [hora, minuto] = timePart.split(':');
+    
     return {
-      data: data.toLocaleDateString('pt-BR'),
-      hora: data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      data: `${dia}/${mes}/${ano}`,
+      hora: `${hora}:${minuto}`
     };
   };
 
@@ -191,6 +204,31 @@ export const AgendamentosPage = () => {
   const handleVerDetalhes = (agendamento: Agendamento) => {
     setAgendamentoDetalhes(agendamento);
     setShowDetalhesAgendamento(true);
+  };
+
+  // Funções de exclusão
+  const confirmarExclusao = (agendamento: Agendamento) => {
+    setAgendamentoExcluindo(agendamento);
+  };
+
+  const cancelarExclusao = () => {
+    setAgendamentoExcluindo(null);
+  };
+
+  const handleDelete = async () => {
+    if (!agendamentoExcluindo) return;
+    
+    setDeleteLoading(true);
+    try {
+      await deleteAgendamento(agendamentoExcluindo.id);
+      setAgendamentoExcluindo(null);
+      carregarAgendamentos(); // Recarregar a lista após exclusão
+    } catch (error) {
+      console.error('Erro ao excluir agendamento:', error);
+      // Aqui você pode adicionar um toast de erro se desejar
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const estatisticas = [
@@ -296,14 +334,30 @@ export const AgendamentosPage = () => {
                   <div className="flex gap-1">
                     <Button 
                       size="sm" 
-                      variant="outline" 
-                      className="flex-1 h-7 text-xs"
+                      variant="default"
+                      className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
                       onClick={() => handleVerDetalhes(agendamento)}
                     >
-                      Detalhes
+                      Visualizar
                     </Button>
-                    <Button size="sm" className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700">
-                      Gerenciar
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="flex-1 h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
+                      onClick={() => {
+                        // TODO: Implementar modal de edição
+                        console.log('Editar agendamento:', agendamento.id);
+                      }}
+                    >
+                      Editar
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="flex-1 h-7 text-xs border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+                      onClick={() => confirmarExclusao(agendamento)}
+                    >
+                      Excluir
                     </Button>
                   </div>
                 </CardContent>
@@ -316,176 +370,167 @@ export const AgendamentosPage = () => {
   );
 
   const renderTableView = () => (
-    <div className="space-y-6">
-      {/* Cards de Estatísticas Horizontais para Tabela */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-2 mx-2">
-        {estatisticas.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <Card 
-              key={stat.label} 
-              className="hover:shadow-md transition-shadow"
-            >
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded ${stat.cor}`}>
-                      <Icon className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-600">{stat.label}</p>
-                    </div>
+    <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-sm border border-gray-100">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📅</span>
+                Data
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⏰</span>
+                Horário
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">👤</span>
+                Paciente
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">👨‍⚕️</span>
+                Profissional
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🩺</span>
+                Serviço
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🏥</span>
+                Convênio
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🏷️</span>
+                Tipo
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📊</span>
+                Status
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⚙️</span>
+                Ações
+              </div>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {agendamentosPaginados.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={9} className="py-12 text-center">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                    <span className="text-3xl">📅</span>
                   </div>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${stat.cor}`}>
-                    <span className="text-sm font-bold text-white">{stat.valor}</span>
-                  </div>
+                  <p className="text-gray-500 font-medium">
+                    {busca || temFiltrosAtivos || filtroStatus !== 'TODOS' 
+                      ? 'Nenhum resultado encontrado' 
+                      : 'Nenhum agendamento cadastrado'
+                    }
+                  </p>
+                  <p className="text-gray-400 text-sm">Tente ajustar os filtros de busca</p>
                 </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Tabela */}
-      <div className="rounded-lg bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">📅</span>
-                  Data
-                </div>
-              </TableHead>
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">⏰</span>
-                  Horário
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🏥</span>
-                  Convênio
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🩺</span>
-                  Serviço
-                </div>
-              </TableHead>
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">🏷️</span>
-                  Tipo
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">👤</span>
-                  Paciente
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">👨‍⚕️</span>
-                  Profissional
-                </div>
-              </TableHead>
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">📊</span>
-                  Status
-                </div>
-              </TableHead>
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">⚙️</span>
-                  Ações
-                </div>
-              </TableHead>
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {agendamentosPaginados.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9} className="py-12 text-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                      <span className="text-3xl">📅</span>
-                    </div>
-                    <p className="text-gray-500 font-medium">
-                      {busca || temFiltrosAtivos || filtroStatus !== 'TODOS' 
-                        ? 'Nenhum resultado encontrado' 
-                        : 'Nenhum agendamento cadastrado'
-                      }
-                    </p>
-                    <p className="text-gray-400 text-sm">Tente ajustar os filtros de busca</p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              agendamentosPaginados.map((agendamento) => {
-                const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
-                
-                return (
-                  <TableRow key={agendamento.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200 h-12">
-                  <TableCell className="text-center py-2">
-                    <span className="text-sm">{data}</span>
+          ) : (
+            agendamentosPaginados.map((agendamento) => {
+              const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
+              
+              return (
+                <TableRow key={agendamento.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200 h-12">
+                  <TableCell className="py-2">
+                    <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded text-gray-700">{data}</span>
                   </TableCell>
-                  <TableCell className="text-center py-2">
-                    <span className="text-sm">{hora}</span>
+                  <TableCell className="py-2">
+                    <span className="text-sm font-mono bg-blue-100 px-2 py-1 rounded text-blue-700">{hora}</span>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                        {agendamento.pacienteNome?.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-sm font-medium">{agendamento.pacienteNome}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <span className="text-sm text-blue-600 hover:text-blue-800 transition-colors">{agendamento.profissionalNome}</span>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <span className="text-sm">{agendamento.servicoNome}</span>
                   </TableCell>
                   <TableCell className="py-2">
                     <span className="text-sm">{agendamento.convenioNome}</span>
                   </TableCell>
                   <TableCell className="py-2">
-                    <span className="text-sm">{agendamento.servicoNome}</span>
-                  </TableCell>
-                  <TableCell className="text-center py-2">
-                    <Badge variant="outline" className="text-xs">
+                    <span className={`text-sm px-3 py-1 rounded-full font-medium ${
+                      agendamento.tipoAtendimento === 'presencial' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
                       {agendamento.tipoAtendimento}
-                    </Badge>
+                    </span>
                   </TableCell>
                   <TableCell className="py-2">
-                    <span className="font-medium text-sm">{agendamento.pacienteNome}</span>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <span className="text-sm">{agendamento.profissionalNome}</span>
-                  </TableCell>
-                  <TableCell className="text-center py-2">
-                    <Badge className={getStatusColor(agendamento.status)}>
+                    <Badge className={`text-xs ${getStatusColor(agendamento.status)}`}>
                       {agendamento.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right py-2">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={() => handleVerDetalhes(agendamento)}
-                        title="Ver detalhes"
-                      >
-                        <FileText className="w-3 h-3" />
-                      </Button>
+                  <TableCell className="py-2">
+                    <div className="flex gap-1.5">
                       <Button
                         variant="default"
                         size="sm"
-                        className="bg-blue-600 text-white hover:bg-blue-700 h-7 px-3"
+                        className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleVerDetalhes(agendamento)}
+                        title="Visualizar Agendamento"
                       >
-                        Gerenciar
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => {
+                          // TODO: Implementar modal de edição
+                          console.log('Editar agendamento:', agendamento.id);
+                        }}
+                        title="Editar Agendamento"
+                      >
+                        <Edit className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => confirmarExclusao(agendamento)}
+                        title="Excluir Agendamento"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
                       </Button>
                     </div>
                   </TableCell>
                 </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              );
+            })
+          )}
+        </TableBody>
+      </Table>
     </div>
   );
 
@@ -505,7 +550,12 @@ export const AgendamentosPage = () => {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Agendamentos - Visão Geral</h1>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <span className="text-4xl">📅</span>
+            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Agendamentos
+            </span>
+          </h1>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -738,75 +788,118 @@ export const AgendamentosPage = () => {
         </div>
       )}
 
+      {/* Cards de Estatísticas para visualização de cards */}
+      {visualizacao === 'cards' && (
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          {estatisticas.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <Card key={stat.label} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded ${stat.cor}`}>
+                        <Icon className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-600">{stat.label}</p>
+                      </div>
+                    </div>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${stat.cor}`}>
+                      <span className="text-sm font-bold text-white">{stat.valor}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
       {/* Conteúdo */}
-      <div className="flex-1 overflow-y-auto">
-        {visualizacao === 'cards' ? renderCardView() : renderTableView()}
-      </div>
+      {visualizacao === 'cards' ? renderCardView() : renderTableView()}
 
       {/* Paginação */}
-      {totalPaginas > 1 && (
-        <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-3 px-6 z-10">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Exibir</span>
-            <select
-              className="border rounded px-2 py-1 text-sm"
-              value={itensPorPagina}
-              onChange={e => setItensPorPagina(Number(e.target.value))}
-            >
-              {[12, 24, 48, 96].map(qtd => (
-                <option key={qtd} value={qtd}>{qtd}</option>
-              ))}
-            </select>
-            <span className="text-sm text-gray-600">itens por página</span>
-          </div>
-          
-          <div className="text-sm text-gray-600">
-            Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, agendamentosFiltrados.length)} de {agendamentosFiltrados.length} resultados
-            {(temFiltrosAtivos || filtroStatus !== 'TODOS' || busca) && (
-              <span className="text-gray-500">
-                {' '}(filtrados de {agendamentos.length} total)
-              </span>
-            )}
-          </div>
+      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-600 flex items-center gap-2">
+            <span className="text-lg">📊</span>
+            Exibir
+          </span>
+          <select
+            className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 hover:border-blue-300"
+            value={itensPorPagina}
+            onChange={e => setItensPorPagina(Number(e.target.value))}
+          >
+            {[10, 25, 50, 100].map(qtd => (
+              <option key={qtd} value={qtd}>{qtd}</option>
+            ))}
+          </select>
+          <span className="text-sm text-gray-600">itens por página</span>
+        </div>
+        
+        <div className="text-sm text-gray-600 flex items-center gap-2">
+          <span className="text-lg">📈</span>
+          Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, agendamentosFiltrados.length)} de {agendamentosFiltrados.length} resultados
+        </div>
 
-          <div className="flex gap-1">
+        {totalPaginas > 1 && (
+          <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
               disabled={paginaAtual === 1}
+              className="border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             >
+              <span className="mr-1 text-gray-600 group-hover:text-blue-600 transition-colors">⬅️</span>
               Anterior
             </Button>
-            
-            {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
-              const pageNumber = Math.max(1, Math.min(totalPaginas - 4, paginaAtual - 2)) + i;
-              return (
+            {(() => {
+              const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
+              const endPage = Math.min(totalPaginas, startPage + 4);
+              return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
                 <Button
-                  key={pageNumber}
-                  variant={paginaAtual === pageNumber ? "default" : "outline"}
+                  key={page}
+                  variant={page === paginaAtual ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setPaginaAtual(pageNumber)}
-                  className="w-8"
+                  onClick={() => setPaginaAtual(page)}
+                  className={page === paginaAtual 
+                    ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg font-semibold" 
+                    : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+                  }
                 >
-                  {pageNumber}
+                  {page}
                 </Button>
-              );
-            })}
-            
+              ));
+            })()}
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
               disabled={paginaAtual === totalPaginas}
+              className="border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             >
-              Próxima
+              Próximo
+              <span className="ml-1 text-gray-600 group-hover:text-blue-600 transition-colors">➡️</span>
             </Button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Modais */}
+      {/* Modal de confirmação de exclusão */}
+      <ConfirmDeleteModal
+        open={agendamentoExcluindo !== null}
+        onClose={cancelarExclusao}
+        onConfirm={handleDelete}
+        entityName={agendamentoExcluindo?.pacienteNome || ''}
+        entityType="agendamento"
+        isLoading={deleteLoading}
+        loadingText="Excluindo..."
+        confirmText="Excluir Agendamento"
+      />
+
       <NovoAgendamentoModal
         isOpen={showNovoAgendamento}
         onClose={() => setShowNovoAgendamento(false)}

@@ -17,7 +17,9 @@ import {
   Stethoscope,
   Filter,
   FilterX,
-  X
+  X,
+  Eye,
+  CheckSquare
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { getAgendamentos } from '@/services/agendamentos';
@@ -121,7 +123,7 @@ export const AprovarPage = () => {
       
       return true;
     })
-    .sort((a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime());
+    .sort((a, b) => a.dataHoraInicio.localeCompare(b.dataHoraInicio));
 
   const totalPaginas = Math.ceil(agendamentosFiltrados.length / itensPorPagina);
   const agendamentosPaginados = agendamentosFiltrados.slice(
@@ -129,11 +131,16 @@ export const AprovarPage = () => {
     paginaAtual * itensPorPagina
   );
 
-  const formatarDataHora = (dataISO: string) => {
-    const data = new Date(dataISO);
+  const formatarDataHora = (dataHoraISO: string) => {
+    // Parse da string sem conversão de timezone
+    // Formato esperado: "2025-08-04T10:00:00.000Z" 
+    const [datePart, timePart] = dataHoraISO.split('T');
+    const [ano, mes, dia] = datePart.split('-');
+    const [hora, minuto] = timePart.split(':');
+    
     return {
-      data: data.toLocaleDateString('pt-BR'),
-      hora: data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      data: `${dia}/${mes}/${ano}`,
+      hora: `${hora}:${minuto}`
     };
   };
 
@@ -216,21 +223,22 @@ export const AprovarPage = () => {
                   )}
                 </div>
                 
-                <div className="flex gap-2">
+                <div className="flex gap-1">
                   <Button 
                     size="sm" 
-                    variant="outline" 
-                    className="flex-1"
+                    variant="default"
+                    className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
                     onClick={() => handleVerDetalhes(agendamento)}
                   >
-                    Ver Detalhes
+                    Visualizar
                   </Button>
                   <Button 
                     size="sm" 
-                    className="flex-1 bg-green-600 hover:bg-green-700"
+                    variant="outline"
+                    className="flex-1 h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
                     onClick={() => handleAprovar(agendamento)}
                   >
-                    Avaliar
+                    Aprovar Atendimento
                   </Button>
                 </div>
               </CardContent>
@@ -242,38 +250,19 @@ export const AprovarPage = () => {
   );
 
   const renderTableView = () => (
-    <div className="rounded-lg bg-white">
-              <Table>
+    <Table>
           <TableHeader>
-            <TableRow className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
+            <TableRow className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
                   <span className="text-lg">📅</span>
-                  Data Agendamento
+                  Data
                 </div>
               </TableHead>
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
                   <span className="text-lg">⏰</span>
                   Horário
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🏥</span>
-                  Convênio
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🩺</span>
-                  Serviço
-                </div>
-              </TableHead>
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">🏷️</span>
-                  Tipo
                 </div>
               </TableHead>
               <TableHead className="py-3 text-sm font-semibold text-gray-700">
@@ -288,14 +277,32 @@ export const AprovarPage = () => {
                   Profissional
                 </div>
               </TableHead>
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">📅</span>
-                  Data Atendimento
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🏥</span>
+                  Convênio
                 </div>
               </TableHead>
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🩺</span>
+                  Serviço
+                </div>
+              </TableHead>
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🏷️</span>
+                  Tipo
+                </div>
+              </TableHead>
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">📊</span>
+                  Status
+                </div>
+              </TableHead>
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
                   <span className="text-lg">⚙️</span>
                   Ações
                 </div>
@@ -322,12 +329,23 @@ export const AprovarPage = () => {
               const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
               
               return (
-                <TableRow key={agendamento.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200 h-12">
-                  <TableCell className="text-center py-2">
-                    <span className="text-sm">{data}</span>
+                <TableRow key={agendamento.id} className="hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-200 h-12">
+                  <TableCell className="py-2">
+                    <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded text-gray-700">{data}</span>
                   </TableCell>
-                  <TableCell className="text-center py-2">
-                    <span className="text-sm">{hora}</span>
+                  <TableCell className="py-2">
+                    <span className="text-sm font-mono bg-green-100 px-2 py-1 rounded text-green-700">{hora}</span>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                        {agendamento.pacienteNome?.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-sm font-medium">{agendamento.pacienteNome}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <span className="text-sm">{agendamento.profissionalNome}</span>
                   </TableCell>
                   <TableCell className="py-2">
                     <span className="text-sm">{agendamento.convenioNome}</span>
@@ -335,43 +353,43 @@ export const AprovarPage = () => {
                   <TableCell className="py-2">
                     <span className="text-sm">{agendamento.servicoNome}</span>
                   </TableCell>
-                  <TableCell className="text-center py-2">
-                    <Badge variant="outline" className="text-xs">
+                  <TableCell className="py-2">
+                    <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                      agendamento.tipoAtendimento === 'online' 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
                       {agendamento.tipoAtendimento}
-                    </Badge>
+                    </span>
                   </TableCell>
                   <TableCell className="py-2">
-                    <span className="font-medium text-sm">{agendamento.pacienteNome}</span>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <span className="text-sm">{agendamento.profissionalNome}</span>
-                  </TableCell>
-                  <TableCell className="text-center py-2">
-                    <span className="text-sm">
-                      {agendamento.dataAtendimento 
-                        ? new Date(agendamento.dataAtendimento).toLocaleDateString('pt-BR')
-                        : '-'
-                      }
+                    <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                      agendamento.status === 'ATENDIDO' 
+                        ? 'bg-yellow-100 text-yellow-800' 
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {agendamento.status}
                     </span>
                   </TableCell>
                   <TableCell className="text-right py-2">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={() => handleVerDetalhes(agendamento)}
-                        title="Ver Detalhes"
-                      >
-                        <FileText className="w-3 h-3" />
-                      </Button>
+                    <div className="flex justify-end gap-1.5">
                       <Button
                         variant="default"
                         size="sm"
-                        onClick={() => handleAprovar(agendamento)}
-                        className="bg-green-600 text-white hover:bg-green-700 h-7 px-3"
+                        className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleVerDetalhes(agendamento)}
+                        title="Visualizar Agendamento"
                       >
-                        Avaliar
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleAprovar(agendamento)}
+                        title="Aprovar Atendimento"
+                      >
+                        <CheckSquare className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
                       </Button>
                     </div>
                   </TableCell>
@@ -381,7 +399,6 @@ export const AprovarPage = () => {
           )}
         </TableBody>
       </Table>
-    </div>
   );
 
   if (loading) {
@@ -400,7 +417,12 @@ export const AprovarPage = () => {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Conclusão de Agendamentos</h1>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <span className="text-4xl">✅</span>
+            <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+              Conclusão de Agendamentos
+            </span>
+          </h1>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -410,7 +432,7 @@ export const AprovarPage = () => {
               placeholder="Buscar agendamentos..."
               value={busca}
               onChange={e => setBusca(e.target.value)}
-              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200 hover:border-green-300"
             />
           </div>
 
@@ -610,72 +632,77 @@ export const AprovarPage = () => {
       )}
 
       {/* Conteúdo */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-sm border border-gray-100">
         {visualizacao === 'cards' ? renderCardView() : renderTableView()}
       </div>
 
       {/* Paginação */}
-      {totalPaginas > 1 && (
-        <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-3 px-6 z-10">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Exibir</span>
-            <select
-              className="border rounded px-2 py-1 text-sm"
-              value={itensPorPagina}
-              onChange={e => setItensPorPagina(Number(e.target.value))}
-            >
-              {[10, 25, 50, 100].map(qtd => (
-                <option key={qtd} value={qtd}>{qtd}</option>
-              ))}
-            </select>
-            <span className="text-sm text-gray-600">itens por página</span>
-          </div>
-          
-          <div className="text-sm text-gray-600">
-            Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, agendamentosFiltrados.length)} de {agendamentosFiltrados.length} resultados
-            {(temFiltrosAtivos || busca) && (
-              <span className="text-gray-500">
-                {' '}(filtrados de {agendamentos.filter(a => a.status === 'ATENDIDO').length} total)
-              </span>
-            )}
-          </div>
+      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-600 flex items-center gap-2">
+            <span className="text-lg">📊</span>
+            Exibir
+          </span>
+          <select
+            className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-100 focus:border-green-500 transition-all duration-200 hover:border-green-300"
+            value={itensPorPagina}
+            onChange={e => setItensPorPagina(Number(e.target.value))}
+          >
+            {[10, 25, 50, 100].map(qtd => (
+              <option key={qtd} value={qtd}>{qtd}</option>
+            ))}
+          </select>
+          <span className="text-sm text-gray-600">itens por página</span>
+        </div>
+        
+        <div className="text-sm text-gray-600 flex items-center gap-2">
+          <span className="text-lg">📈</span>
+          Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, agendamentosFiltrados.length)} de {agendamentosFiltrados.length} resultados
+        </div>
 
-          <div className="flex gap-1">
+        {totalPaginas > 1 && (
+          <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
               disabled={paginaAtual === 1}
+              className="border-2 border-gray-200 text-gray-700 hover:border-green-500 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 hover:text-green-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             >
+              <span className="mr-1 text-gray-600 group-hover:text-green-600 transition-colors">⬅️</span>
               Anterior
             </Button>
-            
-            {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
-              const pageNumber = Math.max(1, Math.min(totalPaginas - 4, paginaAtual - 2)) + i;
-              return (
+            {(() => {
+              const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
+              const endPage = Math.min(totalPaginas, startPage + 4);
+              return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
                 <Button
-                  key={pageNumber}
-                  variant={paginaAtual === pageNumber ? "default" : "outline"}
+                  key={page}
+                  variant={page === paginaAtual ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setPaginaAtual(pageNumber)}
-                  className="w-8"
+                  onClick={() => setPaginaAtual(page)}
+                  className={page === paginaAtual 
+                    ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg font-semibold" 
+                    : "border-2 border-gray-200 text-gray-700 hover:border-green-500 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 hover:text-green-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+                  }
                 >
-                  {pageNumber}
+                  {page}
                 </Button>
-              );
-            })}
-            
+              ));
+            })()}
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
               disabled={paginaAtual === totalPaginas}
+              className="border-2 border-gray-200 text-gray-700 hover:border-green-500 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 hover:text-green-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             >
-              Próxima
+              Próximo
+              <span className="ml-1 text-gray-600 group-hover:text-green-600 transition-colors">➡️</span>
             </Button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Modais */}
       <AprovarAgendamentoModal

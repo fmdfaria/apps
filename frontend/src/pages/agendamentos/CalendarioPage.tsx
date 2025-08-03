@@ -2,20 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { CalendarHeader } from '@/components/calendar/CalendarHeader';
 import { SchedulerGrid } from '@/components/calendar/SchedulerGrid';
 import { NovoAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
 import { 
   Calendar as CalendarIcon, 
   Plus,
-  Menu
+  Menu,
+  Users,
+  ChevronDown,
+  ChevronUp,
+  X,
+  Building2
 } from 'lucide-react';
 import { getAgendamentos } from '@/services/agendamentos';
 import { getProfissionais } from '@/services/profissionais';
 import { getConvenios } from '@/services/convenios';
+import { getRecursos } from '@/services/recursos';
+import { getAllDisponibilidades } from '@/services/disponibilidades';
 import type { Agendamento, StatusAgendamento } from '@/types/Agendamento';
 import type { Profissional } from '@/types/Profissional';
 import type { Convenio } from '@/types/Convenio';
+import type { Recurso } from '@/types/Recurso';
+import type { DisponibilidadeProfissional } from '@/types/DisponibilidadeProfissional';
 
 interface CalendarProfissional {
   id: string;
@@ -29,6 +40,7 @@ interface CalendarProfissional {
 interface CalendarAgendamento {
   id: string;
   profissionalId: string;
+  recursoId: string;
   paciente: string;
   servico: string;
   convenio: string;
@@ -37,15 +49,23 @@ interface CalendarAgendamento {
   horarioFim: string;
   status: string;
   data: Date;
+  profissionalNome?: string;
+  recursoNome?: string;
 }
 
 export const CalendarioPage = () => {
+  // Estados básicos
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'day' | 'week'>('day');
+  const [gridViewType, setGridViewType] = useState<'profissionais' | 'recursos'>('profissionais');
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [convenios, setConvenios] = useState<Convenio[]>([]);
+  const [recursos, setRecursos] = useState<Recurso[]>([]);
+  const [disponibilidades, setDisponibilidades] = useState<DisponibilidadeProfissional[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Estados para modais
   const [showNovoAgendamento, setShowNovoAgendamento] = useState(false);
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
@@ -57,7 +77,15 @@ export const CalendarioPage = () => {
   // Filtro lateral colapsível
   const [filtroLateralAberto, setFiltroLateralAberto] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [profissionaisSelecionados, setProfissionaisSelecionados] = useState<string[]>([]);
+  const [recursosSelecionados, setRecursosSelecionados] = useState<string[]>([]);
+  
+  // Estados para controlar collapse/expand dos filtros
+  const [filtroCalendarioAberto, setFiltroCalendarioAberto] = useState(true);
+  const [filtroProfissionaisAberto, setFiltroProfissionaisAberto] = useState(false);
+  const [filtroRecursosAberto, setFiltroRecursosAberto] = useState(false);
 
+  // Carregamento de dados
   useEffect(() => {
     carregarDados();
   }, []);
@@ -65,20 +93,110 @@ export const CalendarioPage = () => {
   const carregarDados = async () => {
     setLoading(true);
     try {
-      const [agendamentosData, profissionaisData, conveniosData] = await Promise.all([
+      const [agendamentosData, profissionaisData, conveniosData, recursosData, disponibilidadesData] = await Promise.all([
         getAgendamentos(),
         getProfissionais(),
-        getConvenios()
+        getConvenios(),
+        getRecursos(),
+        getAllDisponibilidades()
       ]);
       
       setAgendamentos(agendamentosData);
       setProfissionais(profissionaisData);
       setConvenios(conveniosData);
+      setRecursos(recursosData);
+      setDisponibilidades(disponibilidadesData);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Funções para manipular filtros de profissionais
+  const handleProfissionalToggle = (profissionalId: string) => {
+    setProfissionaisSelecionados(prev => 
+      prev.includes(profissionalId)
+        ? prev.filter(id => id !== profissionalId)
+        : [...prev, profissionalId]
+    );
+  };
+
+  const handleSelectAllProfissionais = () => {
+    if (profissionaisSelecionados.length === profissionais.length) {
+      setProfissionaisSelecionados([]);
+    } else {
+      setProfissionaisSelecionados(profissionais.map(p => p.id));
+    }
+  };
+
+  const handleClearProfissionais = () => {
+    setProfissionaisSelecionados([]);
+  };
+
+  // Funções para manipular filtros de recursos
+  const handleRecursoToggle = (recursoId: string) => {
+    setRecursosSelecionados(prev => 
+      prev.includes(recursoId)
+        ? prev.filter(id => id !== recursoId)
+        : [...prev, recursoId]
+    );
+  };
+
+  const handleSelectAllRecursos = () => {
+    if (recursosSelecionados.length === recursos.length) {
+      setRecursosSelecionados([]);
+    } else {
+      setRecursosSelecionados(recursos.map(r => r.id));
+    }
+  };
+
+  const handleClearRecursos = () => {
+    setRecursosSelecionados([]);
+  };
+
+  // Função para verificar o status de disponibilidade de um horário para um profissional
+  const verificarStatusDisponibilidade = (profissionalId: string, data: Date, horario: string): 'disponivel' | 'folga' | 'nao_configurado' => {
+    const diaSemana = data.getDay(); // 0 = domingo, 1 = segunda, etc.
+    const [hora, minuto] = horario.split(':').map(Number);
+    const horarioMinutos = hora * 60 + minuto;
+    
+    // Filtrar disponibilidades do profissional
+    const disponibilidadesProfissional = disponibilidades.filter(d => d.profissionalId === profissionalId);
+    
+    // Verificar se há alguma disponibilidade para este horário
+    for (const disponibilidade of disponibilidadesProfissional) {
+      // Verificar se é uma data específica ou dia da semana
+      const isDataEspecifica = disponibilidade.dataEspecifica && 
+        disponibilidade.dataEspecifica.toDateString() === data.toDateString();
+      const isDiaSemana = disponibilidade.diaSemana !== null && disponibilidade.diaSemana === diaSemana;
+      
+      if (isDataEspecifica || isDiaSemana) {
+        const inicioDisponibilidade = disponibilidade.horaInicio.getHours() * 60 + disponibilidade.horaInicio.getMinutes();
+        const fimDisponibilidade = disponibilidade.horaFim.getHours() * 60 + disponibilidade.horaFim.getMinutes();
+        
+        // Se o horário está dentro do intervalo da disponibilidade
+        if (horarioMinutos >= inicioDisponibilidade && horarioMinutos < fimDisponibilidade) {
+          // Se é tipo 'folga', retornar folga
+          if (disponibilidade.tipo === 'folga') {
+            return 'folga';
+          }
+          // Se é tipo 'disponivel', retornar disponível
+          if (disponibilidade.tipo === 'disponivel') {
+            return 'disponivel';
+          }
+        }
+      }
+    }
+    
+    // Se não há disponibilidades registradas para este horário, retornar não configurado
+    return 'nao_configurado';
+  };
+
+  // Função para verificar se um horário está disponível para um profissional (mantida para compatibilidade)
+  const verificarDisponibilidade = (profissionalId: string, data: Date, horario: string): boolean => {
+    const status = verificarStatusDisponibilidade(profissionalId, data, horario);
+    return status === 'disponivel';
   };
 
   // Converter profissionais para o formato do calendário
@@ -96,30 +214,63 @@ export const CalendarioPage = () => {
     };
   });
 
+  // Converter recursos para o formato do calendário
+  const calendarRecursos: CalendarProfissional[] = recursos.map((recurso, index) => {
+    const cores = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
+    const cor = cores[index % cores.length];
+    
+    return {
+      id: recurso.id,
+      nome: recurso.nome,
+      avatar: recurso.nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+      horarioInicio: '08:00',
+      horarioFim: '18:00',
+      cor
+    };
+  });
+
   // Converter agendamentos para o formato do calendário com filtro de data da visualização
   const calendarAgendamentos: CalendarAgendamento[] = agendamentos
     .filter(agendamento => {
-      const agendamentoDate = new Date(agendamento.dataHoraInicio);
-      const currentDateStart = new Date(currentDate);
-      currentDateStart.setHours(0, 0, 0, 0);
+      // Parse da string de data sem conversão de timezone
+      const agendamentoDateStr = agendamento.dataHoraInicio.split('T')[0]; // "2025-08-04"
       
-      const currentDateEnd = new Date(currentDate);
-      currentDateEnd.setHours(23, 59, 59, 999);
+      // Formatar currentDate sem conversão UTC
+      const year = currentDate.getFullYear();
+      const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+      const day = currentDate.getDate().toString().padStart(2, '0');
+      const currentDateStr = `${year}-${month}-${day}`; // "2025-08-04"
       
-      return agendamentoDate >= currentDateStart && agendamentoDate <= currentDateEnd;
+      return agendamentoDateStr === currentDateStr;
     })
     .map(agendamento => {
-      const dataHora = new Date(agendamento.dataHoraInicio);
-      const horarioInicio = dataHora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      // Parse manual sem conversão de timezone
+      const [datePart, timePart] = agendamento.dataHoraInicio.split('T');
+      const [hora, minuto] = timePart.split(':');
+      const horarioInicio = `${hora}:${minuto}`;
       
-      // Estimar duração baseada no tipo de serviço (padrão 60 minutos)
-      const duracaoMinutos = 60;
-      const dataHoraFim = new Date(dataHora.getTime() + duracaoMinutos * 60000);
-      const horarioFim = dataHoraFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      // Calcular horário fim baseado na duração do serviço ou usar dataHoraFim se disponível
+      let horarioFim: string;
+      if (agendamento.dataHoraFim) {
+        const [, timePartFim] = agendamento.dataHoraFim.split('T');
+        const [horaFim, minutoFim] = timePartFim.split(':');
+        horarioFim = `${horaFim}:${minutoFim}`;
+      } else {
+        // Estimar duração baseada no tipo de serviço (padrão 60 minutos)
+        const duracaoMinutos = 60;
+        const totalMinutos = parseInt(hora) * 60 + parseInt(minuto) + duracaoMinutos;
+        const horaFim = Math.floor(totalMinutos / 60);
+        const minutoFim = totalMinutos % 60;
+        horarioFim = `${horaFim.toString().padStart(2, '0')}:${minutoFim.toString().padStart(2, '0')}`;
+      }
+
+      // Para compatibilidade, criar um Date object (mas sem usar para exibição)
+      const dataHora = new Date(agendamento.dataHoraInicio);
 
       return {
         id: agendamento.id,
         profissionalId: agendamento.profissionalId,
+        recursoId: agendamento.recursoId,
         paciente: agendamento.pacienteNome,
         servico: agendamento.servicoNome,
         convenio: agendamento.convenioNome,
@@ -127,7 +278,9 @@ export const CalendarioPage = () => {
         horarioInicio,
         horarioFim,
         status: agendamento.status.toLowerCase(),
-        data: dataHora
+        data: dataHora,
+        profissionalNome: agendamento.profissionalNome,
+        recursoNome: agendamento.recursoNome
       };
     });
 
@@ -159,6 +312,28 @@ export const CalendarioPage = () => {
           <p className="text-gray-600">Visualização em agenda dos agendamentos</p>
         </div>
         <div className="flex items-center gap-4">
+          {/* Toggle de Visualização */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setGridViewType('profissionais')}
+              className={`h-7 px-3 ${gridViewType === 'profissionais' ? 'bg-white shadow-sm' : ''}`}
+            >
+              <Users className="w-4 h-4 mr-1" />
+              Profissionais
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setGridViewType('recursos')}
+              className={`h-7 px-3 ${gridViewType === 'recursos' ? 'bg-white shadow-sm' : ''}`}
+            >
+              <Building2 className="w-4 h-4 mr-1" />
+              Recursos
+            </Button>
+          </div>
+          
           <Button 
             className="bg-blue-600 hover:bg-blue-700"
             onClick={() => {
@@ -184,41 +359,293 @@ export const CalendarioPage = () => {
               <CardContent className="flex-1 space-y-6 overflow-y-auto">
                 {/* Mini Calendário */}
                 <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Selecionar Data</h4>
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(date) => {
-                      setSelectedDate(date);
-                      if (date) {
-                        setCurrentDate(date);
-                      }
-                    }}
-                    className="rounded-md border w-full"
-                    classNames={{
-                      months: "flex w-full flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-                      month: "space-y-4 w-full",
-                      caption: "flex justify-center pt-1 relative items-center",
-                      caption_label: "text-sm font-medium",
-                      nav: "space-x-1 flex items-center",
-                      nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
-                      nav_button_previous: "absolute left-1",
-                      nav_button_next: "absolute right-1",
-                      table: "w-full border-collapse space-y-1",
-                      head_row: "flex",
-                      head_cell: "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem]",
-                      row: "flex w-full mt-2",
-                      cell: "h-8 w-8 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-                      day: "h-8 w-8 p-0 font-normal aria-selected:opacity-100",
-                      day_range_end: "day-range-end",
-                      day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                      day_today: "bg-accent text-accent-foreground",
-                      day_outside: "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
-                      day_disabled: "text-muted-foreground opacity-50",
-                      day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
-                      day_hidden: "invisible",
-                    }}
-                  />
+                  <div 
+                    className="flex items-center justify-between mb-3 cursor-pointer hover:bg-gray-50 p-2 -m-2 rounded-md transition-colors"
+                    onClick={() => setFiltroCalendarioAberto(!filtroCalendarioAberto)}
+                  >
+                    <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                      <CalendarIcon className="w-4 h-4" />
+                      Selecionar Data
+                    </h4>
+                    {filtroCalendarioAberto ? (
+                      <ChevronUp className="w-4 h-4 text-gray-500" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-gray-500" />
+                    )}
+                  </div>
+                  {filtroCalendarioAberto && (
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => {
+                        setSelectedDate(date);
+                        if (date) {
+                          setCurrentDate(date);
+                        }
+                      }}
+                      className="rounded-md border w-full"
+                      classNames={{
+                        months: "flex w-full flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                        month: "space-y-4 w-full",
+                        caption: "flex justify-center pt-1 relative items-center",
+                        caption_label: "text-sm font-medium",
+                        nav: "space-x-1 flex items-center",
+                        nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
+                        nav_button_previous: "absolute left-1",
+                        nav_button_next: "absolute right-1",
+                        table: "w-full border-collapse space-y-1",
+                        head_row: "flex",
+                        head_cell: "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem]",
+                        row: "flex w-full mt-2",
+                        cell: "h-8 w-8 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                        day: "h-8 w-8 p-0 font-normal aria-selected:opacity-100",
+                        day_range_end: "day-range-end",
+                        day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                        day_today: "bg-accent text-accent-foreground",
+                        day_outside: "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
+                        day_disabled: "text-muted-foreground opacity-50",
+                        day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                        day_hidden: "invisible",
+                      }}
+                    />
+                  )}
+                </div>
+
+                {/* Filtro de Profissionais */}
+                <div>
+                  <div 
+                    className="flex items-center justify-between mb-3 cursor-pointer hover:bg-gray-50 p-2 -m-2 rounded-md transition-colors"
+                    onClick={() => setFiltroProfissionaisAberto(!filtroProfissionaisAberto)}
+                  >
+                    <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      Profissionais
+                      {profissionaisSelecionados.length > 0 && (
+                        <Badge variant="secondary" className="ml-2 h-5 px-2 text-xs">
+                          {profissionaisSelecionados.length}
+                        </Badge>
+                      )}
+                    </h4>
+                    <div className="flex items-center gap-1">
+                      {filtroProfissionaisAberto && (
+                        <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleSelectAllProfissionais}
+                            className="h-6 px-2 text-xs"
+                          >
+                            {profissionaisSelecionados.length === profissionais.length ? 'Desmarcar' : 'Todos'}
+                          </Button>
+                          {profissionaisSelecionados.length > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleClearProfissionais}
+                              className="h-6 px-2 text-xs text-red-600 hover:text-red-700"
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                      {filtroProfissionaisAberto ? (
+                        <ChevronUp className="w-4 h-4 text-gray-500" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-gray-500" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Lista de profissionais com checkbox */}
+                  {filtroProfissionaisAberto && (
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                      {profissionais
+                        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
+                        .map((profissional, index) => {
+                          const cores = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4', '#F97316', '#84CC16'];
+                          const cor = cores[index % cores.length];
+                          const isSelected = profissionaisSelecionados.includes(profissional.id);
+                          
+                          return (
+                            <div
+                              key={profissional.id}
+                              className={`flex items-center space-x-3 p-2 rounded-md cursor-pointer transition-colors ${
+                                isSelected ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'
+                              }`}
+                              onClick={() => handleProfissionalToggle(profissional.id)}
+                            >
+                              <Checkbox
+                                checked={isSelected}
+                                onChange={() => handleProfissionalToggle(profissional.id)}
+                                className="flex-shrink-0"
+                              />
+                              <div 
+                                className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                                style={{ backgroundColor: cor }}
+                              >
+                                {profissional.nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                              </div>
+                              <span className="text-sm text-gray-700 truncate flex-1">
+                                {profissional.nome}
+                              </span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+
+                  {/* Resumo dos profissionais selecionados */}
+                  {profissionaisSelecionados.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="flex flex-wrap gap-1">
+                        {profissionaisSelecionados.slice(0, 3).map(profissionalId => {
+                          const profissional = profissionais.find(p => p.id === profissionalId);
+                          if (!profissional) return null;
+                          
+                          return (
+                            <Badge
+                              key={profissionalId}
+                              variant="secondary"
+                              className="text-xs px-2 py-1"
+                            >
+                              {profissional.nome.split(' ')[0]}
+                            </Badge>
+                          );
+                        })}
+                        {profissionaisSelecionados.length > 3 && (
+                          <Badge variant="secondary" className="text-xs px-2 py-1">
+                            +{profissionaisSelecionados.length - 3}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {profissionaisSelecionados.length} de {profissionais.length} selecionados
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Filtro de Recursos */}
+                <div>
+                  <div 
+                    className="flex items-center justify-between mb-3 cursor-pointer hover:bg-gray-50 p-2 -m-2 rounded-md transition-colors"
+                    onClick={() => setFiltroRecursosAberto(!filtroRecursosAberto)}
+                  >
+                    <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                      <Building2 className="w-4 h-4" />
+                      Recursos
+                      {recursosSelecionados.length > 0 && (
+                        <Badge variant="secondary" className="ml-2 h-5 px-2 text-xs">
+                          {recursosSelecionados.length}
+                        </Badge>
+                      )}
+                    </h4>
+                    <div className="flex items-center gap-1">
+                      {filtroRecursosAberto && (
+                        <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleSelectAllRecursos}
+                            className="h-6 px-2 text-xs"
+                          >
+                            {recursosSelecionados.length === recursos.length ? 'Desmarcar' : 'Todos'}
+                          </Button>
+                          {recursosSelecionados.length > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleClearRecursos}
+                              className="h-6 px-2 text-xs text-red-600 hover:text-red-700"
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                      {filtroRecursosAberto ? (
+                        <ChevronUp className="w-4 h-4 text-gray-500" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-gray-500" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Lista de recursos com checkbox */}
+                  {filtroRecursosAberto && (
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                      {recursos
+                        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
+                        .map((recurso, index) => {
+                          const cores = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
+                          const cor = cores[index % cores.length];
+                          const isSelected = recursosSelecionados.includes(recurso.id);
+                          
+                          return (
+                            <div
+                              key={recurso.id}
+                              className={`flex items-center space-x-3 p-2 rounded-md cursor-pointer transition-colors ${
+                                isSelected ? 'bg-green-50 border border-green-200' : 'hover:bg-gray-50'
+                              }`}
+                              onClick={() => handleRecursoToggle(recurso.id)}
+                            >
+                              <Checkbox
+                                checked={isSelected}
+                                onChange={() => handleRecursoToggle(recurso.id)}
+                                className="flex-shrink-0"
+                              />
+                              <div 
+                                className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                                style={{ backgroundColor: cor }}
+                              >
+                                <Building2 className="w-3 h-3" />
+                              </div>
+                              <div className="flex-1">
+                                <span className="text-sm text-gray-700 block">
+                                  {recurso.nome}
+                                </span>
+                                {recurso.descricao && (
+                                  <span className="text-xs text-gray-500">
+                                    {recurso.descricao}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+
+                  {/* Resumo dos recursos selecionados */}
+                  {recursosSelecionados.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="flex flex-wrap gap-1">
+                        {recursosSelecionados.slice(0, 3).map(recursoId => {
+                          const recurso = recursos.find(r => r.id === recursoId);
+                          if (!recurso) return null;
+                          
+                          return (
+                            <Badge
+                              key={recursoId}
+                              variant="secondary"
+                              className="text-xs px-2 py-1"
+                            >
+                              {recurso.nome}
+                            </Badge>
+                          );
+                        })}
+                        {recursosSelecionados.length > 3 && (
+                          <Badge variant="secondary" className="text-xs px-2 py-1">
+                            +{recursosSelecionados.length - 3}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {recursosSelecionados.length} de {recursos.length} selecionados
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -251,15 +678,19 @@ export const CalendarioPage = () => {
             </CardHeader>
             <CardContent className="p-0 flex-1 min-h-0">
               <SchedulerGrid
-                profissionais={calendarProfissionais}
+                profissionais={gridViewType === 'profissionais' ? calendarProfissionais : calendarRecursos}
                 agendamentos={calendarAgendamentos}
                 currentDate={currentDate}
+                viewType={gridViewType}
                 filters={{
-                  professionals: [],
+                  professionals: gridViewType === 'profissionais' ? profissionaisSelecionados : [],
+                  resources: gridViewType === 'recursos' ? recursosSelecionados : [],
                   appointmentType: 'all',
                   insurance: 'all',
-                  resource: 'all'
+                  resource: recursosSelecionados.length > 0 ? recursosSelecionados.join(',') : 'all'
                 }}
+                verificarDisponibilidade={verificarDisponibilidade}
+                verificarStatusDisponibilidade={verificarStatusDisponibilidade}
                 onAppointmentClick={(appointmentId) => {
                   const agendamento = agendamentos.find(a => a.id === appointmentId);
                   if (agendamento) {
@@ -267,7 +698,15 @@ export const CalendarioPage = () => {
                     setShowDetalhesAgendamento(true);
                   }
                 }}
-                onDoubleClick={(profissionalId, horario) => {
+                onDoubleClick={(entityId, horario) => {
+                  // Verificar se o horário está disponível antes de permitir criar agendamento
+                  if (gridViewType === 'profissionais') {
+                    const status = verificarStatusDisponibilidade(entityId, currentDate, horario);
+                    if (status !== 'disponivel') {
+                      return; // Não permitir criar agendamento em horário indisponível ou não configurado
+                    }
+                  }
+                  
                   // Criar data/hora combinando a data atual com o horário clicado
                   const dataHoraCombinada = new Date(currentDate);
                   const [hora, minuto] = horario.split(':').map(Number);
@@ -282,8 +721,9 @@ export const CalendarioPage = () => {
                   
                   const dataHoraLocal = `${ano}-${mes}-${dia}T${horaFormatada}:${minutoFormatado}`;
                   
+                  // Para profissionais, usar como profissionalId, para recursos, deixar vazio
                   setPreenchimentoNovoAgendamento({
-                    profissionalId,
+                    profissionalId: gridViewType === 'profissionais' ? entityId : undefined,
                     dataHoraInicio: dataHoraLocal
                   });
                   setShowNovoAgendamento(true);

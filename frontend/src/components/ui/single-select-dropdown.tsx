@@ -83,61 +83,62 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
     <div className="w-full max-w-full">
       <Popover open={popoverOpen} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <div
-            ref={triggerRef}
-            className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 flex items-center gap-3 min-h-[44px] bg-white cursor-pointer hover:border-blue-300 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-100 transition-all duration-200 shadow-sm hover:shadow-md"
-            tabIndex={0}
-            onClick={() => {
-              setOpen(true);
-              if (inputRef.current) inputRef.current.focus();
-            }}
-          >
-          <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          
-          {/* Mostrar item selecionado ou input de busca */}
-          {selected && !inputFocused && input === '' ? (
-            <div className="flex items-center flex-1 min-w-0">
-              <span 
-                className="text-gray-700 font-medium truncate flex-1" 
-                title={formatOption ? formatOption(selected) : selected.nome}
-              >
-                {formatOption ? formatOption(selected) : selected.nome}
-              </span>
-              <button 
-                type="button" 
-                onClick={e => { 
-                  e.stopPropagation(); 
-                  handleClear(); 
-                }} 
-                className="flex-shrink-0 hover:bg-gray-100 rounded-full p-1 transition-colors duration-150 focus:outline-none ml-2"
-                title={`Remover ${selected.nome}`}
-              >
-                <span className="w-4 h-4 flex items-center justify-center text-gray-400 hover:text-gray-600 text-sm font-bold">×</span>
-              </button>
-            </div>
-          ) : (
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onFocus={() => setInputFocused(true)}
-              onBlur={() => setInputFocused(false)}
-              placeholder={selected ? (formatOption ? formatOption(selected) : selected.nome) : placeholder}
-              className="flex-1 border-none outline-none bg-transparent text-gray-700 placeholder:text-gray-400 font-medium"
-              autoComplete="off"
-            />
-          )}
-          
-          <ChevronDown className={`w-5 h-5 text-gray-400 flex-shrink-0 transition-transform duration-200 ${popoverOpen ? 'rotate-180' : ''}`} />
-        </div>
+                     <div
+             ref={triggerRef}
+             className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 flex items-center gap-3 min-h-[44px] bg-white cursor-pointer hover:border-blue-300 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-100 transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden"
+             tabIndex={0}
+             onClick={() => {
+               setOpen(true);
+               if (inputRef.current) inputRef.current.focus();
+             }}
+           >
+           <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+           
+           {/* Mostrar item selecionado ou input de busca */}
+           {selected && !inputFocused && input === '' ? (
+             <div className="flex items-center flex-1 min-w-0">
+               <span 
+                 className="text-gray-700 font-medium truncate flex-1" 
+                 title={formatOption ? formatOption(selected) : selected.nome}
+               >
+                 {formatOption ? formatOption(selected) : selected.nome}
+               </span>
+               <button 
+                 type="button" 
+                 onClick={e => { 
+                   e.stopPropagation(); 
+                   handleClear(); 
+                 }} 
+                 className="flex-shrink-0 hover:bg-gray-100 rounded-full p-1 transition-colors duration-150 focus:outline-none ml-2"
+                 title={`Remover ${selected.nome}`}
+               >
+                 <span className="w-4 h-4 flex items-center justify-center text-gray-400 hover:text-gray-600 text-sm font-bold">×</span>
+               </button>
+             </div>
+           ) : (
+             <input
+               ref={inputRef}
+               type="text"
+               value={input}
+               onChange={e => setInput(e.target.value)}
+               onFocus={() => setInputFocused(true)}
+               onBlur={() => setInputFocused(false)}
+               placeholder={selected ? (formatOption ? formatOption(selected) : selected.nome) : placeholder}
+               className="flex-1 border-none outline-none bg-transparent text-gray-700 placeholder:text-gray-400 font-medium min-w-0"
+               autoComplete="off"
+             />
+           )}
+           
+           <ChevronDown className={`w-5 h-5 text-gray-400 flex-shrink-0 transition-transform duration-200 ml-2 ${popoverOpen ? 'rotate-180' : ''}`} />
+         </div>
       </PopoverTrigger>
       <PopoverContent 
         className="bg-white border-2 border-gray-200 shadow-xl rounded-xl p-0 text-gray-900 z-50" 
         onOpenAutoFocus={(e) => e.preventDefault()}
         style={{ 
           maxHeight: '18rem',
-          width: triggerWidth || 'auto'
+          width: triggerWidth || 'auto',
+          maxWidth: 'calc(100vw - 2rem)'
         }}
         onWheel={(e) => {
           // Allow wheel events to pass through to children
@@ -145,6 +146,8 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
         }}
         align="start"
         sideOffset={4}
+        side="bottom"
+        avoidCollisions={true}
       >
         <div className="bg-gradient-to-r from-green-50 to-blue-50 border-b border-gray-200 px-4 py-3 flex-shrink-0">
           <div className="flex items-center gap-2">

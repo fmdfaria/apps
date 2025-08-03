@@ -17,7 +17,11 @@ interface AppointmentCardProps {
     horarioFim: string;
     status: string;
     data: Date;
+    profissionalNome?: string;
+    recursoNome?: string;
   };
+  viewType?: 'profissionais' | 'recursos';
+  entityName?: string; // Nome do profissional ou recurso
   className?: string;
   style?: React.CSSProperties;
   onDragStart?: () => void;
@@ -28,6 +32,8 @@ interface AppointmentCardProps {
 
 export const AppointmentCard = ({
   appointment,
+  viewType = 'profissionais',
+  entityName,
   className,
   style,
   onDragStart,
@@ -37,6 +43,18 @@ export const AppointmentCard = ({
 }: AppointmentCardProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
+  // Calcular duração do agendamento para ajustar tamanho das fontes
+  const calcularDuracao = () => {
+    const [horaInicio, minutoInicio] = appointment.horarioInicio.split(':').map(Number);
+    const [horaFim, minutoFim] = appointment.horarioFim.split(':').map(Number);
+    const inicioMinutos = horaInicio * 60 + minutoInicio;
+    const fimMinutos = horaFim * 60 + minutoFim;
+    return fimMinutos - inicioMinutos;
+  };
+
+  const duracao = calcularDuracao();
+  const isLongerAppointment = duracao >= 40; // 40+ minutos
+
   const getTypeIcon = () => {
     if (appointment.tipo === 'online') return <Monitor className="w-3 h-3" />;
     if (appointment.tipo === 'presencial') return <MapPin className="w-3 h-3" />;
@@ -44,23 +62,25 @@ export const AppointmentCard = ({
   };
 
   const getStatusBadge = () => {
+    const badgeSize = isLongerAppointment ? "text-sm px-2 py-1 h-5" : "text-xs px-1 py-0 h-4";
+    
     if (appointment.tipo === 'intervalo') {
-      return <Badge variant="secondary" className="text-xs">Intervalo</Badge>;
+      return <Badge variant="secondary" className={badgeSize}>Intervalo</Badge>;
     }
     
     switch (appointment.status) {
       case 'agendado':
-        return <Badge className="bg-blue-500 text-xs">Agendado</Badge>;
+        return <Badge className={`bg-blue-500 ${badgeSize}`}>Agendado</Badge>;
       case 'liberado':
-        return <Badge className="bg-green-500 text-xs">Liberado</Badge>;
+        return <Badge className={`bg-green-500 ${badgeSize}`}>Liberado</Badge>;
       case 'atendido':
-        return <Badge className="bg-yellow-500 text-xs">Atendido</Badge>;
+        return <Badge className={`bg-yellow-500 ${badgeSize}`}>Atendido</Badge>;
       case 'finalizado':
-        return <Badge className="bg-emerald-500 text-xs">Finalizado</Badge>;
+        return <Badge className={`bg-emerald-500 ${badgeSize}`}>Finalizado</Badge>;
       case 'cancelado':
-        return <Badge variant="destructive" className="text-xs">Cancelado</Badge>;
+        return <Badge variant="destructive" className={badgeSize}>Cancelado</Badge>;
       default:
-        return <Badge variant="outline" className="text-xs capitalize">{appointment.status}</Badge>;
+        return <Badge variant="outline" className={`${badgeSize} capitalize`}>{appointment.status}</Badge>;
     }
   };
 
@@ -104,35 +124,30 @@ export const AppointmentCard = ({
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         >
-          <div className="p-2 h-full flex flex-col justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  <User className="w-3 h-3" />
-                  <span className="text-sm font-semibold truncate">
-                    {appointment.paciente}
-                  </span>
-                </div>
-                {getTypeIcon()}
-              </div>
-              
-              <div className="flex items-center gap-1">
-                <Stethoscope className="w-3 h-3" />
-                <span className="text-xs text-gray-600 truncate">
-                  {appointment.servico}
-                </span>
-              </div>
-              
-              <div className="text-xs text-gray-500">
-                {appointment.horarioInicio} - {appointment.horarioFim}
-              </div>
+          <div className={`h-full flex flex-col justify-between ${isLongerAppointment ? 'p-2' : 'p-1'}`}>
+            {/* Primeira linha: Paciente */}
+            <div className={`font-medium truncate leading-tight ${isLongerAppointment ? 'text-sm' : 'text-xs'}`}>
+              {appointment.paciente}
             </div>
             
-            <div className="flex items-center justify-between mt-2">
-              {getStatusBadge()}
-              <span className="text-xs font-medium text-gray-600 truncate">
-                {appointment.convenio}
-              </span>
+            {/* Segunda linha: Serviço */}
+            <div className={`text-gray-600 truncate leading-tight ${isLongerAppointment ? 'text-sm' : 'text-xs'}`}>
+              {appointment.servico}
+            </div>
+            
+            {/* Terceira linha: Status + Profissional/Recursos */}
+            <div className={`flex items-center justify-between ${isLongerAppointment ? 'mt-2' : 'mt-1'}`}>
+              <div className={isLongerAppointment ? 'text-sm' : 'text-xs'}>{getStatusBadge()}</div>
+              {viewType === 'profissionais' && appointment.recursoNome && (
+                <div className={`text-gray-500 truncate ${isLongerAppointment ? 'text-sm' : 'text-xs'}`}>
+                  {appointment.recursoNome}
+                </div>
+              )}
+              {viewType === 'recursos' && appointment.profissionalNome && (
+                <div className={`text-gray-500 truncate ${isLongerAppointment ? 'text-sm' : 'text-xs'}`}>
+                  {appointment.profissionalNome}
+                </div>
+              )}
             </div>
           </div>
         </div>

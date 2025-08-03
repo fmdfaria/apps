@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { AppointmentCard } from './AppointmentCard';
 import { cn } from '@/lib/utils';
+import { X } from 'lucide-react';
 
 interface SchedulerGridProps {
   profissionais: Array<{
@@ -14,6 +15,7 @@ interface SchedulerGridProps {
   agendamentos: Array<{
     id: string;
     profissionalId: string;
+    recursoId: string;
     paciente: string;
     servico: string;
     convenio: string;
@@ -24,27 +26,34 @@ interface SchedulerGridProps {
     data: Date;
   }>;
   currentDate: Date;
+  viewType?: 'profissionais' | 'recursos';
   filters: {
     professionals: string[];
+    resources?: string[];
     appointmentType: 'all' | 'online' | 'presencial';
     insurance: string;
     resource: string;
   };
   onAppointmentClick?: (appointmentId: string) => void;
-  onDoubleClick?: (profissionalId: string, horario: string) => void;
+  onDoubleClick?: (entityId: string, horario: string) => void;
+  verificarDisponibilidade?: (profissionalId: string, data: Date, horario: string) => boolean;
+  verificarStatusDisponibilidade?: (profissionalId: string, data: Date, horario: string) => 'disponivel' | 'folga' | 'nao_configurado';
 }
 
 export const SchedulerGrid = ({
   profissionais,
   agendamentos,
   currentDate,
+  viewType = 'profissionais',
   filters,
   onAppointmentClick,
-  onDoubleClick
+  onDoubleClick,
+  verificarDisponibilidade,
+  verificarStatusDisponibilidade
 }: SchedulerGridProps) => {
   const [draggedAppointment, setDraggedAppointment] = useState<string | null>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
   const timeColumnRef = useRef<HTMLDivElement>(null);
+  const entitiesColumnsContainerRef = useRef<HTMLDivElement>(null);
 
   // Generate time slots (7:00 to 20:00 in 30-minute intervals)
   const timeSlots = [];
@@ -55,14 +64,21 @@ export const SchedulerGrid = ({
     }
   }
 
-  // Filter professionals based on selection
-  const filteredProfissionais = filters.professionals.length > 0
-    ? profissionais.filter(p => filters.professionals.includes(p.id))
-    : profissionais;
+  // Filter entities based on selection and sort alphabetically
+  const filterIds = viewType === 'profissionais' ? filters.professionals : (filters.resources || []);
+  const filteredEntities = (filterIds.length > 0
+    ? profissionais.filter(p => filterIds.includes(p.id))
+    : profissionais)
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }));
 
   // Filter appointments
   const filteredAgendamentos = agendamentos.filter(appointment => {
-    if (filters.professionals.length > 0 && !filters.professionals.includes(appointment.profissionalId)) {
+    // For profissionais view, filter by professionals
+    if (viewType === 'profissionais' && filters.professionals.length > 0 && !filters.professionals.includes(appointment.profissionalId)) {
+      return false;
+    }
+    // For recursos view, filter by resources
+    if (viewType === 'recursos' && filters.resources && filters.resources.length > 0 && !filters.resources.includes(appointment.recursoId)) {
       return false;
     }
     if (filters.appointmentType !== 'all' && appointment.tipo !== filters.appointmentType) {
@@ -74,28 +90,22 @@ export const SchedulerGrid = ({
     return true;
   });
 
-  // Sync scroll between time column and grid
+  // Sync scroll between time column and entity columns
   useEffect(() => {
     const handleScroll = (e: Event) => {
       const target = e.target as HTMLElement;
       if (timeColumnRef.current && target !== timeColumnRef.current) {
         timeColumnRef.current.scrollTop = target.scrollTop;
       }
-      if (gridRef.current && target !== gridRef.current) {
-        gridRef.current.scrollTop = target.scrollTop;
-      }
     };
 
-    const gridElement = gridRef.current;
-    const timeElement = timeColumnRef.current;
+    const entitiesContainer = entitiesColumnsContainerRef.current;
 
-    if (gridElement && timeElement) {
-      gridElement.addEventListener('scroll', handleScroll);
-      timeElement.addEventListener('scroll', handleScroll);
+    if (entitiesContainer && timeColumnRef.current) {
+      entitiesContainer.addEventListener('scroll', handleScroll);
 
       return () => {
-        gridElement.removeEventListener('scroll', handleScroll);
-        timeElement.removeEventListener('scroll', handleScroll);
+        entitiesContainer.removeEventListener('scroll', handleScroll);
       };
     }
   }, []);
@@ -124,10 +134,10 @@ export const SchedulerGrid = ({
     }
   };
 
-  const handleDoubleClick = (profissionalId: string, timeSlotIndex: number) => {
+  const handleDoubleClick = (entityId: string, timeSlotIndex: number) => {
     if (onDoubleClick) {
       const horario = timeSlots[timeSlotIndex];
-      onDoubleClick(profissionalId, horario);
+      onDoubleClick(entityId, horario);
     }
   };
 
@@ -136,7 +146,7 @@ export const SchedulerGrid = ({
       {/* Time Column */}
       <div 
         ref={timeColumnRef}
-        className="w-20 bg-gray-50 border-r overflow-y-auto scrollbar-thin"
+        className="w-20 bg-gray-50 border-r overflow-y-hidden"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         <div className="h-16 border-b bg-white"></div> {/* Header spacer */}
@@ -155,59 +165,107 @@ export const SchedulerGrid = ({
         </div>
       </div>
 
-      {/* Professional Columns */}
-      <div className="flex-1 overflow-hidden">
-        <div className="flex">
+      {/* Entity Columns */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Grid Container with Headers */}
+        <div ref={entitiesColumnsContainerRef} className="flex flex-1 flex-col overflow-auto" style={{ scrollbarWidth: 'thin' }}>
           {/* Headers */}
-          <div className="flex bg-white border-b h-16">
-            {filteredProfissionais.map((profissional) => (
+          <div className="flex bg-white border-b h-16 flex-shrink-0 sticky top-0 z-20">
+            {filteredEntities.map((entity) => (
               <div
-                key={profissional.id}
+                key={entity.id}
                 className="min-w-[200px] flex-1 border-r border-gray-200 p-3 flex items-center gap-3"
               >
                 <div 
                   className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white"
-                  style={{ backgroundColor: profissional.cor }}
+                  style={{ backgroundColor: entity.cor }}
                 >
-                  {profissional.avatar}
+                  {entity.avatar}
                 </div>
                 <div>
-                  <div className="font-semibold text-gray-900 text-sm">{profissional.nome}</div>
+                  <div className="font-semibold text-gray-900 text-sm">{entity.nome}</div>
                   <div className="text-xs text-gray-500">
-                    {profissional.horarioInicio} - {profissional.horarioFim}
+                    {entity.horarioInicio} - {entity.horarioFim}
                   </div>
                 </div>
               </div>
             ))}
           </div>
-        </div>
 
-        {/* Grid */}
-        <div 
-          ref={gridRef}
-          className="flex overflow-y-auto h-[calc(100%-4rem)]"
-          style={{ scrollbarWidth: 'thin' }}
-        >
-          {filteredProfissionais.map((profissional) => (
+          {/* Grid */}
+          <div className="flex flex-1">
+            {filteredEntities.map((entity) => (
             <div
-              key={profissional.id}
+              key={entity.id}
               className="min-w-[200px] flex-1 border-r border-gray-200 relative bg-white"
             >
               {/* Time grid background */}
-              {timeSlots.map((_, index) => (
-                <div
-                  key={index}
-                  className={cn(
-                    "h-[60px] border-b border-gray-100 cursor-pointer hover:bg-blue-50/30 transition-colors",
-                    index % 2 === 0 ? "bg-gray-50/30" : "bg-white"
-                  )}
-                  onDoubleClick={() => handleDoubleClick(profissional.id, index)}
-                />
-              ))}
+              {timeSlots.map((timeSlot, index) => {
+                let statusDisponibilidade: 'disponivel' | 'folga' | 'nao_configurado' = 'disponivel';
+                let isDisponivel = true;
+                
+                if (viewType === 'profissionais' && verificarStatusDisponibilidade) {
+                  statusDisponibilidade = verificarStatusDisponibilidade(entity.id, currentDate, timeSlot);
+                  isDisponivel = statusDisponibilidade === 'disponivel';
+                }
+                
+                // Determinar classes CSS baseadas no status
+                let statusClasses = "cursor-pointer hover:bg-blue-50/30";
+                let statusTitle = undefined;
+                let statusIcon = null;
+                
+                if (viewType === 'profissionais' && verificarStatusDisponibilidade) {
+                  switch (statusDisponibilidade) {
+                    case 'disponivel':
+                      statusClasses = "cursor-pointer hover:bg-blue-50/30";
+                      statusTitle = "Horário disponível";
+                      break;
+                    case 'folga':
+                      statusClasses = "cursor-not-allowed bg-red-50/50 hover:bg-red-100/50";
+                      statusTitle = "Horário indisponível (folga)";
+                      statusIcon = <X className="w-4 h-4 text-red-400 opacity-50" />;
+                      break;
+                    case 'nao_configurado':
+                      statusClasses = "cursor-not-allowed bg-gray-100/50 hover:bg-gray-200/50";
+                      statusTitle = "Horário não configurado";
+                      statusIcon = <X className="w-4 h-4 text-gray-400 opacity-50" />;
+                      break;
+                  }
+                }
+                
+                return (
+                  <div
+                    key={index}
+                    className={cn(
+                      "h-[60px] border-b border-gray-100 transition-colors relative",
+                      index % 2 === 0 ? "bg-gray-50/30" : "bg-white",
+                      statusClasses
+                    )}
+                    onDoubleClick={isDisponivel ? () => handleDoubleClick(entity.id, index) : undefined}
+                    title={statusTitle}
+                  >
+                    {statusIcon && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        {statusIcon}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
 
               {/* Appointments */}
               {filteredAgendamentos
-                .filter(appointment => appointment.profissionalId === profissional.id)
+                .filter(appointment => {
+                  // For profissionais view, filter by profissionalId
+                  if (viewType === 'profissionais') {
+                    return appointment.profissionalId === entity.id;
+                  }
+                  // For recursos view, filter by recursoId
+                  if (viewType === 'recursos') {
+                    return appointment.recursoId === entity.id;
+                  }
+                  return true;
+                })
                 .map((appointment) => {
                   const { top, height } = getAppointmentPosition(
                     appointment.horarioInicio,
@@ -222,11 +280,13 @@ export const SchedulerGrid = ({
                     >
                       <AppointmentCard
                         appointment={appointment}
+                        viewType={viewType}
+                        entityName={entity.nome}
                         className={cn(
                           "w-full h-full border-l-4 rounded-md shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md",
                           getStatusColor(appointment.status, appointment.tipo)
                         )}
-                        style={{ borderLeftColor: profissional.cor }}
+                        style={{ borderLeftColor: entity.cor }}
                         onDragStart={() => setDraggedAppointment(appointment.id)}
                         onDragEnd={() => setDraggedAppointment(null)}
                         isDragging={draggedAppointment === appointment.id}
@@ -237,6 +297,7 @@ export const SchedulerGrid = ({
                 })}
             </div>
           ))}
+          </div>
         </div>
       </div>
     </div>

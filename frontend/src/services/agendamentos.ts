@@ -9,7 +9,8 @@ const getDateForDaysFromNow = (days: number, hour: number, minute: number = 0): 
   return date.toISOString();
 };
 
-// Dados mock para demonstração (como fallback) - focado nos próximos dias para visualização no calendário
+// Dados mock mantidos apenas como fallback em caso de erro na API
+// Focado nos próximos dias para visualização no calendário
 const agendamentosMock: Agendamento[] = [
   // HOJE
   {
@@ -263,6 +264,19 @@ export interface UpdateAgendamentoData {
   status?: StatusAgendamento;
 }
 
+const transformApiAgendamento = (agendamento: any): Agendamento => {
+  return {
+    ...agendamento,
+    // Extrair nomes dos objetos relacionais para compatibilidade
+    pacienteNome: agendamento.paciente?.nomeCompleto || '',
+    pacienteWhatsapp: agendamento.paciente?.whatsapp || '',
+    profissionalNome: agendamento.profissional?.nome || '',
+    convenioNome: agendamento.convenio?.nome || '',
+    servicoNome: agendamento.servico?.nome || '',
+    recursoNome: agendamento.recurso?.nome || '',
+  };
+};
+
 export const getAgendamentos = async (filtros?: {
   status?: StatusAgendamento;
   profissionalId?: string;
@@ -271,38 +285,24 @@ export const getAgendamentos = async (filtros?: {
   dataFim?: string;
 }): Promise<Agendamento[]> => {
   try {
-    // 🚨 TEMPORÁRIO: Forçando uso de dados mock até API ser configurada com JOINs
-    // A API atual retorna apenas IDs, sem os nomes relacionais (pacienteNome, profissionalNome, etc.)
-    // 
-    // Para configurar a API real:
-    // 1. No backend, modificar GET /agendamentos para fazer JOIN com:
-    //    - pacientes (para pacienteNome)
-    //    - profissionais (para profissionalNome) 
-    //    - convenios (para convenioNome)
-    //    - servicos (para servicoNome)
-    //    - recursos (para recursoNome)
-    // 2. Descomentar o código abaixo e remover o throw
+    const params = new URLSearchParams();
+    if (filtros) {
+      if (filtros.status) params.append('status', filtros.status);
+      if (filtros.profissionalId) params.append('profissionalId', filtros.profissionalId);
+      if (filtros.pacienteId) params.append('pacienteId', filtros.pacienteId);
+      if (filtros.dataInicio) params.append('dataHoraInicio', filtros.dataInicio);
+      if (filtros.dataFim) params.append('dataHoraFim', filtros.dataFim);
+    }
+    const url = `/agendamentos${params.toString() ? `?${params.toString()}` : ''}`;
+    const { data } = await api.get(url);
     
-    // Comentado temporariamente para forçar uso de mock:
-    // const params = new URLSearchParams();
-    // if (filtros) {
-    //   if (filtros.status) params.append('status', filtros.status);
-    //   if (filtros.profissionalId) params.append('profissionalId', filtros.profissionalId);
-    //   if (filtros.pacienteId) params.append('pacienteId', filtros.pacienteId);
-    //   if (filtros.dataInicio) params.append('dataHoraInicio', filtros.dataInicio);
-    //   if (filtros.dataFim) params.append('dataHoraFim', filtros.dataFim);
-    // }
-    // const url = `/agendamentos${params.toString() ? `?${params.toString()}` : ''}`;
-    // const { data } = await api.get(url);
-    // return data.sort((a: Agendamento, b: Agendamento) => 
-    //   new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()
-    // );
-    
-    // Forçar uso de dados mock por enquanto
-    throw new Error('Forçando uso de dados mock até API estar configurada com JOINs');
+    const agendamentos = data.map(transformApiAgendamento);
+    return agendamentos.sort((a: Agendamento, b: Agendamento) => 
+      new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()
+    );
     
   } catch (error) {
-    console.info('ℹ️ Usando dados mock para agendamentos - campos relacionais completos');
+    console.warn('⚠️ Erro ao carregar agendamentos da API, usando dados mock como fallback:', error);
     
     // Fallback para dados mock em caso de erro
     let agendamentos = [...agendamentosMock];
@@ -336,9 +336,9 @@ export const getAgendamentos = async (filtros?: {
 export const getAgendamentoById = async (id: string): Promise<Agendamento | null> => {
   try {
     const { data } = await api.get(`/agendamentos/${id}`);
-    return data;
+    return transformApiAgendamento(data);
   } catch (error) {
-    console.error('Erro ao carregar agendamento da API, usando dados mock:', error);
+    console.warn('⚠️ Erro ao carregar agendamento da API, usando dados mock como fallback:', error);
     return agendamentosMock.find(a => a.id === id) || null;
   }
 };
@@ -348,7 +348,7 @@ export const createAgendamento = async (data: CreateAgendamentoData): Promise<Ag
     const { data: agendamento } = await api.post('/agendamentos', data, {
       headers: { 'Content-Type': 'application/json' },
     });
-    return agendamento;
+    return transformApiAgendamento(agendamento);
   } catch (error) {
     console.error('Erro ao criar agendamento na API:', error);
     throw error;
@@ -360,7 +360,7 @@ export const updateAgendamento = async (id: string, data: UpdateAgendamentoData)
     const { data: agendamento } = await api.put(`/agendamentos/${id}`, data, {
       headers: { 'Content-Type': 'application/json' },
     });
-    return agendamento;
+    return transformApiAgendamento(agendamento);
   } catch (error) {
     console.error('Erro ao atualizar agendamento na API:', error);
     throw error;

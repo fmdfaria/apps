@@ -19,12 +19,17 @@ import {
   X,
   FilterX,
   Plus,
-  Loader2
+  Loader2,
+  Eye,
+  Unlock,
+  CheckSquare,
+  MessageCircle
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
-import { getAgendamentos } from '@/services/agendamentos';
+import { getAgendamentos, updateAgendamento } from '@/services/agendamentos';
 
 import { LiberarAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
+import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import { useToast } from "@/hooks/use-toast";
 
 export const LiberarPage = () => {
@@ -44,6 +49,10 @@ export const LiberarPage = () => {
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [agendamentosProcessando, setAgendamentosProcessando] = useState<Set<string>>(new Set());
+  
+  // Estados para confirmação de reenvio
+  const [showConfirmacaoReenvio, setShowConfirmacaoReenvio] = useState(false);
+  const [agendamentoParaReenvio, setAgendamentoParaReenvio] = useState<Agendamento | null>(null);
 
   // Funções auxiliares para gerenciar processamento paralelo
   const adicionarProcessamento = (agendamentoId: string) => {
@@ -190,7 +199,7 @@ export const LiberarPage = () => {
       
       return true;
     })
-    .sort((a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime());
+    .sort((a, b) => a.dataHoraInicio.localeCompare(b.dataHoraInicio));
 
   const totalPaginas = Math.ceil(agendamentosFiltrados.length / itensPorPagina);
   const agendamentosPaginados = agendamentosFiltrados.slice(
@@ -198,11 +207,16 @@ export const LiberarPage = () => {
     paginaAtual * itensPorPagina
   );
 
-  const formatarDataHora = (dataISO: string) => {
-    const data = new Date(dataISO);
+  const formatarDataHora = (dataHoraISO: string) => {
+    // Parse da string sem conversão de timezone
+    // Formato esperado: "2025-08-04T10:00:00.000Z" 
+    const [datePart, timePart] = dataHoraISO.split('T');
+    const [ano, mes, dia] = datePart.split('-');
+    const [hora, minuto] = timePart.split(':');
+    
     return {
-      data: data.toLocaleDateString('pt-BR'),
-      hora: data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      data: `${dia}/${mes}/${ano}`,
+      hora: `${hora}:${minuto}`
     };
   };
 
@@ -214,6 +228,50 @@ export const LiberarPage = () => {
   const handleVerDetalhes = (agendamento: Agendamento) => {
     setAgendamentoDetalhes(agendamento);
     setShowDetalhesAgendamento(true);
+  };
+
+  const handleWhatsApp = (agendamento: Agendamento) => {
+    // Extrair apenas os números do WhatsApp
+    const numeroLimpo = agendamento.pacienteWhatsapp?.replace(/\D/g, '') || '';
+    
+    if (!numeroLimpo) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Número do WhatsApp não encontrado para este paciente."
+      });
+      return;
+    }
+
+    // Construir URL do WhatsApp Web
+    const whatsappUrl = `https://api.whatsapp.com/send/?phone=${numeroLimpo}`;
+    
+    // Abrir em nova aba
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const handleSolicitarLiberacaoClick = (agendamento: Agendamento) => {
+    if (agendamento.status === 'SOLICITADO') {
+      // Mostrar modal de confirmação para reenvio
+      setAgendamentoParaReenvio(agendamento);
+      setShowConfirmacaoReenvio(true);
+    } else {
+      // Prosseguir normalmente
+      handleSolicitarLiberacao(agendamento);
+    }
+  };
+
+  const confirmarReenvio = () => {
+    if (agendamentoParaReenvio) {
+      handleSolicitarLiberacao(agendamentoParaReenvio);
+    }
+    setShowConfirmacaoReenvio(false);
+    setAgendamentoParaReenvio(null);
+  };
+
+  const cancelarReenvio = () => {
+    setShowConfirmacaoReenvio(false);
+    setAgendamentoParaReenvio(null);
   };
 
   const handleSolicitarLiberacao = async (agendamento: Agendamento) => {
@@ -247,22 +305,41 @@ export const LiberarPage = () => {
       // Capturar a resposta do webhook
       const responseData = await response.json().catch(() => ({}));
 
-      // Atualizar o status do agendamento localmente
-      setAgendamentos(prev => 
-        prev.map(a => 
-          a.id === agendamento.id 
-            ? { ...a, status: 'SOLICITADO' }
-            : a
-        )
-      );
+      // Atualizar o status no banco de dados
+      try {
+        await updateAgendamento(agendamento.id, {
+          status: 'SOLICITADO'
+        });
 
-      // Exibir o retorno do webhook no toast
-      const mensagemWebhook = responseData.message || responseData.msg || responseData.description || JSON.stringify(responseData);
-      
-      toast({
-        title: "Sucesso",
-        description: `Solicitação enviada para ${agendamento.pacienteNome}! Retorno: ${mensagemWebhook}`
-      });
+        // Atualizar o status do agendamento localmente após sucesso no banco
+        setAgendamentos(prev => 
+          prev.map(a => 
+            a.id === agendamento.id 
+              ? { ...a, status: 'SOLICITADO' }
+              : a
+          )
+        );
+
+        // Exibir o retorno do webhook no toast
+        const mensagemWebhook = responseData.message || responseData.msg || responseData.description || JSON.stringify(responseData);
+        
+        toast({
+          title: "Sucesso",
+          description: `Solicitação enviada para ${agendamento.pacienteNome}! Status atualizado no banco de dados. Retorno: ${mensagemWebhook}`
+        });
+
+      } catch (dbError) {
+        console.error('Erro ao atualizar status no banco de dados:', dbError);
+        
+        // Mesmo com erro no banco, o webhook foi enviado com sucesso
+        const mensagemWebhook = responseData.message || responseData.msg || responseData.description || JSON.stringify(responseData);
+        
+        toast({
+          variant: "destructive",
+          title: "Webhook enviado, mas erro no banco",
+          description: `Webhook enviado com sucesso para ${agendamento.pacienteNome}, mas houve erro ao atualizar o banco de dados. Retorno: ${mensagemWebhook}`
+        });
+      }
 
     } catch (error) {
       console.error('Erro ao enviar webhook:', error);
@@ -338,38 +415,46 @@ export const LiberarPage = () => {
                   </div>
                 </div>
                 
-                <div className="flex gap-2">
+                <div className="flex gap-1">
                   <Button 
                     size="sm" 
-                    variant="outline" 
-                    className="flex-1"
+                    variant="default"
+                    className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
                     onClick={() => handleVerDetalhes(agendamento)}
                   >
-                    Ver Detalhes
+                    Visualizar
                   </Button>
-                  {agendamento.status === 'AGENDADO' && (
-                    <Button 
-                      size="sm" 
-                      className="flex-1 bg-blue-600 hover:bg-blue-700"
-                      onClick={() => handleSolicitarLiberacao(agendamento)}
-                      disabled={estaProcessando(agendamento.id)}
-                    >
-                      {estaProcessando(agendamento.id) ? (
-                        <>
-                          <Loader2 className="w-3 h-3 mr-2 animate-spin" />
-                          Enviando...
-                        </>
-                      ) : (
-                        'Solicitar Liberação'
-                      )}
-                    </Button>
-                  )}
                   <Button 
                     size="sm" 
-                    className="flex-1 bg-green-600 hover:bg-green-700"
+                    variant="outline"
+                    className="flex-1 h-7 text-xs border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white"
+                    onClick={() => handleSolicitarLiberacaoClick(agendamento)}
+                    disabled={estaProcessando(agendamento.id)}
+                  >
+                    {estaProcessando(agendamento.id) ? (
+                      <>
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      'Solicitar Liberação'
+                    )}
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    className="flex-1 h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
+                    onClick={() => handleWhatsApp(agendamento)}
+                  >
+                    WhatsApp
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    className="flex-1 h-7 text-xs border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white"
                     onClick={() => handleLiberar(agendamento)}
                   >
-                    Confirmar Liberação
+                    Liberado Atendimento
                   </Button>
                 </div>
               </CardContent>
@@ -381,60 +466,60 @@ export const LiberarPage = () => {
   );
 
   const renderTableView = () => (
-    <div className="rounded-lg bg-white">
+    <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-sm border border-gray-100">
       <Table>
         <TableHeader>
-          <TableRow className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">📅</span>
-                  Data
-                </div>
-              </TableHead>
-            <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-              <div className="flex items-center justify-center gap-2">
+          <TableRow className="bg-gradient-to-r from-orange-50 to-red-50 border-b border-gray-200">
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📅</span>
+                Data
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
                 <span className="text-lg">⏰</span>
                 Horário
               </div>
             </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🏥</span>
-                  Convênio
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🩺</span>
-                  Serviço
-                </div>
-              </TableHead>
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">🏷️</span>
-                  Tipo
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">👤</span>
-                  Paciente
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">👨‍⚕️</span>
-                  Profissional
-                </div>
-              </TableHead>
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">📊</span>
-                  Status
-                </div>
-              </TableHead>
-            <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-              <div className="flex items-center justify-center gap-2">
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">👤</span>
+                Paciente
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">👨‍⚕️</span>
+                Profissional
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🩺</span>
+                Serviço
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🏥</span>
+                Convênio
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🏷️</span>
+                Tipo
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📊</span>
+                Status
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
                 <span className="text-lg">⚙️</span>
                 Ações
               </div>
@@ -461,78 +546,90 @@ export const LiberarPage = () => {
               const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
               
               return (
-                <TableRow key={agendamento.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200 h-12">
-                  <TableCell className="text-center py-2">
-                    <span className="text-sm">{data}</span>
+                <TableRow key={agendamento.id} className="hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 transition-all duration-200 h-12">
+                  <TableCell className="py-2">
+                    <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded text-gray-700">{data}</span>
                   </TableCell>
-                  <TableCell className="text-center py-2">
-                    <span className="text-sm">{hora}</span>
+                  <TableCell className="py-2">
+                    <span className="text-sm font-mono bg-orange-100 px-2 py-1 rounded text-orange-700">{hora}</span>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                        {agendamento.pacienteNome?.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-sm font-medium">{agendamento.pacienteNome}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <span className="text-sm text-blue-600 hover:text-blue-800 transition-colors">{agendamento.profissionalNome}</span>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <span className="text-sm">{agendamento.servicoNome}</span>
                   </TableCell>
                   <TableCell className="py-2">
                     <span className="text-sm">{agendamento.convenioNome}</span>
                   </TableCell>
                   <TableCell className="py-2">
-                    <span className="text-sm">{agendamento.servicoNome}</span>
-                  </TableCell>
-                  <TableCell className="text-center py-2">
-                    <Badge variant="outline" className="text-xs">
+                    <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                      agendamento.tipoAtendimento === 'presencial' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
                       {agendamento.tipoAtendimento}
-                    </Badge>
+                    </span>
                   </TableCell>
                   <TableCell className="py-2">
-                    <span className="font-medium text-sm">{agendamento.pacienteNome}</span>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <span className="text-sm">{agendamento.profissionalNome}</span>
-                  </TableCell>
-                  <TableCell className="text-center py-2">
-                    <Badge 
-                      variant={agendamento.status === 'AGENDADO' ? 'outline' : 'default'}
-                      className={`text-xs ${
-                        agendamento.status === 'AGENDADO' 
-                          ? 'border-blue-300 text-blue-700 bg-blue-50' 
-                          : 'border-orange-300 text-orange-700 bg-orange-50'
-                      }`}
-                    >
+                    <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                      agendamento.status === 'AGENDADO' 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-orange-100 text-orange-800'
+                    }`}>
                       {agendamento.status}
-                    </Badge>
+                    </span>
                   </TableCell>
-                  <TableCell className="text-right py-2">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={() => handleVerDetalhes(agendamento)}
-                        title="Ver Detalhes"
-                      >
-                        <FileText className="w-3 h-3" />
-                      </Button>
-                      {agendamento.status === 'AGENDADO' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleSolicitarLiberacao(agendamento)}
-                          disabled={estaProcessando(agendamento.id)}
-                          className="bg-blue-600 text-white hover:bg-blue-700 h-7 px-3"
-                        >
-                          {estaProcessando(agendamento.id) ? (
-                            <>
-                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                              Enviando...
-                            </>
-                          ) : (
-                            'Solicitar Liberação'
-                          )}
-                        </Button>
-                      )}
+                  <TableCell className="py-2">
+                    <div className="flex gap-1.5">
                       <Button
                         variant="default"
                         size="sm"
-                        onClick={() => handleLiberar(agendamento)}
-                        className="bg-green-600 text-white hover:bg-green-700 h-7 px-3"
+                        className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleVerDetalhes(agendamento)}
+                        title="Visualizar Agendamento"
                       >
-                        Confirmar Liberação
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleSolicitarLiberacaoClick(agendamento)}
+                        disabled={estaProcessando(agendamento.id)}
+                        title="Solicitar Liberação"
+                      >
+                        {estaProcessando(agendamento.id) ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Unlock className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleWhatsApp(agendamento)}
+                        title="WhatsApp"
+                      >
+                        <MessageCircle className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 focus:ring-4 focus:ring-emerald-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleLiberar(agendamento)}
+                        title="Liberado Atendimento"
+                      >
+                        <CheckSquare className="w-4 h-4 text-emerald-600 group-hover:text-white transition-colors" />
                       </Button>
                     </div>
                   </TableCell>
@@ -561,7 +658,12 @@ export const LiberarPage = () => {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Liberação de Agendamentos</h1>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <span className="text-4xl">🔓</span>
+            <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+              Liberação de Agendamentos
+            </span>
+          </h1>
           <div className="flex items-center gap-3">
             {agendamentosProcessando.size > 0 && (
               <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-300">
@@ -782,11 +884,14 @@ export const LiberarPage = () => {
 
       {/* Paginação */}
       {totalPaginas > 1 && (
-        <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-3 px-6 z-10">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Exibir</span>
+        <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-600 flex items-center gap-2">
+              <span className="text-lg">📊</span>
+              Exibir
+            </span>
             <select
-              className="border rounded px-2 py-1 text-sm"
+              className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transition-all duration-200 hover:border-orange-300"
               value={itensPorPagina}
               onChange={e => setItensPorPagina(Number(e.target.value))}
             >
@@ -797,7 +902,8 @@ export const LiberarPage = () => {
             <span className="text-sm text-gray-600">itens por página</span>
           </div>
           
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 flex items-center gap-2">
+            <span className="text-lg">📈</span>
             <div>
               Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, agendamentosFiltrados.length)} de {agendamentosFiltrados.length} resultados
               {(temFiltrosAtivos || busca) && (
@@ -805,55 +911,75 @@ export const LiberarPage = () => {
                   {' '}(filtrados de {agendadosBase.length} total)
                 </span>
               )}
+              {agendamentosProcessando.size > 0 && (
+                <div className="flex items-center gap-2 mt-1 text-blue-600">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span className="text-xs">
+                    {agendamentosProcessando.size} {agendamentosProcessando.size > 1 ? 'webhooks' : 'webhook'} em processamento
+                  </span>
+                </div>
+              )}
             </div>
-            {agendamentosProcessando.size > 0 && (
-              <div className="flex items-center gap-2 mt-1 text-blue-600">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                <span className="text-xs">
-                  {agendamentosProcessando.size} {agendamentosProcessando.size > 1 ? 'webhooks' : 'webhook'} em processamento
-                </span>
-              </div>
-            )}
           </div>
 
-          <div className="flex gap-1">
+          <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
               disabled={paginaAtual === 1}
+              className="border-2 border-gray-200 text-gray-700 hover:border-orange-500 hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 hover:text-orange-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             >
+              <span className="mr-1 text-gray-600 group-hover:text-orange-600 transition-colors">⬅️</span>
               Anterior
             </Button>
-            
-            {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
-              const pageNumber = Math.max(1, Math.min(totalPaginas - 4, paginaAtual - 2)) + i;
-              return (
+            {(() => {
+              const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
+              const endPage = Math.min(totalPaginas, startPage + 4);
+              return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
                 <Button
-                  key={pageNumber}
-                  variant={paginaAtual === pageNumber ? "default" : "outline"}
+                  key={page}
+                  variant={page === paginaAtual ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setPaginaAtual(pageNumber)}
-                  className="w-8"
+                  onClick={() => setPaginaAtual(page)}
+                  className={page === paginaAtual 
+                    ? "bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg font-semibold" 
+                    : "border-2 border-gray-200 text-gray-700 hover:border-orange-500 hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 hover:text-orange-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+                  }
                 >
-                  {pageNumber}
+                  {page}
                 </Button>
-              );
-            })}
-            
+              ));
+            })()}
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
               disabled={paginaAtual === totalPaginas}
+              className="border-2 border-gray-200 text-gray-700 hover:border-orange-500 hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 hover:text-orange-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             >
-              Próxima
+              Próximo
+              <span className="ml-1 text-gray-600 group-hover:text-orange-600 transition-colors">➡️</span>
             </Button>
           </div>
         </div>
       )}
 
       {/* Modais */}
+      {/* Modal de confirmação de reenvio */}
+      <ConfirmacaoModal
+        open={showConfirmacaoReenvio}
+        onClose={cancelarReenvio}
+        onConfirm={confirmarReenvio}
+        title="Reenviar Solicitação"
+        description={`A solicitação de liberação (token) já foi enviada para ${agendamentoParaReenvio?.pacienteNome}. Deseja realmente enviar a solicitação novamente?`}
+        confirmText="Sim, Reenviar"
+        cancelText="Cancelar"
+        variant="warning"
+        isLoading={agendamentoParaReenvio ? estaProcessando(agendamentoParaReenvio.id) : false}
+        loadingText="Reenviando..."
+      />
+
       <LiberarAgendamentoModal
         isOpen={showLiberarAgendamento}
         agendamento={agendamentoSelecionado}

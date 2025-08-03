@@ -19,6 +19,7 @@ import { getProfissionais } from '@/services/profissionais';
 import { getConvenios } from '@/services/convenios';
 import { getServicos } from '@/services/servicos';
 import { getRecursos } from '@/services/recursos';
+import { getProfissionaisByServico, type ProfissionalServico } from '@/services/profissionais-servicos';
 import { toast } from 'sonner';
 
 interface NovoAgendamentoModalProps {
@@ -49,6 +50,42 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
     dataHoraInicio: '',
     recorrencia: undefined
   });
+
+  // Estados separados para data e hora
+  const [dataAgendamento, setDataAgendamento] = useState('');
+  const [horaAgendamento, setHoraAgendamento] = useState('');
+
+  // Opções de horários de 30 em 30 minutos
+  const opcoesHorarios = [
+    { id: '07:00', nome: '07:00', sigla: 'Manhã' },
+    { id: '07:30', nome: '07:30', sigla: 'Manhã' },
+    { id: '08:00', nome: '08:00', sigla: 'Manhã' },
+    { id: '08:30', nome: '08:30', sigla: 'Manhã' },
+    { id: '09:00', nome: '09:00', sigla: 'Manhã' },
+    { id: '09:30', nome: '09:30', sigla: 'Manhã' },
+    { id: '10:00', nome: '10:00', sigla: 'Manhã' },
+    { id: '10:30', nome: '10:30', sigla: 'Manhã' },
+    { id: '11:00', nome: '11:00', sigla: 'Manhã' },
+    { id: '11:30', nome: '11:30', sigla: 'Manhã' },
+    { id: '12:00', nome: '12:00', sigla: 'Almoço' },
+    { id: '12:30', nome: '12:30', sigla: 'Almoço' },
+    { id: '13:00', nome: '13:00', sigla: 'Tarde' },
+    { id: '13:30', nome: '13:30', sigla: 'Tarde' },
+    { id: '14:00', nome: '14:00', sigla: 'Tarde' },
+    { id: '14:30', nome: '14:30', sigla: 'Tarde' },
+    { id: '15:00', nome: '15:00', sigla: 'Tarde' },
+    { id: '15:30', nome: '15:30', sigla: 'Tarde' },
+    { id: '16:00', nome: '16:00', sigla: 'Tarde' },
+    { id: '16:30', nome: '16:30', sigla: 'Tarde' },
+    { id: '17:00', nome: '17:00', sigla: 'Tarde' },
+    { id: '17:30', nome: '17:30', sigla: 'Tarde' },
+    { id: '18:00', nome: '18:00', sigla: 'Tarde' },
+    { id: '18:30', nome: '18:30', sigla: 'Tarde' },
+    { id: '19:00', nome: '19:00', sigla: 'Noite' },
+    { id: '19:30', nome: '19:30', sigla: 'Noite' },
+    { id: '20:00', nome: '20:00', sigla: 'Noite' },
+    { id: '20:30', nome: '20:30', sigla: 'Noite' }
+  ];
   
   const [temRecorrencia, setTemRecorrencia] = useState(false);
   const [recorrencia, setRecorrencia] = useState({
@@ -60,9 +97,11 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
   // Estados para dados reais
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+  const [profissionaisPorServico, setProfissionaisPorServico] = useState<ProfissionalServico[]>([]);
   const [convenios, setConvenios] = useState<Convenio[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [recursos, setRecursos] = useState<Recurso[]>([]);
+  const [loadingProfissionaisPorServico, setLoadingProfissionaisPorServico] = useState(false);
 
   // Função para carregar todos os dados necessários
   const carregarDados = async () => {
@@ -122,8 +161,33 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
         profissionalId: preenchimentoInicial.profissionalId || '',
         dataHoraInicio: preenchimentoInicial.dataHoraInicio || ''
       }));
+
+      // Separar data e hora do preenchimento inicial
+      if (preenchimentoInicial.dataHoraInicio) {
+        const [data, hora] = preenchimentoInicial.dataHoraInicio.split('T');
+        setDataAgendamento(data);
+        // Encontrar o horário mais próximo nas opções disponíveis
+        const horaFormatada = hora.substring(0, 5); // Pegar apenas HH:MM
+        const horarioEncontrado = opcoesHorarios.find(opcao => opcao.id === horaFormatada);
+        setHoraAgendamento(horarioEncontrado ? horarioEncontrado.id : '');
+      }
     }
   }, [isOpen, preenchimentoInicial]);
+
+  // Função para carregar profissionais por serviço
+  const carregarProfissionaisPorServico = async (servicoId: string) => {
+    setLoadingProfissionaisPorServico(true);
+    try {
+      const profissionaisData = await getProfissionaisByServico(servicoId);
+      setProfissionaisPorServico(profissionaisData);
+    } catch (error) {
+      console.error('Erro ao carregar profissionais do serviço:', error);
+      toast.error('Erro ao carregar profissionais do serviço');
+      setProfissionaisPorServico([]);
+    } finally {
+      setLoadingProfissionaisPorServico(false);
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -136,6 +200,8 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
       dataHoraInicio: '',
       recorrencia: undefined
     });
+    setDataAgendamento('');
+    setHoraAgendamento('');
     setTemRecorrencia(false);
     setRecorrencia({
       tipo: 'semanal',
@@ -146,10 +212,12 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
     // Limpar dados carregados para próxima sessão
     setPacientes([]);
     setProfissionais([]);
+    setProfissionaisPorServico([]);
     setConvenios([]);
     setServicos([]);
     setRecursos([]);
     setLoadingData(false);
+    setLoadingProfissionaisPorServico(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -157,8 +225,20 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
     
     // Validações
     if (!formData.pacienteId || !formData.profissionalId || !formData.servicoId || 
-        !formData.convenioId || !formData.recursoId || !formData.dataHoraInicio) {
+        !formData.convenioId || !formData.recursoId || !dataAgendamento || !horaAgendamento) {
       toast.error('Preencha todos os campos obrigatórios');
+      return;
+    }
+
+    // Combinar data e hora
+    const dataHoraCombinada = `${dataAgendamento}T${horaAgendamento}`;
+    
+    // Validação adicional: verificar se a data/hora não é no passado
+    const dataHoraSelecionada = new Date(dataHoraCombinada);
+    const agora = new Date();
+    
+    if (dataHoraSelecionada <= agora) {
+      toast.error('A data e hora do agendamento deve ser no futuro');
       return;
     }
 
@@ -166,6 +246,7 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
     try {
       const dadosParaEnvio = {
         ...formData,
+        dataHoraInicio: dataHoraCombinada,
         recorrencia: temRecorrencia ? {
           tipo: recorrencia.tipo,
           ...(recorrencia.repeticoes && { repeticoes: recorrencia.repeticoes }),
@@ -230,7 +311,7 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                     selected={pacientes.find(p => p.id === formData.pacienteId) ? {
                       id: formData.pacienteId,
                       nome: pacientes.find(p => p.id === formData.pacienteId)?.nomeCompleto || '',
-                      sigla: pacientes.find(p => p.id === formData.pacienteId)?.whatsapp
+                      sigla: undefined // Não mostrar WhatsApp quando selecionado
                     } : null}
                     onChange={(selected) => {
                       setFormData(prev => ({ ...prev, pacienteId: selected?.id || '' }));
@@ -269,6 +350,8 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                         recursoId: '', // Limpar recurso quando trocar convênio
                         tipoAtendimento: 'presencial' // Reset tipo de atendimento
                       }));
+                      // Limpar profissionais por serviço quando trocar convênio
+                      setProfissionaisPorServico([]);
                     }}
                     placeholder={loadingData ? "Carregando convênios..." : "Buscar convênio..."}
                     headerText="Convênios disponíveis"
@@ -298,13 +381,21 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                       sigla: servicos.find(s => s.id === formData.servicoId)?.duracaoMinutos ? `${servicos.find(s => s.id === formData.servicoId)?.duracaoMinutos} min` : undefined
                     } : null}
                     onChange={(selected) => {
+                      const newServiceId = selected?.id || '';
                       setFormData(prev => ({
                         ...prev,
-                        servicoId: selected?.id || '',
+                        servicoId: newServiceId,
                         profissionalId: '', // Limpar profissional quando trocar serviço
                         recursoId: '', // Limpar recurso quando trocar serviço
                         tipoAtendimento: 'presencial' // Reset tipo de atendimento
                       }));
+                      
+                      // Carregar profissionais do serviço selecionado
+                      if (newServiceId) {
+                        carregarProfissionaisPorServico(newServiceId);
+                      } else {
+                        setProfissionaisPorServico([]);
+                      }
                     }}
                     placeholder={!formData.convenioId ? "Selecione um convênio primeiro..." : loadingData ? "Carregando serviços..." : "Buscar serviço..."}
                     headerText="Serviços disponíveis"
@@ -324,22 +415,20 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                     Profissional <span className="text-red-500">*</span>
                   </label>
                   <SingleSelectDropdown
-                    options={formData.servicoId ? profissionais
-                      .filter(p => p.servicosIds && p.servicosIds.includes(formData.servicoId))
-                      .map(p => ({
-                        id: p.id,
-                        nome: p.nome,
-                        sigla: undefined
-                      })) : []}
-                    selected={profissionais.find(p => p.id === formData.profissionalId) ? {
+                    options={formData.servicoId ? profissionaisPorServico.map(ps => ({
+                      id: ps.profissional.id,
+                      nome: ps.profissional.nome,
+                      sigla: undefined
+                    })) : []}
+                    selected={profissionaisPorServico.find(ps => ps.profissional.id === formData.profissionalId) ? {
                       id: formData.profissionalId,
-                      nome: profissionais.find(p => p.id === formData.profissionalId)?.nome || '',
+                      nome: profissionaisPorServico.find(ps => ps.profissional.id === formData.profissionalId)?.profissional.nome || '',
                       sigla: undefined
                     } : null}
                     onChange={(selected) => {
                       setFormData(prev => ({ ...prev, profissionalId: selected?.id || '' }));
                     }}
-                    placeholder={!formData.servicoId ? "Selecione um serviço primeiro..." : loadingData ? "Carregando profissionais..." : "Buscar profissional..."}
+                    placeholder={!formData.servicoId ? "Selecione um serviço primeiro..." : loadingProfissionaisPorServico ? "Carregando profissionais..." : "Buscar profissional..."}
                     headerText="Profissionais disponíveis"
                     formatOption={(option) => {
                       return option.nome;
@@ -362,7 +451,7 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                     selected={recursos.find(r => r.id === formData.recursoId) ? {
                       id: formData.recursoId,
                       nome: recursos.find(r => r.id === formData.recursoId)?.nome || '',
-                      sigla: recursos.find(r => r.id === formData.recursoId)?.descricao
+                      sigla: undefined // Não mostrar descrição quando selecionado
                     } : null}
                     onChange={(selected) => {
                       setFormData(prev => ({ ...prev, recursoId: selected?.id || '' }));
@@ -408,24 +497,49 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Data e Hora */}
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
-                <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                  <span className="text-xl">🕰️</span>
-                  Data e Horário
-                </h3>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <span className="text-lg">📅</span>
-                    Data e Hora do Agendamento <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    id="dataHoraInicio"
-                    type="datetime-local"
-                    value={formData.dataHoraInicio}
-                    onChange={(e) => setFormData(prev => ({ ...prev, dataHoraInicio: e.target.value }))}
-                    required
-                    min={new Date().toISOString().slice(0, 16)}
-                    className="border-2 border-green-200 focus:border-green-500 focus:ring-green-100"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Data */}
+                  <div className="min-w-0">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                      <span className="text-lg">📅</span>
+                      Data do Agendamento <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      id="dataAgendamento"
+                      type="date"
+                      value={dataAgendamento}
+                      onChange={(e) => setDataAgendamento(e.target.value)}
+                      required
+                      min={new Date().toISOString().split('T')[0]}
+                      className="border-2 border-green-200 focus:border-green-500 focus:ring-green-100"
+                    />
+                  </div>
+
+                  {/* Hora */}
+                  <div className="min-w-0 relative">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                      <span className="text-lg">🕐</span>
+                      Hora do Agendamento <span className="text-red-500">*</span>
+                    </label>
+                    <div className="w-full">
+                      <SingleSelectDropdown
+                        options={opcoesHorarios}
+                        selected={opcoesHorarios.find(opcao => opcao.id === horaAgendamento) ? {
+                          id: horaAgendamento,
+                          nome: opcoesHorarios.find(opcao => opcao.id === horaAgendamento)?.nome || '',
+                          sigla: opcoesHorarios.find(opcao => opcao.id === horaAgendamento)?.sigla || ''
+                        } : null}
+                        onChange={(selected) => {
+                          setHoraAgendamento(selected?.id || '');
+                        }}
+                        placeholder="Selecione..."
+                        headerText="Horários disponíveis"
+                        formatOption={(option) => {
+                          return `${option.nome} - ${option.sigla}`;
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 

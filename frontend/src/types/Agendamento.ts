@@ -52,6 +52,7 @@ export interface Agendamento {
   
   // Campos calculados/relacionais (para exibição)
   pacienteNome?: string;
+  pacienteWhatsapp?: string;
   profissionalNome?: string;
   convenioNome?: string;
   servicoNome?: string;
