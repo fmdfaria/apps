@@ -27,3 +27,26 @@ export const getProfissionaisByServico = async (servicoId: string): Promise<Prof
   const response = await api.get(`/profissionais-servicos/${servicoId}`);
   return response.data;
 };
+
+export interface ServicoConvenioProfissional {
+  profissionalId: string;
+  servicos: {
+    id: string;
+    nome: string;
+    duracaoMinutos: number;
+    valor: number;
+    convenio: {
+      id: string;
+      nome: string;
+    };
+  }[];
+  convenios: {
+    id: string;
+    nome: string;
+  }[];
+}
+
+export const getServicosConveniosByProfissional = async (profissionalId: string): Promise<ServicoConvenioProfissional> => {
+  const response = await api.get(`/profissionais/${profissionalId}/servicos-convenios`);
+  return response.data;
+};
