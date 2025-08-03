@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar, Clock, User, Users, Stethoscope, CreditCard, MapPin, Smartphone } from 'lucide-react';
 import { OPCOES_HORARIOS } from '../utils/agendamento-constants';
+import { useVerificacaoAgendamento } from '@/hooks/useVerificacaoAgendamento';
 import type { AgendamentoFormContext } from '../types/agendamento-form';
 
 interface FormularioPorDataProps {
@@ -15,6 +16,29 @@ export const FormularioPorData: React.FC<FormularioPorDataProps> = ({ context })
   const { formData, dataAgendamento, horaAgendamento } = state;
   const { profissionais, pacientes, convenios, servicos, recursos, conveniosDoProfissional, servicosDoProfissional } = dataState;
   const { loadingData } = loadingState;
+
+  // Hook para verificação de disponibilidade de profissionais
+  const {
+    carregandoProfissionais,
+    profissionaisVerificados,
+    verificarProfissionais
+  } = useVerificacaoAgendamento();
+
+  // Verificar profissionais quando data e hora estiverem selecionadas
+  useEffect(() => {
+    if (dataAgendamento && horaAgendamento && profissionais.length > 0) {
+      // Parse manual para evitar problemas de timezone (igual ao CalendarioPage)
+      const [ano, mes, dia] = dataAgendamento.split('-').map(Number);
+      const dataObj = new Date(ano, mes - 1, dia); // mes é 0-indexed
+      const profissionaisIds = profissionais.map(p => p.id);
+      const nomesProfissionais = profissionais.reduce((acc, p) => {
+        acc[p.id] = p.nome;
+        return acc;
+      }, {} as { [id: string]: string });
+      
+      verificarProfissionais(profissionaisIds, dataObj, horaAgendamento, nomesProfissionais);
+    }
+  }, [dataAgendamento, horaAgendamento, profissionais, verificarProfissionais]);
 
   return (
     <>
@@ -77,37 +101,89 @@ export const FormularioPorData: React.FC<FormularioPorDataProps> = ({ context })
             <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
               <span className="text-xl">👨‍⚕️</span>
               2. Selecione o Profissional
+              {carregandoProfissionais && (
+                <div className="ml-2 flex items-center gap-1 text-xs text-gray-500">
+                  <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                  Verificando...
+                </div>
+              )}
             </h3>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                 <Users className="w-4 h-4" />
                 Selecione o Profissional <span className="text-red-500">*</span>
               </label>
-              <SingleSelectDropdown
-                options={profissionais.map(p => ({
-                  id: p.id,
-                  nome: p.nome,
-                  sigla: undefined
-                }))}
-                selected={profissionais.find(p => p.id === formData.profissionalId) ? {
-                  id: formData.profissionalId,
-                  nome: profissionais.find(p => p.id === formData.profissionalId)?.nome || '',
-                  sigla: undefined
-                } : null}
-                onChange={(selected) => {
-                  const profissionalId = selected?.id || '';
-                  updateFormData({
-                    profissionalId,
-                    servicoId: '', // Limpar serviço quando trocar profissional
-                    convenioId: '', // Limpar convênio quando trocar profissional
-                    recursoId: '', // Limpar recurso quando trocar profissional
-                    tipoAtendimento: 'presencial' // Reset tipo de atendimento
-                  });
-                }}
-                placeholder={loadingData ? "Carregando profissionais..." : "Buscar profissional..."}
-                headerText="Profissionais disponíveis"
-                formatOption={(option) => option.nome}
-              />
+              <div className="w-full">
+                <SingleSelectDropdown
+                  options={profissionaisVerificados.length > 0 ? 
+                    profissionaisVerificados.map(({ profissionalId, nome }) => ({
+                      id: profissionalId,
+                      nome: nome,
+                      sigla: undefined
+                    })) :
+                    profissionais.map(p => ({
+                      id: p.id,
+                      nome: p.nome,
+                      sigla: undefined
+                    }))
+                  }
+                  selected={formData.profissionalId ? {
+                    id: formData.profissionalId,
+                    nome: profissionais.find(p => p.id === formData.profissionalId)?.nome || '',
+                    sigla: undefined
+                  } : null}
+                  onChange={(selected) => {
+                    const profissionalId = selected?.id || '';
+                    updateFormData({
+                      profissionalId,
+                      servicoId: '', // Limpar serviço quando trocar profissional
+                      convenioId: '', // Limpar convênio quando trocar profissional
+                      recursoId: '', // Limpar recurso quando trocar profissional
+                      tipoAtendimento: 'presencial' // Reset tipo de atendimento
+                    });
+                  }}
+                  placeholder={carregandoProfissionais ? "Verificando disponibilidade..." : loadingData ? "Carregando profissionais..." : "Selecione um profissional..."}
+                  headerText="Profissionais disponíveis"
+                  formatOption={(option) => option.nome}
+                  getDotColor={(option) => {
+                    if (profissionaisVerificados.length > 0) {
+                      const profissionalInfo = profissionaisVerificados.find(pd => pd.profissionalId === option.id);
+                      return profissionalInfo?.verificacao.dotColor || 'green';
+                    }
+                    return 'green';
+                  }}
+                  getDisabled={(option) => {
+                    if (profissionaisVerificados.length > 0) {
+                      const profissionalInfo = profissionaisVerificados.find(pd => pd.profissionalId === option.id);
+                      const dotColor = profissionalInfo?.verificacao.dotColor || 'green';
+                      // Desabilitar se for vermelho (indisponível) ou azul (ocupado)
+                      return dotColor === 'red' || dotColor === 'blue';
+                    }
+                    return false;
+                  }}
+                  disabled={carregandoProfissionais}
+                />
+              </div>
+              
+              {/* Legenda de status */}
+              {profissionaisVerificados.length > 0 && (
+                <div className="mt-2 text-xs text-gray-600">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span>Disponível</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <span>Ocupado</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                      <span>Indisponível</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ) : (

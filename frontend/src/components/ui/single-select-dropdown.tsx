@@ -6,6 +6,7 @@ interface Option {
   id: string;
   nome: string;
   sigla?: string;
+  disponivel?: boolean;
 }
 
 interface SingleSelectDropdownProps {
@@ -16,9 +17,11 @@ interface SingleSelectDropdownProps {
   formatOption?: (option: Option) => string;
   headerText?: string;
   dotColor?: 'green' | 'blue' | 'red' | 'yellow' | 'purple' | 'gray' | 'orange' | 'pink';
+  getDotColor?: (option: Option) => 'green' | 'blue' | 'red' | 'yellow' | 'purple' | 'gray' | 'orange' | 'pink' | undefined;
+  getDisabled?: (option: Option) => boolean;
 }
 
-export function SingleSelectDropdown({ options, selected, onChange, placeholder = 'Selecione...', formatOption, headerText = 'Opções disponíveis', dotColor = 'green' }: SingleSelectDropdownProps) {
+export function SingleSelectDropdown({ options, selected, onChange, placeholder = 'Selecione...', formatOption, headerText = 'Opções disponíveis', dotColor = 'green', getDotColor, getDisabled }: SingleSelectDropdownProps) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [inputFocused, setInputFocused] = useState(false);
@@ -97,9 +100,8 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
       const canScrollDown = scrollTop < scrollHeight - clientHeight;
       
       if ((delta > 0 && canScrollDown) || (delta < 0 && canScrollUp)) {
-        e.preventDefault();
-        e.stopPropagation();
-        container.scrollTop += delta;
+        // Usar scrollBy ao invés de preventDefault para evitar erro de passive listener
+        container.scrollBy({ top: delta, behavior: 'auto' });
       }
     }
   }, []);
@@ -270,18 +272,32 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
             </div>
           )}
           
-          {showOptions.map(opt => (
-            <div
-              key={opt.id}
-              className="group cursor-pointer px-3 py-2.5 rounded-lg text-sm hover:bg-gradient-to-r hover:from-green-50 hover:to-blue-50 hover:border-green-200 border border-transparent transition-all duration-150 flex items-center gap-3"
-              onClick={() => handleSelect(opt)}
-            >
-              <div className={`w-2 h-2 ${getDotColorClasses(dotColor)} rounded-full transition-colors duration-150`}></div>
-              <span className="font-medium text-gray-700 group-hover:text-gray-900">
-                {formatOption ? formatOption(opt) : opt.nome}
-              </span>
-            </div>
-          ))}
+          {showOptions.map(opt => {
+            const itemDotColor = getDotColor ? getDotColor(opt) : dotColor;
+            const isDisabled = getDisabled ? getDisabled(opt) : false;
+            
+            return (
+              <div
+                key={opt.id}
+                className={`group px-3 py-2.5 rounded-lg text-sm border border-transparent transition-all duration-150 flex items-center gap-3 ${
+                  isDisabled 
+                    ? 'cursor-not-allowed opacity-50 bg-gray-50' 
+                    : 'cursor-pointer hover:bg-gradient-to-r hover:from-green-50 hover:to-blue-50 hover:border-green-200'
+                }`}
+                onClick={() => !isDisabled && handleSelect(opt)}
+                title={isDisabled ? 'Esta opção não está disponível' : undefined}
+              >
+                <div className={`w-2 h-2 ${getDotColorClasses(itemDotColor || dotColor)} rounded-full transition-colors duration-150`}></div>
+                <span className={`font-medium transition-colors duration-150 ${
+                  isDisabled 
+                    ? 'text-gray-400' 
+                    : 'text-gray-700 group-hover:text-gray-900'
+                }`}>
+                  {formatOption ? formatOption(opt) : opt.nome}
+                </span>
+              </div>
+            );
+          })}
           
         </div>
       </PopoverContent>

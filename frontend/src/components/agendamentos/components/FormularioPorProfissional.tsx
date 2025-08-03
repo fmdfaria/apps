@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar, Clock, User, Users, Stethoscope, CreditCard, MapPin, Smartphone } from 'lucide-react';
 import { OPCOES_HORARIOS } from '../utils/agendamento-constants';
+import { useVerificacaoAgendamento } from '@/hooks/useVerificacaoAgendamento';
 import type { AgendamentoFormContext } from '../types/agendamento-form';
 
 interface FormularioPorProfissionalProps {
@@ -15,6 +16,23 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
   const { formData, dataAgendamento, horaAgendamento } = state;
   const { profissionais, pacientes, convenios, servicos, recursos, conveniosDoProfissional, servicosDoProfissional } = dataState;
   const { loadingData } = loadingState;
+
+  // Hook para verificação de disponibilidade
+  const {
+    carregandoHorarios,
+    horariosVerificados,
+    verificarHorarios
+  } = useVerificacaoAgendamento();
+
+  // Verificar horários quando profissional e data estiverem selecionados
+  useEffect(() => {
+    if (formData.profissionalId && dataAgendamento) {
+      // Parse manual para evitar problemas de timezone (igual ao CalendarioPage)
+      const [ano, mes, dia] = dataAgendamento.split('-').map(Number);
+      const dataObj = new Date(ano, mes - 1, dia); // mes é 0-indexed
+      verificarHorarios(formData.profissionalId, dataObj);
+    }
+  }, [formData.profissionalId, dataAgendamento, verificarHorarios]);
 
   return (
     <>
@@ -90,25 +108,73 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <Clock className="w-4 h-4" />
                   Hora <span className="text-red-500">*</span>
+                  {carregandoHorarios && (
+                    <div className="ml-2 flex items-center gap-1 text-xs text-gray-500">
+                      <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                      Verificando...
+                    </div>
+                  )}
                 </label>
                 <div className="w-full">
                   <SingleSelectDropdown
-                    options={OPCOES_HORARIOS}
-                    selected={OPCOES_HORARIOS.find(opcao => opcao.id === horaAgendamento) ? {
+                    options={horariosVerificados.length > 0 ? 
+                      horariosVerificados.map(({ horario, verificacao }) => ({
+                        id: horario,
+                        nome: horario,
+                        sigla: undefined
+                      })) : 
+                      OPCOES_HORARIOS
+                    }
+                    selected={horaAgendamento ? {
                       id: horaAgendamento,
-                      nome: OPCOES_HORARIOS.find(opcao => opcao.id === horaAgendamento)?.nome || '',
-                      sigla: OPCOES_HORARIOS.find(opcao => opcao.id === horaAgendamento)?.sigla || ''
+                      nome: horaAgendamento,
+                      sigla: undefined
                     } : null}
                     onChange={(selected) => {
                       updateHoraAgendamento(selected?.id || '');
                     }}
-                    placeholder="Selecione..."
+                    placeholder={carregandoHorarios ? "Verificando horários..." : dataAgendamento ? "Selecione um horário..." : "Selecione uma data primeiro..."}
                     headerText="Horários disponíveis"
-                    formatOption={(option) => {
-                      return `${option.nome} - ${option.sigla}`;
+                    formatOption={(option) => option.nome}
+                    getDotColor={(option) => {
+                      if (horariosVerificados.length > 0) {
+                        const horarioInfo = horariosVerificados.find(h => h.horario === option.id);
+                        return horarioInfo?.verificacao.dotColor || 'green';
+                      }
+                      return 'green';
                     }}
+                    getDisabled={(option) => {
+                      if (horariosVerificados.length > 0) {
+                        const horarioInfo = horariosVerificados.find(h => h.horario === option.id);
+                        const dotColor = horarioInfo?.verificacao.dotColor || 'green';
+                        // Desabilitar se for vermelho (indisponível) ou azul (ocupado)
+                        return dotColor === 'red' || dotColor === 'blue';
+                      }
+                      return false;
+                    }}
+                    disabled={!dataAgendamento || carregandoHorarios}
                   />
                 </div>
+                
+                {/* Legenda de status */}
+                {horariosVerificados.length > 0 && (
+                  <div className="mt-2 text-xs text-gray-600">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span>Disponível</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span>Ocupado</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                        <span>Indisponível</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

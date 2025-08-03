@@ -316,20 +316,18 @@ export const CalendarioPage = () => {
           <div className="flex items-center bg-gray-100 rounded-lg p-1">
             <Button
               variant="ghost"
-              size="sm"
               onClick={() => setGridViewType('profissionais')}
-              className={`h-7 px-3 ${gridViewType === 'profissionais' ? 'bg-white shadow-sm' : ''}`}
+              className={`${gridViewType === 'profissionais' ? 'bg-blue-100 text-blue-700 shadow-sm' : 'hover:bg-blue-700'}`}
             >
-              <Users className="w-4 h-4 mr-1" />
+              <Users className="w-4 h-4 mr-2" />
               Profissionais
             </Button>
             <Button
               variant="ghost"
-              size="sm"
               onClick={() => setGridViewType('recursos')}
-              className={`h-7 px-3 ${gridViewType === 'recursos' ? 'bg-white shadow-sm' : ''}`}
+              className={`${gridViewType === 'recursos' ? 'bg-blue-100 text-blue-700 shadow-sm' : 'hover:bg-blue-700'}`}
             >
-              <Building2 className="w-4 h-4 mr-1" />
+              <Building2 className="w-4 h-4 mr-2" />
               Recursos
             </Button>
           </div>
@@ -667,13 +665,23 @@ export const CalendarioPage = () => {
                   <Menu className="w-4 h-4" />
                 </Button>
                 
-                <div className="flex-1">
+                <div className="flex-1 flex justify-center">
                   <CalendarHeader
                     currentDate={currentDate}
                     viewMode={viewMode}
                     onDateChange={setCurrentDate}
                   />
                 </div>
+                
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-3 bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => setCurrentDate(new Date())}
+                >
+                  <CalendarIcon className="w-4 h-4 mr-1" />
+                  Hoje
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="p-0 flex-1 min-h-0">
