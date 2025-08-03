@@ -52,11 +52,8 @@ export class ProfissionaisServicosController {
         id: ps.servico.id,
         nome: ps.servico.nome,
         duracaoMinutos: ps.servico.duracaoMinutos,
-        valor: ps.servico.valor,
-        convenio: {
-          id: ps.servico.convenio.id,
-          nome: ps.servico.convenio.nome
-        }
+        valor: ps.servico.preco, // Corrigido: usar 'preco' ao invés de 'valor'
+        convenio: ps.servico.convenio
       }));
 
       // Remover duplicatas baseando-se no ID do serviço
@@ -77,9 +74,10 @@ export class ProfissionaisServicosController {
         convenios: conveniosUnicos
       });
     } catch (error) {
+      console.error('Erro ao buscar serviços e convênios do profissional:', error);
       return reply.status(500).send({ 
         message: 'Erro ao buscar serviços e convênios do profissional', 
-        error 
+        error: error instanceof Error ? error.message : error
       });
     }
   }

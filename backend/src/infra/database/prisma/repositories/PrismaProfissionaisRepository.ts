@@ -163,6 +163,12 @@ export class PrismaProfissionaisRepository implements IProfissionaisRepository {
             nome: true,
             duracaoMinutos: true,
             preco: true,
+            convenio: {
+              select: {
+                id: true,
+                nome: true,
+              },
+            },
           },
         },
       },
@@ -176,6 +182,7 @@ export class PrismaProfissionaisRepository implements IProfissionaisRepository {
       servico: {
         ...ps.servico,
         preco: Number(ps.servico.preco),
+        convenio: ps.servico.convenio,
       },
     }));
   }
@@ -200,6 +207,12 @@ export class PrismaProfissionaisRepository implements IProfissionaisRepository {
             nome: true,
             duracaoMinutos: true,
             preco: true,
+            convenio: {
+              select: {
+                id: true,
+                nome: true,
+              },
+            },
           },
         },
       },
@@ -213,6 +226,7 @@ export class PrismaProfissionaisRepository implements IProfissionaisRepository {
       servico: {
         ...ps.servico,
         preco: Number(ps.servico.preco),
+        convenio: ps.servico.convenio,
       },
     }));
   }

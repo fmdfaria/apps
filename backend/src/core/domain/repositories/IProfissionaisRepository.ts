@@ -23,6 +23,10 @@ export interface ProfissionalServico {
     nome: string;
     duracaoMinutos: number;
     preco: number;
+    convenio: {
+      id: string;
+      nome: string;
+    };
   };
 }
 
