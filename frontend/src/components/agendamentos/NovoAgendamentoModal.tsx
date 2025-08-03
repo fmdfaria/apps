@@ -302,26 +302,28 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                     <span className="text-lg">👤</span>
                     Paciente <span className="text-red-500">*</span>
                   </label>
-                  <SingleSelectDropdown
-                    options={pacientes.map(p => ({
-                      id: p.id,
-                      nome: p.nomeCompleto,
-                      sigla: p.whatsapp
-                    }))}
-                    selected={pacientes.find(p => p.id === formData.pacienteId) ? {
-                      id: formData.pacienteId,
-                      nome: pacientes.find(p => p.id === formData.pacienteId)?.nomeCompleto || '',
-                      sigla: undefined // Não mostrar WhatsApp quando selecionado
-                    } : null}
-                    onChange={(selected) => {
-                      setFormData(prev => ({ ...prev, pacienteId: selected?.id || '' }));
-                    }}
-                    placeholder={loadingData ? "Carregando pacientes..." : "Buscar paciente..."}
-                    headerText="Pacientes disponíveis"
-                    formatOption={(option) => {
-                      return option.sigla ? `${option.nome} - ${option.sigla}` : option.nome;
-                    }}
-                  />
+                  <div className="w-full">
+                    <SingleSelectDropdown
+                      options={pacientes.map(p => ({
+                        id: p.id,
+                        nome: p.nomeCompleto,
+                        sigla: p.whatsapp
+                      }))}
+                      selected={pacientes.find(p => p.id === formData.pacienteId) ? {
+                        id: formData.pacienteId,
+                        nome: pacientes.find(p => p.id === formData.pacienteId)?.nomeCompleto || '',
+                        sigla: undefined // Não mostrar WhatsApp quando selecionado
+                      } : null}
+                      onChange={(selected) => {
+                        setFormData(prev => ({ ...prev, pacienteId: selected?.id || '' }));
+                      }}
+                      placeholder={loadingData ? "Carregando pacientes..." : "Buscar paciente..."}
+                      headerText="Pacientes disponíveis"
+                      formatOption={(option) => {
+                        return option.sigla ? `${option.nome} - ${option.sigla}` : option.nome;
+                      }}
+                    />
+                  </div>
                 </div>
 
                 {/* Convênio */}
@@ -330,35 +332,37 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                     <span className="text-lg">🏥</span>
                     Convênio <span className="text-red-500">*</span>
                   </label>
-                  <SingleSelectDropdown
-                    options={convenios.map(c => ({
-                      id: c.id,
-                      nome: c.nome,
-                      sigla: undefined
-                    }))}
-                    selected={convenios.find(c => c.id === formData.convenioId) ? {
-                      id: formData.convenioId,
-                      nome: convenios.find(c => c.id === formData.convenioId)?.nome || '',
-                      sigla: undefined
-                    } : null}
-                    onChange={(selected) => {
-                      setFormData(prev => ({ 
-                        ...prev, 
-                        convenioId: selected?.id || '',
-                        servicoId: '', // Limpar serviço quando trocar convênio
-                        profissionalId: '', // Limpar profissional quando trocar convênio
-                        recursoId: '', // Limpar recurso quando trocar convênio
-                        tipoAtendimento: 'presencial' // Reset tipo de atendimento
-                      }));
-                      // Limpar profissionais por serviço quando trocar convênio
-                      setProfissionaisPorServico([]);
-                    }}
-                    placeholder={loadingData ? "Carregando convênios..." : "Buscar convênio..."}
-                    headerText="Convênios disponíveis"
-                    formatOption={(option) => {
-                      return option.nome;
-                    }}
-                  />
+                  <div className="w-full">
+                    <SingleSelectDropdown
+                      options={convenios.map(c => ({
+                        id: c.id,
+                        nome: c.nome,
+                        sigla: undefined
+                      }))}
+                      selected={convenios.find(c => c.id === formData.convenioId) ? {
+                        id: formData.convenioId,
+                        nome: convenios.find(c => c.id === formData.convenioId)?.nome || '',
+                        sigla: undefined
+                      } : null}
+                      onChange={(selected) => {
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          convenioId: selected?.id || '',
+                          servicoId: '', // Limpar serviço quando trocar convênio
+                          profissionalId: '', // Limpar profissional quando trocar convênio
+                          recursoId: '', // Limpar recurso quando trocar convênio
+                          tipoAtendimento: 'presencial' // Reset tipo de atendimento
+                        }));
+                        // Limpar profissionais por serviço quando trocar convênio
+                        setProfissionaisPorServico([]);
+                      }}
+                      placeholder={loadingData ? "Carregando convênios..." : "Buscar convênio..."}
+                      headerText="Convênios disponíveis"
+                      formatOption={(option) => {
+                        return option.nome;
+                      }}
+                    />
+                  </div>
                 </div>
 
                 {/* Serviço */}
@@ -367,42 +371,44 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                     <span className="text-lg">🩺</span>
                     Serviço <span className="text-red-500">*</span>
                   </label>
-                  <SingleSelectDropdown
-                    options={formData.convenioId ? servicos
-                      .filter(s => s.convenioId === formData.convenioId)
-                      .map(s => ({
-                        id: s.id,
-                        nome: s.nome,
-                        sigla: s.duracaoMinutos ? `${s.duracaoMinutos} min` : undefined
-                      })) : []}
-                    selected={servicos.find(s => s.id === formData.servicoId) ? {
-                      id: formData.servicoId,
-                      nome: servicos.find(s => s.id === formData.servicoId)?.nome || '',
-                      sigla: servicos.find(s => s.id === formData.servicoId)?.duracaoMinutos ? `${servicos.find(s => s.id === formData.servicoId)?.duracaoMinutos} min` : undefined
-                    } : null}
-                    onChange={(selected) => {
-                      const newServiceId = selected?.id || '';
-                      setFormData(prev => ({
-                        ...prev,
-                        servicoId: newServiceId,
-                        profissionalId: '', // Limpar profissional quando trocar serviço
-                        recursoId: '', // Limpar recurso quando trocar serviço
-                        tipoAtendimento: 'presencial' // Reset tipo de atendimento
-                      }));
-                      
-                      // Carregar profissionais do serviço selecionado
-                      if (newServiceId) {
-                        carregarProfissionaisPorServico(newServiceId);
-                      } else {
-                        setProfissionaisPorServico([]);
-                      }
-                    }}
-                    placeholder={!formData.convenioId ? "Selecione um convênio primeiro..." : loadingData ? "Carregando serviços..." : "Buscar serviço..."}
-                    headerText="Serviços disponíveis"
-                    formatOption={(option) => {
-                      return option.sigla ? `${option.nome} - ${option.sigla}` : option.nome;
-                    }}
-                  />
+                  <div className="w-full">
+                    <SingleSelectDropdown
+                      options={formData.convenioId ? servicos
+                        .filter(s => s.convenioId === formData.convenioId)
+                        .map(s => ({
+                          id: s.id,
+                          nome: s.nome,
+                          sigla: s.duracaoMinutos ? `${s.duracaoMinutos} min` : undefined
+                        })) : []}
+                      selected={servicos.find(s => s.id === formData.servicoId) ? {
+                        id: formData.servicoId,
+                        nome: servicos.find(s => s.id === formData.servicoId)?.nome || '',
+                        sigla: servicos.find(s => s.id === formData.servicoId)?.duracaoMinutos ? `${servicos.find(s => s.id === formData.servicoId)?.duracaoMinutos} min` : undefined
+                      } : null}
+                      onChange={(selected) => {
+                        const newServiceId = selected?.id || '';
+                        setFormData(prev => ({
+                          ...prev,
+                          servicoId: newServiceId,
+                          profissionalId: '', // Limpar profissional quando trocar serviço
+                          recursoId: '', // Limpar recurso quando trocar serviço
+                          tipoAtendimento: 'presencial' // Reset tipo de atendimento
+                        }));
+                        
+                        // Carregar profissionais do serviço selecionado
+                        if (newServiceId) {
+                          carregarProfissionaisPorServico(newServiceId);
+                        } else {
+                          setProfissionaisPorServico([]);
+                        }
+                      }}
+                      placeholder={!formData.convenioId ? "Selecione um convênio primeiro..." : loadingData ? "Carregando serviços..." : "Buscar serviço..."}
+                      headerText="Serviços disponíveis"
+                      formatOption={(option) => {
+                        return option.sigla ? `${option.nome} - ${option.sigla}` : option.nome;
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -414,26 +420,28 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                     <span className="text-lg">👨‍⚕️</span>
                     Profissional <span className="text-red-500">*</span>
                   </label>
-                  <SingleSelectDropdown
-                    options={formData.servicoId ? profissionaisPorServico.map(ps => ({
-                      id: ps.profissional.id,
-                      nome: ps.profissional.nome,
-                      sigla: undefined
-                    })) : []}
-                    selected={profissionaisPorServico.find(ps => ps.profissional.id === formData.profissionalId) ? {
-                      id: formData.profissionalId,
-                      nome: profissionaisPorServico.find(ps => ps.profissional.id === formData.profissionalId)?.profissional.nome || '',
-                      sigla: undefined
-                    } : null}
-                    onChange={(selected) => {
-                      setFormData(prev => ({ ...prev, profissionalId: selected?.id || '' }));
-                    }}
-                    placeholder={!formData.servicoId ? "Selecione um serviço primeiro..." : loadingProfissionaisPorServico ? "Carregando profissionais..." : "Buscar profissional..."}
-                    headerText="Profissionais disponíveis"
-                    formatOption={(option) => {
-                      return option.nome;
-                    }}
-                  />
+                  <div className="w-full">
+                    <SingleSelectDropdown
+                      options={formData.servicoId ? profissionaisPorServico.map(ps => ({
+                        id: ps.profissional.id,
+                        nome: ps.profissional.nome,
+                        sigla: undefined
+                      })) : []}
+                      selected={profissionaisPorServico.find(ps => ps.profissional.id === formData.profissionalId) ? {
+                        id: formData.profissionalId,
+                        nome: profissionaisPorServico.find(ps => ps.profissional.id === formData.profissionalId)?.profissional.nome || '',
+                        sigla: undefined
+                      } : null}
+                      onChange={(selected) => {
+                        setFormData(prev => ({ ...prev, profissionalId: selected?.id || '' }));
+                      }}
+                      placeholder={!formData.servicoId ? "Selecione um serviço primeiro..." : loadingProfissionaisPorServico ? "Carregando profissionais..." : "Buscar profissional..."}
+                      headerText="Profissionais disponíveis"
+                      formatOption={(option) => {
+                        return option.nome;
+                      }}
+                    />
+                  </div>
                 </div>
 
                 {/* Recurso */}
@@ -442,26 +450,28 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                     <span className="text-lg">📍</span>
                     Recurso <span className="text-red-500">*</span>
                   </label>
-                  <SingleSelectDropdown
-                    options={formData.servicoId ? recursos.map(r => ({
-                      id: r.id,
-                      nome: r.nome,
-                      sigla: r.descricao
-                    })) : []}
-                    selected={recursos.find(r => r.id === formData.recursoId) ? {
-                      id: formData.recursoId,
-                      nome: recursos.find(r => r.id === formData.recursoId)?.nome || '',
-                      sigla: undefined // Não mostrar descrição quando selecionado
-                    } : null}
-                    onChange={(selected) => {
-                      setFormData(prev => ({ ...prev, recursoId: selected?.id || '' }));
-                    }}
-                    placeholder={!formData.servicoId ? "Selecione um serviço primeiro..." : loadingData ? "Carregando recursos..." : "Buscar recurso..."}
-                    headerText="Recursos disponíveis"
-                    formatOption={(option) => {
-                      return option.sigla ? `${option.nome} - ${option.sigla}` : option.nome;
-                    }}
-                  />
+                  <div className="w-full">
+                    <SingleSelectDropdown
+                      options={formData.servicoId ? recursos.map(r => ({
+                        id: r.id,
+                        nome: r.nome,
+                        sigla: r.descricao
+                      })) : []}
+                      selected={recursos.find(r => r.id === formData.recursoId) ? {
+                        id: formData.recursoId,
+                        nome: recursos.find(r => r.id === formData.recursoId)?.nome || '',
+                        sigla: undefined // Não mostrar descrição quando selecionado
+                      } : null}
+                      onChange={(selected) => {
+                        setFormData(prev => ({ ...prev, recursoId: selected?.id || '' }));
+                      }}
+                      placeholder={!formData.servicoId ? "Selecione um serviço primeiro..." : loadingData ? "Carregando recursos..." : "Buscar recurso..."}
+                      headerText="Recursos disponíveis"
+                      formatOption={(option) => {
+                        return option.sigla ? `${option.nome} - ${option.sigla}` : option.nome;
+                      }}
+                    />
+                  </div>
                 </div>
 
                 {/* Tipo de Atendimento */}
@@ -470,25 +480,27 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                     <span className="text-lg">📱</span>
                     Tipo de Atendimento <span className="text-red-500">*</span>
                   </label>
-                  <SingleSelectDropdown
-                    options={formData.servicoId ? [
-                      { id: 'presencial', nome: 'Presencial', sigla: '🏥' },
-                      { id: 'online', nome: 'Online', sigla: '📱' }
-                    ] : []}
-                    selected={formData.servicoId ? {
-                      id: formData.tipoAtendimento,
-                      nome: formData.tipoAtendimento === 'presencial' ? 'Presencial' : 'Online',
-                      sigla: formData.tipoAtendimento === 'presencial' ? '🏥' : '📱'
-                    } : null}
-                    onChange={(selected) => {
-                      setFormData(prev => ({ ...prev, tipoAtendimento: selected?.id as TipoAtendimento || 'presencial' }));
-                    }}
-                    placeholder={!formData.servicoId ? "Selecione um serviço primeiro..." : "Selecione o tipo..."}
-                    headerText="Tipos de atendimento"
-                    formatOption={(option) => {
-                      return `${option.sigla} ${option.nome}`;
-                    }}
-                  />
+                  <div className="w-full">
+                    <SingleSelectDropdown
+                      options={formData.servicoId ? [
+                        { id: 'presencial', nome: 'Presencial', sigla: '🏥' },
+                        { id: 'online', nome: 'Online', sigla: '📱' }
+                      ] : []}
+                      selected={formData.servicoId ? {
+                        id: formData.tipoAtendimento,
+                        nome: formData.tipoAtendimento === 'presencial' ? 'Presencial' : 'Online',
+                        sigla: formData.tipoAtendimento === 'presencial' ? '🏥' : '📱'
+                      } : null}
+                      onChange={(selected) => {
+                        setFormData(prev => ({ ...prev, tipoAtendimento: selected?.id as TipoAtendimento || 'presencial' }));
+                      }}
+                      placeholder={!formData.servicoId ? "Selecione um serviço primeiro..." : "Selecione o tipo..."}
+                      headerText="Tipos de atendimento"
+                      formatOption={(option) => {
+                        return `${option.sigla} ${option.nome}`;
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -522,22 +534,24 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                       Hora do Agendamento <span className="text-red-500">*</span>
                     </label>
                     <div className="w-full">
-                      <SingleSelectDropdown
-                        options={opcoesHorarios}
-                        selected={opcoesHorarios.find(opcao => opcao.id === horaAgendamento) ? {
-                          id: horaAgendamento,
-                          nome: opcoesHorarios.find(opcao => opcao.id === horaAgendamento)?.nome || '',
-                          sigla: opcoesHorarios.find(opcao => opcao.id === horaAgendamento)?.sigla || ''
-                        } : null}
-                        onChange={(selected) => {
-                          setHoraAgendamento(selected?.id || '');
-                        }}
-                        placeholder="Selecione..."
-                        headerText="Horários disponíveis"
-                        formatOption={(option) => {
-                          return `${option.nome} - ${option.sigla}`;
-                        }}
-                      />
+                      <div className="w-full">
+                        <SingleSelectDropdown
+                          options={opcoesHorarios}
+                          selected={opcoesHorarios.find(opcao => opcao.id === horaAgendamento) ? {
+                            id: horaAgendamento,
+                            nome: opcoesHorarios.find(opcao => opcao.id === horaAgendamento)?.nome || '',
+                            sigla: opcoesHorarios.find(opcao => opcao.id === horaAgendamento)?.sigla || ''
+                          } : null}
+                          onChange={(selected) => {
+                            setHoraAgendamento(selected?.id || '');
+                          }}
+                          placeholder="Selecione..."
+                          headerText="Horários disponíveis"
+                          formatOption={(option) => {
+                            return `${option.nome} - ${option.sigla}`;
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -569,26 +583,28 @@ export const NovoAgendamentoModal: React.FC<NovoAgendamentoModalProps> = ({
                           <span className="text-lg">🔄</span>
                           Tipo de Recorrência
                         </label>
-                        <SingleSelectDropdown
-                          options={[
-                            { id: 'semanal', nome: 'Semanal', sigla: '7 dias' },
-                            { id: 'quinzenal', nome: 'Quinzenal', sigla: '15 dias' },
-                            { id: 'mensal', nome: 'Mensal', sigla: '30 dias' }
-                          ]}
-                          selected={{
-                            id: recorrencia.tipo,
-                            nome: recorrencia.tipo === 'semanal' ? 'Semanal' : recorrencia.tipo === 'quinzenal' ? 'Quinzenal' : 'Mensal',
-                            sigla: recorrencia.tipo === 'semanal' ? '7 dias' : recorrencia.tipo === 'quinzenal' ? '15 dias' : '30 dias'
-                          }}
-                          onChange={(selected) => {
-                            setRecorrencia(prev => ({ ...prev, tipo: selected?.id as TipoRecorrencia || 'semanal' }));
-                          }}
-                          placeholder="Selecione o tipo..."
-                          headerText="Tipos de recorrência"
-                          formatOption={(option) => {
-                            return `${option.nome} - ${option.sigla}`;
-                          }}
-                        />
+                        <div className="w-full">
+                          <SingleSelectDropdown
+                            options={[
+                              { id: 'semanal', nome: 'Semanal', sigla: '7 dias' },
+                              { id: 'quinzenal', nome: 'Quinzenal', sigla: '15 dias' },
+                              { id: 'mensal', nome: 'Mensal', sigla: '30 dias' }
+                            ]}
+                            selected={{
+                              id: recorrencia.tipo,
+                              nome: recorrencia.tipo === 'semanal' ? 'Semanal' : recorrencia.tipo === 'quinzenal' ? 'Quinzenal' : 'Mensal',
+                              sigla: recorrencia.tipo === 'semanal' ? '7 dias' : recorrencia.tipo === 'quinzenal' ? '15 dias' : '30 dias'
+                            }}
+                            onChange={(selected) => {
+                              setRecorrencia(prev => ({ ...prev, tipo: selected?.id as TipoRecorrencia || 'semanal' }));
+                            }}
+                            placeholder="Selecione o tipo..."
+                            headerText="Tipos de recorrência"
+                            formatOption={(option) => {
+                              return `${option.nome} - ${option.sigla}`;
+                            }}
+                          />
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

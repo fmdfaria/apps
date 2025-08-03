@@ -15,9 +15,10 @@ interface SingleSelectDropdownProps {
   placeholder?: string;
   formatOption?: (option: Option) => string;
   headerText?: string;
+  dotColor?: 'green' | 'blue' | 'red' | 'yellow' | 'purple' | 'gray' | 'orange' | 'pink';
 }
 
-export function SingleSelectDropdown({ options, selected, onChange, placeholder = 'Selecione...', formatOption, headerText = 'Opções disponíveis' }: SingleSelectDropdownProps) {
+export function SingleSelectDropdown({ options, selected, onChange, placeholder = 'Selecione...', formatOption, headerText = 'Opções disponíveis', dotColor = 'green' }: SingleSelectDropdownProps) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [inputFocused, setInputFocused] = useState(false);
@@ -26,12 +27,63 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
   const scrollRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
 
+  // Map dot colors to Tailwind classes
+  const getDotColorClasses = (color: string) => {
+    const colorMap = {
+      green: 'bg-green-400 group-hover:bg-green-600',
+      blue: 'bg-blue-400 group-hover:bg-blue-600',
+      red: 'bg-red-400 group-hover:bg-red-600',
+      yellow: 'bg-yellow-400 group-hover:bg-yellow-600',
+      purple: 'bg-purple-400 group-hover:bg-purple-600',
+      gray: 'bg-gray-400 group-hover:bg-gray-600',
+      orange: 'bg-orange-400 group-hover:bg-orange-600',
+      pink: 'bg-pink-400 group-hover:bg-pink-600'
+    };
+    return colorMap[color as keyof typeof colorMap] || colorMap.green;
+  };
+
   // Update trigger width when component mounts or trigger changes
   React.useEffect(() => {
-    if (triggerRef.current) {
-      setTriggerWidth(triggerRef.current.offsetWidth);
-    }
+    const updateWidth = () => {
+      if (triggerRef.current) {
+        setTriggerWidth(triggerRef.current.offsetWidth);
+      }
+    };
+    
+    updateWidth();
+    // Small delay to ensure DOM is fully rendered
+    const timeoutId = setTimeout(updateWidth, 0);
+    
+    return () => clearTimeout(timeoutId);
   }, [open, selected]);
+
+  // Force update trigger width on window resize and initial mount
+  React.useEffect(() => {
+    const updateWidth = () => {
+      if (triggerRef.current) {
+        setTriggerWidth(triggerRef.current.offsetWidth);
+      }
+    };
+
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
+
+  // Update width when input focus state changes
+  React.useEffect(() => {
+    const updateWidth = () => {
+      if (triggerRef.current) {
+        setTriggerWidth(triggerRef.current.offsetWidth);
+      }
+    };
+    
+    updateWidth();
+    // Additional delay for focus state changes
+    const timeoutId = setTimeout(updateWidth, 50);
+    
+    return () => clearTimeout(timeoutId);
+  }, [inputFocused]);
 
   // Handle wheel events for scroll functionality
   const handleWheel = React.useCallback((e: React.WheelEvent) => {
@@ -79,19 +131,42 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
   // Popover deve abrir se input está focado ou há texto
   const popoverOpen = open || inputFocused || input.length > 0;
 
+  // Update width when popover opens (especially for input mode)
+  React.useEffect(() => {
+    if (popoverOpen && triggerRef.current) {
+      const updateWidth = () => {
+        if (triggerRef.current) {
+          setTriggerWidth(triggerRef.current.offsetWidth);
+        }
+      };
+      
+      updateWidth();
+      // Delay to ensure popover is fully rendered
+      const timeoutId = setTimeout(updateWidth, 10);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [popoverOpen]);
+
   return (
-    <div className="w-full max-w-full">
+    <div className="w-full max-w-full block">
       <Popover open={popoverOpen} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-                     <div
-             ref={triggerRef}
-             className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 flex items-center gap-3 min-h-[44px] bg-white cursor-pointer hover:border-blue-300 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-100 transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden"
-             tabIndex={0}
-             onClick={() => {
-               setOpen(true);
-               if (inputRef.current) inputRef.current.focus();
-             }}
-           >
+          <div
+            ref={triggerRef}
+            className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 flex items-center gap-3 min-h-[44px] bg-white cursor-pointer hover:border-blue-300 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-100 transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden"
+            tabIndex={0}
+            onClick={() => {
+              setOpen(true);
+              if (inputRef.current) inputRef.current.focus();
+              // Force width update when trigger is clicked
+              setTimeout(() => {
+                if (triggerRef.current) {
+                  setTriggerWidth(triggerRef.current.offsetWidth);
+                }
+              }, 0);
+            }}
+          >
            <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
            
            {/* Mostrar item selecionado ou input de busca */}
@@ -121,8 +196,24 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
                type="text"
                value={input}
                onChange={e => setInput(e.target.value)}
-               onFocus={() => setInputFocused(true)}
-               onBlur={() => setInputFocused(false)}
+               onFocus={() => {
+                 setInputFocused(true);
+                 // Force width update when input gets focus
+                 setTimeout(() => {
+                   if (triggerRef.current) {
+                     setTriggerWidth(triggerRef.current.offsetWidth);
+                   }
+                 }, 0);
+               }}
+               onBlur={() => {
+                 setInputFocused(false);
+                 // Force width update when input loses focus
+                 setTimeout(() => {
+                   if (triggerRef.current) {
+                     setTriggerWidth(triggerRef.current.offsetWidth);
+                   }
+                 }, 0);
+               }}
                placeholder={selected ? (formatOption ? formatOption(selected) : selected.nome) : placeholder}
                className="flex-1 border-none outline-none bg-transparent text-gray-700 placeholder:text-gray-400 font-medium min-w-0"
                autoComplete="off"
@@ -133,11 +224,12 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
          </div>
       </PopoverTrigger>
       <PopoverContent 
-        className="bg-white border-2 border-gray-200 shadow-xl rounded-xl p-0 text-gray-900 z-50" 
+        className="bg-white border-2 border-gray-200 shadow-xl rounded-xl p-0 text-gray-900 z-50 w-full" 
         onOpenAutoFocus={(e) => e.preventDefault()}
         style={{ 
           maxHeight: '18rem',
-          width: triggerWidth || 'auto',
+          width: triggerWidth ? `${triggerWidth}px` : '100%',
+          minWidth: triggerWidth ? `${triggerWidth}px` : '100%',
           maxWidth: 'calc(100vw - 2rem)'
         }}
         onWheel={(e) => {
@@ -184,7 +276,7 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
               className="group cursor-pointer px-3 py-2.5 rounded-lg text-sm hover:bg-gradient-to-r hover:from-green-50 hover:to-blue-50 hover:border-green-200 border border-transparent transition-all duration-150 flex items-center gap-3"
               onClick={() => handleSelect(opt)}
             >
-              <div className="w-2 h-2 bg-green-400 rounded-full group-hover:bg-green-600 transition-colors duration-150"></div>
+              <div className={`w-2 h-2 ${getDotColorClasses(dotColor)} rounded-full transition-colors duration-150`}></div>
               <span className="font-medium text-gray-700 group-hover:text-gray-900">
                 {formatOption ? formatOption(opt) : opt.nome}
               </span>

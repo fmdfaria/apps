@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { CalendarHeader } from '@/components/calendar/CalendarHeader';
 import { SchedulerGrid } from '@/components/calendar/SchedulerGrid';
-import { NovoAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
+import { CriarAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
 import { 
   Calendar as CalendarIcon, 
   Plus,
@@ -66,10 +66,10 @@ export const CalendarioPage = () => {
   const [loading, setLoading] = useState(true);
 
   // Estados para modais
-  const [showNovoAgendamento, setShowNovoAgendamento] = useState(false);
+  const [showCriarAgendamento, setShowCriarAgendamento] = useState(false);
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
-  const [preenchimentoNovoAgendamento, setPreenchimentoNovoAgendamento] = useState<{
+  const [preenchimentoCriarAgendamento, setPreenchimentoCriarAgendamento] = useState<{
     profissionalId?: string;
     dataHoraInicio?: string;
   } | undefined>(undefined);
@@ -337,8 +337,8 @@ export const CalendarioPage = () => {
           <Button 
             className="bg-blue-600 hover:bg-blue-700"
             onClick={() => {
-              setPreenchimentoNovoAgendamento(undefined);
-              setShowNovoAgendamento(true);
+              setPreenchimentoCriarAgendamento(undefined);
+              setShowCriarAgendamento(true);
             }}
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -722,11 +722,11 @@ export const CalendarioPage = () => {
                   const dataHoraLocal = `${ano}-${mes}-${dia}T${horaFormatada}:${minutoFormatado}`;
                   
                   // Para profissionais, usar como profissionalId, para recursos, deixar vazio
-                  setPreenchimentoNovoAgendamento({
+                  setPreenchimentoCriarAgendamento({
                     profissionalId: gridViewType === 'profissionais' ? entityId : undefined,
                     dataHoraInicio: dataHoraLocal
                   });
-                  setShowNovoAgendamento(true);
+                  setShowCriarAgendamento(true);
                 }}
               />
             </CardContent>
@@ -735,14 +735,14 @@ export const CalendarioPage = () => {
       </div>
 
       {/* Modais */}
-      <NovoAgendamentoModal
-        isOpen={showNovoAgendamento}
+      <CriarAgendamentoModal
+        isOpen={showCriarAgendamento}
         onClose={() => {
-          setShowNovoAgendamento(false);
-          setPreenchimentoNovoAgendamento(undefined);
+          setShowCriarAgendamento(false);
+          setPreenchimentoCriarAgendamento(undefined);
         }}
         onSuccess={carregarDados}
-        preenchimentoInicial={preenchimentoNovoAgendamento}
+        preenchimentoInicial={preenchimentoCriarAgendamento}
       />
 
       <DetalhesAgendamentoModal
