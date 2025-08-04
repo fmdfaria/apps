@@ -6,6 +6,7 @@ import { Calendar, Clock, User, Users, Stethoscope, CreditCard, MapPin, Smartpho
 import { OPCOES_HORARIOS } from '../utils/agendamento-constants';
 import { useVerificacaoAgendamento } from '@/hooks/useVerificacaoAgendamento';
 import type { AgendamentoFormContext } from '../types/agendamento-form';
+import type { TipoAtendimento } from '@/types/Agendamento';
 
 interface FormularioPorProfissionalProps {
   context: AgendamentoFormContext;
@@ -68,7 +69,7 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                     servicoId: '', // Limpar serviço quando trocar profissional
                     convenioId: '', // Limpar convênio quando trocar profissional
                     recursoId: '', // Limpar recurso quando trocar profissional
-                    tipoAtendimento: 'presencial' // Reset tipo de atendimento
+                    tipoAtendimento: 'presencial' as TipoAtendimento // Reset tipo de atendimento
                   });
                 }}
                 placeholder={loadingData ? "Carregando profissionais..." : "Buscar profissional..."}
@@ -152,7 +153,6 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                       }
                       return false;
                     }}
-                    disabled={!dataAgendamento || carregandoHorarios}
                   />
                 </div>
                 
@@ -258,7 +258,7 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                         convenioId: selected?.id || '',
                         servicoId: '', // Limpar serviço quando trocar convênio
                         recursoId: '', // Limpar recurso quando trocar convênio
-                        tipoAtendimento: 'presencial' // Reset tipo de atendimento
+                        tipoAtendimento: 'presencial' as TipoAtendimento // Reset tipo de atendimento
                       });
                     }}
                     placeholder={loadingData ? "Carregando convênios..." : "Buscar convênio..."}
@@ -292,7 +292,7 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                       updateFormData({
                         servicoId: selected?.id || '',
                         recursoId: '', // Limpar recurso quando trocar serviço
-                        tipoAtendimento: 'presencial' // Reset tipo de atendimento
+                        tipoAtendimento: 'presencial' as TipoAtendimento // Reset tipo de atendimento
                       });
                     }}
                     placeholder={!formData.convenioId ? "Selecione um convênio primeiro..." : loadingData ? "Carregando serviços..." : "Buscar serviço..."}
@@ -317,22 +317,33 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                   <SingleSelectDropdown
                     options={formData.servicoId ? recursos.map(r => ({
                       id: r.id,
-                      nome: r.nome,
-                      sigla: r.descricao
+                      nome: r.nome
                     })) : []}
                     selected={recursos.find(r => r.id === formData.recursoId) ? {
                       id: formData.recursoId,
-                      nome: recursos.find(r => r.id === formData.recursoId)?.nome || '',
-                      sigla: undefined
+                      nome: recursos.find(r => r.id === formData.recursoId)?.nome || ''
                     } : null}
                     onChange={(selected) => {
-                      updateFormData({ recursoId: selected?.id || '' });
+                      const recursoId = selected?.id || '';
+                      
+                      // Regra de negócio: definir tipo de atendimento baseado no recurso
+                      let tipoAtendimento: TipoAtendimento = 'presencial';
+                      if (selected) {
+                        const recursoNome = selected.nome.toLowerCase();
+                        if (recursoNome.includes('online')) {
+                          tipoAtendimento = 'online';
+                        } else {
+                          tipoAtendimento = 'presencial';
+                        }
+                      }
+                      
+                      updateFormData({ 
+                        recursoId,
+                        tipoAtendimento 
+                      });
                     }}
                     placeholder={!formData.servicoId ? "Selecione um serviço primeiro..." : loadingData ? "Carregando recursos..." : "Buscar recurso..."}
                     headerText="Recursos disponíveis"
-                    formatOption={(option) => {
-                      return option.sigla ? `${option.nome} - ${option.sigla}` : option.nome;
-                    }}
                   />
                 </div>
               </div>
@@ -346,22 +357,18 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                 <div className="w-full">
                   <SingleSelectDropdown
                     options={formData.servicoId ? [
-                      { id: 'presencial', nome: 'Presencial', sigla: '🏥' },
-                      { id: 'online', nome: 'Online', sigla: '📱' }
+                      { id: 'presencial', nome: 'Presencial' },
+                      { id: 'online', nome: 'Online' }
                     ] : []}
-                    selected={formData.servicoId ? {
+                    selected={formData.servicoId && formData.tipoAtendimento ? {
                       id: formData.tipoAtendimento,
-                      nome: formData.tipoAtendimento === 'presencial' ? 'Presencial' : 'Online',
-                      sigla: formData.tipoAtendimento === 'presencial' ? '🏥' : '📱'
+                      nome: formData.tipoAtendimento === 'presencial' ? 'Presencial' : 'Online'
                     } : null}
                     onChange={(selected) => {
-                      updateFormData({ tipoAtendimento: selected?.id as any || 'presencial' });
+                      updateFormData({ tipoAtendimento: (selected?.id || 'presencial') as TipoAtendimento });
                     }}
                     placeholder={!formData.servicoId ? "Selecione um serviço primeiro..." : "Selecione o tipo..."}
                     headerText="Tipos de atendimento"
-                    formatOption={(option) => {
-                      return `${option.sigla} ${option.nome}`;
-                    }}
                   />
                 </div>
               </div>
@@ -396,23 +403,19 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                     </label>
                     <SingleSelectDropdown
                       options={[
-                        { id: 'semanal', nome: 'Semanal', sigla: '7 dias' },
-                        { id: 'quinzenal', nome: 'Quinzenal', sigla: '15 dias' },
-                        { id: 'mensal', nome: 'Mensal', sigla: '30 dias' }
+                        { id: 'semanal', nome: 'Semanal' },
+                        { id: 'quinzenal', nome: 'Quinzenal' },
+                        { id: 'mensal', nome: 'Mensal' }
                       ]}
                       selected={{
                         id: state.recorrencia.tipo,
-                        nome: state.recorrencia.tipo === 'semanal' ? 'Semanal' : state.recorrencia.tipo === 'quinzenal' ? 'Quinzenal' : 'Mensal',
-                        sigla: state.recorrencia.tipo === 'semanal' ? '7 dias' : state.recorrencia.tipo === 'quinzenal' ? '15 dias' : '30 dias'
+                        nome: state.recorrencia.tipo === 'semanal' ? 'Semanal' : state.recorrencia.tipo === 'quinzenal' ? 'Quinzenal' : 'Mensal'
                       }}
                       onChange={(selected) => {
                         context.updateRecorrencia({ tipo: selected?.id as any || 'semanal' });
                       }}
                       placeholder="Selecione o tipo..."
                       headerText="Tipos de recorrência"
-                      formatOption={(option) => {
-                        return `${option.nome} - ${option.sigla}`;
-                      }}
                     />
                   </div>
 

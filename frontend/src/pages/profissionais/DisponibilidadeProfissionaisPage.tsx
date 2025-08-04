@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -10,15 +8,87 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { TimeSelectDropdown } from '@/components/ui/time-select-dropdown';
+import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import { useToast } from '@/components/ui/use-toast';
-import { Calendar as CalendarIcon, Clock, User, Save, RotateCcw, Info, CalendarDays, Trash2, ChevronsUpDown, Check, Search } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, Save, RotateCcw, Info, CalendarDays, Trash2 } from 'lucide-react';
 import DiaHorarioCard from '@/components/profissionais/DiaHorarioCard';
 import { getProfissionais } from '@/services/profissionais';
 import { getDisponibilidadesProfissional, createDisponibilidade, updateDisponibilidade, deleteDisponibilidade } from '@/services/disponibilidades';
 import type { Profissional } from '@/types/Profissional';
 import type { HorarioSemana, CreateDisponibilidadeDto } from '@/types/DisponibilidadeProfissional';
 import { criarHorarioSemanaPadrao, converterDisponibilidadesParaHorarios, gerarHorarioParaAPI, compararHorarios } from '@/lib/horarios-utils';
-import { parseDataLocal, formatarDataLocal, cn } from '@/lib/utils';
+import { parseDataLocal, formatarDataLocal } from '@/lib/utils';
+
+// Gerar opções de horário para início (06:00 até 21:00)
+const gerarOpcoesHorarioInicio = () => {
+  const opcoes = [];
+  for (let hora = 6; hora <= 21; hora++) {
+    for (let minuto = 0; minuto < 60; minuto += 30) {
+      if (hora === 21 && minuto > 0) break; // Para às 21:00
+      const horarioFormatado = `${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
+      opcoes.push({
+        id: horarioFormatado,
+        nome: horarioFormatado
+      });
+    }
+  }
+  return opcoes;
+};
+
+// Gerar opções de horário para fim (06:30 até 21:30)
+const gerarOpcoesHorarioFim = () => {
+  const opcoes = [];
+  for (let hora = 6; hora <= 21; hora++) {
+    for (let minuto = 0; minuto < 60; minuto += 30) {
+      if (hora === 6 && minuto === 0) continue; // Começa às 06:30
+      const horarioFormatado = `${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
+      opcoes.push({
+        id: horarioFormatado,
+        nome: horarioFormatado
+      });
+    }
+  }
+  return opcoes;
+};
+
+// Função para calcular horário 30 minutos depois
+const calcularHorario30MinDepois = (horario: string): string => {
+  const [hora, minuto] = horario.split(':').map(Number);
+  let novaHora = hora;
+  let novoMinuto = minuto + 30;
+  
+  if (novoMinuto >= 60) {
+    novoMinuto = 0;
+    novaHora += 1;
+  }
+  
+  // Se passar de 23:59, volta para 00:00
+  if (novaHora >= 24) {
+    novaHora = 0;
+  }
+  
+  return `${novaHora.toString().padStart(2, '0')}:${novoMinuto.toString().padStart(2, '0')}`;
+};
+
+// Função para filtrar opções de horário fim baseado no horário início
+const filtrarOpcoesHorarioFim = (horarioInicio: string | null): {id: string, nome: string}[] => {
+  if (!horarioInicio) return OPCOES_HORARIO_FIM;
+  
+  const [horaInicio, minutoInicio] = horarioInicio.split(':').map(Number);
+  const minutosInicio = horaInicio * 60 + minutoInicio;
+  
+  return OPCOES_HORARIO_FIM.filter(opcao => {
+    const [hora, minuto] = opcao.nome.split(':').map(Number);
+    const minutosOpcao = hora * 60 + minuto;
+    
+    // Permitir apenas horários que sejam depois do início
+    return minutosOpcao > minutosInicio;
+  });
+};
+
+const OPCOES_HORARIO_INICIO = gerarOpcoesHorarioInicio();
+const OPCOES_HORARIO_FIM = gerarOpcoesHorarioFim();
 
 export default function DisponibilidadeProfissionaisPage() {
   const { toast } = useToast();
@@ -31,10 +101,18 @@ export default function DisponibilidadeProfissionaisPage() {
   
   // Estados para data específica
   const [dataEspecifica, setDataEspecifica] = useState('');
-  const [horaInicioEspecifica, setHoraInicioEspecifica] = useState('08:00');
-  const [horaFimEspecifica, setHoraFimEspecifica] = useState('17:00');
+  const [horaInicioEspecifica, setHoraInicioEspecifica] = useState('07:00');
+  const [horaFimEspecifica, setHoraFimEspecifica] = useState('20:30');
   const [observacaoEspecifica, setObservacaoEspecifica] = useState('');
   const [disponibilidadesEspecificas, setDisponibilidadesEspecificas] = useState<any[]>([]);
+  
+  // Estados para os dropdowns de horário na data específica
+  const [horarioInicioEspecificoSelecionado, setHorarioInicioEspecificoSelecionado] = useState<{id: string, nome: string} | null>(
+    OPCOES_HORARIO_INICIO.find(op => op.nome === '07:00') || null
+  );
+  const [horarioFimEspecificoSelecionado, setHorarioFimEspecificoSelecionado] = useState<{id: string, nome: string} | null>(
+    OPCOES_HORARIO_FIM.find(op => op.nome === '20:30') || null
+  );
   
   // Estados para modal de confirmação de exclusão
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -42,9 +120,6 @@ export default function DisponibilidadeProfissionaisPage() {
   
   // Estados para modal de confirmação de reset
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  
-  // Estados para combobox de profissionais
-  const [openProfissionalCombo, setOpenProfissionalCombo] = useState(false);
   
   const [loading, setLoading] = useState(false);
   const [carregandoDisponibilidades, setCarregandoDisponibilidades] = useState(false);
@@ -59,7 +134,7 @@ export default function DisponibilidadeProfissionaisPage() {
       carregarDisponibilidades();
     } else {
       // Limpar dados quando nenhum profissional está selecionado
-      limparDados();
+      limparDadosComAba();
     }
   }, [profissionalSelecionado]);
 
@@ -92,11 +167,18 @@ export default function DisponibilidadeProfissionaisPage() {
     
     // Limpar formulário de data específica
     setDataEspecifica('');
-    setHoraInicioEspecifica('08:00');
-    setHoraFimEspecifica('17:00');
+    setHoraInicioEspecifica('07:00');
+    setHoraFimEspecifica('20:30');
     setObservacaoEspecifica('');
     
-    // Resetar aba para semanal
+    // Resetar dropdowns de horário para valores padrão
+    setHorarioInicioEspecificoSelecionado(OPCOES_HORARIO_INICIO.find(op => op.nome === '07:00') || null);
+    setHorarioFimEspecificoSelecionado(OPCOES_HORARIO_FIM.find(op => op.nome === '20:30') || null);
+  };
+
+  const limparDadosComAba = () => {
+    limparDados();
+    // Resetar aba para semanal apenas quando necessário (troca de profissional)
     setAbaSelecionada('semanal');
   };
 
@@ -106,6 +188,8 @@ export default function DisponibilidadeProfissionaisPage() {
     setCarregandoDisponibilidades(true);
     
     // Limpar dados imediatamente para evitar exibir dados do profissional anterior
+    // Preservar a aba atual selecionada
+    const abaAtual = abaSelecionada;
     limparDados();
     
     try {
@@ -119,6 +203,9 @@ export default function DisponibilidadeProfissionaisPage() {
       setHorariosSemana(horariosConvertidos);
       setHorariosOriginais(JSON.parse(JSON.stringify(horariosConvertidos))); // Deep copy
       setDisponibilidadesEspecificas(disponibilidadesEspecificas);
+      
+      // Restaurar aba selecionada
+      setAbaSelecionada(abaAtual);
     } catch (err) {
       console.error('Erro ao carregar disponibilidades:', err);
       // Se não há disponibilidades, usar padrão
@@ -126,15 +213,22 @@ export default function DisponibilidadeProfissionaisPage() {
       setHorariosSemana(horariosVazios);
       setHorariosOriginais(JSON.parse(JSON.stringify(horariosVazios))); // Deep copy
       setDisponibilidadesEspecificas([]);
+      
+      // Restaurar aba selecionada
+      setAbaSelecionada(abaAtual);
     } finally {
       setCarregandoDisponibilidades(false);
     }
   };
 
-  const handleSelecionarProfissional = (profissionalId: string) => {
-    const profissional = profissionais.find(p => p.id === profissionalId);
-    setProfissionalSelecionado(profissional || null);
-    // Remoção da chamada dupla - o useEffect já cuida de carregar as disponibilidades
+  const handleSelecionarProfissional = (profissional: {id: string, nome: string} | null) => {
+    if (profissional) {
+      const profissionalCompleto = profissionais.find(p => p.id === profissional.id);
+      setProfissionalSelecionado(profissionalCompleto || null);
+    } else {
+      setProfissionalSelecionado(null);
+    }
+    // O useEffect já cuida de carregar as disponibilidades
   };
 
   const handleAlterarHorario = (horarioAtualizado: HorarioSemana) => {
@@ -159,8 +253,52 @@ export default function DisponibilidadeProfissionaisPage() {
     });
   };
 
+  // Função para lidar com mudança no horário de início da data específica
+  const handleHorarioInicioEspecificoChange = (novoHorario: {id: string, nome: string} | null) => {
+    setHorarioInicioEspecificoSelecionado(novoHorario);
+    
+    if (novoHorario) {
+      // Atualizar também o estado string para compatibilidade
+      setHoraInicioEspecifica(novoHorario.nome);
+      
+      // Calcular horário de fim automático (30 min depois)
+      const horarioFimAuto = calcularHorario30MinDepois(novoHorario.nome);
+      const opcaoFimAuto = OPCOES_HORARIO_FIM.find(op => op.nome === horarioFimAuto);
+      
+      if (opcaoFimAuto) {
+        setHorarioFimEspecificoSelecionado(opcaoFimAuto);
+        setHoraFimEspecifica(opcaoFimAuto.nome);
+      } else {
+        // Se não encontrar a opção automática, selecionar a primeira opção válida
+        const opcoesValidas = filtrarOpcoesHorarioFim(novoHorario.nome);
+        if (opcoesValidas.length > 0) {
+          setHorarioFimEspecificoSelecionado(opcoesValidas[0]);
+          setHoraFimEspecifica(opcoesValidas[0].nome);
+        } else {
+          setHorarioFimEspecificoSelecionado(null);
+          setHoraFimEspecifica('17:00');
+        }
+      }
+    } else {
+      setHoraInicioEspecifica('08:00');
+      setHorarioFimEspecificoSelecionado(null);
+      setHoraFimEspecifica('17:00');
+    }
+  };
+
+  // Função para lidar com mudança no horário de fim da data específica
+  const handleHorarioFimEspecificoChange = (novoHorario: {id: string, nome: string} | null) => {
+    setHorarioFimEspecificoSelecionado(novoHorario);
+    
+    if (novoHorario) {
+      setHoraFimEspecifica(novoHorario.nome);
+    } else {
+      setHoraFimEspecifica('17:00');
+    }
+  };
+
   const handleAdicionarDataEspecifica = async () => {
-    if (!profissionalSelecionado || !dataEspecifica || !horaInicioEspecifica || !horaFimEspecifica) {
+    if (!profissionalSelecionado || !dataEspecifica || !horarioInicioEspecificoSelecionado || !horarioFimEspecificoSelecionado) {
       toast({
         title: "Campos obrigatórios",
         description: "Preencha todos os campos obrigatórios",
@@ -169,7 +307,7 @@ export default function DisponibilidadeProfissionaisPage() {
       return;
     }
 
-    if (horaInicioEspecifica >= horaFimEspecifica) {
+    if (horarioInicioEspecificoSelecionado.nome >= horarioFimEspecificoSelecionado.nome) {
       toast({
         title: "Horário inválido",
         description: "Horário de início deve ser menor que o horário de fim",
@@ -184,8 +322,8 @@ export default function DisponibilidadeProfissionaisPage() {
 
     try {
       const dataCompleta = new Date(dataEspecifica);
-      const [horaInicio, minutoInicio] = horaInicioEspecifica.split(':').map(Number);
-      const [horaFim, minutoFim] = horaFimEspecifica.split(':').map(Number);
+      const [horaInicio, minutoInicio] = horarioInicioEspecificoSelecionado.nome.split(':').map(Number);
+      const [horaFim, minutoFim] = horarioFimEspecificoSelecionado.nome.split(':').map(Number);
 
       const dataHoraInicio = new Date(dataCompleta);
       dataHoraInicio.setHours(horaInicio, minutoInicio, 0, 0);
@@ -212,6 +350,10 @@ export default function DisponibilidadeProfissionaisPage() {
       setHoraInicioEspecifica('08:00');
       setHoraFimEspecifica('17:00');
       setObservacaoEspecifica('');
+      
+      // Resetar dropdowns para valores padrão
+      setHorarioInicioEspecificoSelecionado(OPCOES_HORARIO_INICIO.find(op => op.nome === '08:00') || null);
+      setHorarioFimEspecificoSelecionado(OPCOES_HORARIO_FIM.find(op => op.nome === '17:00') || null);
 
       toast({
         title: "Sucesso!",
@@ -383,69 +525,14 @@ export default function DisponibilidadeProfissionaisPage() {
                 <User className="w-4 h-4" />
                 Profissional
               </div>
-              <Popover open={openProfissionalCombo} onOpenChange={setOpenProfissionalCombo}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={openProfissionalCombo}
-                    className="h-12 w-full justify-between"
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      "Carregando..."
-                    ) : profissionalSelecionado ? (
-                      profissionais.find((profissional) => profissional.id === profissionalSelecionado.id)?.nome
-                    ) : (
-                      "Selecione um profissional..."
-                    )}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[300px] p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Buscar profissional..." />
-                    <CommandList>
-                      <CommandEmpty>
-                        {loading ? "Carregando profissionais..." : "Nenhum profissional encontrado."}
-                      </CommandEmpty>
-                      <CommandGroup>
-                        {profissionalSelecionado && (
-                          <CommandItem
-                            value="limpar"
-                            onSelect={() => {
-                              setProfissionalSelecionado(null);
-                              setOpenProfissionalCombo(false);
-                            }}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Limpar seleção
-                          </CommandItem>
-                        )}
-                        {profissionais.map((profissional) => (
-                          <CommandItem
-                            key={profissional.id}
-                            value={profissional.nome}
-                            onSelect={() => {
-                              handleSelecionarProfissional(profissional.id);
-                              setOpenProfissionalCombo(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                profissionalSelecionado?.id === profissional.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {profissional.nome}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <SingleSelectDropdown
+                options={profissionais.map(p => ({ id: p.id, nome: p.nome }))}
+                selected={profissionalSelecionado ? { id: profissionalSelecionado.id, nome: profissionalSelecionado.nome } : null}
+                onChange={handleSelecionarProfissional}
+                placeholder={loading ? "Carregando profissionais..." : "Selecione um profissional..."}
+                headerText="Profissionais disponíveis"
+                dotColor="green"
+              />
             </div>
 
             {/* Coluna 2: Tipo de Horário */}
@@ -619,29 +706,29 @@ export default function DisponibilidadeProfissionaisPage() {
                     </div>
                     <div>
                       <Label htmlFor="horaInicio">Hora Início *</Label>
-                      <Input
-                        id="horaInicio"
-                        type="time"
-                        value={horaInicioEspecifica}
-                        onChange={(e) => setHoraInicioEspecifica(e.target.value)}
-                        className="w-full"
+                      <TimeSelectDropdown
+                        options={OPCOES_HORARIO_INICIO}
+                        selected={horarioInicioEspecificoSelecionado}
+                        onChange={handleHorarioInicioEspecificoChange}
+                        placeholder="Horário de início"
+                        headerText="Horário de início"
                       />
                     </div>
                     <div>
                       <Label htmlFor="horaFim">Hora Fim *</Label>
-                      <Input
-                        id="horaFim"
-                        type="time"
-                        value={horaFimEspecifica}
-                        onChange={(e) => setHoraFimEspecifica(e.target.value)}
-                        className="w-full"
+                      <TimeSelectDropdown
+                        options={filtrarOpcoesHorarioFim(horarioInicioEspecificoSelecionado?.nome || null)}
+                        selected={horarioFimEspecificoSelecionado}
+                        onChange={handleHorarioFimEspecificoChange}
+                        placeholder="Horário de fim"
+                        headerText="Horário de fim"
                       />
                     </div>
                     <div>
                       <Label className="invisible">Ação</Label>
                       <Button
                         onClick={handleAdicionarDataEspecifica}
-                        disabled={salvando || !dataEspecifica || !horaInicioEspecifica || !horaFimEspecifica}
+                        disabled={salvando || !dataEspecifica || !horarioInicioEspecificoSelecionado || !horarioFimEspecificoSelecionado}
                         className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                       >
                         {salvando ? 'Adicionando...' : 'Adicionar'}

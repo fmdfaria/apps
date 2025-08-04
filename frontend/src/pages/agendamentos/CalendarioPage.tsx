@@ -156,6 +156,8 @@ export const CalendarioPage = () => {
   };
 
   // Função para verificar o status de disponibilidade de um horário para um profissional
+  // Considera tanto horários semanais (diaSemana) quanto datas específicas (dataEspecifica)
+  // REGRA: dataEspecifica e diaSemana são ACUMULATIVOS - dataEspecifica complementa diaSemana
   const verificarStatusDisponibilidade = (profissionalId: string, data: Date, horario: string): 'disponivel' | 'folga' | 'nao_configurado' => {
     const diaSemana = data.getDay(); // 0 = domingo, 1 = segunda, etc.
     const [hora, minuto] = horario.split(':').map(Number);
@@ -164,34 +166,61 @@ export const CalendarioPage = () => {
     // Filtrar disponibilidades do profissional
     const disponibilidadesProfissional = disponibilidades.filter(d => d.profissionalId === profissionalId);
     
-    // Verificar se há alguma disponibilidade para este horário
-    for (const disponibilidade of disponibilidadesProfissional) {
-      // Verificar se é uma data específica ou dia da semana
-      const isDataEspecifica = disponibilidade.dataEspecifica && 
-        disponibilidade.dataEspecifica.toDateString() === data.toDateString();
-      const isDiaSemana = disponibilidade.diaSemana !== null && disponibilidade.diaSemana === diaSemana;
+    // PASSO 1: Verificar se há uma dataEspecifica que cobre este horário específico
+    const datasEspecificas = disponibilidadesProfissional.filter(d => {
+      if (!d.dataEspecifica) return false;
       
-      if (isDataEspecifica || isDiaSemana) {
-        const inicioDisponibilidade = disponibilidade.horaInicio.getHours() * 60 + disponibilidade.horaInicio.getMinutes();
-        const fimDisponibilidade = disponibilidade.horaFim.getHours() * 60 + disponibilidade.horaFim.getMinutes();
-        
-        // Se o horário está dentro do intervalo da disponibilidade
-        if (horarioMinutos >= inicioDisponibilidade && horarioMinutos < fimDisponibilidade) {
-          // Se é tipo 'folga', retornar folga
-          if (disponibilidade.tipo === 'folga') {
-            return 'folga';
-          }
-          // Se é tipo 'disponivel', retornar disponível
-          if (disponibilidade.tipo === 'disponivel') {
-            return 'disponivel';
-          }
-        }
+      // Comparar datas sem considerar timezone - usar apenas ano, mês e dia
+      const dataDisponibilidade = new Date(d.dataEspecifica);
+      const dataParametro = new Date(data);
+      
+      return dataDisponibilidade.getFullYear() === dataParametro.getFullYear() &&
+             dataDisponibilidade.getMonth() === dataParametro.getMonth() &&
+             dataDisponibilidade.getDate() === dataParametro.getDate();
+    });
+    
+    // Verificar se alguma dataEspecifica cobre este horário específico
+    for (const disponibilidade of datasEspecificas) {
+      const inicioDisponibilidade = disponibilidade.horaInicio.getHours() * 60 + disponibilidade.horaInicio.getMinutes();
+      const fimDisponibilidade = disponibilidade.horaFim.getHours() * 60 + disponibilidade.horaFim.getMinutes();
+      
+      // Se o horário está dentro do intervalo da disponibilidade específica
+      if (horarioMinutos >= inicioDisponibilidade && horarioMinutos < fimDisponibilidade) {
+        return disponibilidade.tipo; // dataEspecifica tem precedência para este horário específico
       }
     }
     
-    // Se não há disponibilidades registradas para este horário, retornar não configurado
+    // PASSO 2: Se nenhuma dataEspecifica cobre este horário, verificar horários semanais (diaSemana)
+    const horariosSemanais = disponibilidadesProfissional.filter(d => 
+      d.diaSemana !== null && d.diaSemana === diaSemana && !d.dataEspecifica
+    );
+    
+    for (const disponibilidade of horariosSemanais) {
+      const inicioDisponibilidade = disponibilidade.horaInicio.getHours() * 60 + disponibilidade.horaInicio.getMinutes();
+      const fimDisponibilidade = disponibilidade.horaFim.getHours() * 60 + disponibilidade.horaFim.getMinutes();
+      
+      // Se o horário está dentro do intervalo da disponibilidade semanal
+      if (horarioMinutos >= inicioDisponibilidade && horarioMinutos < fimDisponibilidade) {
+        return disponibilidade.tipo; // Usar configuração semanal como fallback
+      }
+    }
+    
+    // PASSO 3: Se não há configuração específica nem semanal para este horário
     return 'nao_configurado';
   };
+  
+  /* 
+   * FLUXO DA VERIFICAÇÃO DE DISPONIBILIDADE (LÓGICA ACUMULATIVA):
+   * 1. Primeiro: Verifica se existe dataEspecifica que cobre o horário específico consultado
+   * 2. Se NÃO há dataEspecifica para aquele horário: usa configuração semanal (diaSemana) como fallback
+   * 3. Se nenhuma configuração cobre o horário: retorna 'nao_configurado'
+   * 
+   * EXEMPLOS DE USO:
+   * - Segunda-feira normal: usa configuração de diaSemana=1 (08:00-17:00 disponível)
+   * - Segunda-feira com plantão matinal: dataEspecifica (06:00-08:00 disponível) + diaSemana (08:00-17:00 disponível)
+   * - Segunda-feira com folga almoço especial: diaSemana (08:00-12:00 disponível) + dataEspecifica (12:00-14:00 folga) + diaSemana (14:00-17:00 disponível)
+   * - Domingo com plantão: apenas dataEspecifica (08:00-14:00 disponível), resto 'nao_configurado'
+   */
 
   // Função para verificar se um horário está disponível para um profissional (mantida para compatibilidade)
   const verificarDisponibilidade = (profissionalId: string, data: Date, horario: string): boolean => {

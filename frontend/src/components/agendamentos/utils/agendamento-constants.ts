@@ -1,3 +1,5 @@
+import type { TipoAtendimento } from '@/types/Agendamento';
+
 export const OPCOES_HORARIOS = [
   { id: '07:00', nome: '07:00', sigla: 'Manhã' },
   { id: '07:30', nome: '07:30', sigla: 'Manhã' },
@@ -38,7 +40,7 @@ export const RECORRENCIA_PADRAO = {
 export const FORM_DATA_PADRAO = {
   pacienteId: '',
   profissionalId: '',
-  tipoAtendimento: 'presencial' as const,
+  tipoAtendimento: 'presencial' as TipoAtendimento,
   recursoId: '',
   convenioId: '',
   servicoId: '',
