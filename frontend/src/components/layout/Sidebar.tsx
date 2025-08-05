@@ -44,16 +44,15 @@ const menuItems = [
     id: 'servicos',
     label: 'Serviços',
     icon: Briefcase,
-    adminOnly: true,
     children: [
       { id: 'servicos/precos-profissionais', label: 'Preços Profissionais', icon: DollarSign }
     ]
   },
-  { id: 'convenios', label: 'Convênios', icon: Building, adminOnly: true  },
-  { id: 'recursos', label: 'Recursos', icon: Building2, adminOnly: true },
-  { id: 'especialidades', label: 'Especialidades', icon: Briefcase, adminOnly: true },
-  { id: 'conselhos', label: 'Conselhos Profissionais', icon: Building, adminOnly: true },
-  { id: 'bancos', label: 'Bancos', icon: Landmark, adminOnly: true },
+  { id: 'convenios', label: 'Convênios', icon: Building },
+  { id: 'recursos', label: 'Recursos', icon: Building2 },
+  { id: 'especialidades', label: 'Especialidades', icon: Briefcase },
+  { id: 'conselhos', label: 'Conselhos Profissionais', icon: Building },
+  { id: 'bancos', label: 'Bancos', icon: Landmark },
 ];
 
 export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedProp, setIsCollapsed: setIsCollapsedProp }: SidebarProps) => {
@@ -172,7 +171,6 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
       )}
       <nav className="mt-4 flex-1">
         {menuItems
-          .filter(item => !item.adminOnly || (user && user.tipo === 'ADMIN'))
           .map((item) => {
             const Icon = item.icon;
             return (

@@ -49,8 +49,6 @@ export default function App() {
         <Route path="/auth/email-confirmation" element={<EmailConfirmation />} />
         <Route path="/" element={<Landing />} />
 
-        {/* Rotas protegidas */}
-        <Route element={<PrivateRoute />}> 
           <Route element={<Index />}> {/* Layout compartilhado com Sidebar */}
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="profissionais" element={<ProfissionaisPage />} />
@@ -73,6 +71,10 @@ export default function App() {
             <Route path="perfil" element={<Perfil />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
+
+        {/* Rotas protegidas */}
+        <Route element={<PrivateRoute />}> 
+          
         </Route>
 
         {/* 404 */}
