@@ -1,8 +1,81 @@
 import { Calendar, Users, UserCheck, Briefcase, Building, Building2, LayoutDashboard, LogOut, ChevronLeft, ChevronRight, Clock, DollarSign, CheckCircle, Stethoscope, ClipboardCheck, User, Landmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getModuleTheme } from '@/types/theme';
+
+// Mapeamento de páginas para módulos de tema
+const pageToModuleMap: Record<string, string> = {
+  'dashboard': 'default',
+  'calendario': 'agendamentos',
+  'agendamentos': 'agendamentos',
+  'agendamentos/liberacao': 'agendamentos',
+  'agendamentos/atendimento': 'agendamentos',
+  'agendamentos/conclusao': 'agendamentos',
+  'pacientes': 'pacientes',
+  'pacientes/precos-particulares': 'pacientes',
+  'profissionais': 'profissionais',
+  'profissionais/disponibilidade': 'profissionais',
+  'servicos': 'servicos',
+  'servicos/precos-profissionais': 'servicos',
+  'convenios': 'convenios',
+  'recursos': 'recursos',
+  'especialidades': 'especialidades',
+  'conselhos': 'conselhos',
+  'bancos': 'default'
+};
+
+// Componente de Tooltip para sidebar recolhido
+const SidebarTooltip = ({ children, tooltip, module = 'default' }: { 
+  children: React.ReactNode; 
+  tooltip: string; 
+  module?: string;
+}) => {
+  const theme = getModuleTheme(module);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const handleMouseEnter = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setTooltipPosition({ top: rect.top + rect.height / 2 });
+      setShowTooltip(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setShowTooltip(false);
+  };
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        className="w-full"
+      >
+        {children}
+      </button>
+      
+      {/* Tooltip posicionado */}
+      {showTooltip && (
+        <div 
+          className={`fixed left-16 ml-2 px-3 py-2 bg-gradient-to-r ${theme.primaryButton} text-white text-sm rounded-lg shadow-xl transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]`}
+          style={{
+            top: tooltipPosition.top,
+            transform: 'translateY(-50%)'
+          }}
+        >
+          {tooltip}
+          <div className="absolute top-1/2 left-0 transform -translate-y-1/2 -translate-x-1 border-4 border-transparent border-r-white"></div>
+        </div>
+      )}
+    </>
+  );
+};
 
 interface SidebarProps {
   currentPage: string;
@@ -101,7 +174,7 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
   };
   return (
     <div className={cn(
-      'bg-white shadow-lg border-r border-gray-200 flex flex-col h-screen transition-all duration-200',
+      'bg-white shadow-lg border-r border-gray-200 flex flex-col h-screen transition-all duration-200 relative',
       isCollapsed ? 'w-16' : 'w-64'
     )}>
       <div className={cn('flex items-center border-b border-gray-200', isCollapsed ? 'justify-center p-2' : 'justify-between p-4')}> 
@@ -169,26 +242,67 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
           )}
         </div>
       )}
-      <nav className="mt-4 flex-1">
+      <nav className="mt-4 flex-1 overflow-y-auto overflow-x-visible">
         {menuItems
           .map((item) => {
             const Icon = item.icon;
+            const itemModule = pageToModuleMap[item.id] || 'default';
+            const itemTheme = getModuleTheme(itemModule);
+            const isActive = currentPage === item.id;
+            
             return (
               <div key={item.id}>
-                <button
-                  onClick={() => onPageChange(item.id)}
-                  className={cn(
-                    'flex items-center transition-colors hover:bg-blue-50',
-                    isCollapsed ? 'w-full justify-center py-2 px-0' : 'w-full px-4 py-2 text-left',
-                    currentPage === item.id 
-                      ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700' 
-                      : 'text-gray-700 hover:text-blue-700'
-                  )}
-                  title={isCollapsed ? item.label : undefined}
-                >
-                  {Icon && <Icon className="w-5 h-5 mr-0" />}
-                  {!isCollapsed && <span className="ml-3">{item.label}</span>}
-                </button>
+                {isCollapsed ? (
+                  <SidebarTooltip tooltip={item.label} module={itemModule}>
+                    <div
+                      onClick={() => onPageChange(item.id)}
+                      className={cn(
+                        'flex items-center transition-colors cursor-pointer',
+                        'w-full justify-center py-2 px-0',
+                        isActive 
+                          ? `bg-gradient-to-r ${itemTheme.headerBg} border-r-2` 
+                          : `text-gray-700 hover:bg-gradient-to-r ${itemTheme.hoverBg}`
+                      )}
+                    >
+                      {Icon && (
+                        <Icon 
+                          className={cn(
+                            "w-5 h-5 mr-0",
+                            isActive ? `text-${itemModule === 'servicos' ? 'green' : itemModule === 'agendamentos' ? 'blue' : itemModule === 'pacientes' ? 'rose' : 'gray'}-600` : 'text-gray-700'
+                          )}
+                        />
+                      )}
+                    </div>
+                  </SidebarTooltip>
+                ) : (
+                  <button
+                    onClick={() => onPageChange(item.id)}
+                    className={cn(
+                      'flex items-center transition-colors',
+                      'w-full px-4 py-2 text-left',
+                      isActive 
+                        ? `bg-gradient-to-r ${itemTheme.headerBg} border-r-2` 
+                        : `text-gray-700 hover:bg-gradient-to-r ${itemTheme.hoverBg}`
+                    )}
+                  >
+                    {Icon && (
+                      <Icon 
+                        className={cn(
+                          "w-5 h-5 mr-0",
+                          isActive ? `text-${itemModule === 'servicos' ? 'green' : itemModule === 'agendamentos' ? 'blue' : itemModule === 'pacientes' ? 'rose' : 'gray'}-600` : 'text-gray-700'
+                        )}
+                      />
+                    )}
+                    <span 
+                      className={cn(
+                        "ml-3",
+                        isActive ? `text-${itemModule === 'servicos' ? 'green' : itemModule === 'agendamentos' ? 'blue' : itemModule === 'pacientes' ? 'rose' : 'gray'}-600` : 'text-gray-700'
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                  </button>
+                )}
                 {/* Submenu */}
                 {item.children && !isCollapsed && (
                   <div className="ml-8">
@@ -216,17 +330,25 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
             );
           })}
       </nav>
-      <div className={cn('border-t border-gray-200 mt-auto', isCollapsed ? 'p-2' : 'p-4')}>
-        <button
-          onClick={logout}
-          className={cn(
-            'flex items-center transition-colors rounded-md',
-            isCollapsed ? 'w-full justify-center py-2 px-0 text-red-600 hover:bg-red-50' : 'w-full px-4 py-2 text-left text-red-600 hover:bg-red-50'
-          )}
-        >
-          <LogOut className="w-5 h-5 mr-0" />
-          {!isCollapsed && <span className="ml-3">Sair</span>}
-        </button>
+      <div className={cn('border-t border-gray-200 flex-shrink-0', isCollapsed ? 'py-3 px-2' : 'py-3 px-4')}>
+        {isCollapsed ? (
+          <SidebarTooltip tooltip="Sair" module="default">
+            <div
+              onClick={logout}
+              className="flex items-center transition-colors rounded-md cursor-pointer w-full justify-center py-2 px-0 text-red-600 hover:bg-red-50"
+            >
+              <LogOut className="w-5 h-5 mr-0 text-red-600" />
+            </div>
+          </SidebarTooltip>
+        ) : (
+          <button
+            onClick={logout}
+            className="flex items-center transition-colors rounded-md w-full px-4 py-2 text-left text-red-600 hover:bg-red-50"
+          >
+            <LogOut className="w-5 h-5 mr-0 text-red-600" />
+            <span className="ml-3 text-red-600">Sair</span>
+          </button>
+        )}
       </div>
     </div>
   );

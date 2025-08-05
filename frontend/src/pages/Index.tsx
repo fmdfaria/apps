@@ -1,11 +1,29 @@
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const Index = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  
+  // Função para detectar se é tela xl+ (1280px+)
+  const getInitialCollapsedState = () => {
+    if (typeof window === 'undefined') return true; // SSR fallback
+    return window.innerWidth < 1280; // Recolhido para telas < xl (1280px)
+  };
+  
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(getInitialCollapsedState);
+
+  // Detecta mudanças de tamanho da tela e ajusta o sidebar
+  useEffect(() => {
+    const handleResize = () => {
+      const shouldCollapse = window.innerWidth < 1280;
+      setIsSidebarCollapsed(shouldCollapse);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Extrai a rota atual para menu e submenu
   const pathSegments = location.pathname.split('/').filter(Boolean);

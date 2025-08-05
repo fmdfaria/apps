@@ -16,6 +16,7 @@ import ProfissionaisPage from '@/pages/profissionais/ProfissionaisPage';
 import DisponibilidadeProfissionaisPage from '@/pages/profissionais/DisponibilidadeProfissionaisPage';
 import { PacientesPage } from '@/pages/pacientes/PacientesPage';
 import { ServicosPage } from '@/pages/servicos/ServicosPage';
+import { ServicosPageResponsive } from '@/pages/servicos/ServicosPageResponsive';
 import PrecosServicoProfissionalPage from '@/pages/servicos/PrecosServicoProfissionalPage';
 import { ConveniosPage } from '@/pages/convenios/ConveniosPage';
 import { EspecialidadesPage } from '@/pages/especialidades/EspecialidadesPage';
@@ -55,7 +56,8 @@ export default function App() {
             <Route path="profissionais/disponibilidade" element={<DisponibilidadeProfissionaisPage />} />
             <Route path="pacientes" element={<PacientesPage />} />
             <Route path="pacientes/precos-particulares" element={<PrecosParticularPage />} />
-            <Route path="servicos" element={<ServicosPage />} />
+            <Route path="servicos" element={<ServicosPageResponsive />} />
+            <Route path="servicos-antigo" element={<ServicosPage />} />
             <Route path="servicos/precos-profissionais" element={<PrecosServicoProfissionalPage />} />
             <Route path="convenios" element={<ConveniosPage />} />
             <Route path="especialidades" element={<EspecialidadesPage />} />
