@@ -19,18 +19,22 @@ import { ServicosPage } from '@/pages/servicos/ServicosPage';
 import { ServicosPageResponsive } from '@/pages/servicos/ServicosPageResponsive';
 import PrecosServicoProfissionalPage from '@/pages/servicos/PrecosServicoProfissionalPage';
 import { ConveniosPage } from '@/pages/convenios/ConveniosPage';
+import { ConveniosPageResponsive } from '@/pages/convenios/ConveniosPageResponsive';
 import { EspecialidadesPage } from '@/pages/especialidades/EspecialidadesPage';
 import { ConselhosPage } from '@/pages/conselhos/ConselhosPage';
 import { BancosPage } from '@/pages/bancos/BancosPage';
+import { BancosPageResponsive } from '@/pages/bancos/BancosPageResponsive';
 import { RecursosPage } from '@/pages/recursos/RecursosPage';
 import { AgendamentosPage } from '@/pages/agendamentos/AgendamentosPage';
 import { LiberarPage } from '@/pages/agendamentos/LiberarPage';
 import { AtenderPage } from '@/pages/agendamentos/AtenderPage';
 import { AprovarPage } from '@/pages/agendamentos/AprovarPage';
-
 import { CalendarioPage } from '@/pages/agendamentos/CalendarioPage';
 import PrecosParticularPage from '@/pages/pacientes/PrecosParticularPage';
 import { Perfil } from '@/pages/perfil/Perfil';
+import { ConselhosPageResponsive } from './pages/conselhos/ConselhosPageResponsive';
+import { RecursosPageResponsive } from './pages/recursos/RecursosPageResponsive';
+import { EspecialidadesPageResponsive } from './pages/especialidades/EspecialidadesPageResponsive';
 
 export default function App() {
   const initializeAuth = useAuthStore((s) => s.initializeAuth);
@@ -59,11 +63,16 @@ export default function App() {
             <Route path="servicos" element={<ServicosPageResponsive />} />
             <Route path="servicos-antigo" element={<ServicosPage />} />
             <Route path="servicos/precos-profissionais" element={<PrecosServicoProfissionalPage />} />
-            <Route path="convenios" element={<ConveniosPage />} />
-            <Route path="especialidades" element={<EspecialidadesPage />} />
-            <Route path="conselhos" element={<ConselhosPage />} />
-            <Route path="bancos" element={<BancosPage />} />
-            <Route path="recursos" element={<RecursosPage />} />
+            <Route path="convenios" element={<ConveniosPageResponsive />} />
+            <Route path="convenios-antigos" element={<ConveniosPage />} />
+            <Route path="especialidades" element={<EspecialidadesPageResponsive />} />
+            <Route path="especialidades-antigas" element={<EspecialidadesPage />} />
+            <Route path="conselhos" element={<ConselhosPageResponsive />} />
+            <Route path="conselhos-antigos" element={<ConselhosPage />} />
+            <Route path="bancos" element={<BancosPageResponsive />} />
+            <Route path="bancos-antigos" element={<BancosPage />} />
+            <Route path="recursos" element={<RecursosPageResponsive />} />
+            <Route path="recursos-antigos" element={<RecursosPage />} />
             <Route path="agendamentos" element={<AgendamentosPage />} />
             <Route path="agendamentos/liberacao" element={<LiberarPage />} />
             <Route path="agendamentos/atendimento" element={<AtenderPage />} />
