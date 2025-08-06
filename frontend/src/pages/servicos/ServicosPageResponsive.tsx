@@ -359,7 +359,13 @@ export const ServicosPageResponsive = () => {
     itemsPerPage,
     totalPages,
     handlePageChange,
-    handleItemsPerPageChange
+    handleItemsPerPageChange,
+    // Infinite scroll específico
+    isDesktop,
+    isMobile,
+    hasNextPage,
+    isLoadingMore,
+    targetRef
   } = useResponsiveTable(servicosFiltrados, 10);
 
   useEffect(() => {
@@ -693,6 +699,10 @@ export const ServicosPageResponsive = () => {
             columns={columns}
             module="servicos"
             emptyMessage="Nenhum serviço encontrado"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
           />
         ) : (
           <ResponsiveCards 
@@ -700,12 +710,16 @@ export const ServicosPageResponsive = () => {
             renderCard={renderCard}
             emptyMessage="Nenhum serviço encontrado"
             emptyIcon="🩺"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
           />
         )}
       </PageContent>
 
       {/* Paginação */}
-      {totalPages > 1 && (
+      {totalItems > 0 && (
         <ResponsivePagination
           currentPage={currentPage}
           totalPages={totalPages}

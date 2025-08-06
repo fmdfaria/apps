@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { InfiniteScrollLoader } from './InfiniteScrollLoader';
 
 interface ResponsiveCardsProps<T> {
   data: T[];
@@ -7,6 +8,11 @@ interface ResponsiveCardsProps<T> {
   className?: string;
   emptyMessage?: string;
   emptyIcon?: string;
+  // Props para infinite scroll
+  isLoadingMore?: boolean;
+  hasNextPage?: boolean;
+  isMobile?: boolean;
+  scrollRef?: React.RefObject<HTMLDivElement>; // Ref para scroll infinito
 }
 
 /**
@@ -17,7 +23,11 @@ export const ResponsiveCards = <T extends Record<string, any>>({
   renderCard,
   className,
   emptyMessage = "Nenhum resultado encontrado",
-  emptyIcon = "📄"
+  emptyIcon = "📄",
+  isLoadingMore = false,
+  hasNextPage = false,
+  isMobile = false,
+  scrollRef
 }: ResponsiveCardsProps<T>) => {
   if (data.length === 0) {
     return (
@@ -36,22 +46,39 @@ export const ResponsiveCards = <T extends Record<string, any>>({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-3">
-      <div className={cn(
-        "grid gap-4 w-full py-3",
-        "grid-cols-1",           // Mobile: 1 coluna
-        "sm:grid-cols-2",        // Mobile grande: 2 colunas
-        "md:grid-cols-3",        // Tablet: 3 colunas
-        "lg:grid-cols-4",        // Desktop: 4 colunas
-        "xl:grid-cols-5",        // Desktop grande: 5 colunas
-        "2xl:grid-cols-6",       // Monitor grande: 6 colunas
-        className
-      )}>
-        {data.map((item, index) => (
-          <div key={index} className="h-full">
-            {renderCard(item, index)}
-          </div>
-        ))}
+    <div 
+      ref={isMobile ? scrollRef : undefined}
+      className={cn(
+        "flex-1 flex flex-col overflow-hidden px-3",
+        // Para mobile/tablet, permitir scroll no container principal
+        isMobile ? "overflow-y-auto" : ""
+      )}
+    >
+      <div className="flex-1 overflow-y-auto">
+        <div className={cn(
+          "grid gap-4 w-full py-3",
+          "grid-cols-1",           // Mobile: 1 coluna
+          "sm:grid-cols-2",        // Mobile grande: 2 colunas
+          "md:grid-cols-3",        // Tablet: 3 colunas
+          "lg:grid-cols-4",        // Desktop: 4 colunas
+          "xl:grid-cols-5",        // Desktop grande: 5 colunas
+          "2xl:grid-cols-6",       // Monitor grande: 6 colunas
+          className
+        )}>
+          {data.map((item, index) => (
+            <div key={index} className="h-full">
+              {renderCard(item, index)}
+            </div>
+          ))}
+        </div>
+        
+        {/* Loader para infinite scroll */}
+        {isMobile && (
+          <InfiniteScrollLoader
+            isLoading={isLoadingMore}
+            hasNextPage={hasNextPage}
+          />
+        )}
       </div>
     </div>
   );

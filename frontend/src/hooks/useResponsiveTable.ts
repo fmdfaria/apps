@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { useBreakpoint, useInfiniteScroll } from './useInfiniteScroll';
 
 export interface SortConfig {
   key: string;
@@ -17,6 +18,7 @@ export interface PaginationConfig {
 
 /**
  * Hook para gerenciar funcionalidades de tabela responsiva
+ * Suporta paginação tradicional (desktop) e rolagem infinita (mobile/tablet)
  */
 export const useResponsiveTable = <T extends Record<string, any>>(
   data: T[],
@@ -26,6 +28,13 @@ export const useResponsiveTable = <T extends Record<string, any>>(
   const [filterConfig, setFilterConfig] = useState<SimpleFilterConfig>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(initialItemsPerPage);
+  
+  // Estados para infinite scroll
+  const [loadedItemsCount, setLoadedItemsCount] = useState(initialItemsPerPage);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
+  // Detecta o breakpoint atual
+  const { isDesktop, isMobile } = useBreakpoint();
 
   // Dados ordenados
   const sortedData = useMemo(() => {
@@ -59,14 +68,50 @@ export const useResponsiveTable = <T extends Record<string, any>>(
     });
   }, [sortedData, filterConfig]);
 
-  // Dados paginados
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredData.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredData, currentPage, itemsPerPage]);
+  // Dados para exibição - depende do modo (desktop = paginado, mobile = infinito)
+  const displayData = useMemo(() => {
+    if (isDesktop) {
+      // Desktop: paginação tradicional
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      return filteredData.slice(startIndex, startIndex + itemsPerPage);
+    } else {
+      // Mobile/Tablet: rolagem infinita - mostra até loadedItemsCount itens
+      return filteredData.slice(0, loadedItemsCount);
+    }
+  }, [filteredData, currentPage, itemsPerPage, loadedItemsCount, isDesktop]);
 
-  // Total de páginas
+  // Total de páginas (só usado no desktop)
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  
+  // Verifica se há mais itens para carregar (infinite scroll)
+  const hasNextPage = useMemo(() => {
+    if (isDesktop) {
+      return currentPage < totalPages;
+    } else {
+      return loadedItemsCount < filteredData.length;
+    }
+  }, [isDesktop, currentPage, totalPages, loadedItemsCount, filteredData.length]);
+
+  // Função para carregar mais itens (infinite scroll)
+  const loadMore = useCallback(() => {
+    if (isLoadingMore || !hasNextPage || isDesktop) return;
+    
+    setIsLoadingMore(true);
+    
+    // Simula um pequeno delay para UX
+    setTimeout(() => {
+      setLoadedItemsCount(prev => Math.min(prev + itemsPerPage, filteredData.length));
+      setIsLoadingMore(false);
+    }, 300);
+  }, [isLoadingMore, hasNextPage, isDesktop, itemsPerPage, filteredData.length]);
+
+  // Hook de infinite scroll (só ativo em mobile/tablet)
+  const { targetRef } = useInfiniteScroll(
+    loadMore,
+    hasNextPage,
+    isLoadingMore,
+    { enabled: isMobile }
+  );
 
   // Função para ordenar
   const handleSort = (key: string) => {
@@ -87,12 +132,14 @@ export const useResponsiveTable = <T extends Record<string, any>>(
   const handleFilter = (key: string, value: string) => {
     setFilterConfig(prev => ({ ...prev, [key]: value }));
     setCurrentPage(1); // Reset para primeira página
+    setLoadedItemsCount(initialItemsPerPage); // Reset infinite scroll
   };
 
   // Função para limpar filtros
   const clearFilters = () => {
     setFilterConfig({});
     setCurrentPage(1);
+    setLoadedItemsCount(initialItemsPerPage); // Reset infinite scroll
   };
 
   // Função para mudar página
@@ -110,7 +157,7 @@ export const useResponsiveTable = <T extends Record<string, any>>(
 
   return {
     // Dados processados
-    data: paginatedData,
+    data: displayData,
     allData: filteredData,
     
     // Configurações
@@ -121,6 +168,14 @@ export const useResponsiveTable = <T extends Record<string, any>>(
     totalPages,
     totalItems: filteredData.length,
     
+    // Infinite scroll específico
+    isDesktop,
+    isMobile,
+    hasNextPage,
+    isLoadingMore,
+    loadedItemsCount,
+    targetRef, // Ref para o container de scroll
+    
     // Handlers
     setSortConfig,
     setFilterConfig,
@@ -130,6 +185,7 @@ export const useResponsiveTable = <T extends Record<string, any>>(
     handlePageChange,
     handleItemsPerPageChange,
     setCurrentPage,
-    setItemsPerPage
+    setItemsPerPage,
+    loadMore
   };
 };

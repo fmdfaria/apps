@@ -128,7 +128,13 @@ export const ConveniosPageResponsive = () => {
     itemsPerPage,
     totalPages,
     handlePageChange,
-    handleItemsPerPageChange
+    handleItemsPerPageChange,
+    // Infinite scroll específico
+    isDesktop,
+    isMobile,
+    hasNextPage,
+    isLoadingMore,
+    targetRef
   } = useResponsiveTable(conveniosFiltrados, 10);
 
   useEffect(() => {
@@ -345,6 +351,10 @@ export const ConveniosPageResponsive = () => {
             columns={columns}
             module="convenios"
             emptyMessage="Nenhum convênio encontrado"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
           />
         ) : (
           <ResponsiveCards 
@@ -352,12 +362,16 @@ export const ConveniosPageResponsive = () => {
             renderCard={renderCard}
             emptyMessage="Nenhum convênio encontrado"
             emptyIcon="🏥"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
           />
         )}
       </PageContent>
 
       {/* Paginação */}
-      {totalPages > 1 && (
+      {totalItems > 0 && (
         <ResponsivePagination
           currentPage={currentPage}
           totalPages={totalPages}

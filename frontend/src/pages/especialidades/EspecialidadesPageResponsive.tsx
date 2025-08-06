@@ -128,7 +128,13 @@ export const EspecialidadesPageResponsive = () => {
     itemsPerPage,
     totalPages,
     handlePageChange,
-    handleItemsPerPageChange
+    handleItemsPerPageChange,
+    // Infinite scroll específico
+    isDesktop,
+    isMobile,
+    hasNextPage,
+    isLoadingMore,
+    targetRef
   } = useResponsiveTable(especialidadesFiltradas, 10);
 
   useEffect(() => {
@@ -345,6 +351,10 @@ export const EspecialidadesPageResponsive = () => {
             columns={columns}
             module="especialidades"
             emptyMessage="Nenhuma especialidade encontrada"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
           />
         ) : (
           <ResponsiveCards 
@@ -352,12 +362,16 @@ export const EspecialidadesPageResponsive = () => {
             renderCard={renderCard}
             emptyMessage="Nenhuma especialidade encontrada"
             emptyIcon="🎯"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
           />
         )}
       </PageContent>
 
       {/* Paginação */}
-      {totalPages > 1 && (
+      {totalItems > 0 && (
         <ResponsivePagination
           currentPage={currentPage}
           totalPages={totalPages}

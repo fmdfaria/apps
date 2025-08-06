@@ -1,3 +1,4 @@
+import React from 'react';
 import { Calendar, Users, UserCheck, Briefcase, Building, Building2, LayoutDashboard, LogOut, ChevronLeft, ChevronRight, Clock, DollarSign, CheckCircle, Stethoscope, ClipboardCheck, User, Landmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -27,17 +28,31 @@ const pageToModuleMap: Record<string, string> = {
 };
 
 // Componente de Tooltip para sidebar recolhido
-const SidebarTooltip = ({ children, tooltip, module = 'default' }: { 
+const SidebarTooltip = ({ children, tooltip, module = 'default', onClick, isActive = false }: { 
   children: React.ReactNode; 
   tooltip: string; 
   module?: string;
+  onClick: () => void;
+  isActive?: boolean;
 }) => {
   const theme = getModuleTheme(module);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0 });
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const buttonRef = useRef<HTMLDivElement>(null);
+  const timeoutRef = useRef<NodeJS.Timeout>();
+  const hideTimeoutRef = useRef<NodeJS.Timeout>();
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
 
-  const handleMouseEnter = () => {
+  // Detectar se é dispositivo touch
+  React.useEffect(() => {
+    const checkTouchDevice = () => {
+      setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    };
+    checkTouchDevice();
+  }, []);
+
+  const showTooltipNow = () => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       setTooltipPosition({ top: rect.top + rect.height / 2 });
@@ -45,32 +60,98 @@ const SidebarTooltip = ({ children, tooltip, module = 'default' }: {
     }
   };
 
-  const handleMouseLeave = () => {
+  const hideTooltipNow = () => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+    }
     setShowTooltip(false);
+  };
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    
+    if (isTouchDevice) return; // Não usar hover em touch devices
+    
+    // Pequeno delay para evitar tooltips muito rápidos
+    timeoutRef.current = setTimeout(showTooltipNow, 300);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    
+    if (isTouchDevice) return; // Não usar hover em touch devices
+    
+    // Limpar timeout se sair antes do delay
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    hideTooltipNow();
+  };
+
+  const handleTouchStart = () => {
+    if (!isTouchDevice) return;
+    
+    showTooltipNow();
+    
+    // Auto-hide após 2 segundos em touch
+    hideTimeoutRef.current = setTimeout(hideTooltipNow, 2000);
+  };
+
+  const handleClick = () => {
+    // Esconder tooltip imediatamente ao clicar
+    hideTooltipNow();
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    // Executar ação de clique
+    onClick();
   };
 
   return (
     <>
-      <button
+      <div
         ref={buttonRef}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className="w-full"
+        onTouchStart={handleTouchStart}
+        onClick={handleClick}
+        className={cn(
+          'w-full cursor-pointer flex items-center transition-colors justify-center py-2 px-0',
+          module === 'default' && tooltip === 'Sair' ? 'rounded-md' : '', // Adiciona rounded para logout
+          isActive 
+            ? `bg-gradient-to-r ${theme.headerBg} border-r-2` 
+            : isHovered
+            ? module === 'default' && tooltip === 'Sair' 
+              ? 'bg-red-50' 
+              : `bg-gradient-to-r ${theme.hoverBg}`
+            : 'text-gray-700'
+        )}
       >
         {children}
-      </button>
+      </div>
       
       {/* Tooltip posicionado */}
       {showTooltip && (
         <div 
-          className={`fixed left-16 ml-2 px-3 py-2 bg-gradient-to-r ${theme.primaryButton} text-white text-sm rounded-lg shadow-xl transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999]`}
+          className={`fixed left-16 ml-2 px-3 py-2 bg-gradient-to-r ${theme.primaryButton} text-white text-sm rounded-md shadow-lg transition-all duration-200 pointer-events-none whitespace-nowrap z-[9999] opacity-95`}
           style={{
             top: tooltipPosition.top,
             transform: 'translateY(-50%)'
           }}
         >
           {tooltip}
-          <div className="absolute top-1/2 left-0 transform -translate-y-1/2 -translate-x-1 border-4 border-transparent border-r-white"></div>
+          {/* Seta do tooltip com cor do tema */}
+          <div className={`absolute top-1/2 left-0 transform -translate-y-1/2 -translate-x-1 w-0 h-0 border-t-4 border-b-4 border-r-4 border-t-transparent border-b-transparent`}
+               style={{
+                 borderRightColor: theme.primaryButton.includes('blue') ? '#3b82f6' : 
+                                  theme.primaryButton.includes('green') ? '#10b981' : 
+                                  theme.primaryButton.includes('rose') ? '#f43f5e' : 
+                                  theme.primaryButton.includes('purple') ? '#8b5cf6' :
+                                  theme.primaryButton.includes('orange') ? '#f97316' :
+                                  theme.primaryButton.includes('teal') ? '#14b8a6' : '#6b7280'
+               }}
+          />
         </div>
       )}
     </>
@@ -253,26 +334,20 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
             return (
               <div key={item.id}>
                 {isCollapsed ? (
-                  <SidebarTooltip tooltip={item.label} module={itemModule}>
-                    <div
-                      onClick={() => onPageChange(item.id)}
-                      className={cn(
-                        'flex items-center transition-colors cursor-pointer',
-                        'w-full justify-center py-2 px-0',
-                        isActive 
-                          ? `bg-gradient-to-r ${itemTheme.headerBg} border-r-2` 
-                          : `text-gray-700 hover:bg-gradient-to-r ${itemTheme.hoverBg}`
-                      )}
-                    >
-                      {Icon && (
-                        <Icon 
-                          className={cn(
-                            "w-5 h-5 mr-0",
-                            isActive ? `text-${itemModule === 'servicos' ? 'green' : itemModule === 'agendamentos' ? 'blue' : itemModule === 'pacientes' ? 'rose' : 'gray'}-600` : 'text-gray-700'
-                          )}
-                        />
-                      )}
-                    </div>
+                  <SidebarTooltip 
+                    tooltip={item.label} 
+                    module={itemModule}
+                    onClick={() => onPageChange(item.id)}
+                    isActive={isActive}
+                  >
+                    {Icon && (
+                      <Icon 
+                        className={cn(
+                          "w-5 h-5 mr-0",
+                          isActive ? `text-${itemModule === 'servicos' ? 'green' : itemModule === 'agendamentos' ? 'blue' : itemModule === 'pacientes' ? 'rose' : 'gray'}-600` : 'text-gray-700'
+                        )}
+                      />
+                    )}
                   </SidebarTooltip>
                 ) : (
                   <button
@@ -332,13 +407,13 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
       </nav>
       <div className={cn('border-t border-gray-200 flex-shrink-0', isCollapsed ? 'py-3 px-2' : 'py-3 px-4')}>
         {isCollapsed ? (
-          <SidebarTooltip tooltip="Sair" module="default">
-            <div
-              onClick={logout}
-              className="flex items-center transition-colors rounded-md cursor-pointer w-full justify-center py-2 px-0 text-red-600 hover:bg-red-50"
-            >
-              <LogOut className="w-5 h-5 mr-0 text-red-600" />
-            </div>
+          <SidebarTooltip 
+            tooltip="Sair" 
+            module="default"
+            onClick={logout}
+            isActive={false}
+          >
+            <LogOut className="w-5 h-5 mr-0 text-red-600" />
           </SidebarTooltip>
         ) : (
           <button

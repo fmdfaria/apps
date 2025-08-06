@@ -22,9 +22,9 @@ export interface ModuleTheme {
 // Temas predefinidos para cada módulo
 export const moduleThemes: Record<string, ModuleTheme> = {
   agendamentos: {
-    titleGradient: 'from-blue-600 to-purple-600',
-    headerBg: 'from-blue-50 to-purple-50',
-    hoverBg: 'hover:from-blue-50 hover:to-purple-50',
+    titleGradient: 'from-blue-600 to-indigo-600',
+    headerBg: 'from-blue-50 to-indigo-50',
+    hoverBg: 'hover:from-blue-50 hover:to-indigo-50',
     primaryButton: 'from-blue-600 to-blue-700',
     primaryButtonHover: 'hover:from-blue-700 hover:to-blue-800',
     focusRing: 'focus:ring-blue-300',
@@ -99,6 +99,16 @@ export const moduleThemes: Record<string, ModuleTheme> = {
     primaryButtonHover: 'hover:from-rose-700 hover:to-rose-800',
     focusRing: 'focus:ring-rose-300',
     hoverTextColor: 'hover:text-rose-700'
+  },
+  
+  bancos: {
+    titleGradient: 'from-emerald-600 to-teal-600',
+    headerBg: 'from-emerald-50 to-teal-50',
+    hoverBg: 'hover:from-emerald-50 hover:to-teal-50',
+    primaryButton: 'from-emerald-600 to-emerald-700',
+    primaryButtonHover: 'hover:from-emerald-700 hover:to-emerald-800',
+    focusRing: 'focus:ring-emerald-300',
+    hoverTextColor: 'hover:text-emerald-700'
   },
   
   // Tema padrão (fallback)

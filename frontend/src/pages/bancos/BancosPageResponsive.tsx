@@ -26,6 +26,7 @@ import {
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
 import { useTableFilters } from '@/hooks/useTableFilters';
+import { useInputMask } from '@/hooks/useInputMask';
 
 // Definir tipo de formulário separado
 interface FormularioBanco {
@@ -47,6 +48,20 @@ export const BancosPageResponsive = () => {
   const [formError, setFormError] = useState('');
   const [excluindo, setExcluindo] = useState<Banco | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Máscara para o campo código (formato: 000 - 3 dígitos)
+  const codigoMask = useInputMask('999', 3);
+
+  // Função para lidar com mudança do campo código com máscara
+  const handleCodigoChange = (value: string) => {
+    const maskedValue = codigoMask(value);
+    setForm(prev => ({ ...prev, codigo: maskedValue }));
+    
+    // Limpa erro de validação quando o usuário começa a digitar
+    if (formError && maskedValue.length === 3) {
+      setFormError('');
+    }
+  };
 
   // Hooks responsivos
   const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'bancos-view' });
@@ -145,7 +160,13 @@ export const BancosPageResponsive = () => {
     itemsPerPage,
     totalPages,
     handlePageChange,
-    handleItemsPerPageChange
+    handleItemsPerPageChange,
+    // Infinite scroll específico
+    isDesktop,
+    isMobile,
+    hasNextPage,
+    isLoadingMore,
+    targetRef
   } = useResponsiveTable(bancosFiltrados, 10);
 
   useEffect(() => {
@@ -227,7 +248,7 @@ export const BancosPageResponsive = () => {
   const abrirModalEditar = (b: Banco) => {
     setEditando(b);
     setForm({
-      codigo: b.codigo,
+      codigo: b.codigo.padStart(3, '0'), // Garante que tenha 3 dígitos
       nome: b.nome,
     });
     setFormError('');
@@ -246,8 +267,10 @@ export const BancosPageResponsive = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.codigo.trim() || form.codigo.trim().length < 1) {
-      setFormError('O código é obrigatório.');
+    const codigoNumerico = form.codigo.replace(/\D/g, '');
+    
+    if (!codigoNumerico || codigoNumerico.length < 3) {
+      setFormError('O código deve ter 3 dígitos.');
       return;
     }
     if (!form.nome.trim() || form.nome.trim().length < 1) {
@@ -257,10 +280,10 @@ export const BancosPageResponsive = () => {
     setFormLoading(true);
     try {
       if (editando) {
-        await updateBanco(editando.id, { codigo: form.codigo.trim(), nome: form.nome.trim() });
+        await updateBanco(editando.id, { codigo: codigoNumerico, nome: form.nome.trim() });
         toast({ title: 'Banco atualizado com sucesso', variant: 'success' });
       } else {
-        await createBanco({ codigo: form.codigo.trim(), nome: form.nome.trim() });
+        await createBanco({ codigo: codigoNumerico, nome: form.nome.trim() });
         toast({ title: 'Banco criado com sucesso', variant: 'success' });
       }
       fecharModal();
@@ -369,6 +392,10 @@ export const BancosPageResponsive = () => {
             columns={columns}
             module="bancos"
             emptyMessage="Nenhum banco encontrado"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
           />
         ) : (
           <ResponsiveCards 
@@ -376,12 +403,16 @@ export const BancosPageResponsive = () => {
             renderCard={renderCard}
             emptyMessage="Nenhum banco encontrado"
             emptyIcon="🏦"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
           />
         )}
       </PageContent>
 
       {/* Paginação */}
-      {totalPages > 1 && (
+      {totalItems > 0 && (
         <ResponsivePagination
           currentPage={currentPage}
           totalPages={totalPages}
@@ -406,15 +437,26 @@ export const BancosPageResponsive = () => {
                   <span className="text-lg">🔢</span>
                   <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent font-semibold">Código</span>
                   <span className="text-red-500">*</span>
+                  {form.codigo.length === 3 && (
+                    <span className="text-emerald-600 text-xs">✓</span>
+                  )}
                 </label>
                 <Input
                   type="text"
                   value={form.codigo}
-                  onChange={e => setForm(f => ({ ...f, codigo: e.target.value }))}
+                  onChange={e => handleCodigoChange(e.target.value)}
+                  onKeyPress={e => {
+                    // Permite apenas números
+                    if (!/[0-9]/.test(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
                   disabled={formLoading}
                   autoFocus
-                  className="hover:border-emerald-300 focus:border-emerald-500 focus:ring-emerald-100"
-                  placeholder="Ex: 001, 104, 237"
+                  className={`hover:border-emerald-300 focus:border-emerald-500 focus:ring-emerald-100 font-mono ${
+                    form.codigo.length === 3 ? 'border-emerald-500 bg-emerald-50' : ''
+                  }`}
+                  placeholder="000"
                 />
               </div>
 

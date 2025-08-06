@@ -143,7 +143,13 @@ export const RecursosPageResponsive = () => {
     itemsPerPage,
     totalPages,
     handlePageChange,
-    handleItemsPerPageChange
+    handleItemsPerPageChange,
+    // Infinite scroll específico
+    isDesktop,
+    isMobile,
+    hasNextPage,
+    isLoadingMore,
+    targetRef
   } = useResponsiveTable(recursosFiltrados, 10);
 
   useEffect(() => {
@@ -363,6 +369,10 @@ export const RecursosPageResponsive = () => {
             columns={columns}
             module="recursos"
             emptyMessage="Nenhum recurso encontrado"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
           />
         ) : (
           <ResponsiveCards 
@@ -370,12 +380,16 @@ export const RecursosPageResponsive = () => {
             renderCard={renderCard}
             emptyMessage="Nenhum recurso encontrado"
             emptyIcon="🛠️"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
           />
         )}
       </PageContent>
 
       {/* Paginação */}
-      {totalPages > 1 && (
+      {totalItems > 0 && (
         <ResponsivePagination
           currentPage={currentPage}
           totalPages={totalPages}

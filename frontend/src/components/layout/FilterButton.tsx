@@ -13,6 +13,7 @@ interface FilterButtonProps {
   className?: string;
   disabled?: boolean; // Para desabilitar quando não há filtros configurados
   tooltip?: string; // Tooltip personalizado
+  iconOnly?: boolean; // Se deve mostrar apenas o ícone (para layouts compactos)
 }
 
 /**
@@ -25,7 +26,8 @@ export const FilterButton: React.FC<FilterButtonProps> = ({
   module,
   className,
   disabled = false,
-  tooltip
+  tooltip,
+  iconOnly = false
 }) => {
   const theme = getModuleTheme(module);
   const hasActiveFilters = activeFiltersCount > 0;
@@ -38,6 +40,8 @@ export const FilterButton: React.FC<FilterButtonProps> = ({
       title={tooltip}
       className={cn(
         "!h-10 border-2 border-gray-200 text-gray-700 font-medium transition-all duration-200",
+        // Para iconOnly: botão mais compacto e position relative para badge
+        iconOnly ? "!w-10 !px-0 relative" : "",
         // Estado normal: hover com cores do módulo
         !disabled && `hover:!bg-gradient-to-r ${theme.hoverBg} ${theme.hoverTextColor}`,
         // Estado ativo (filtros abertos): fundo e borda do módulo
@@ -49,12 +53,15 @@ export const FilterButton: React.FC<FilterButtonProps> = ({
         className
       )}
     >
-      <Filter className="w-4 h-4 mr-2" />
-      Filtros
+      <Filter className={cn("w-4 h-4", iconOnly ? "" : "mr-2")} />
+      {!iconOnly && "Filtros"}
       {hasActiveFilters && !disabled && (
         <Badge 
           variant="secondary" 
-          className={`ml-2 h-4 px-1.5 text-xs bg-gradient-to-r ${theme.primaryButton} text-white`}
+          className={cn(
+            `h-4 px-1.5 text-xs bg-gradient-to-r ${theme.primaryButton} text-white`,
+            iconOnly ? "absolute -top-1 -right-1" : "ml-2"
+          )}
         >
           {activeFiltersCount}
         </Badge>

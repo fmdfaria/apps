@@ -144,7 +144,13 @@ export const ConselhosPageResponsive = () => {
     itemsPerPage,
     totalPages,
     handlePageChange,
-    handleItemsPerPageChange
+    handleItemsPerPageChange,
+    // Infinite scroll específico
+    isDesktop,
+    isMobile,
+    hasNextPage,
+    isLoadingMore,
+    targetRef
   } = useResponsiveTable(conselhosFiltrados, 10);
 
   useEffect(() => {
@@ -368,6 +374,10 @@ export const ConselhosPageResponsive = () => {
             columns={columns}
             module="conselhos"
             emptyMessage="Nenhum conselho encontrado"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
           />
         ) : (
           <ResponsiveCards 
@@ -375,12 +385,16 @@ export const ConselhosPageResponsive = () => {
             renderCard={renderCard}
             emptyMessage="Nenhum conselho encontrado"
             emptyIcon="⚖️"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
           />
         )}
       </PageContent>
 
       {/* Paginação */}
-      {totalPages > 1 && (
+      {totalItems > 0 && (
         <ResponsivePagination
           currentPage={currentPage}
           totalPages={totalPages}

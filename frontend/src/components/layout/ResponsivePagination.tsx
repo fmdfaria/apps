@@ -29,7 +29,10 @@ export const ResponsivePagination: React.FC<ResponsivePaginationProps> = ({
   className
 }) => {
   const theme = getModuleTheme(module);
-  if (totalPages <= 1) {
+  
+  // Sempre renderiza quando há dados para manter layout sticky consistente
+  // Controles são desabilitados quando totalPages === 1
+  if (totalItems === 0) {
     return null;
   }
 
@@ -62,7 +65,7 @@ export const ResponsivePagination: React.FC<ResponsivePaginationProps> = ({
   return (
     <div className={cn(
       "sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200",
-      "flex flex-col md:flex-row items-center justify-between gap-4 py-3 px-3 z-30 shadow-lg flex-shrink-0",
+      "hidden xl:flex flex-col md:flex-row items-center justify-between gap-4 py-3 px-3 z-30 shadow-lg flex-shrink-0",
       className
     )}>
       {/* Items per page selector */}
@@ -72,7 +75,7 @@ export const ResponsivePagination: React.FC<ResponsivePaginationProps> = ({
           Exibir
         </span>
         <select
-          className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 hover:border-blue-300"
+          className={`border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 ${theme.focusRing} focus:border-rose-500 transition-all duration-200 hover:border-rose-300`}
           value={itemsPerPage}
           onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
         >
@@ -96,8 +99,8 @@ export const ResponsivePagination: React.FC<ResponsivePaginationProps> = ({
           variant="ghost"
           size="sm"
           onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className={currentPage === 1 
+          disabled={currentPage === 1 || totalPages === 1}
+          className={(currentPage === 1 || totalPages === 1)
             ? `!border-2 !border-gray-200 !text-gray-400 !bg-gray-50 cursor-not-allowed font-medium !shadow-none !hover:bg-gray-50` 
             : `!border-2 !border-gray-200 !text-gray-700 !bg-white hover:!bg-gradient-to-r ${theme.hoverBg} ${theme.hoverTextColor} hover:!shadow-lg hover:!scale-110 !transition-all !duration-300 transform font-medium focus:!ring-2 ${theme.focusRing} focus:!ring-offset-2`
           }
@@ -112,9 +115,12 @@ export const ResponsivePagination: React.FC<ResponsivePaginationProps> = ({
             key={pageNumber}
             variant="ghost"
             size="sm"
-            onClick={() => onPageChange(pageNumber)}
+            onClick={() => totalPages > 1 ? onPageChange(pageNumber) : undefined}
+            disabled={totalPages === 1}
             className={pageNumber === currentPage 
               ? `!bg-gradient-to-r ${theme.primaryButton} !text-white !shadow-lg font-semibold !border-0` 
+              : totalPages === 1
+              ? `!border-2 !border-gray-200 !text-gray-400 !bg-gray-50 cursor-not-allowed font-medium !shadow-none !hover:bg-gray-50`
               : `!border-2 !border-gray-200 !text-gray-700 !bg-white hover:!bg-gradient-to-r ${theme.hoverBg} ${theme.hoverTextColor} hover:!shadow-lg hover:!scale-110 !transition-all !duration-300 transform font-medium focus:!ring-2 ${theme.focusRing} focus:!ring-offset-2`
             }
           >
@@ -127,8 +133,8 @@ export const ResponsivePagination: React.FC<ResponsivePaginationProps> = ({
           variant="ghost"
           size="sm"
           onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className={currentPage === totalPages 
+          disabled={currentPage === totalPages || totalPages === 1}
+          className={(currentPage === totalPages || totalPages === 1)
             ? `!border-2 !border-gray-200 !text-gray-400 !bg-gray-50 cursor-not-allowed font-medium !shadow-none !hover:bg-gray-50` 
             : `!border-2 !border-gray-200 !text-gray-700 !bg-white hover:!bg-gradient-to-r ${theme.hoverBg} ${theme.hoverTextColor} hover:!shadow-lg hover:!scale-110 !transition-all !duration-300 transform font-medium focus:!ring-2 ${theme.focusRing} focus:!ring-offset-2`
           }

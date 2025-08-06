@@ -9,6 +9,7 @@ export { DynamicFilterPanel } from './DynamicFilterPanel';
 export { ResponsiveTable } from './ResponsiveTable';
 export { ResponsiveCards } from './ResponsiveCards';
 export { ResponsivePagination } from './ResponsivePagination';
+export { InfiniteScrollLoader } from './InfiniteScrollLoader';
 export { ActionButton } from './ActionButton';
 export { PageTemplate } from './PageTemplate';
 

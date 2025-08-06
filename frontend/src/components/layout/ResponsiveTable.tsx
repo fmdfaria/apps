@@ -3,6 +3,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { getModuleTheme } from '@/types/theme';
+import { InfiniteScrollLoader } from './InfiniteScrollLoader';
 
 // Tipos de filtro disponíveis
 export type FilterType = 'text' | 'number' | 'date' | 'select' | 'range' | 'currency' | 'percentage';
@@ -37,6 +38,11 @@ interface ResponsiveTableProps<T> {
   module: string; // Nome do módulo para aplicar o tema correto
   className?: string;
   emptyMessage?: string;
+  // Props para infinite scroll
+  isLoadingMore?: boolean;
+  hasNextPage?: boolean;
+  isMobile?: boolean;
+  scrollRef?: React.RefObject<HTMLDivElement>; // Ref para scroll infinito
 }
 
 /**
@@ -47,7 +53,11 @@ export const ResponsiveTable = <T extends Record<string, any>>({
   columns,
   module,
   className,
-  emptyMessage = "Nenhum resultado encontrado"
+  emptyMessage = "Nenhum resultado encontrado",
+  isLoadingMore = false,
+  hasNextPage = false,
+  isMobile = false,
+  scrollRef
 }: ResponsiveTableProps<T>) => {
   const theme = getModuleTheme(module);
   if (data.length === 0) {
@@ -67,7 +77,14 @@ export const ResponsiveTable = <T extends Record<string, any>>({
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden mx-3 rounded-lg bg-white shadow-sm border border-gray-100">
+    <div 
+      ref={isMobile ? scrollRef : undefined}
+      className={cn(
+        "flex-1 flex flex-col overflow-hidden mx-3 rounded-lg bg-white shadow-sm border border-gray-100",
+        // Para mobile/tablet, permitir scroll no container principal
+        isMobile ? "overflow-y-auto" : ""
+      )}
+    >
       {/* Desktop: Tabela completa responsiva */}
       <div className="hidden lg:flex lg:flex-col lg:flex-1 lg:overflow-hidden">
         <Table className={cn("w-full table-auto", className)}>
@@ -158,6 +175,14 @@ export const ResponsiveTable = <T extends Record<string, any>>({
             </Card>
           ))}
         </div>
+        
+        {/* Loader para infinite scroll no mobile */}
+        {isMobile && (
+          <InfiniteScrollLoader
+            isLoading={isLoadingMore}
+            hasNextPage={hasNextPage}
+          />
+        )}
       </div>
     </div>
   );
