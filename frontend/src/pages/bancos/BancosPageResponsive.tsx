@@ -21,7 +21,8 @@ import {
   ResponsiveCards, 
   ResponsivePagination,
   ActionButton,
-  TableColumn 
+  TableColumn,
+  ResponsiveCardFooter 
 } from '@/components/layout';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
@@ -107,7 +108,7 @@ export const BancosPageResponsive = () => {
       render: (item) => (
         <div className="flex gap-1.5">
           <ActionButton
-            variant="edit"
+            variant="view"
             module="bancos"
             onClick={() => abrirModalEditar(item)}
             title="Editar Banco"
@@ -209,28 +210,26 @@ export const BancosPageResponsive = () => {
           </div>
         </div>
       </CardContent>
-      <CardFooter className="pt-0 px-3 pb-3">
-        <div className="flex items-center gap-2 w-full">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex-1 h-7 text-xs border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white"
-            onClick={() => abrirModalEditar(banco)}
-          >
-            <Edit className="w-3 h-3 mr-1" />
-            Editar
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex-1 h-7 text-xs border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
-            onClick={() => confirmarExclusao(banco)}
-          >
-            <Trash2 className="w-3 h-3 mr-1" />
-            Excluir
-          </Button>
-        </div>
-      </CardFooter>
+      <ResponsiveCardFooter>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white"
+          onClick={() => abrirModalEditar(banco)}
+          title="Editar banco"
+        >
+          <Edit className="w-4 h-4" />
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+          onClick={() => confirmarExclusao(banco)}
+          title="Excluir banco"
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </ResponsiveCardFooter>
     </Card>
   );
 

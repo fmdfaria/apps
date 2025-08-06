@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Users, UserCheck, Briefcase, Building, Building2, LayoutDashboard, LogOut, ChevronLeft, ChevronRight, Clock, DollarSign, CheckCircle, Stethoscope, ClipboardCheck, User, Landmark } from 'lucide-react';
+import { Calendar, Users, UserCheck, Briefcase, Building, Building2, LayoutDashboard, LogOut, ChevronLeft, ChevronRight, Clock, DollarSign, CheckCircle, Stethoscope, ClipboardCheck, User, Landmark, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useRef } from 'react';
@@ -24,7 +24,9 @@ const pageToModuleMap: Record<string, string> = {
   'recursos': 'recursos',
   'especialidades': 'especialidades',
   'conselhos': 'conselhos',
-  'bancos': 'default'
+  'bancos': 'default',
+  'administracao': 'default',
+  'administracao/usuarios': 'default'
 };
 
 // Componente de Tooltip para sidebar recolhido
@@ -207,6 +209,14 @@ const menuItems = [
   { id: 'especialidades', label: 'Especialidades', icon: Briefcase },
   { id: 'conselhos', label: 'Conselhos Profissionais', icon: Building },
   { id: 'bancos', label: 'Bancos', icon: Landmark },
+  {
+    id: 'administracao',
+    label: 'Administração',
+    icon: Settings,
+    children: [
+      { id: 'administracao/usuarios', label: 'Usuários', icon: Users }
+    ]
+  },
 ];
 
 export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedProp, setIsCollapsed: setIsCollapsedProp }: SidebarProps) => {

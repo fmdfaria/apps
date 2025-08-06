@@ -21,7 +21,8 @@ import {
   ResponsiveCards, 
   ResponsivePagination,
   ActionButton,
-  TableColumn 
+  TableColumn,
+  ResponsiveCardFooter 
 } from '@/components/layout';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
@@ -76,7 +77,7 @@ export const EspecialidadesPageResponsive = () => {
       render: (item) => (
         <div className="flex gap-1.5">
           <ActionButton
-            variant="edit"
+            variant="view"
             module="especialidades"
             onClick={() => abrirModalEditar(item)}
             title="Editar Especialidade"
@@ -177,28 +178,26 @@ export const EspecialidadesPageResponsive = () => {
           </div>
         </div>
       </CardContent>
-      <CardFooter className="pt-0 px-3 pb-3">
-        <div className="flex items-center gap-2 w-full">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex-1 h-7 text-xs border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white"
-            onClick={() => abrirModalEditar(especialidade)}
-          >
-            <Edit className="w-3 h-3 mr-1" />
-            Editar
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex-1 h-7 text-xs border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
-            onClick={() => confirmarExclusao(especialidade)}
-          >
-            <Trash2 className="w-3 h-3 mr-1" />
-            Excluir
-          </Button>
-        </div>
-      </CardFooter>
+      <ResponsiveCardFooter>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white"
+          onClick={() => abrirModalEditar(especialidade)}
+          title="Editar especialidade"
+        >
+          <Edit className="w-4 h-4" />
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+          onClick={() => confirmarExclusao(especialidade)}
+          title="Excluir especialidade"
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </ResponsiveCardFooter>
     </Card>
   );
 

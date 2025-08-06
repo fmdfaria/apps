@@ -121,6 +121,9 @@ export default function DisponibilidadeProfissionaisPage() {
   // Estados para modal de confirmação de reset
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   
+  // Estados para modal de confirmação de limpar horários
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  
   const [loading, setLoading] = useState(false);
   const [carregandoDisponibilidades, setCarregandoDisponibilidades] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -246,10 +249,31 @@ export default function DisponibilidadeProfissionaisPage() {
   const confirmarResetarHorarios = () => {
     const horariosReset = criarHorarioSemanaPadrao();
     setHorariosSemana(horariosReset);
+    // Importante: Atualizar também os horários originais para que a comparação seja feita corretamente
+    // Isso evita que o sistema tente excluir horários que não existem mais
+    setHorariosOriginais(criarHorarioSemanaPadrao());
     setShowResetConfirm(false);
     toast({
       title: "Horários resetados na tela",
       description: "Padrão aplicado: Seg-Sex (07:00-12:00 disponível, 12:00-13:00 folga, 13:00-18:00 disponível). Ajuste se necessário e clique em 'Salvar Horários' para aplicar.",
+    });
+  };
+
+  const handleLimparHorarios = () => {
+    setShowClearConfirm(true);
+  };
+
+  const confirmarLimparHorarios = () => {
+    const horariosVazios = horariosSemana.map(horario => ({
+      ...horario,
+      ativo: false,
+      intervalos: []
+    }));
+    setHorariosSemana(horariosVazios);
+    setShowClearConfirm(false);
+    toast({
+      title: "Horários limpos na tela",
+      description: "Todos os horários foram removidos da tela. Clique em 'Salvar Horários' para aplicar as mudanças no sistema.",
     });
   };
 
@@ -645,14 +669,25 @@ export default function DisponibilidadeProfissionaisPage() {
 
                 {/* Ações para horários semanais */}
                 <div className="flex items-center justify-between">
-                  <Button
-                    variant="outline"
-                    onClick={handleResetarHorarios}
-                    className="flex items-center gap-2"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    Resetar Horários
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={handleResetarHorarios}
+                      className="flex items-center gap-2"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      Resetar Horários
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      onClick={handleLimparHorarios}
+                      className="flex items-center gap-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Limpar Horários
+                    </Button>
+                  </div>
 
                   <Button
                     onClick={handleSalvar}
@@ -893,6 +928,37 @@ export default function DisponibilidadeProfissionaisPage() {
               className="bg-blue-600 hover:bg-blue-700"
             >
               Confirmar Reset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Modal de confirmação para limpar horários */}
+      <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar limpeza dos horários</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja limpar <strong>todos os horários semanais</strong>?
+              <br /><br />
+              <span className="text-red-600 font-medium">
+                ⚠️ Esta ação irá remover todos os intervalos de horários de todos os dias da semana.
+              </span>
+              <br /><br />
+              <span className="text-blue-600 font-medium">
+                Os horários serão removidos apenas da tela. Você precisará clicar em "Salvar Horários" para aplicar as mudanças no sistema.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowClearConfirm(false)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmarLimparHorarios}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Confirmar Limpeza
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

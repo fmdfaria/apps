@@ -11,6 +11,7 @@ export { ResponsiveCards } from './ResponsiveCards';
 export { ResponsivePagination } from './ResponsivePagination';
 export { InfiniteScrollLoader } from './InfiniteScrollLoader';
 export { ActionButton } from './ActionButton';
+export { ResponsiveCardFooter } from './ResponsiveCardFooter';
 export { PageTemplate } from './PageTemplate';
 
 // Types Export

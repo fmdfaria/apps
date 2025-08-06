@@ -12,6 +12,7 @@ import type { Servico } from '@/types/Servico';
 import type { Convenio } from '@/types/Convenio';
 import { FormErrorMessage } from '@/components/form-error-message';
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
+import { Slider } from '@/components/ui/slider';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import { 
   PageContainer, 
@@ -25,7 +26,8 @@ import {
   ResponsiveCards, 
   ResponsivePagination,
   ActionButton,
-  TableColumn 
+  TableColumn,
+  ResponsiveCardFooter 
 } from '@/components/layout';
 import type { FilterConfig } from '@/types/filters';
 import { useViewMode } from '@/hooks/useViewMode';
@@ -293,7 +295,7 @@ export const ServicosPageResponsive = () => {
       render: (item) => (
         <div className="flex gap-1.5">
           <ActionButton
-            variant="edit"
+            variant="view"
             module="servicos"
             onClick={() => abrirModalEditar(item)}
             title="Editar Serviço"
@@ -471,28 +473,26 @@ export const ServicosPageResponsive = () => {
           )}
         </div>
       </CardContent>
-      <CardFooter className="pt-0 px-3 pb-3">
-        <div className="flex items-center gap-2 w-full">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex-1 h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
-            onClick={() => abrirModalEditar(servico)}
-          >
-            <Edit className="w-3 h-3 mr-1" />
-            Editar
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex-1 h-7 text-xs border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
-            onClick={() => confirmarExclusao(servico)}
-          >
-            <Trash2 className="w-3 h-3 mr-1" />
-            Excluir
-          </Button>
-        </div>
-      </CardFooter>
+      <ResponsiveCardFooter>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
+          onClick={() => abrirModalEditar(servico)}
+          title="Editar serviço"
+        >
+          <Edit className="w-4 h-4" />
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+          onClick={() => confirmarExclusao(servico)}
+          title="Excluir serviço"
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </ResponsiveCardFooter>
     </Card>
   );
 
@@ -849,6 +849,205 @@ export const ServicosPageResponsive = () => {
                       }}
                       className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
                       placeholder="Ex: 150,00"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-4">
+                {/* Clínica */}
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                    <span className="text-lg">🏥</span>
+                    <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent font-semibold">Valor Clínica</span>
+                  </label>
+                  <div className="flex gap-2 items-center">
+                    <div className="grid grid-cols-2 gap-2 w-full">
+                      <div className="flex items-center gap-1">
+                        <span className="text-gray-500 text-sm">%</span>
+                        <Input
+                          type="number"
+                          value={form.percentualClinica ?? ''}
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (val === '') {
+                              setForm(f => ({ ...f, percentualClinica: null, percentualProfissional: null }));
+                            } else {
+                              const num = Math.max(0, Math.min(100, Number(val)));
+                              setForm(f => ({
+                                ...f,
+                                percentualClinica: num,
+                                percentualProfissional: 100 - num
+                              }));
+                            }
+                          }}
+                          min={0}
+                          max={100}
+                          step={0.01}
+                          disabled={formLoading || !form.preco || isNaN(Number(form.preco.replace(/\./g, '').replace(',', '.'))) || Number(form.preco.replace(/\./g, '').replace(',', '.')) <= 0}
+                          className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-gray-500 text-sm">R$</span>
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          value={
+                            form.percentualClinica != null && form.preco && !isNaN(Number(form.preco.replace(/\./g, '').replace(',', '.'))) && Number(form.preco.replace(/\./g, '').replace(',', '.')) > 0
+                              ? ((form.percentualClinica / 100) * Number(form.preco.replace(/\./g, '').replace(',', '.'))).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                              : ''
+                          }
+                          onChange={e => {
+                            let valor = e.target.value;
+                            valor = valor.replace(/[^\d,]/g, '');
+                            const partes = valor.split(',');
+                            if (partes.length > 2) valor = partes[0] + ',' + partes.slice(1).join('');
+                            const precoNum = Number(form.preco.replace(/\./g, '').replace(',', '.'));
+                            if (!precoNum) return setForm(f => ({ ...f, percentualClinica: null, percentualProfissional: null }));
+                            const valorNum = Number(valor.replace(/\./g, '').replace(',', '.'));
+                            if (isNaN(valorNum)) return;
+                            const pct = Number(((valorNum / precoNum) * 100).toFixed(2));
+                            setForm(f => ({ ...f, percentualClinica: pct, percentualProfissional: 100 - pct }));
+                          }}
+                          onBlur={e => {
+                            setForm(f => {
+                              const precoNum = Number(f.preco.replace(/\./g, '').replace(',', '.'));
+                              if (!precoNum || f.percentualClinica == null) return f;
+                              const valor = ((f.percentualClinica / 100) * precoNum).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                              return { ...f, percentualClinica: f.percentualClinica, percentualProfissional: f.percentualProfissional };
+                            });
+                          }}
+                          disabled={formLoading || !form.preco || isNaN(Number(form.preco.replace(/\./g, '').replace(',', '.'))) || Number(form.preco.replace(/\./g, '').replace(',', '.')) <= 0}
+                          className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* Profissional */}
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                    <span className="text-lg">👨‍⚕️</span>
+                    <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent font-semibold">Valor Profissional</span>
+                  </label>
+                  <div className="flex gap-2 items-center">
+                    <div className="grid grid-cols-2 gap-2 w-full">
+                      <div className="flex items-center gap-1">
+                        <span className="text-gray-500 text-sm">%</span>
+                        <Input
+                          type="number"
+                          value={form.percentualProfissional ?? ''}
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (val === '') {
+                              setForm(f => ({ ...f, percentualProfissional: null, percentualClinica: null }));
+                            } else {
+                              const num = Math.max(0, Math.min(100, Number(val)));
+                              setForm(f => ({
+                                ...f,
+                                percentualProfissional: num,
+                                percentualClinica: 100 - num
+                              }));
+                            }
+                          }}
+                          min={0}
+                          max={100}
+                          step={0.01}
+                          disabled={formLoading || !form.preco || isNaN(Number(form.preco.replace(/\./g, '').replace(',', '.'))) || Number(form.preco.replace(/\./g, '').replace(',', '.')) <= 0}
+                          className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-gray-500 text-sm">R$</span>
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          value={
+                            form.percentualProfissional != null && form.preco && !isNaN(Number(form.preco.replace(/\./g, '').replace(',', '.'))) && Number(form.preco.replace(/\./g, '').replace(',', '.')) > 0
+                              ? ((form.percentualProfissional / 100) * Number(form.preco.replace(/\./g, '').replace(',', '.'))).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                              : ''
+                          }
+                          onChange={e => {
+                            let valor = e.target.value;
+                            valor = valor.replace(/[^\d,]/g, '');
+                            const partes = valor.split(',');
+                            if (partes.length > 2) valor = partes[0] + ',' + partes.slice(1).join('');
+                            const precoNum = Number(form.preco.replace(/\./g, '').replace(',', '.'));
+                            if (!precoNum) return setForm(f => ({ ...f, percentualProfissional: null, percentualClinica: null }));
+                            const valorNum = Number(valor.replace(/\./g, '').replace(',', '.'));
+                            if (isNaN(valorNum)) return;
+                            const pct = Number(((valorNum / precoNum) * 100).toFixed(2));
+                            setForm(f => ({ ...f, percentualProfissional: pct, percentualClinica: 100 - pct }));
+                          }}
+                          onBlur={e => {
+                            setForm(f => {
+                              const precoNum = Number(f.preco.replace(/\./g, '').replace(',', '.'));
+                              if (!precoNum || f.percentualProfissional == null) return f;
+                              const valor = ((f.percentualProfissional / 100) * precoNum).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                              return { ...f, percentualProfissional: f.percentualProfissional, percentualClinica: f.percentualClinica };
+                            });
+                          }}
+                          disabled={formLoading || !form.preco || isNaN(Number(form.preco.replace(/\./g, '').replace(',', '.'))) || Number(form.preco.replace(/\./g, '').replace(',', '.')) <= 0}
+                          className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="w-full mt-6 mb-2">
+                <Slider
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={[form.percentualClinica ?? 0]}
+                  onValueChange={([value]) => {
+                    setForm(f => ({
+                      ...f,
+                      percentualClinica: value,
+                      percentualProfissional: 100 - value
+                    }));
+                  }}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>0%</span>
+                  <span>100%</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-4">
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                    <span className="text-lg">🩺</span>
+                    <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent font-semibold">Procedimento 1º Atendimento</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      value={form.procedimentoPrimeiroAtendimento || ''}
+                      onChange={e => setForm(f => ({ ...f, procedimentoPrimeiroAtendimento: e.target.value }))}
+                      disabled={formLoading}
+                      className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
+                      placeholder="Ex: 10101012"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                    <span className="text-lg">🩺</span>
+                    <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent font-semibold">Procedimento Demais Atendimentos</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      value={form.procedimentoDemaisAtendimentos || ''}
+                      onChange={e => setForm(f => ({ ...f, procedimentoDemaisAtendimentos: e.target.value }))}
+                      disabled={formLoading}
+                      className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
+                      placeholder="Ex: 10101013"
                     />
                   </div>
                 </div>

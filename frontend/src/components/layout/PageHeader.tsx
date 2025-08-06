@@ -47,7 +47,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           childProps.iconOnly = true;
         }
         
-        // Se é Button com ícone (botão de ação), aplicar iconOnly
+        // Se é Button com ícone (botão de ação), aplicar transformação sem iconOnly prop
         if (iconOnly && child.type === Button && child.props.children) {
           const childrenArray = React.Children.toArray(child.props.children);
           
@@ -104,15 +104,13 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         {/* Linha 2: Filtros + Toggles + Botão (apenas ícones) centralizada */}
         {children && (
           <div className="flex items-center justify-center gap-2">
-            {React.Children.toArray(children)
+            {cloneChildrenWithProps(true)
               .filter((child: any) => 
-                React.isValidElement(child) && !child.props.placeholder
+                React.isValidElement(child) && !child.props?.placeholder
               )
               .map((child, index) => (
                 <div key={index}>
-                  {React.isValidElement(child) ? 
-                    React.cloneElement(child, { iconOnly: true }) : child
-                  }
+                  {child}
                 </div>
               ))
             }
@@ -152,15 +150,13 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           {/* Controles à direita (sem busca, apenas ícones) */}
           {children && (
             <div className="flex items-center gap-2">
-              {React.Children.toArray(children)
+              {cloneChildrenWithProps(true)
                 .filter((child: any) => 
-                  React.isValidElement(child) && !child.props.placeholder
+                  React.isValidElement(child) && !child.props?.placeholder
                 )
                 .map((child, index) => (
                   <div key={index}>
-                    {React.isValidElement(child) ? 
-                      React.cloneElement(child, { iconOnly: true }) : child
-                    }
+                    {child}
                   </div>
                 ))
               }

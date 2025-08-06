@@ -39,16 +39,20 @@ export const FilterButton: React.FC<FilterButtonProps> = ({
       disabled={disabled}
       title={tooltip}
       className={cn(
-        "!h-10 border-2 border-gray-200 text-gray-700 font-medium transition-all duration-200",
-        // Para iconOnly: botão mais compacto e position relative para badge
-        iconOnly ? "!w-10 !px-0 relative" : "",
-        // Estado normal: hover com cores do módulo
-        !disabled && `hover:!bg-gradient-to-r ${theme.hoverBg} ${theme.hoverTextColor}`,
-        // Estado ativo (filtros abertos): fundo e borda do módulo
-        showFilters && !disabled && `!bg-gradient-to-r ${theme.headerBg} !border-gray-300`,
-        // Estado com filtros ativos: destaque nas cores do módulo
-        hasActiveFilters && !disabled && `!bg-gradient-to-r ${theme.headerBg} !border-gray-300`,
-        // Estado desabilitado
+        // Base styles - override shadcn defaults
+        "h-10 border-2 font-medium relative",
+        "transition-colors duration-200",
+        "hover:bg-accent/0", // Remove default hover
+        // Size configuration
+        iconOnly ? "w-10 px-0" : "px-4",
+        // State-based styling
+        (showFilters || hasActiveFilters) && !disabled 
+          ? `bg-gradient-to-r ${theme.headerBg} border-gray-300 text-gray-800`
+          : "border-gray-200 text-gray-700 bg-white",
+        // Hover state only when inactive
+        !disabled && !(showFilters || hasActiveFilters) && 
+          `hover:bg-gradient-to-r ${theme.hoverBg} hover:border-gray-300 hover:text-gray-800`,
+        // Disabled state
         disabled && "opacity-50 cursor-not-allowed",
         className
       )}

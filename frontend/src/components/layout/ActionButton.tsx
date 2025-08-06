@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { getModuleTheme } from '@/types/theme';
 
 interface ActionButtonProps {
-  variant: 'view' | 'edit' | 'delete';
+  variant: 'view' | 'edit' | 'delete' | 'warning' | 'success';
   module: string; // Nome do módulo para aplicar o tema correto
   onClick: () => void;
   title?: string;
@@ -40,6 +40,16 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
       case 'delete':
         return {
           className: "group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300",
+          size: "sm" as const
+        };
+      case 'warning':
+        return {
+          className: "group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300",
+          size: "sm" as const
+        };
+      case 'success':
+        return {
+          className: "group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300",
           size: "sm" as const
         };
     }

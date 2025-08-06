@@ -13,8 +13,10 @@ import { useAuthStore } from './store/auth';
 import { Toaster } from '@/components/ui/toaster';
 import { Dashboard } from '@/pages/dashboard/Dashboard';
 import ProfissionaisPage from '@/pages/profissionais/ProfissionaisPage';
+import { ProfissionaisPageResponsive } from '@/pages/profissionais/ProfissionaisPageResponsive';
 import DisponibilidadeProfissionaisPage from '@/pages/profissionais/DisponibilidadeProfissionaisPage';
 import { PacientesPage } from '@/pages/pacientes/PacientesPage';
+import { PacientesPageResponsive } from '@/pages/pacientes/PacientesPageResponsive';
 import { ServicosPage } from '@/pages/servicos/ServicosPage';
 import { ServicosPageResponsive } from '@/pages/servicos/ServicosPageResponsive';
 import PrecosServicoProfissionalPage from '@/pages/servicos/PrecosServicoProfissionalPage';
@@ -35,6 +37,7 @@ import { Perfil } from '@/pages/perfil/Perfil';
 import { ConselhosPageResponsive } from './pages/conselhos/ConselhosPageResponsive';
 import { RecursosPageResponsive } from './pages/recursos/RecursosPageResponsive';
 import { EspecialidadesPageResponsive } from './pages/especialidades/EspecialidadesPageResponsive';
+import { UsuariosPageResponsive } from './pages/usuarios/UsuariosPageResponsive';
 
 export default function App() {
   const initializeAuth = useAuthStore((s) => s.initializeAuth);
@@ -54,11 +57,15 @@ export default function App() {
         <Route path="/auth/email-confirmation" element={<EmailConfirmation />} />
         <Route path="/" element={<Landing />} />
 
-          <Route element={<Index />}> {/* Layout compartilhado com Sidebar */}
+        {/* Rotas protegidas */}
+        <Route element={<PrivateRoute />}> 
+            <Route element={<Index />}> {/* Layout compartilhado com Sidebar */}
             <Route path="dashboard" element={<Dashboard />} />
-            <Route path="profissionais" element={<ProfissionaisPage />} />
+            <Route path="profissionais" element={<ProfissionaisPageResponsive />} />
+            <Route path="profissionais-antigo" element={<ProfissionaisPage />} />
             <Route path="profissionais/disponibilidade" element={<DisponibilidadeProfissionaisPage />} />
-            <Route path="pacientes" element={<PacientesPage />} />
+            <Route path="pacientes" element={<PacientesPageResponsive />} />
+            <Route path="pacientes-antigo" element={<PacientesPage />} />
             <Route path="pacientes/precos-particulares" element={<PrecosParticularPage />} />
             <Route path="servicos" element={<ServicosPageResponsive />} />
             <Route path="servicos-antigo" element={<ServicosPage />} />
@@ -77,15 +84,10 @@ export default function App() {
             <Route path="agendamentos/liberacao" element={<LiberarPage />} />
             <Route path="agendamentos/atendimento" element={<AtenderPage />} />
             <Route path="agendamentos/conclusao" element={<AprovarPage />} />
-
             <Route path="calendario" element={<CalendarioPage />} />
             <Route path="perfil" element={<Perfil />} />
-            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="administracao/usuarios" element={<UsuariosPageResponsive />} />
           </Route>
-
-        {/* Rotas protegidas */}
-        <Route element={<PrivateRoute />}> 
-          
         </Route>
 
         {/* 404 */}
