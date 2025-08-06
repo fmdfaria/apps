@@ -1,6 +1,7 @@
 import { inject, injectable } from 'tsyringe';
 import { IUsersRepository } from '../../../domain/repositories/IUsersRepository';
 import { IRefreshTokensRepository } from '../../../domain/repositories/IRefreshTokensRepository';
+import { IUserRolesRepository } from '../../../domain/repositories/IUserRolesRepository';
 import { AppError } from '../../../../shared/errors/AppError';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -15,7 +16,7 @@ interface IRequest {
 }
 
 interface IResponse {
-  user: Omit<User, 'senha'>;
+  user: Omit<User, 'senha'> & { roles?: string[] };
   accessToken: string;
   refreshToken: string;
 }
@@ -26,7 +27,9 @@ export class AuthenticateUserUseCase {
     @inject('UsersRepository')
     private usersRepository: IUsersRepository,
     @inject('RefreshTokensRepository')
-    private refreshTokensRepository: IRefreshTokensRepository
+    private refreshTokensRepository: IRefreshTokensRepository,
+    @inject('UserRolesRepository')
+    private userRolesRepository: IUserRolesRepository
   ) {}
 
   async execute({ email, senha, ip, userAgent }: IRequest): Promise<IResponse> {
@@ -38,9 +41,14 @@ export class AuthenticateUserUseCase {
     if (!passwordMatch) {
       throw new AppError('Usuário ou senha inválidos.', 401);
     }
+    
+    // Buscar roles do usuário
+    const userRoles = await this.userRolesRepository.findActiveUserRoles(user.id);
+    const roleNames = userRoles.map(ur => ur.roleId); // Você pode ajustar para pegar o nome da role se necessário
+    
     // Geração dos tokens
     const accessToken = jwt.sign(
-      { sub: user.id, tipo: user.tipo },
+      { sub: user.id, tipo: user.tipo, roles: roleNames },
       process.env.JWT_SECRET as string,
       { expiresIn: '15m' }
     );
@@ -60,7 +68,7 @@ export class AuthenticateUserUseCase {
     // Não retornar a senha
     const { senha: _, ...userSafe } = user;
     return {
-      user: userSafe,
+      user: { ...userSafe, roles: roleNames },
       accessToken,
       refreshToken: refreshTokenValue,
     };

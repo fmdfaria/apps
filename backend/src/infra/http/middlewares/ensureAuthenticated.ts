@@ -10,7 +10,7 @@ export async function ensureAuthenticated(request: FastifyRequest, reply: Fastif
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
     // @ts-ignore
-    request.user = { id: decoded.sub, tipo: decoded.tipo };
+    request.user = { id: decoded.sub, tipo: decoded.tipo, roles: decoded.roles || [] };
   } catch {
     return reply.status(401).send({ message: 'Token inválido.' });
   }
