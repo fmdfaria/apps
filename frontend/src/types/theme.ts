@@ -111,6 +111,46 @@ export const moduleThemes: Record<string, ModuleTheme> = {
     hoverTextColor: 'hover:text-emerald-700'
   },
   
+  admin: {
+    titleGradient: 'from-slate-600 to-gray-800',
+    headerBg: 'from-slate-50 to-gray-100',
+    hoverBg: 'hover:from-slate-50 hover:to-gray-100',
+    primaryButton: 'from-slate-600 to-slate-700',
+    primaryButtonHover: 'hover:from-slate-700 hover:to-slate-800',
+    focusRing: 'focus:ring-slate-300',
+    hoverTextColor: 'hover:text-slate-700'
+  },
+  
+  roles: {
+    titleGradient: 'from-amber-600 to-orange-600',
+    headerBg: 'from-amber-50 to-orange-50',
+    hoverBg: 'hover:from-amber-50 hover:to-orange-50',
+    primaryButton: 'from-amber-600 to-amber-700',
+    primaryButtonHover: 'hover:from-amber-700 hover:to-amber-800',
+    focusRing: 'focus:ring-amber-300',
+    hoverTextColor: 'hover:text-amber-700'
+  },
+  
+  routes: {
+    titleGradient: 'from-sky-600 to-blue-600',
+    headerBg: 'from-sky-50 to-blue-50',
+    hoverBg: 'hover:from-sky-50 hover:to-blue-50',
+    primaryButton: 'from-sky-600 to-sky-700',
+    primaryButtonHover: 'hover:from-sky-700 hover:to-sky-800',
+    focusRing: 'focus:ring-sky-300',
+    hoverTextColor: 'hover:text-sky-700'
+  },
+  
+  permissions: {
+    titleGradient: 'from-red-600 to-rose-600',
+    headerBg: 'from-red-50 to-rose-50',
+    hoverBg: 'hover:from-red-50 hover:to-rose-50',
+    primaryButton: 'from-red-600 to-red-700',
+    primaryButtonHover: 'hover:from-red-700 hover:to-red-800',
+    focusRing: 'focus:ring-red-300',
+    hoverTextColor: 'hover:text-red-700'
+  },
+  
   // Tema padrão (fallback)
   default: {
     titleGradient: 'from-gray-600 to-gray-800',

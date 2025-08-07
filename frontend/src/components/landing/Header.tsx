@@ -14,7 +14,7 @@ export const Header = () => {
           {/* Logo */}
           <div className="flex items-center">
             <img
-              src="https://hfhtedjjznbktrnshmwa.supabase.co/storage/v1/object/public/files//logo-probotec-300x100.png"
+              src="https://probotec.com.br/wp-content/uploads/2025/05/logo-probotec-300x100-2.png"
               alt="logo-probotec-clinica"
               className="ml-2 h-14 w-auto object-contain"
             />

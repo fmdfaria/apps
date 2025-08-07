@@ -10,6 +10,10 @@ import {
   UpdateRouteRequest,
   AssignRoleToUserRequest,
   AssignRouteToRoleRequest,
+  CreateUserRoleRequest,
+  UpdateUserRoleRequest,
+  CreateRoleRouteRequest,
+  UpdateRoleRouteRequest,
   UserAllowedRoute
 } from '../types/RBAC';
 
@@ -64,7 +68,7 @@ export const rbacService = {
     return response.data;
   },
 
-  getUserRoles: async (userId: string, onlyActive = true): Promise<UserRole[]> => {
+  getUserRolesByUserId: async (userId: string, onlyActive = true): Promise<UserRole[]> => {
     const response = await api.get(`/users/${userId}/roles?onlyActive=${onlyActive}`);
     return response.data;
   },
@@ -78,6 +82,16 @@ export const rbacService = {
     await api.delete(`/user-roles/${userId}/${roleId}`);
   },
 
+  getAllUserRoles: async (): Promise<UserRole[]> => {
+    const response = await api.get('/user-roles');
+    return response.data;
+  },
+
+  updateUserRole: async (id: string, data: UpdateUserRoleRequest): Promise<UserRole> => {
+    const response = await api.put(`/user-roles/${id}`, data);
+    return response.data;
+  },
+
   // ============ ROLE ROUTES ============
   assignRouteToRole: async (data: AssignRouteToRoleRequest): Promise<RoleRoute> => {
     const response = await api.post('/role-routes', data);
@@ -89,21 +103,4 @@ export const rbacService = {
   },
 
   // ============ UTILS ============
-  // Buscar todas as associações usuário-role para uma página de gerenciamento
-  getAllUserRoles: async (): Promise<UserRole[]> => {
-    const response = await api.get('/user-roles');
-    return response.data;
-  },
-
-  // Buscar todas as associações role-route para uma página de gerenciamento
-  getAllRoleRoutes: async (): Promise<RoleRoute[]> => {
-    const response = await api.get('/role-routes');
-    return response.data;
-  },
-
-  // Buscar rotas de um role específico
-  getRoleRoutes: async (roleId: string): Promise<RoleRoute[]> => {
-    const response = await api.get(`/roles/${roleId}/routes`);
-    return response.data;
-  }
 };

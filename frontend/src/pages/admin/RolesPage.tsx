@@ -1,38 +1,38 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { Plus, Edit, Trash2, Shield, UserX, UserCheck } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Shield, Users } from 'lucide-react';
-
-import { PageTemplate } from '../../components/layout/PageTemplate';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { Badge } from '../../components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '../../components/ui/alert-dialog';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Textarea } from '../../components/ui/textarea';
-import { Switch } from '../../components/ui/switch';
-
-import { rbacService } from '../../services/rbac';
-import { Role, CreateRoleRequest, UpdateRoleRequest } from '../../types/RBAC';
-import { ProtectedRoute } from '../../components/layout/ProtectedRoute';
+import { rbacService } from '@/services/rbac';
+import type { Role, CreateRoleRequest, UpdateRoleRequest } from '@/types/RBAC';
+import { FormErrorMessage } from '@/components/form-error-message';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import { 
+  PageContainer, 
+  PageHeader, 
+  PageContent, 
+  ViewToggle, 
+  SearchBar, 
+  FilterButton,
+  DynamicFilterPanel,
+  ResponsiveTable, 
+  ResponsiveCards, 
+  ResponsivePagination,
+  ActionButton,
+  TableColumn,
+  ResponsiveCardFooter 
+} from '@/components/layout';
+import type { FilterConfig } from '@/types/filters';
+import { useViewMode } from '@/hooks/useViewMode';
+import { useResponsiveTable } from '@/hooks/useResponsiveTable';
+import { useTableFilters } from '@/hooks/useTableFilters';
+import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 
 interface RoleFormData {
   nome: string;
@@ -40,368 +40,548 @@ interface RoleFormData {
   ativo: boolean;
 }
 
-const RolesPage: React.FC = () => {
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-  const [formData, setFormData] = useState<RoleFormData>({
+export const RolesPage = () => {
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [busca, setBusca] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editando, setEditando] = useState<Role | null>(null);
+  const [form, setForm] = useState<RoleFormData>({
     nome: '',
     descricao: '',
     ativo: true,
   });
+  const [formLoading, setFormLoading] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [excluindo, setExcluindo] = useState<Role | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const queryClient = useQueryClient();
+  // Hooks responsivos
+  const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'roles-view' });
+  
+  // Configuração das colunas da tabela
+  const columns: TableColumn<Role>[] = [
+    {
+      key: 'nome',
+      header: '🛡️ Nome',
+      essential: true,
+      filterable: {
+        type: 'text',
+        placeholder: 'Nome da role...',
+        label: 'Nome'
+      },
+      render: (item) => <span className="text-sm font-medium">{item.nome}</span>
+    },
+    {
+      key: 'descricao',
+      header: '📝 Descrição',
+      essential: false,
+      filterable: {
+        type: 'text',
+        placeholder: 'Buscar na descrição...',
+        label: 'Descrição'
+      },
+      render: (item) => <span className="text-sm">{item.descricao || '-'}</span>
+    },
+    {
+      key: 'ativo',
+      header: '🟢 Status',
+      essential: true,
+      className: 'text-center',
+      filterable: {
+        type: 'select',
+        label: 'Status',
+        options: [
+          { value: 'true', label: 'Ativo' },
+          { value: 'false', label: 'Inativo' }
+        ]
+      },
+      render: (item) => (
+        <Badge variant={item.ativo ? "default" : "secondary"}>
+          {item.ativo ? 'Ativo' : 'Inativo'}
+        </Badge>
+      )
+    },
+    {
+      key: 'createdAt',
+      header: '📅 Criado em',
+      essential: false,
+      className: 'text-center',
+      render: (item) => (
+        <span className="text-sm text-gray-600">
+          {new Date(item.createdAt).toLocaleDateString('pt-BR')}
+        </span>
+      )
+    },
+    {
+      key: 'actions',
+      header: '⚙️ Ações',
+      essential: true,
+      render: (item) => (
+        <div className="flex gap-1.5">
+          <ActionButton
+            variant="view"
+            module="admin"
+            onClick={() => abrirModalEditar(item)}
+            title="Editar Role"
+          >
+            <Edit className="w-4 h-4" />
+          </ActionButton>
+          <ActionButton
+            variant={item.ativo ? "warning" : "success"}
+            module="admin"
+            onClick={() => toggleRoleStatus(item)}
+            title={item.ativo ? "Desativar Role" : "Ativar Role"}
+          >
+            {item.ativo ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+          </ActionButton>
+          <ActionButton
+            variant="delete"
+            module="admin"
+            onClick={() => confirmarExclusao(item)}
+            title="Excluir Role"
+          >
+            <Trash2 className="w-4 h-4" />
+          </ActionButton>
+        </div>
+      )
+    }
+  ];
+  
+  // Sistema de filtros dinâmicos
+  const {
+    activeFilters,
+    filterConfigs,
+    activeFiltersCount,
+    setFilter,
+    clearFilter,
+    clearAllFilters,
+    applyFilters
+  } = useTableFilters(columns);
+  
+  // Estado para mostrar/ocultar painel de filtros
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  
+  // Filtrar dados baseado na busca e filtros dinâmicos
+  const rolesFiltradas = useMemo(() => {
+    // Primeiro aplicar busca textual
+    let dadosFiltrados = roles.filter(r =>
+      r.nome.toLowerCase().includes(busca.toLowerCase()) ||
+      (r.descricao || '').toLowerCase().includes(busca.toLowerCase())
+    );
+    
+    return applyFilters(dadosFiltrados);
+  }, [roles, busca, applyFilters]);
 
-  // Query para buscar roles
-  const { data: roles = [], isLoading } = useQuery({
-    queryKey: ['roles'],
-    queryFn: () => rbacService.getRoles(),
-  });
+  const {
+    data: rolesPaginadas,
+    totalItems,
+    currentPage,
+    itemsPerPage,
+    totalPages,
+    handlePageChange,
+    handleItemsPerPageChange,
+    // Infinite scroll específico
+    isDesktop,
+    isMobile,
+    hasNextPage,
+    isLoadingMore,
+    targetRef
+  } = useResponsiveTable(rolesFiltradas, 10);
 
-  // Mutation para criar role
-  const createMutation = useMutation({
-    mutationFn: (data: CreateRoleRequest) => rbacService.createRole(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['roles'] });
-      setIsCreateModalOpen(false);
-      resetForm();
-      toast.success('Role criada com sucesso!');
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Erro ao criar role');
-    },
-  });
+  useEffect(() => {
+    fetchRoles();
+  }, []);
 
-  // Mutation para atualizar role
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateRoleRequest }) => 
-      rbacService.updateRole(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['roles'] });
-      setIsEditModalOpen(false);
-      resetForm();
-      toast.success('Role atualizada com sucesso!');
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Erro ao atualizar role');
-    },
-  });
+  const fetchRoles = async () => {
+    setLoading(true);
+    try {
+      const data = await rbacService.getRoles();
+      setRoles(data);
+    } catch (e) {
+      toast.error('Erro ao carregar roles');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Mutation para deletar role
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => rbacService.deleteRole(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['roles'] });
-      setIsDeleteModalOpen(false);
-      setSelectedRole(null);
-      toast.success('Role deletada com sucesso!');
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Erro ao deletar role');
-    },
-  });
+  // Renderização do card
+  const renderCard = (role: Role) => (
+    <Card className="h-full hover:shadow-md transition-shadow">
+      <CardHeader className="pb-2 pt-3 px-3">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <Shield className="w-5 h-5 text-slate-600" />
+            <CardTitle className="text-sm font-medium truncate">{role.nome}</CardTitle>
+          </div>
+          <Badge variant={role.ativo ? "default" : "secondary"} className="flex-shrink-0 ml-2">
+            {role.ativo ? 'Ativo' : 'Inativo'}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0 px-3 pb-3">
+        <div className="space-y-2 mb-3">
+          {role.descricao && (
+            <CardDescription className="line-clamp-2 text-xs">
+              {role.descricao}
+            </CardDescription>
+          )}
+          <div className="text-xs text-gray-500">
+            <span>Criado em: {new Date(role.createdAt).toLocaleDateString('pt-BR')}</span>
+          </div>
+          <div className="text-xs text-gray-500">
+            <span>ID: {role.id.slice(0, 8)}...</span>
+          </div>
+        </div>
+      </CardContent>
+      <ResponsiveCardFooter>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="border-slate-300 text-slate-600 hover:bg-slate-600 hover:text-white"
+          onClick={() => abrirModalEditar(role)}
+          title="Editar role"
+        >
+          <Edit className="w-4 h-4" />
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className={
+            role.ativo 
+              ? 'border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white'
+              : 'border-green-300 text-green-600 hover:bg-green-600 hover:text-white'
+          }
+          onClick={() => toggleRoleStatus(role)}
+          title={role.ativo ? "Desativar role" : "Ativar role"}
+        >
+          {role.ativo ? (
+            <UserX className="w-4 h-4" />
+          ) : (
+            <UserCheck className="w-4 h-4" />
+          )}
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+          onClick={() => confirmarExclusao(role)}
+          title="Excluir role"
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </ResponsiveCardFooter>
+    </Card>
+  );
 
-  const resetForm = () => {
-    setFormData({
+  // Funções de manipulação
+  const abrirModalNovo = () => {
+    setEditando(null);
+    setForm({
       nome: '',
       descricao: '',
       ativo: true,
     });
-    setSelectedRole(null);
+    setFormError('');
+    setShowModal(true);
   };
 
-  const handleCreate = () => {
-    setIsCreateModalOpen(true);
-    resetForm();
-  };
-
-  const handleEdit = (role: Role) => {
-    setSelectedRole(role);
-    setFormData({
+  const abrirModalEditar = (role: Role) => {
+    setEditando(role);
+    setForm({
       nome: role.nome,
       descricao: role.descricao || '',
       ativo: role.ativo,
     });
-    setIsEditModalOpen(true);
+    setFormError('');
+    setShowModal(true);
   };
 
-  const handleDelete = (role: Role) => {
-    setSelectedRole(role);
-    setIsDeleteModalOpen(true);
-  };
-
-  const handleSubmitCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    createMutation.mutate({
-      nome: formData.nome,
-      descricao: formData.descricao || undefined,
+  const fecharModal = () => {
+    setShowModal(false);
+    setEditando(null);
+    setForm({
+      nome: '',
+      descricao: '',
+      ativo: true,
     });
+    setFormError('');
   };
 
-  const handleSubmitEdit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedRole) return;
-    
-    updateMutation.mutate({
-      id: selectedRole.id,
-      data: {
-        nome: formData.nome,
-        descricao: formData.descricao || undefined,
-        ativo: formData.ativo,
-      },
-    });
+    if (!form.nome.trim() || form.nome.trim().length < 2) {
+      setFormError('O nome deve ter pelo menos 2 caracteres.');
+      return;
+    }
+
+    const nomeDuplicado = roles.some(r =>
+      r.nome.trim().toLowerCase() === form.nome.trim().toLowerCase() &&
+      (!editando || r.id !== editando.id)
+    );
+    if (nomeDuplicado) {
+      setFormError('Já existe uma role com este nome.');
+      return;
+    }
+
+    setFormLoading(true);
+    try {
+      if (editando) {
+        const payload: UpdateRoleRequest = {
+          nome: form.nome,
+          descricao: form.descricao || undefined,
+          ativo: form.ativo,
+        };
+        await rbacService.updateRole(editando.id, payload);
+        toast.success('Role atualizada com sucesso');
+      } else {
+        const payload: CreateRoleRequest = {
+          nome: form.nome,
+          descricao: form.descricao || undefined,
+        };
+        await rbacService.createRole(payload);
+        toast.success('Role criada com sucesso');
+      }
+      fecharModal();
+      fetchRoles();
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Erro ao salvar role';
+      toast.error(msg);
+    } finally {
+      setFormLoading(false);
+    }
   };
 
-  const handleConfirmDelete = () => {
-    if (!selectedRole) return;
-    deleteMutation.mutate(selectedRole.id);
+  const toggleRoleStatus = async (role: Role) => {
+    try {
+      const payload: UpdateRoleRequest = {
+        nome: role.nome,
+        descricao: role.descricao || undefined,
+        ativo: !role.ativo,
+      };
+      await rbacService.updateRole(role.id, payload);
+      toast.success(`Role ${!role.ativo ? 'ativada' : 'desativada'} com sucesso`);
+      fetchRoles();
+    } catch (e) {
+      toast.error('Erro ao alterar status da role');
+    }
   };
 
-  const breadcrumbItems = [
-    { label: 'Administração', href: '/admin' },
-    { label: 'Roles', href: '/admin/roles' },
-  ];
+  const confirmarExclusao = (role: Role) => {
+    setExcluindo(role);
+  };
+
+  const cancelarExclusao = () => {
+    setExcluindo(null);
+  };
+
+  const handleDelete = async () => {
+    if (!excluindo) return;
+    setDeleteLoading(true);
+    try {
+      await rbacService.deleteRole(excluindo.id);
+      toast.success('Role excluída com sucesso');
+      setExcluindo(null);
+      fetchRoles();
+    } catch (e) {
+      toast.error('Erro ao excluir role');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <PageContainer>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto mb-2"></div>
+            <p className="text-gray-500">Carregando roles...</p>
+          </div>
+        </div>
+      </PageContainer>
+    );
+  }
 
   return (
     <ProtectedRoute requiredModule="admin">
-      <PageTemplate
-        title="Gerenciar Roles"
-        description="Gerencie as roles (funções) do sistema e suas permissões"
-        breadcrumbItems={breadcrumbItems}
-        icon={Shield}
-      >
-        <div className="space-y-6">
-          {/* Header com botão de criar */}
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl font-bold">Roles do Sistema</h2>
-              <p className="text-gray-600 mt-1">
-                Gerencie as diferentes funções e níveis de acesso do sistema
-              </p>
-            </div>
-            <Button onClick={handleCreate}>
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Role
-            </Button>
-          </div>
+      <PageContainer>
+        {/* Header da página */}
+        <PageHeader title="Gerenciar Roles" module="admin" icon={<Shield />}>
+          <SearchBar
+            placeholder="Buscar roles..."
+            value={busca}
+            onChange={setBusca}
+            module="admin"
+          />
+          
+          <FilterButton
+            showFilters={mostrarFiltros}
+            onToggleFilters={() => setMostrarFiltros(prev => !prev)}
+            activeFiltersCount={activeFiltersCount}
+            module="admin"
+            disabled={filterConfigs.length === 0}
+            tooltip={filterConfigs.length === 0 ? 'Nenhum filtro configurado' : undefined}
+          />
+          
+          <ViewToggle 
+            viewMode={viewMode} 
+            onViewModeChange={setViewMode} 
+            module="admin"
+          />
+          
+          <Button 
+            className="!h-10 bg-gradient-to-r from-slate-600 to-gray-700 hover:from-slate-700 hover:to-gray-800 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
+            onClick={abrirModalNovo}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Role
+          </Button>
+        </PageHeader>
 
-          {/* Lista de roles */}
-          {isLoading ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardHeader>
-                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+        {/* Conteúdo principal */}
+        <PageContent>
+          {/* Painel de Filtros Dinâmicos */}
+          <DynamicFilterPanel
+            isVisible={mostrarFiltros}
+            filterConfigs={filterConfigs}
+            activeFilters={activeFilters}
+            onFilterChange={setFilter}
+            onClearAll={clearAllFilters}
+            onClose={() => setMostrarFiltros(false)}
+            module="admin"
+          />
+
+          {/* Conteúdo baseado no modo de visualização */}
+          {viewMode === 'table' ? (
+            <ResponsiveTable 
+              data={rolesPaginadas}
+              columns={columns}
+              module="admin"
+              emptyMessage="Nenhuma role encontrada"
+              isLoadingMore={isLoadingMore}
+              hasNextPage={hasNextPage}
+              isMobile={isMobile}
+              scrollRef={targetRef}
+            />
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {roles.map((role) => (
-                <Card key={role.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center">
-                        <Shield className="w-5 h-5 mr-2 text-blue-600" />
-                        {role.nome}
-                      </CardTitle>
-                      <Badge variant={role.ativo ? "default" : "secondary"}>
-                        {role.ativo ? 'Ativo' : 'Inativo'}
-                      </Badge>
-                    </div>
-                    {role.descricao && (
-                      <CardDescription className="text-sm">
-                        {role.descricao}
-                      </CardDescription>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Users className="w-4 h-4 mr-1" />
-                        <span>ID: {role.id.slice(0, 8)}...</span>
-                      </div>
-                      <div className="flex space-x-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(role)}
-                        >
-                          <Edit className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDelete(role)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <ResponsiveCards 
+              data={rolesPaginadas}
+              renderCard={renderCard}
+              emptyMessage="Nenhuma role encontrada"
+              emptyIcon="🛡️"
+              isLoadingMore={isLoadingMore}
+              hasNextPage={hasNextPage}
+              isMobile={isMobile}
+              scrollRef={targetRef}
+            />
           )}
+        </PageContent>
 
-          {!isLoading && roles.length === 0 && (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-8">
-                <Shield className="w-12 h-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Nenhuma role cadastrada
-                </h3>
-                <p className="text-gray-500 text-center mb-4">
-                  Comece criando a primeira role do sistema
-                </p>
-                <Button onClick={handleCreate}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Criar primeira role
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        {/* Paginação */}
+        {totalItems > 0 && (
+          <ResponsivePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            itemsPerPage={itemsPerPage}
+            module="admin"
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
+        )}
 
-        {/* Modal de Criar Role */}
-        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Criar Nova Role</DialogTitle>
-              <DialogDescription>
-                Crie uma nova role para organizar as permissões do sistema
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmitCreate}>
-              <div className="space-y-4">
+        {/* Modal de cadastro/edição */}
+        <Dialog open={showModal} onOpenChange={setShowModal}>
+          <DialogContent className="max-w-md">
+            <form onSubmit={handleSubmit}>
+              <DialogHeader>
+                <DialogTitle>{editando ? 'Editar Role' : 'Nova Role'}</DialogTitle>
+              </DialogHeader>
+              <div className="py-2 space-y-4">
                 <div>
-                  <Label htmlFor="nome">Nome da Role *</Label>
+                  <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    <span className="bg-gradient-to-r from-slate-600 to-gray-800 bg-clip-text text-transparent font-semibold">Nome da Role</span>
+                    <span className="text-red-500">*</span>
+                  </label>
                   <Input
-                    id="nome"
-                    value={formData.nome}
-                    onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
+                    type="text"
+                    value={form.nome}
+                    onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
+                    minLength={2}
+                    disabled={formLoading}
+                    autoFocus
+                    className="hover:border-slate-300 focus:border-slate-500 focus:ring-slate-100"
                     placeholder="Ex: GERENTE, VENDEDOR, etc."
                     required
                   />
                 </div>
+
                 <div>
-                  <Label htmlFor="descricao">Descrição</Label>
+                  <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                    <span className="text-lg">📝</span>
+                    <span className="bg-gradient-to-r from-slate-600 to-gray-800 bg-clip-text text-transparent font-semibold">Descrição</span>
+                  </label>
                   <Textarea
-                    id="descricao"
-                    value={formData.descricao}
-                    onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
+                    value={form.descricao}
+                    onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
+                    disabled={formLoading}
+                    className="hover:border-slate-300 focus:border-slate-500 focus:ring-slate-100"
                     placeholder="Descreva as responsabilidades desta role"
                     rows={3}
                   />
                 </div>
-              </div>
+
+                {editando && (
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="ativo"
+                      checked={form.ativo}
+                      onCheckedChange={(checked) => setForm(f => ({ ...f, ativo: checked }))}
+                    />
+                    <Label htmlFor="ativo">Role ativa</Label>
+                  </div>
+                )}
+
+                {formError && <FormErrorMessage>{formError}</FormErrorMessage>}
+              </div> 
               <DialogFooter className="mt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsCreateModalOpen(false)}
+                <DialogClose asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={formLoading}
+                    className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
+                  >
+                    Cancelar
+                  </Button>
+                </DialogClose>
+                <Button 
+                  type="submit" 
+                  disabled={formLoading}
+                  className="bg-gradient-to-r from-slate-600 to-gray-700 hover:from-slate-700 hover:to-gray-800 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200"
                 >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                >
-                  {createMutation.isPending ? 'Criando...' : 'Criar Role'}
+                  {formLoading ? 'Salvando...' : 'Salvar'}
                 </Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
 
-        {/* Modal de Editar Role */}
-        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Editar Role</DialogTitle>
-              <DialogDescription>
-                Modifique as informações da role selecionada
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmitEdit}>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="edit-nome">Nome da Role *</Label>
-                  <Input
-                    id="edit-nome"
-                    value={formData.nome}
-                    onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-descricao">Descrição</Label>
-                  <Textarea
-                    id="edit-descricao"
-                    value={formData.descricao}
-                    onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
-                    rows={3}
-                  />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="edit-ativo"
-                    checked={formData.ativo}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, ativo: checked }))}
-                  />
-                  <Label htmlFor="edit-ativo">Role ativa</Label>
-                </div>
-              </div>
-              <DialogFooter className="mt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsEditModalOpen(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={updateMutation.isPending}
-                >
-                  {updateMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Modal de Confirmação de Exclusão */}
-        <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-              <AlertDialogDescription>
-                Tem certeza que deseja excluir a role "{selectedRole?.nome}"? 
-                Esta ação não pode ser desfeita e pode afetar usuários que possuem esta role.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleConfirmDelete}
-                disabled={deleteMutation.isPending}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                {deleteMutation.isPending ? 'Excluindo...' : 'Excluir'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </PageTemplate>
+        {/* Modal de confirmação de exclusão */}
+        <ConfirmDeleteModal
+          open={!!excluindo}
+          onClose={cancelarExclusao}
+          onConfirm={handleDelete}
+          title="Confirmar Exclusão de Role"
+          entityName={excluindo?.nome || ''}
+          entityType="role"
+          isLoading={deleteLoading}
+          loadingText="Excluindo role..."
+          confirmText="Excluir Role"
+        />
+      </PageContainer>
     </ProtectedRoute>
   );
 };

@@ -8,6 +8,8 @@ export async function userRolesRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', ensureAuthenticated);
 
   fastify.post('/user-roles', userRolesController.assignRole);
+  fastify.get('/user-roles', userRolesController.listAllUserRoles);
+  fastify.put('/user-roles/:id', userRolesController.updateUserRole);
   fastify.delete('/user-roles/:userId/:roleId', userRolesController.removeRole);
   fastify.get('/users/:userId/roles', userRolesController.listUserRoles);
   fastify.get('/users/:userId/allowed-routes', userRolesController.listUserAllowedRoutes);

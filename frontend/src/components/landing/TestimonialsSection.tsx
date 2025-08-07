@@ -6,21 +6,21 @@ export const TestimonialsSection = () => {
     {
       name: 'Dr. Maria Silva',
       role: 'Clínica Odontológica',
-      image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face',
+      image: 'https://probotec.com.br/wp-content/uploads/2025/05/cropped-probotec.png',
       rating: 5,
       comment: 'Revolucionou nossa clínica! Os agendamentos online reduziram nossa carga administrativa em 70% e os pacientes adoram a praticidade.'
     },
     {
       name: 'Dr. João Santos',
       role: 'Clínica Médica',
-      image: 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=150&h=150&fit=crop&crop=face',
+      image: 'https://probotec.com.br/wp-content/uploads/2025/05/cropped-probotec.png',
       rating: 5,
       comment: 'Interface muito intuitiva e suporte excepcional. Conseguimos organizar melhor nossos atendimentos e aumentar a satisfação dos pacientes.'
     },
     {
       name: 'Dra. Ana Costa',
       role: 'Clínica de Fisioterapia',
-      image: 'https://images.unsplash.com/photo-1594824475874-87d2de9c9b66?w=150&h=150&fit=crop&crop=face',
+      image: 'https://probotec.com.br/wp-content/uploads/2025/05/cropped-probotec.png',
       rating: 5,
       comment: 'Os relatórios detalhados me ajudam muito na gestão. Posso acompanhar o desempenho da clínica e tomar decisões mais assertivas.'
     }

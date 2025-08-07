@@ -1,39 +1,39 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { Plus, Edit, Trash2, Route as RouteIcon, UserX, UserCheck } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Route as RouteIcon, Filter, Search } from 'lucide-react';
-
-import { PageTemplate } from '../../components/layout/PageTemplate';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { Badge } from '../../components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '../../components/ui/alert-dialog';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Textarea } from '../../components/ui/textarea';
-import { Switch } from '../../components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-
-import { rbacService } from '../../services/rbac';
-import { Route, CreateRouteRequest, UpdateRouteRequest } from '../../types/RBAC';
-import { ProtectedRoute } from '../../components/layout/ProtectedRoute';
+import { rbacService } from '@/services/rbac';
+import type { Route, CreateRouteRequest, UpdateRouteRequest } from '@/types/RBAC';
+import { FormErrorMessage } from '@/components/form-error-message';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import { 
+  PageContainer, 
+  PageHeader, 
+  PageContent, 
+  ViewToggle, 
+  SearchBar, 
+  FilterButton,
+  DynamicFilterPanel,
+  ResponsiveTable, 
+  ResponsiveCards, 
+  ResponsivePagination,
+  ActionButton,
+  TableColumn,
+  ResponsiveCardFooter 
+} from '@/components/layout';
+import type { FilterConfig } from '@/types/filters';
+import { useViewMode } from '@/hooks/useViewMode';
+import { useResponsiveTable } from '@/hooks/useResponsiveTable';
+import { useTableFilters } from '@/hooks/useTableFilters';
+import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 
 interface RouteFormData {
   path: string;
@@ -51,225 +51,687 @@ const MODULES = [
   { value: 'agendamentos', label: 'Agendamentos' },
   { value: 'servicos', label: 'Serviços' },
   { value: 'convenios', label: 'Convênios' },
-  { value: 'recursos', label: 'Recursos' },
   { value: 'especialidades', label: 'Especialidades' },
-  { value: 'conselhos', label: 'Conselhos' },
   { value: 'admin', label: 'Administração' },
   { value: 'relatorios', label: 'Relatórios' },
+  { value: 'configuracoes', label: 'Configurações' },
 ];
 
 const METHODS = [
-  { value: 'GET', label: 'GET', color: 'bg-green-100 text-green-800' },
-  { value: 'POST', label: 'POST', color: 'bg-blue-100 text-blue-800' },
-  { value: 'PUT', label: 'PUT', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'DELETE', label: 'DELETE', color: 'bg-red-100 text-red-800' },
+  { value: 'GET', label: 'GET' },
+  { value: 'POST', label: 'POST' },
+  { value: 'PUT', label: 'PUT' },
+  { value: 'DELETE', label: 'DELETE' },
+  { value: 'PATCH', label: 'PATCH' },
 ];
 
-const RoutesPage: React.FC = () => {
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedModule, setSelectedModule] = useState<string>('all');
-  const [formData, setFormData] = useState<RouteFormData>({
+function getMethodColor(method: string) {
+  const colors = {
+    'GET': { bg: 'bg-blue-100', text: 'text-blue-800' },
+    'POST': { bg: 'bg-green-100', text: 'text-green-800' },
+    'PUT': { bg: 'bg-yellow-100', text: 'text-yellow-800' },
+    'DELETE': { bg: 'bg-red-100', text: 'text-red-800' },
+    'PATCH': { bg: 'bg-purple-100', text: 'text-purple-800' }
+  };
+  return colors[method as keyof typeof colors] || { bg: 'bg-gray-100', text: 'text-gray-800' };
+}
+
+function getModuleColor(modulo: string) {
+  const colors = [
+    { bg: 'bg-blue-100', text: 'text-blue-800' },
+    { bg: 'bg-green-100', text: 'text-green-800' },
+    { bg: 'bg-purple-100', text: 'text-purple-800' },
+    { bg: 'bg-orange-100', text: 'text-orange-800' },
+    { bg: 'bg-pink-100', text: 'text-pink-800' },
+    { bg: 'bg-indigo-100', text: 'text-indigo-800' },
+    { bg: 'bg-cyan-100', text: 'text-cyan-800' },
+    { bg: 'bg-teal-100', text: 'text-teal-800' },
+  ];
+  
+  let hash = 0;
+  for (let i = 0; i < modulo.length; i++) {
+    const char = modulo.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
+}
+
+export const RoutesPage = () => {
+  const [routes, setRoutes] = useState<Route[]>([]);
+  const [busca, setBusca] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editando, setEditando] = useState<Route | null>(null);
+  const [form, setForm] = useState<RouteFormData>({
     path: '',
-    method: 'GET',
+    method: '',
     nome: '',
     descricao: '',
-    modulo: 'dashboard',
+    modulo: '',
     ativo: true,
   });
+  const [formLoading, setFormLoading] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [excluindo, setExcluindo] = useState<Route | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const queryClient = useQueryClient();
-
-  // Query para buscar rotas
-  const { data: routes = [], isLoading } = useQuery({
-    queryKey: ['routes'],
-    queryFn: () => rbacService.getRoutes(),
-  });
-
-  // Filtrar rotas
-  const filteredRoutes = routes.filter((route) => {
-    const matchesSearch = 
-      route.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      route.path.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesModule = selectedModule === 'all' || route.modulo === selectedModule;
-    return matchesSearch && matchesModule;
-  });
-
-  // Agrupar por módulo
-  const routesByModule = filteredRoutes.reduce((acc, route) => {
-    const module = route.modulo || 'outros';
-    if (!acc[module]) acc[module] = [];
-    acc[module].push(route);
-    return acc;
-  }, {} as Record<string, Route[]>);
-
-  // Mutations
-  const createMutation = useMutation({
-    mutationFn: (data: CreateRouteRequest) => rbacService.createRoute(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['routes'] });
-      setIsCreateModalOpen(false);
-      resetForm();
-      toast.success('Rota criada com sucesso!');
+  // Hooks responsivos
+  const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'routes-view' });
+  
+  // Configuração das colunas da tabela
+  const columns: TableColumn<Route>[] = [
+    {
+      key: 'method',
+      header: '🔧 Método',
+      essential: true,
+      className: 'text-center',
+      filterable: {
+        type: 'select',
+        label: 'Método HTTP',
+        options: METHODS.map(m => ({ value: m.value, label: m.label }))
+      },
+      render: (item) => {
+        const colors = getMethodColor(item.method);
+        return (
+          <Badge className={`${colors.bg} ${colors.text} text-xs font-medium`}>
+            {item.method}
+          </Badge>
+        );
+      }
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Erro ao criar rota');
+    {
+      key: 'path',
+      header: '🔗 Caminho',
+      essential: true,
+      filterable: {
+        type: 'text',
+        placeholder: 'Caminho da rota...',
+        label: 'Caminho'
+      },
+      render: (item) => <code className="text-xs bg-gray-100 px-2 py-1 rounded">{item.path}</code>
     },
-  });
+    {
+      key: 'nome',
+      header: '📝 Nome',
+      essential: true,
+      filterable: {
+        type: 'text',
+        placeholder: 'Nome da rota...',
+        label: 'Nome'
+      },
+      render: (item) => <span className="text-sm font-medium">{item.nome}</span>
+    },
+    {
+      key: 'modulo',
+      header: '📦 Módulo',
+      essential: true,
+      className: 'text-center',
+      filterable: {
+        type: 'select',
+        label: 'Módulo',
+        options: MODULES.map(m => ({ value: m.value, label: m.label }))
+      },
+      render: (item) => {
+        if (item.modulo) {
+          const colors = getModuleColor(item.modulo);
+          const moduleLabel = MODULES.find(m => m.value === item.modulo)?.label || item.modulo;
+          return (
+            <Badge className={`${colors.bg} ${colors.text} text-xs font-medium`}>
+              {moduleLabel}
+            </Badge>
+          );
+        }
+        return <span className="text-gray-400 text-xs">-</span>;
+      }
+    },
+    {
+      key: 'descricao',
+      header: '📄 Descrição',
+      essential: false,
+      filterable: {
+        type: 'text',
+        placeholder: 'Buscar na descrição...',
+        label: 'Descrição'
+      },
+      render: (item) => <span className="text-sm">{item.descricao || '-'}</span>
+    },
+    {
+      key: 'ativo',
+      header: '🟢 Status',
+      essential: true,
+      className: 'text-center',
+      filterable: {
+        type: 'select',
+        label: 'Status',
+        options: [
+          { value: 'true', label: 'Ativo' },
+          { value: 'false', label: 'Inativo' }
+        ]
+      },
+      render: (item) => (
+        <Badge variant={item.ativo ? "default" : "secondary"}>
+          {item.ativo ? 'Ativo' : 'Inativo'}
+        </Badge>
+      )
+    },
+    {
+      key: 'createdAt',
+      header: '📅 Criado em',
+      essential: false,
+      className: 'text-center',
+      render: (item) => (
+        <span className="text-sm text-gray-600">
+          {new Date(item.createdAt).toLocaleDateString('pt-BR')}
+        </span>
+      )
+    },
+    {
+      key: 'actions',
+      header: '⚙️ Ações',
+      essential: true,
+      render: (item) => (
+        <div className="flex gap-1.5">
+          <ActionButton
+            variant="view"
+            module="routes"
+            onClick={() => abrirModalEditar(item)}
+            title="Editar Rota"
+          >
+            <Edit className="w-4 h-4" />
+          </ActionButton>
+          <ActionButton
+            variant={item.ativo ? "warning" : "success"}
+            module="routes"
+            onClick={() => toggleRouteStatus(item)}
+            title={item.ativo ? "Desativar Rota" : "Ativar Rota"}
+          >
+            {item.ativo ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+          </ActionButton>
+          <ActionButton
+            variant="delete"
+            module="routes"
+            onClick={() => confirmarExclusao(item)}
+            title="Excluir Rota"
+          >
+            <Trash2 className="w-4 h-4" />
+          </ActionButton>
+        </div>
+      )
+    }
+  ];
+  
+  // Sistema de filtros dinâmicos
+  const {
+    activeFilters,
+    filterConfigs,
+    activeFiltersCount,
+    setFilter,
+    clearFilter,
+    clearAllFilters,
+    applyFilters
+  } = useTableFilters(columns);
+  
+  // Estado para mostrar/ocultar painel de filtros
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  
+  // Filtrar dados baseado na busca e filtros dinâmicos
+  const routesFiltradas = useMemo(() => {
+    // Primeiro aplicar busca textual
+    let dadosFiltrados = routes.filter(r =>
+      r.nome.toLowerCase().includes(busca.toLowerCase()) ||
+      r.path.toLowerCase().includes(busca.toLowerCase()) ||
+      r.method.toLowerCase().includes(busca.toLowerCase()) ||
+      (r.descricao || '').toLowerCase().includes(busca.toLowerCase()) ||
+      (r.modulo || '').toLowerCase().includes(busca.toLowerCase())
+    );
+    
+    return applyFilters(dadosFiltrados);
+  }, [routes, busca, applyFilters]);
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateRouteRequest }) => 
-      rbacService.updateRoute(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['routes'] });
-      setIsEditModalOpen(false);
-      resetForm();
-      toast.success('Rota atualizada com sucesso!');
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Erro ao atualizar rota');
-    },
-  });
+  const {
+    data: routesPaginadas,
+    totalItems,
+    currentPage,
+    itemsPerPage,
+    totalPages,
+    handlePageChange,
+    handleItemsPerPageChange,
+    // Infinite scroll específico
+    isDesktop,
+    isMobile,
+    hasNextPage,
+    isLoadingMore,
+    targetRef
+  } = useResponsiveTable(routesFiltradas, 10);
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => rbacService.deleteRoute(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['routes'] });
-      setIsDeleteModalOpen(false);
-      setSelectedRoute(null);
-      toast.success('Rota deletada com sucesso!');
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Erro ao deletar rota');
-    },
-  });
+  useEffect(() => {
+    fetchRoutes();
+  }, []);
 
-  const resetForm = () => {
-    setFormData({
+  const fetchRoutes = async () => {
+    setLoading(true);
+    try {
+      const data = await rbacService.getRoutes();
+      setRoutes(data);
+    } catch (e) {
+      toast.error('Erro ao carregar rotas');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Renderização do card
+  const renderCard = (route: Route) => (
+    <Card className="h-full hover:shadow-md transition-shadow">
+      <CardHeader className="pb-2 pt-3 px-3">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <RouteIcon className="w-5 h-5 text-sky-600" />
+            <CardTitle className="text-sm font-medium truncate">{route.nome}</CardTitle>
+          </div>
+          <div className="flex gap-1 flex-shrink-0 ml-2">
+            {(() => {
+              const methodColors = getMethodColor(route.method);
+              return (
+                <Badge className={`text-xs ${methodColors.bg} ${methodColors.text}`}>
+                  {route.method}
+                </Badge>
+              );
+            })()}
+            <Badge variant={route.ativo ? "default" : "secondary"}>
+              {route.ativo ? 'Ativo' : 'Inativo'}
+            </Badge>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0 px-3 pb-3">
+        <div className="space-y-2 mb-3">
+          <div className="text-xs">
+            <code className="bg-gray-100 px-2 py-1 rounded text-xs">{route.path}</code>
+          </div>
+          
+          {route.modulo && (
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-gray-500">Módulo:</span>
+              {(() => {
+                const colors = getModuleColor(route.modulo);
+                const moduleLabel = MODULES.find(m => m.value === route.modulo)?.label || route.modulo;
+                return (
+                  <Badge className={`text-xs ${colors.bg} ${colors.text}`}>
+                    {moduleLabel}
+                  </Badge>
+                );
+              })()}
+            </div>
+          )}
+          
+          {route.descricao && (
+            <CardDescription className="line-clamp-2 text-xs">
+              {route.descricao}
+            </CardDescription>
+          )}
+          
+          <div className="text-xs text-gray-500">
+            <span>Criado em: {new Date(route.createdAt).toLocaleDateString('pt-BR')}</span>
+          </div>
+          <div className="text-xs text-gray-500">
+            <span>ID: {route.id.slice(0, 8)}...</span>
+          </div>
+        </div>
+      </CardContent>
+      <ResponsiveCardFooter>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="border-sky-300 text-sky-600 hover:bg-sky-600 hover:text-white"
+          onClick={() => abrirModalEditar(route)}
+          title="Editar rota"
+        >
+          <Edit className="w-4 h-4" />
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className={
+            route.ativo 
+              ? 'border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white'
+              : 'border-green-300 text-green-600 hover:bg-green-600 hover:text-white'
+          }
+          onClick={() => toggleRouteStatus(route)}
+          title={route.ativo ? "Desativar rota" : "Ativar rota"}
+        >
+          {route.ativo ? (
+            <UserX className="w-4 h-4" />
+          ) : (
+            <UserCheck className="w-4 h-4" />
+          )}
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+          onClick={() => confirmarExclusao(route)}
+          title="Excluir rota"
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </ResponsiveCardFooter>
+    </Card>
+  );
+
+  // Funções de manipulação
+  const abrirModalNovo = () => {
+    setEditando(null);
+    setForm({
       path: '',
-      method: 'GET',
+      method: '',
       nome: '',
       descricao: '',
-      modulo: 'dashboard',
+      modulo: '',
       ativo: true,
     });
-    setSelectedRoute(null);
+    setFormError('');
+    setShowModal(true);
   };
 
-  const handleCreate = () => {
-    setIsCreateModalOpen(true);
-    resetForm();
-  };
-
-  const handleEdit = (route: Route) => {
-    setSelectedRoute(route);
-    setFormData({
+  const abrirModalEditar = (route: Route) => {
+    setEditando(route);
+    setForm({
       path: route.path,
       method: route.method,
       nome: route.nome,
       descricao: route.descricao || '',
-      modulo: route.modulo || 'dashboard',
+      modulo: route.modulo || '',
       ativo: route.ativo,
     });
-    setIsEditModalOpen(true);
+    setFormError('');
+    setShowModal(true);
   };
 
-  const handleDelete = (route: Route) => {
-    setSelectedRoute(route);
-    setIsDeleteModalOpen(true);
-  };
-
-  const handleSubmitCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    createMutation.mutate({
-      path: formData.path,
-      method: formData.method,
-      nome: formData.nome,
-      descricao: formData.descricao || undefined,
-      modulo: formData.modulo || undefined,
+  const fecharModal = () => {
+    setShowModal(false);
+    setEditando(null);
+    setForm({
+      path: '',
+      method: '',
+      nome: '',
+      descricao: '',
+      modulo: '',
+      ativo: true,
     });
+    setFormError('');
   };
 
-  const handleSubmitEdit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedRoute) return;
-    
-    updateMutation.mutate({
-      id: selectedRoute.id,
-      data: {
-        path: formData.path,
-        method: formData.method,
-        nome: formData.nome,
-        descricao: formData.descricao || undefined,
-        modulo: formData.modulo || undefined,
-        ativo: formData.ativo,
-      },
-    });
+    if (!form.nome.trim() || form.nome.trim().length < 2) {
+      setFormError('O nome deve ter pelo menos 2 caracteres.');
+      return;
+    }
+    if (!form.path.trim()) {
+      setFormError('O caminho é obrigatório.');
+      return;
+    }
+    if (!form.method.trim()) {
+      setFormError('O método HTTP é obrigatório.');
+      return;
+    }
+
+    setFormLoading(true);
+    try {
+      if (editando) {
+        const payload: UpdateRouteRequest = {
+          path: form.path,
+          method: form.method,
+          nome: form.nome,
+          descricao: form.descricao || undefined,
+          modulo: form.modulo || undefined,
+          ativo: form.ativo,
+        };
+        await rbacService.updateRoute(editando.id, payload);
+        toast.success('Rota atualizada com sucesso');
+      } else {
+        const payload: CreateRouteRequest = {
+          path: form.path,
+          method: form.method,
+          nome: form.nome,
+          descricao: form.descricao || undefined,
+          modulo: form.modulo || undefined,
+        };
+        await rbacService.createRoute(payload);
+        toast.success('Rota criada com sucesso');
+      }
+      fecharModal();
+      fetchRoutes();
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Erro ao salvar rota';
+      toast.error(msg);
+    } finally {
+      setFormLoading(false);
+    }
   };
 
-  const handleConfirmDelete = () => {
-    if (!selectedRoute) return;
-    deleteMutation.mutate(selectedRoute.id);
+  const toggleRouteStatus = async (route: Route) => {
+    try {
+      const payload: UpdateRouteRequest = {
+        path: route.path,
+        method: route.method,
+        nome: route.nome,
+        descricao: route.descricao || undefined,
+        modulo: route.modulo || undefined,
+        ativo: !route.ativo,
+      };
+      await rbacService.updateRoute(route.id, payload);
+      toast.success(`Rota ${!route.ativo ? 'ativada' : 'desativada'} com sucesso`);
+      fetchRoutes();
+    } catch (e) {
+      toast.error('Erro ao alterar status da rota');
+    }
   };
 
-  const getMethodBadgeColor = (method: string) => {
-    const methodConfig = METHODS.find(m => m.value === method);
-    return methodConfig?.color || 'bg-gray-100 text-gray-800';
+  const confirmarExclusao = (route: Route) => {
+    setExcluindo(route);
   };
 
-  const breadcrumbItems = [
-    { label: 'Administração', href: '/admin' },
-    { label: 'Rotas', href: '/admin/routes' },
-  ];
+  const cancelarExclusao = () => {
+    setExcluindo(null);
+  };
+
+  const handleDelete = async () => {
+    if (!excluindo) return;
+    setDeleteLoading(true);
+    try {
+      await rbacService.deleteRoute(excluindo.id);
+      toast.success('Rota excluída com sucesso');
+      setExcluindo(null);
+      fetchRoutes();
+    } catch (e) {
+      toast.error('Erro ao excluir rota');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <PageContainer>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600 mx-auto mb-2"></div>
+            <p className="text-gray-500">Carregando rotas...</p>
+          </div>
+        </div>
+      </PageContainer>
+    );
+  }
 
   return (
     <ProtectedRoute requiredModule="admin">
-      <PageTemplate
-        title="Gerenciar Rotas"
-        description="Gerencie as rotas do frontend para controle de acesso"
-        breadcrumbItems={breadcrumbItems}
-        icon={RouteIcon}
-      >
-        <div className="space-y-6">
-          {/* Header com filtros e botão criar */}
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold">Rotas do Sistema</h2>
-              <p className="text-gray-600 mt-1">
-                Cadastre e gerencie as rotas do frontend para controle de permissões
-              </p>
-            </div>
-            <Button onClick={handleCreate}>
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Rota
-            </Button>
-          </div>
+      <PageContainer>
+        {/* Header da página */}
+        <PageHeader title="Gerenciar Rotas" module="routes" icon={<RouteIcon />}>
+          <SearchBar
+            placeholder="Buscar rotas..."
+            value={busca}
+            onChange={setBusca}
+            module="routes"
+          />
+          
+          <FilterButton
+            showFilters={mostrarFiltros}
+            onToggleFilters={() => setMostrarFiltros(prev => !prev)}
+            activeFiltersCount={activeFiltersCount}
+            module="routes"
+            disabled={filterConfigs.length === 0}
+            tooltip={filterConfigs.length === 0 ? 'Nenhum filtro configurado' : undefined}
+          />
+          
+          <ViewToggle 
+            viewMode={viewMode} 
+            onViewModeChange={setViewMode} 
+            module="routes"
+          />
+          
+          <Button 
+            className="!h-10 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
+            onClick={abrirModalNovo}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Rota
+          </Button>
+        </PageHeader>
 
-          {/* Filtros */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+        {/* Conteúdo principal */}
+        <PageContent>
+          {/* Painel de Filtros Dinâmicos */}
+          <DynamicFilterPanel
+            isVisible={mostrarFiltros}
+            filterConfigs={filterConfigs}
+            activeFilters={activeFilters}
+            onFilterChange={setFilter}
+            onClearAll={clearAllFilters}
+            onClose={() => setMostrarFiltros(false)}
+            module="routes"
+          />
+
+          {/* Conteúdo baseado no modo de visualização */}
+          {viewMode === 'table' ? (
+            <ResponsiveTable 
+              data={routesPaginadas}
+              columns={columns}
+              module="routes"
+              emptyMessage="Nenhuma rota encontrada"
+              isLoadingMore={isLoadingMore}
+              hasNextPage={hasNextPage}
+              isMobile={isMobile}
+              scrollRef={targetRef}
+            />
+          ) : (
+            <ResponsiveCards 
+              data={routesPaginadas}
+              renderCard={renderCard}
+              emptyMessage="Nenhuma rota encontrada"
+              emptyIcon="🔗"
+              isLoadingMore={isLoadingMore}
+              hasNextPage={hasNextPage}
+              isMobile={isMobile}
+              scrollRef={targetRef}
+            />
+          )}
+        </PageContent>
+
+        {/* Paginação */}
+        {totalItems > 0 && (
+          <ResponsivePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            itemsPerPage={itemsPerPage}
+            module="routes"
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
+        )}
+
+        {/* Modal de cadastro/edição */}
+        <Dialog open={showModal} onOpenChange={setShowModal}>
+          <DialogContent className="max-w-lg">
+            <form onSubmit={handleSubmit}>
+              <DialogHeader>
+                <DialogTitle>{editando ? 'Editar Rota' : 'Nova Rota'}</DialogTitle>
+              </DialogHeader>
+              <div className="py-2 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                      <span className="text-lg">🔧</span>
+                      <span className="bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent font-semibold">Método</span>
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <Select value={form.method} onValueChange={(value) => setForm(f => ({ ...f, method: value }))}>
+                      <SelectTrigger className="hover:border-sky-300 focus:border-sky-500 focus:ring-sky-100">
+                        <SelectValue placeholder="Selecione o método" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {METHODS.map((method) => (
+                          <SelectItem key={method.value} value={method.value}>
+                            {method.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                      <span className="text-lg">🔗</span>
+                      <span className="bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent font-semibold">Caminho</span>
+                      <span className="text-red-500">*</span>
+                    </label>
                     <Input
-                      placeholder="Buscar por nome ou path..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
+                      type="text"
+                      value={form.path}
+                      onChange={e => setForm(f => ({ ...f, path: e.target.value }))}
+                      disabled={formLoading}
+                      className="hover:border-sky-300 focus:border-sky-500 focus:ring-sky-100"
+                      placeholder="Ex: /usuarios"
+                      required
                     />
                   </div>
                 </div>
-                <div className="sm:w-48">
-                  <Select value={selectedModule} onValueChange={setSelectedModule}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Filtrar por módulo" />
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                    <span className="text-lg">📝</span>
+                    <span className="bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent font-semibold">Nome da Rota</span>
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    value={form.nome}
+                    onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
+                    minLength={2}
+                    disabled={formLoading}
+                    autoFocus
+                    className="hover:border-sky-300 focus:border-sky-500 focus:ring-sky-100"
+                    placeholder="Ex: Listar Usuários"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                    <span className="text-lg">📦</span>
+                    <span className="bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent font-semibold">Módulo</span>
+                  </label>
+                  <Select value={form.modulo} onValueChange={(value) => setForm(f => ({ ...f, modulo: value }))}>
+                    <SelectTrigger className="hover:border-sky-300 focus:border-sky-500 focus:ring-sky-100">
+                      <SelectValue placeholder="Selecione o módulo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Todos os módulos</SelectItem>
                       {MODULES.map((module) => (
                         <SelectItem key={module.value} value={module.value}>
                           {module.label}
@@ -278,351 +740,71 @@ const RoutesPage: React.FC = () => {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Lista de rotas agrupadas por módulo */}
-          {isLoading ? (
-            <div className="space-y-4">
-              {[...Array(3)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardHeader>
-                    <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {[...Array(2)].map((_, j) => (
-                        <div key={j} className="flex items-center justify-between p-3 border rounded">
-                          <div className="flex items-center space-x-3">
-                            <div className="h-6 bg-gray-200 rounded w-16"></div>
-                            <div className="h-4 bg-gray-200 rounded w-32"></div>
-                          </div>
-                          <div className="h-4 bg-gray-200 rounded w-20"></div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : Object.keys(routesByModule).length > 0 ? (
-            <div className="space-y-6">
-              {Object.entries(routesByModule).map(([module, moduleRoutes]) => (
-                <Card key={module}>
-                  <CardHeader>
-                    <CardTitle className="text-lg capitalize flex items-center">
-                      <Filter className="w-5 h-5 mr-2 text-blue-600" />
-                      {MODULES.find(m => m.value === module)?.label || module}
-                      <Badge variant="secondary" className="ml-2">
-                        {moduleRoutes.length} {moduleRoutes.length === 1 ? 'rota' : 'rotas'}
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {moduleRoutes.map((route) => (
-                        <div
-                          key={route.id}
-                          className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
-                        >
-                          <div className="flex items-center space-x-3">
-                            <Badge className={getMethodBadgeColor(route.method)}>
-                              {route.method}
-                            </Badge>
-                            <div>
-                              <div className="font-medium">{route.nome}</div>
-                              <div className="text-sm text-gray-500 font-mono">
-                                {route.path}
-                              </div>
-                              {route.descricao && (
-                                <div className="text-xs text-gray-400 mt-1">
-                                  {route.descricao}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge variant={route.ativo ? "default" : "secondary"}>
-                              {route.ativo ? 'Ativo' : 'Inativo'}
-                            </Badge>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEdit(route)}
-                            >
-                              <Edit className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDelete(route)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-8">
-                <RouteIcon className="w-12 h-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Nenhuma rota encontrada
-                </h3>
-                <p className="text-gray-500 text-center mb-4">
-                  {searchTerm || selectedModule !== 'all' 
-                    ? 'Tente ajustar os filtros de pesquisa' 
-                    : 'Comece criando a primeira rota do sistema'
-                  }
-                </p>
-                {!searchTerm && selectedModule === 'all' && (
-                  <Button onClick={handleCreate}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Criar primeira rota
-                  </Button>
+                <div>
+                  <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                    <span className="text-lg">📄</span>
+                    <span className="bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent font-semibold">Descrição</span>
+                  </label>
+                  <Textarea
+                    value={form.descricao}
+                    onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
+                    disabled={formLoading}
+                    className="hover:border-sky-300 focus:border-sky-500 focus:ring-sky-100"
+                    placeholder="Descreva a funcionalidade desta rota"
+                    rows={3}
+                  />
+                </div>
+
+                {editando && (
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="ativo"
+                      checked={form.ativo}
+                      onCheckedChange={(checked) => setForm(f => ({ ...f, ativo: checked }))}
+                    />
+                    <Label htmlFor="ativo">Rota ativa</Label>
+                  </div>
                 )}
-              </CardContent>
-            </Card>
-          )}
-        </div>
 
-        {/* Modal de Criar Rota */}
-        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Criar Nova Rota</DialogTitle>
-              <DialogDescription>
-                Cadastre uma nova rota do frontend para controle de permissões
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmitCreate}>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="path">Path da Rota *</Label>
-                    <Input
-                      id="path"
-                      value={formData.path}
-                      onChange={(e) => setFormData(prev => ({ ...prev, path: e.target.value }))}
-                      placeholder="/pacientes/lista"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="method">Método HTTP *</Label>
-                    <Select
-                      value={formData.method}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, method: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {METHODS.map((method) => (
-                          <SelectItem key={method.value} value={method.value}>
-                            {method.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="nome">Nome da Rota *</Label>
-                    <Input
-                      id="nome"
-                      value={formData.nome}
-                      onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
-                      placeholder="Lista de Pacientes"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="modulo">Módulo</Label>
-                    <Select
-                      value={formData.modulo}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, modulo: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {MODULES.map((module) => (
-                          <SelectItem key={module.value} value={module.value}>
-                            {module.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="descricao">Descrição</Label>
-                  <Textarea
-                    id="descricao"
-                    value={formData.descricao}
-                    onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
-                    placeholder="Descreva o que esta rota permite acessar"
-                    rows={3}
-                  />
-                </div>
-              </div>
+                {formError && <FormErrorMessage>{formError}</FormErrorMessage>}
+              </div> 
               <DialogFooter className="mt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsCreateModalOpen(false)}
+                <DialogClose asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={formLoading}
+                    className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
+                  >
+                    Cancelar
+                  </Button>
+                </DialogClose>
+                <Button 
+                  type="submit" 
+                  disabled={formLoading}
+                  className="bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200"
                 >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                >
-                  {createMutation.isPending ? 'Criando...' : 'Criar Rota'}
+                  {formLoading ? 'Salvando...' : 'Salvar'}
                 </Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
 
-        {/* Modal de Editar Rota */}
-        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Editar Rota</DialogTitle>
-              <DialogDescription>
-                Modifique as informações da rota selecionada
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmitEdit}>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit-path">Path da Rota *</Label>
-                    <Input
-                      id="edit-path"
-                      value={formData.path}
-                      onChange={(e) => setFormData(prev => ({ ...prev, path: e.target.value }))}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-method">Método HTTP *</Label>
-                    <Select
-                      value={formData.method}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, method: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {METHODS.map((method) => (
-                          <SelectItem key={method.value} value={method.value}>
-                            {method.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit-nome">Nome da Rota *</Label>
-                    <Input
-                      id="edit-nome"
-                      value={formData.nome}
-                      onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-modulo">Módulo</Label>
-                    <Select
-                      value={formData.modulo}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, modulo: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {MODULES.map((module) => (
-                          <SelectItem key={module.value} value={module.value}>
-                            {module.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="edit-descricao">Descrição</Label>
-                  <Textarea
-                    id="edit-descricao"
-                    value={formData.descricao}
-                    onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
-                    rows={3}
-                  />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="edit-ativo"
-                    checked={formData.ativo}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, ativo: checked }))}
-                  />
-                  <Label htmlFor="edit-ativo">Rota ativa</Label>
-                </div>
-              </div>
-              <DialogFooter className="mt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsEditModalOpen(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={updateMutation.isPending}
-                >
-                  {updateMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Modal de Confirmação de Exclusão */}
-        <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-              <AlertDialogDescription>
-                Tem certeza que deseja excluir a rota "{selectedRoute?.nome}"? 
-                Esta ação não pode ser desfeita e pode afetar o controle de acesso do sistema.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleConfirmDelete}
-                disabled={deleteMutation.isPending}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                {deleteMutation.isPending ? 'Excluindo...' : 'Excluir'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </PageTemplate>
+        {/* Modal de confirmação de exclusão */}
+        <ConfirmDeleteModal
+          open={!!excluindo}
+          onClose={cancelarExclusao}
+          onConfirm={handleDelete}
+          title="Confirmar Exclusão de Rota"
+          entityName={excluindo?.nome || ''}
+          entityType="rota"
+          isLoading={deleteLoading}
+          loadingText="Excluindo rota..."
+          confirmText="Excluir Rota"
+        />
+      </PageContainer>
     </ProtectedRoute>
   );
 };

@@ -76,6 +76,24 @@ export interface AssignRouteToRoleRequest {
   routeId: string;
 }
 
+export interface CreateUserRoleRequest {
+  userId: string;
+  roleId: string;
+}
+
+export interface UpdateUserRoleRequest {
+  ativo: boolean;
+}
+
+export interface CreateRoleRouteRequest {
+  roleId: string;
+  routeId: string;
+}
+
+export interface UpdateRoleRouteRequest {
+  ativo: boolean;
+}
+
 // Tipos para responses das APIs
 export interface UserAllowedRoute {
   id: string;

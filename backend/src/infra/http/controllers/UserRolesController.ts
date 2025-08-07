@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { AssignRoleToUserUseCase } from '../../../core/application/use-cases/user-role/AssignRoleToUserUseCase';
 import { RemoveRoleFromUserUseCase } from '../../../core/application/use-cases/user-role/RemoveRoleFromUserUseCase';
 import { ListUserRolesUseCase } from '../../../core/application/use-cases/user-role/ListUserRolesUseCase';
+import { UpdateUserRoleUseCase } from '../../../core/application/use-cases/user-role/UpdateUserRoleUseCase';
+import { ListAllUserRolesUseCase } from '../../../core/application/use-cases/user-role/ListAllUserRolesUseCase';
 import { ListUserAllowedRoutesUseCase } from '../../../core/application/use-cases/role-route/ListUserAllowedRoutesUseCase';
 
 export class UserRolesController {
@@ -64,5 +66,30 @@ export class UserRolesController {
     const routes = await useCase.execute({ userId });
 
     return reply.send(routes);
+  }
+
+  async updateUserRole(request: FastifyRequest, reply: FastifyReply) {
+    const paramsSchema = z.object({
+      id: z.string().uuid(),
+    });
+
+    const bodySchema = z.object({
+      ativo: z.boolean().optional(),
+    });
+
+    const { id } = paramsSchema.parse(request.params);
+    const { ativo } = bodySchema.parse(request.body);
+
+    const useCase = container.resolve(UpdateUserRoleUseCase);
+    const userRole = await useCase.execute({ id, ativo });
+
+    return reply.send(userRole);
+  }
+
+  async listAllUserRoles(request: FastifyRequest, reply: FastifyReply) {
+    const useCase = container.resolve(ListAllUserRolesUseCase);
+    const userRoles = await useCase.execute();
+
+    return reply.send(userRoles);
   }
 }

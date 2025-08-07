@@ -1,446 +1,770 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { Plus, Edit, Trash2, Users, UserX, UserCheck } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Users, UserPlus, UserMinus, Search, Filter } from 'lucide-react';
+import { rbacService } from '@/services/rbac';
+import { getUsers } from '@/services/users';
+import type { UserRole, Role, AssignRoleToUserRequest } from '@/types/RBAC';
+import type { User } from '@/types/User';
+import { FormErrorMessage } from '@/components/form-error-message';
+import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import { 
+  PageContainer, 
+  PageHeader, 
+  PageContent, 
+  ViewToggle, 
+  SearchBar, 
+  FilterButton,
+  DynamicFilterPanel,
+  ResponsiveTable, 
+  ResponsiveCards, 
+  ResponsivePagination,
+  ActionButton,
+  TableColumn,
+  ResponsiveCardFooter 
+} from '@/components/layout';
+import type { FilterConfig } from '@/types/filters';
+import { useViewMode } from '@/hooks/useViewMode';
+import { useResponsiveTable } from '@/hooks/useResponsiveTable';
+import { useTableFilters } from '@/hooks/useTableFilters';
+import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 
-import { PageTemplate } from '../../components/layout/PageTemplate';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { Badge } from '../../components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '../../components/ui/alert-dialog';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Avatar, AvatarFallback } from '../../components/ui/avatar';
-
-import { rbacService } from '../../services/rbac';
-import { usersService } from '../../services/users';
-import { Role, AssignRoleToUserRequest } from '../../types/RBAC';
-import { User } from '../../types/User';
-import { ProtectedRoute } from '../../components/layout/ProtectedRoute';
-
-interface UserWithRoles extends User {
-  userRoles: Role[];
+interface UserRoleFormData {
+  userId: string;
+  roleId: string;
+  ativo: boolean;
 }
 
-const UserRolesPage: React.FC = () => {
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-  const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('all');
-  const [assignFormData, setAssignFormData] = useState({
+// Interface estendida para exibição com dados relacionados
+interface UserRoleDisplay extends UserRole {
+  user?: { nome: string; email: string };
+  role?: { nome: string; descricao?: string };
+}
+
+function getRoleColor(roleId: string) {
+  const colors = [
+    { bg: 'bg-blue-100', text: 'text-blue-800' },
+    { bg: 'bg-green-100', text: 'text-green-800' },
+    { bg: 'bg-purple-100', text: 'text-purple-800' },
+    { bg: 'bg-orange-100', text: 'text-orange-800' },
+    { bg: 'bg-pink-100', text: 'text-pink-800' },
+    { bg: 'bg-indigo-100', text: 'text-indigo-800' },
+    { bg: 'bg-cyan-100', text: 'text-cyan-800' },
+    { bg: 'bg-teal-100', text: 'text-teal-800' },
+  ];
+  
+  let hash = 0;
+  for (let i = 0; i < roleId.length; i++) {
+    const char = roleId.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
+}
+
+export const UserRolesPage = () => {
+  const [rawUserRoles, setRawUserRoles] = useState<UserRole[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [busca, setBusca] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editando, setEditando] = useState<UserRoleDisplay | null>(null);
+  const [form, setForm] = useState<UserRoleFormData>({
     userId: '',
     roleId: '',
+    ativo: true,
   });
+  const [formLoading, setFormLoading] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [excluindo, setExcluindo] = useState<UserRoleDisplay | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const queryClient = useQueryClient();
-
-  // Queries
-  const { data: users = [], isLoading: isLoadingUsers } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => usersService.getUsers(),
-  });
-
-  const { data: roles = [], isLoading: isLoadingRoles } = useQuery({
-    queryKey: ['roles'],
-    queryFn: () => rbacService.getRoles(true), // Apenas roles ativas
-  });
-
-  // Hook para buscar roles dos usuários
-  const { data: allUserRoles = [] } = useQuery({
-    queryKey: ['all-user-roles'],
-    queryFn: () => rbacService.getAllUserRoles(),
-    enabled: users.length > 0,
-  });
-
-  // Mapear usuários com suas roles
-  const usersWithRoles: UserWithRoles[] = users.map(user => {
-    // Filtrar user roles do usuário atual
-    const userRoleIds = allUserRoles
-      .filter(ur => ur.userId === user.id && ur.ativo)
-      .map(ur => ur.roleId);
-    
-    // Buscar as roles correspondentes
-    const userRoles = roles.filter(role => userRoleIds.includes(role.id));
-    
-    return { ...user, userRoles };
-  });
-
-  // Filtrar usuários
-  const filteredUsers = usersWithRoles.filter((user) => {
-    const matchesSearch = 
-      user.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesRole = selectedRoleFilter === 'all' || 
-      user.userRoles.some(role => role.id === selectedRoleFilter);
-    
-    return matchesSearch && matchesRole;
-  });
-
-  // Mutations
-  const assignMutation = useMutation({
-    mutationFn: (data: AssignRoleToUserRequest) => rbacService.assignRoleToUser(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['all-user-roles'] });
-      setIsAssignModalOpen(false);
-      resetForm();
-      toast.success('Role atribuída com sucesso!');
+  // Hooks responsivos
+  const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'user-roles-view' });
+  
+  // Configuração das colunas da tabela
+  const columns: TableColumn<UserRoleDisplay>[] = [
+    {
+      key: 'nome',
+      header: '👤 Nome',
+      essential: true,
+      filterable: {
+        type: 'text',
+        placeholder: 'Nome do usuário...',
+        label: 'Nome'
+      },
+      render: (item) => (
+        <span className="text-sm font-medium">{item.user?.nome || 'Usuário não encontrado'}</span>
+      )
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Erro ao atribuir role');
+    {
+      key: 'email',
+      header: '📧 E-mail',
+      essential: true,
+      filterable: {
+        type: 'text',
+        placeholder: 'E-mail do usuário...',
+        label: 'E-mail'
+      },
+      render: (item) => (
+        <span className="text-sm">{item.user?.email || '-'}</span>
+      )
     },
-  });
+    {
+      key: 'role',
+      header: '🛡️ Role',
+      essential: true,
+      className: 'text-center',
+      filterable: {
+        type: 'text',
+        placeholder: 'Nome da role...',
+        label: 'Role'
+      },
+      render: (item) => {
+        if (item.role) {
+          const colors = getRoleColor(item.role.nome);
+          return (
+            <Badge className={`${colors.bg} ${colors.text} text-xs font-medium`}>
+              {item.role.nome}
+            </Badge>
+          );
+        }
+        return <span className="text-gray-400 text-xs">Role não encontrada</span>;
+      }
+    },
+    {
+      key: 'ativo',
+      header: '🔘 Status',
+      essential: true,
+      className: 'text-center',
+      filterable: {
+        type: 'select',
+        label: 'Status',
+        options: [
+          { value: 'true', label: 'Ativo' },
+          { value: 'false', label: 'Inativo' }
+        ]
+      },
+      render: (item) => (
+        <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+          item.ativo 
+            ? 'bg-green-100 text-green-800' 
+            : 'bg-red-100 text-red-800'
+        }`}>
+          {item.ativo ? 'Ativo' : 'Inativo'}
+        </span>
+      )
+    },
+    {
+      key: 'actions',
+      header: '⚙️ Ações',
+      essential: true,
+      render: (item) => (
+        <div className="flex gap-1.5">
+          <ActionButton
+            variant="view"
+            module="permissions"
+            onClick={() => abrirModalEditar(item)}
+            title="Editar Atribuição"
+          >
+            <Edit className="w-4 h-4" />
+          </ActionButton>
+          <ActionButton
+            variant={item.ativo ? "warning" : "success"}
+            module="permissions"
+            onClick={() => toggleUserRoleStatus(item)}
+            title={item.ativo ? "Desativar Atribuição" : "Ativar Atribuição"}
+          >
+            {item.ativo ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+          </ActionButton>
+          <ActionButton
+            variant="delete"
+            module="permissions"
+            onClick={() => confirmarExclusao(item)}
+            title="Remover Atribuição"
+          >
+            <Trash2 className="w-4 h-4" />
+          </ActionButton>
+        </div>
+      )
+    }
+  ];
+  
+  // Sistema de filtros dinâmicos
+  const {
+    activeFilters,
+    filterConfigs,
+    activeFiltersCount,
+    setFilter,
+    clearFilter,
+    clearAllFilters,
+    applyFilters
+  } = useTableFilters(columns);
+  
+  // Estado para mostrar/ocultar painel de filtros
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  
+  // Processar dados com relações
+  const userRoles = useMemo(() => {
+    return rawUserRoles.map(ur => ({
+      ...ur,
+      user: users.find(u => u.id === ur.userId),
+      role: roles.find(r => r.id === ur.roleId)
+    }));
+  }, [rawUserRoles, users, roles]);
+  
+  // Filtrar dados baseado na busca e filtros dinâmicos
+  const userRolesFiltradas = useMemo(() => {
+    // Primeiro aplicar busca textual
+    let dadosFiltrados = userRoles.filter(ur =>
+      (ur.user?.nome || '').toLowerCase().includes(busca.toLowerCase()) ||
+      (ur.user?.email || '').toLowerCase().includes(busca.toLowerCase()) ||
+      (ur.role?.nome || '').toLowerCase().includes(busca.toLowerCase()) ||
+      (ur.role?.descricao || '').toLowerCase().includes(busca.toLowerCase())
+    );
+    
+    return applyFilters(dadosFiltrados);
+  }, [userRoles, busca, applyFilters]);
 
-  const removeMutation = useMutation({
-    mutationFn: ({ userId, roleId }: { userId: string; roleId: string }) => 
-      rbacService.removeRoleFromUser(userId, roleId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['all-user-roles'] });
-      setIsRemoveModalOpen(false);
-      setSelectedUser(null);
-      setSelectedRole(null);
-      toast.success('Role removida com sucesso!');
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Erro ao remover role');
-    },
-  });
+  const {
+    data: userRolesPaginadas,
+    totalItems,
+    currentPage,
+    itemsPerPage,
+    totalPages,
+    handlePageChange,
+    handleItemsPerPageChange,
+    // Infinite scroll específico
+    isDesktop,
+    isMobile,
+    hasNextPage,
+    isLoadingMore,
+    targetRef
+  } = useResponsiveTable(userRolesFiltradas, 10);
 
-  const resetForm = () => {
-    setAssignFormData({
+  useEffect(() => {
+    const loadAllData = async () => {
+      setLoading(true);
+      try {
+        // Primeiro carregar usuários e roles
+        await Promise.all([
+          fetchRoles(), 
+          fetchUsers()
+        ]);
+        // Depois carregar as associações user-roles
+        // (será executado via useEffect separado)
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadAllData();
+  }, []);
+
+  // Carregar user-roles após users e roles estarem disponíveis
+  useEffect(() => {
+    if (users.length > 0 && roles.length > 0) {
+      fetchUserRoles();
+    }
+  }, [users, roles]);
+
+  const fetchUserRoles = async () => {
+    try {
+      const userRoles = await rbacService.getAllUserRoles();
+      setRawUserRoles(userRoles);
+    } catch (e) {
+      toast.error('Erro ao carregar atribuições de usuário');
+    }
+  };
+
+  const fetchRoles = async () => {
+    try {
+      const data = await rbacService.getRoles();
+      setRoles(data.filter(r => r.ativo)); // Apenas roles ativas para atribuição
+    } catch (e) {
+      toast.error('Erro ao carregar roles');
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const data = await getUsers();
+      setUsers(data.filter(u => u.ativo)); // Apenas usuários ativos para atribuição
+    } catch (e) {
+      toast.error('Erro ao carregar usuários');
+    }
+  };
+
+  // Mapear usuários para o formato Option do SingleSelectDropdown
+  const userOptions = users.map(u => ({ 
+    id: u.id, 
+    nome: u.nome,
+    sigla: u.email // Usar sigla para mostrar email na lista
+  }));
+
+  // Renderização do card
+  const renderCard = (userRole: UserRoleDisplay) => (
+    <Card className="h-full hover:shadow-md transition-shadow">
+      <CardHeader className="pb-2 pt-3 px-3">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <Users className="w-5 h-5 text-red-600" />
+            <CardTitle className="text-sm font-medium truncate">
+              {userRole.user?.nome || 'Usuário não encontrado'}
+            </CardTitle>
+          </div>
+          <Badge variant={userRole.ativo ? "default" : "secondary"} className="flex-shrink-0 ml-2">
+            {userRole.ativo ? 'Ativo' : 'Inativo'}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0 px-3 pb-3">
+        <div className="space-y-2 mb-3">
+          <div className="text-xs text-gray-500">
+            <span>{userRole.user?.email}</span>
+          </div>
+          
+          {userRole.role && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">Role:</span>
+              {(() => {
+                const colors = getRoleColor(userRole.role.nome);
+                return (
+                  <Badge className={`text-xs ${colors.bg} ${colors.text}`}>
+                    {userRole.role.nome}
+                  </Badge>
+                );
+              })()}
+            </div>
+          )}
+          
+          {userRole.role?.descricao && (
+            <CardDescription className="line-clamp-2 text-xs">
+              {userRole.role.descricao}
+            </CardDescription>
+          )}
+          
+          <div className="text-xs text-gray-500">
+            <span>Atribuído em: {new Date(userRole.createdAt).toLocaleDateString('pt-BR')}</span>
+          </div>
+          <div className="text-xs text-gray-500">
+            <span>ID: {userRole.id.slice(0, 8)}...</span>
+          </div>
+        </div>
+      </CardContent>
+      <ResponsiveCardFooter>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+          onClick={() => abrirModalEditar(userRole)}
+          title="Editar atribuição"
+        >
+          <Edit className="w-4 h-4" />
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className={
+            userRole.ativo 
+              ? 'border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white'
+              : 'border-green-300 text-green-600 hover:bg-green-600 hover:text-white'
+          }
+          onClick={() => toggleUserRoleStatus(userRole)}
+          title={userRole.ativo ? "Desativar atribuição" : "Ativar atribuição"}
+        >
+          {userRole.ativo ? (
+            <UserX className="w-4 h-4" />
+          ) : (
+            <UserCheck className="w-4 h-4" />
+          )}
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+          onClick={() => confirmarExclusao(userRole)}
+          title="Remover atribuição"
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </ResponsiveCardFooter>
+    </Card>
+  );
+
+  // Funções de manipulação
+  const abrirModalNovo = () => {
+    setEditando(null);
+    setForm({
       userId: '',
       roleId: '',
+      ativo: true,
     });
-    setSelectedUser(null);
-    setSelectedRole(null);
+    setFormError('');
+    setShowModal(true);
   };
 
-  const handleAssign = (user?: User) => {
-    if (user) {
-      setAssignFormData(prev => ({ ...prev, userId: user.id }));
-    }
-    setIsAssignModalOpen(true);
+  const abrirModalEditar = (userRole: UserRoleDisplay) => {
+    setEditando(userRole);
+    setForm({
+      userId: userRole.userId,
+      roleId: userRole.roleId,
+      ativo: userRole.ativo,
+    });
+    setFormError('');
+    setShowModal(true);
   };
 
-  const handleRemove = (user: User, role: Role) => {
-    setSelectedUser(user);
-    setSelectedRole(role);
-    setIsRemoveModalOpen(true);
+  const fecharModal = () => {
+    setShowModal(false);
+    setEditando(null);
+    setForm({
+      userId: '',
+      roleId: '',
+      ativo: true,
+    });
+    setFormError('');
   };
 
-  const handleSubmitAssign = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    assignMutation.mutate({
-      userId: assignFormData.userId,
-      roleId: assignFormData.roleId,
-    });
+    if (!form.userId) {
+      setFormError('Selecione um usuário.');
+      return;
+    }
+    if (!form.roleId) {
+      setFormError('Selecione uma role.');
+      return;
+    }
+
+    // Verificar duplicatas
+    const duplicata = userRoles.some(ur =>
+      ur.userId === form.userId &&
+      ur.roleId === form.roleId &&
+      (!editando || ur.id !== editando.id)
+    );
+    if (duplicata) {
+      setFormError('Este usuário já possui esta role atribuída.');
+      return;
+    }
+
+    setFormLoading(true);
+    try {
+      if (editando) {
+        // Backend não suporta update, então vamos remover a antiga e criar nova
+        // se houve mudança
+        const mudouRole = editando.roleId !== form.roleId;
+        
+        if (mudouRole) {
+          // Remover atribuição antiga
+          await rbacService.removeRoleFromUser(editando.userId, editando.roleId);
+          
+          // Criar nova atribuição
+          const payload: AssignRoleToUserRequest = {
+            userId: form.userId,
+            roleId: form.roleId,
+          };
+          await rbacService.assignRoleToUser(payload);
+          toast.success('Atribuição atualizada com sucesso');
+        } else {
+          toast.info('Nenhuma alteração foi feita.');
+        }
+      } else {
+        const payload: AssignRoleToUserRequest = {
+          userId: form.userId,
+          roleId: form.roleId,
+        };
+        await rbacService.assignRoleToUser(payload);
+        toast.success('Role atribuída ao usuário com sucesso');
+      }
+      fecharModal();
+      fetchUserRoles();
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Erro ao salvar atribuição';
+      toast.error(msg);
+    } finally {
+      setFormLoading(false);
+    }
   };
 
-  const handleConfirmRemove = () => {
-    if (!selectedUser || !selectedRole) return;
-    removeMutation.mutate({
-      userId: selectedUser.id,
-      roleId: selectedRole.id,
-    });
+  const toggleUserRoleStatus = async (userRole: UserRoleDisplay) => {
+    const novoStatus = !userRole.ativo;
+    const acao = novoStatus ? 'ativar' : 'desativar';
+    
+    try {
+      await rbacService.updateUserRole(userRole.id, { ativo: novoStatus });
+      toast.success(`Atribuição ${acao === 'ativar' ? 'ativada' : 'desativada'} com sucesso`);
+      fetchUserRoles();
+    } catch (e) {
+      toast.error(`Erro ao ${acao} atribuição`);
+    }
   };
 
-  const getInitials = (nome: string) => {
-    return nome
-      .split(' ')
-      .map(part => part.charAt(0).toUpperCase())
-      .slice(0, 2)
-      .join('');
+  const confirmarExclusao = (userRole: UserRoleDisplay) => {
+    setExcluindo(userRole);
   };
 
-  const getUserTypeColor = (tipo: string) => {
-    const colors = {
-      'ADMIN': 'bg-red-500',
-      'RECEPCIONISTA': 'bg-blue-500',
-      'PROFISSIONAL': 'bg-green-500',
-      'PACIENTE': 'bg-purple-500'
-    };
-    return colors[tipo as keyof typeof colors] || 'bg-gray-500';
+  const cancelarExclusao = () => {
+    setExcluindo(null);
   };
 
-  const breadcrumbItems = [
-    { label: 'Administração', href: '/admin' },
-    { label: 'Usuários e Roles', href: '/admin/user-roles' },
-  ];
+  const handleDelete = async () => {
+    if (!excluindo) return;
+    setDeleteLoading(true);
+    try {
+      await rbacService.removeRoleFromUser(excluindo.userId, excluindo.roleId);
+      toast.success('Atribuição removida com sucesso');
+      setExcluindo(null);
+      fetchUserRoles();
+    } catch (e) {
+      toast.error('Erro ao remover atribuição');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <PageContainer>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-2"></div>
+            <p className="text-gray-500">Carregando atribuições...</p>
+          </div>
+        </div>
+      </PageContainer>
+    );
+  }
 
   return (
     <ProtectedRoute requiredModule="admin">
-      <PageTemplate
-        title="Usuários e Roles"
-        description="Gerencie a atribuição de roles aos usuários do sistema"
-        breadcrumbItems={breadcrumbItems}
-        icon={Users}
-      >
-        <div className="space-y-6">
-          {/* Header com filtros */}
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold">Gestão de Usuários e Roles</h2>
-              <p className="text-gray-600 mt-1">
-                Atribua e gerencie as roles dos usuários do sistema
-              </p>
-            </div>
-            <Button onClick={() => handleAssign()}>
-              <UserPlus className="w-4 h-4 mr-2" />
-              Atribuir Role
-            </Button>
-          </div>
+      <PageContainer>
+        {/* Header da página */}
+        <PageHeader title="Atribuições de Usuário" module="permissions" icon={<Users />}>
+          <SearchBar
+            placeholder="Buscar atribuições..."
+            value={busca}
+            onChange={setBusca}
+            module="permissions"
+          />
+          
+          <FilterButton
+            showFilters={mostrarFiltros}
+            onToggleFilters={() => setMostrarFiltros(prev => !prev)}
+            activeFiltersCount={activeFiltersCount}
+            module="permissions"
+            disabled={filterConfigs.length === 0}
+            tooltip={filterConfigs.length === 0 ? 'Nenhum filtro configurado' : undefined}
+          />
+          
+          <ViewToggle 
+            viewMode={viewMode} 
+            onViewModeChange={setViewMode} 
+            module="permissions"
+          />
+          
+          <Button 
+            className="!h-10 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
+            onClick={abrirModalNovo}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Atribuição
+          </Button>
+        </PageHeader>
 
-          {/* Filtros */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Buscar usuários por nome ou email..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <div className="sm:w-48">
-                  <Select value={selectedRoleFilter} onValueChange={setSelectedRoleFilter}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Filtrar por role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas as roles</SelectItem>
-                      {roles.map((role) => (
-                        <SelectItem key={role.id} value={role.id}>
-                          {role.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Conteúdo principal */}
+        <PageContent>
+          {/* Painel de Filtros Dinâmicos */}
+          <DynamicFilterPanel
+            isVisible={mostrarFiltros}
+            filterConfigs={filterConfigs}
+            activeFilters={activeFilters}
+            onFilterChange={setFilter}
+            onClearAll={clearAllFilters}
+            onClose={() => setMostrarFiltros(false)}
+            module="permissions"
+          />
 
-          {/* Lista de usuários */}
-          {isLoadingUsers || isLoadingRoles ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="p-6">
-                    <div className="flex items-start space-x-4">
-                      <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                        <div className="flex space-x-2">
-                          <div className="h-6 bg-gray-200 rounded w-16"></div>
-                          <div className="h-6 bg-gray-200 rounded w-16"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : filteredUsers.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {filteredUsers.map((user) => (
-                <Card key={user.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-4">
-                        <Avatar className="w-12 h-12">
-                          <AvatarFallback className={`text-white ${getUserTypeColor(user.tipo)}`}>
-                            {getInitials(user.nome)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-lg">{user.nome}</h3>
-                          <p className="text-sm text-gray-500 mb-2">{user.email}</p>
-                          <Badge variant="outline" className="mb-3">
-                            {user.tipo}
-                          </Badge>
-                          
-                          {/* Roles do usuário */}
-                          <div className="space-y-2">
-                            <h4 className="text-sm font-medium text-gray-700">
-                              Roles ({user.userRoles.length})
-                            </h4>
-                            {user.userRoles.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {user.userRoles.map((role) => (
-                                  <div key={role.id} className="flex items-center">
-                                    <Badge variant="secondary" className="mr-1">
-                                      {role.nome}
-                                    </Badge>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleRemove(user, role)}
-                                      className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                                    >
-                                      <UserMinus className="w-3 h-3" />
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-xs text-gray-400">Nenhuma role atribuída</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleAssign(user)}
-                      >
-                        <UserPlus className="w-3 h-3 mr-1" />
-                        Adicionar
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+          {/* Conteúdo baseado no modo de visualização */}
+          {viewMode === 'table' ? (
+            <ResponsiveTable 
+              data={userRolesPaginadas}
+              columns={columns}
+              module="permissions"
+              emptyMessage="Nenhuma atribuição encontrada"
+              isLoadingMore={isLoadingMore}
+              hasNextPage={hasNextPage}
+              isMobile={isMobile}
+              scrollRef={targetRef}
+            />
           ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-8">
-                <Users className="w-12 h-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Nenhum usuário encontrado
-                </h3>
-                <p className="text-gray-500 text-center">
-                  {searchTerm || selectedRoleFilter !== 'all' 
-                    ? 'Tente ajustar os filtros de pesquisa' 
-                    : 'Não há usuários cadastrados no sistema'
-                  }
-                </p>
-              </CardContent>
-            </Card>
+            <ResponsiveCards 
+              data={userRolesPaginadas}
+              renderCard={renderCard}
+              emptyMessage="Nenhuma atribuição encontrada"
+              emptyIcon="👥"
+              isLoadingMore={isLoadingMore}
+              hasNextPage={hasNextPage}
+              isMobile={isMobile}
+              scrollRef={targetRef}
+            />
           )}
-        </div>
+        </PageContent>
 
-        {/* Modal de Atribuir Role */}
-        <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Atribuir Role a Usuário</DialogTitle>
-              <DialogDescription>
-                Selecione o usuário e a role que deseja atribuir
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmitAssign}>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="userId">Usuário *</Label>
-                  <Select
-                    value={assignFormData.userId}
-                    onValueChange={(value) => setAssignFormData(prev => ({ ...prev, userId: value }))}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um usuário" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {users.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.nome} - {user.email}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="roleId">Role *</Label>
-                  <Select
-                    value={assignFormData.roleId}
-                    onValueChange={(value) => setAssignFormData(prev => ({ ...prev, roleId: value }))}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione uma role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roles.map((role) => (
-                        <SelectItem key={role.id} value={role.id}>
-                          {role.nome}
-                          {role.descricao && (
-                            <span className="text-gray-500 text-xs ml-2">
-                              - {role.descricao}
-                            </span>
-                          )}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+        {/* Paginação */}
+        {totalItems > 0 && (
+          <ResponsivePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            itemsPerPage={itemsPerPage}
+            module="permissions"
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
+        )}
+
+        {/* Modal de cadastro/edição */}
+        <Dialog open={showModal} onOpenChange={setShowModal}>
+          <DialogContent className="max-w-md">
+            <form onSubmit={handleSubmit}>
+              <DialogHeader>
+                <DialogTitle>{editando ? 'Editar Atribuição' : 'Nova Atribuição'}</DialogTitle>
+              </DialogHeader>
+              <div className="py-2 space-y-4">
+                {!editando && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                        <span className="text-lg">👤</span>
+                        <span className="bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent font-semibold">Usuário</span>
+                        <span className="text-red-500">*</span>
+                      </label>
+                      <div className="space-y-1">
+                        <SingleSelectDropdown
+                          options={userOptions}
+                          selected={userOptions.find(u => u.id === form.userId) || null}
+                          onChange={(selected) => setForm(f => ({ ...f, userId: selected?.id || '' }))}
+                          placeholder="Digite para buscar usuários..."
+                          headerText="Usuários disponíveis"
+                        />
+                        {form.userId && (() => {
+                          const selectedUser = users.find(u => u.id === form.userId);
+                          return selectedUser && (
+                            <div className="text-xs text-gray-500 mt-1 pl-1">
+                              📧 {selectedUser.email}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                        <span className="text-lg">🛡️</span>
+                        <span className="bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent font-semibold">Role</span>
+                        <span className="text-red-500">*</span>
+                      </label>
+                      <SingleSelectDropdown
+                        options={roles}
+                        selected={roles.find(r => r.id === form.roleId) || null}
+                        onChange={(selected) => setForm(f => ({ ...f, roleId: selected?.id || '' }))}
+                        placeholder="Digite para buscar roles..."
+                        formatOption={(option) => option.nome}
+                        headerText="Roles disponíveis"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {editando && (
+                  <div className="space-y-4">
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h4 className="text-sm font-medium text-gray-800 mb-2">Usuário Selecionado</h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Nome:</span>
+                          <span className="text-sm font-medium">{editando.user?.nome}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">E-mail:</span>
+                          <span className="text-sm font-medium">{editando.user?.email}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Role atual:</span>
+                          <span className="text-sm font-medium text-orange-600">{editando.role?.nome}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                        <span className="text-lg">🛡️</span>
+                        <span className="bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent font-semibold">Nova Role</span>
+                        <span className="text-red-500">*</span>
+                      </label>
+                      <SingleSelectDropdown
+                        options={roles}
+                        selected={roles.find(r => r.id === form.roleId) || null}
+                        onChange={(selected) => setForm(f => ({ ...f, roleId: selected?.id || '' }))}
+                        placeholder="Digite para buscar roles..."
+                        formatOption={(option) => option.nome}
+                        headerText="Roles disponíveis"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        A role atual será removida e a nova será atribuída.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {formError && <FormErrorMessage>{formError}</FormErrorMessage>}
+              </div> 
               <DialogFooter className="mt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsAssignModalOpen(false)}
+                <DialogClose asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={formLoading}
+                    className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
+                  >
+                    Cancelar
+                  </Button>
+                </DialogClose>
+                <Button 
+                  type="submit" 
+                  disabled={formLoading}
+                  className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200"
                 >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={assignMutation.isPending}
-                >
-                  {assignMutation.isPending ? 'Atribuindo...' : 'Atribuir Role'}
+                  {formLoading ? 'Salvando...' : 'Salvar'}
                 </Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
 
-        {/* Modal de Confirmação de Remoção */}
-        <AlertDialog open={isRemoveModalOpen} onOpenChange={setIsRemoveModalOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Remover Role</AlertDialogTitle>
-              <AlertDialogDescription>
-                Tem certeza que deseja remover a role "{selectedRole?.nome}" do usuário "{selectedUser?.nome}"?
-                Esta ação pode afetar o acesso do usuário ao sistema.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleConfirmRemove}
-                disabled={removeMutation.isPending}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                {removeMutation.isPending ? 'Removendo...' : 'Remover'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </PageTemplate>
+        {/* Modal de confirmação de exclusão */}
+        <ConfirmDeleteModal
+          open={!!excluindo}
+          onClose={cancelarExclusao}
+          onConfirm={handleDelete}
+          title="Confirmar Remoção de Atribuição"
+          entityName={excluindo?.user?.nome || ''}
+          entityType="atribuição de role"
+          isLoading={deleteLoading}
+          loadingText="Removendo atribuição..."
+          confirmText="Remover Atribuição"
+        />
+      </PageContainer>
     </ProtectedRoute>
   );
 };

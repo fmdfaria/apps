@@ -21,7 +21,7 @@ export interface PaginationConfig {
  * Suporta paginação tradicional (desktop) e rolagem infinita (mobile/tablet)
  */
 export const useResponsiveTable = <T extends Record<string, any>>(
-  data: T[],
+  data: T[] | undefined,
   initialItemsPerPage: number = 10
 ) => {
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
@@ -38,6 +38,7 @@ export const useResponsiveTable = <T extends Record<string, any>>(
 
   // Dados ordenados
   const sortedData = useMemo(() => {
+    if (!data || !Array.isArray(data)) return [];
     if (!sortConfig) return data;
     
     return [...data].sort((a, b) => {

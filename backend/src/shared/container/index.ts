@@ -102,6 +102,8 @@ import { DeleteRouteUseCase } from '../../core/application/use-cases/route/Delet
 import { AssignRoleToUserUseCase } from '../../core/application/use-cases/user-role/AssignRoleToUserUseCase';
 import { ListUserRolesUseCase } from '../../core/application/use-cases/user-role/ListUserRolesUseCase';
 import { RemoveRoleFromUserUseCase } from '../../core/application/use-cases/user-role/RemoveRoleFromUserUseCase';
+import { UpdateUserRoleUseCase } from '../../core/application/use-cases/user-role/UpdateUserRoleUseCase';
+import { ListAllUserRolesUseCase } from '../../core/application/use-cases/user-role/ListAllUserRolesUseCase';
 import { AssignRouteToRoleUseCase } from '../../core/application/use-cases/role-route/AssignRouteToRoleUseCase';
 import { RemoveRouteFromRoleUseCase } from '../../core/application/use-cases/role-route/RemoveRouteFromRoleUseCase';
 import { ListUserAllowedRoutesUseCase } from '../../core/application/use-cases/role-route/ListUserAllowedRoutesUseCase';
@@ -281,6 +283,8 @@ container.register('DeleteRouteUseCase', DeleteRouteUseCase);
 container.register('AssignRoleToUserUseCase', AssignRoleToUserUseCase);
 container.register('ListUserRolesUseCase', ListUserRolesUseCase);
 container.register('RemoveRoleFromUserUseCase', RemoveRoleFromUserUseCase);
+container.register('UpdateUserRoleUseCase', UpdateUserRoleUseCase);
+container.register('ListAllUserRolesUseCase', ListAllUserRolesUseCase);
 
 container.register('AssignRouteToRoleUseCase', AssignRouteToRoleUseCase);
 container.register('RemoveRouteFromRoleUseCase', RemoveRouteFromRoleUseCase);
