@@ -1,11 +1,14 @@
 import { PrismaClient } from '@prisma/client';
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import { Route } from '../../../../core/domain/entities/Route';
 import { IRoutesRepository } from '../../../../core/domain/repositories/IRoutesRepository';
 
 @injectable()
 export class PrismaRoutesRepository implements IRoutesRepository {
-  constructor(private prisma: PrismaClient) {}
+  constructor(
+    @inject('PrismaClient')
+    private prisma: PrismaClient
+  ) {}
 
   async create(route: Route): Promise<Route> {
     const data = await this.prisma.route.create({

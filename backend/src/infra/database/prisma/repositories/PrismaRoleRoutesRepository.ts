@@ -1,11 +1,14 @@
 import { PrismaClient } from '@prisma/client';
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import { RoleRoute } from '../../../../core/domain/entities/RoleRoute';
 import { IRoleRoutesRepository } from '../../../../core/domain/repositories/IRoleRoutesRepository';
 
 @injectable()
 export class PrismaRoleRoutesRepository implements IRoleRoutesRepository {
-  constructor(private prisma: PrismaClient) {}
+  constructor(
+    @inject('PrismaClient')
+    private prisma: PrismaClient
+  ) {}
 
   async create(roleRoute: RoleRoute): Promise<RoleRoute> {
     const data = await this.prisma.roleRoute.create({
@@ -203,7 +206,10 @@ export class PrismaRoleRoutesRepository implements IRoleRoutesRepository {
       orderBy: [{ modulo: 'asc' }, { nome: 'asc' }],
     });
 
-    return data;
+    return data.map(route => ({
+      ...route,
+      modulo: route.modulo ?? undefined
+    }));
   }
 
   async update(roleRoute: RoleRoute): Promise<RoleRoute> {

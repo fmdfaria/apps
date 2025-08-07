@@ -1,11 +1,14 @@
 import { PrismaClient } from '@prisma/client';
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import { Role } from '../../../../core/domain/entities/Role';
 import { IRolesRepository } from '../../../../core/domain/repositories/IRolesRepository';
 
 @injectable()
 export class PrismaRolesRepository implements IRolesRepository {
-  constructor(private prisma: PrismaClient) {}
+  constructor(
+    @inject('PrismaClient')
+    private prisma: PrismaClient
+  ) {}
 
   async create(role: Role): Promise<Role> {
     const data = await this.prisma.role.create({
