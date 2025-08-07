@@ -107,6 +107,9 @@ import { ListAllUserRolesUseCase } from '../../core/application/use-cases/user-r
 import { AssignRouteToRoleUseCase } from '../../core/application/use-cases/role-route/AssignRouteToRoleUseCase';
 import { RemoveRouteFromRoleUseCase } from '../../core/application/use-cases/role-route/RemoveRouteFromRoleUseCase';
 import { ListUserAllowedRoutesUseCase } from '../../core/application/use-cases/role-route/ListUserAllowedRoutesUseCase';
+import { ListAllRoleRoutesUseCase } from '../../core/application/use-cases/role-route/ListAllRoleRoutesUseCase';
+import { UpdateRoleRouteUseCase } from '../../core/application/use-cases/role-route/UpdateRoleRouteUseCase';
+import { DeleteRoleRouteUseCase } from '../../core/application/use-cases/role-route/DeleteRoleRouteUseCase';
 
 container.registerInstance('PrismaClient', prisma);
 
@@ -289,3 +292,6 @@ container.register('ListAllUserRolesUseCase', ListAllUserRolesUseCase);
 container.register('AssignRouteToRoleUseCase', AssignRouteToRoleUseCase);
 container.register('RemoveRouteFromRoleUseCase', RemoveRouteFromRoleUseCase);
 container.register('ListUserAllowedRoutesUseCase', ListUserAllowedRoutesUseCase);
+container.register('ListAllRoleRoutesUseCase', ListAllRoleRoutesUseCase);
+container.register('UpdateRoleRouteUseCase', UpdateRoleRouteUseCase);
+container.register('DeleteRoleRouteUseCase', DeleteRoleRouteUseCase);
