@@ -90,6 +90,22 @@ import { PrismaUserRolesRepository } from '../../infra/database/prisma/repositor
 import { IRoleRoutesRepository } from '../../core/domain/repositories/IRoleRoutesRepository';
 import { PrismaRoleRoutesRepository } from '../../infra/database/prisma/repositories/PrismaRoleRoutesRepository';
 
+// RBAC Use Cases
+import { CreateRoleUseCase } from '../../core/application/use-cases/role/CreateRoleUseCase';
+import { ListRolesUseCase } from '../../core/application/use-cases/role/ListRolesUseCase';
+import { UpdateRoleUseCase } from '../../core/application/use-cases/role/UpdateRoleUseCase';
+import { DeleteRoleUseCase } from '../../core/application/use-cases/role/DeleteRoleUseCase';
+import { CreateRouteUseCase } from '../../core/application/use-cases/route/CreateRouteUseCase';
+import { ListRoutesUseCase } from '../../core/application/use-cases/route/ListRoutesUseCase';
+import { UpdateRouteUseCase } from '../../core/application/use-cases/route/UpdateRouteUseCase';
+import { DeleteRouteUseCase } from '../../core/application/use-cases/route/DeleteRouteUseCase';
+import { AssignRoleToUserUseCase } from '../../core/application/use-cases/user-role/AssignRoleToUserUseCase';
+import { ListUserRolesUseCase } from '../../core/application/use-cases/user-role/ListUserRolesUseCase';
+import { RemoveRoleFromUserUseCase } from '../../core/application/use-cases/user-role/RemoveRoleFromUserUseCase';
+import { AssignRouteToRoleUseCase } from '../../core/application/use-cases/role-route/AssignRouteToRoleUseCase';
+import { RemoveRouteFromRoleUseCase } from '../../core/application/use-cases/role-route/RemoveRouteFromRoleUseCase';
+import { ListUserAllowedRoutesUseCase } from '../../core/application/use-cases/role-route/ListUserAllowedRoutesUseCase';
+
 container.registerInstance('PrismaClient', prisma);
 
 container.register<IEspecialidadesRepository>(
@@ -250,3 +266,22 @@ container.registerSingleton<IRoleRoutesRepository>(
   'RoleRoutesRepository',
   PrismaRoleRoutesRepository
 );
+
+// RBAC Use Cases
+container.register('CreateRoleUseCase', CreateRoleUseCase);
+container.register('ListRolesUseCase', ListRolesUseCase);
+container.register('UpdateRoleUseCase', UpdateRoleUseCase);
+container.register('DeleteRoleUseCase', DeleteRoleUseCase);
+
+container.register('CreateRouteUseCase', CreateRouteUseCase);
+container.register('ListRoutesUseCase', ListRoutesUseCase);
+container.register('UpdateRouteUseCase', UpdateRouteUseCase);
+container.register('DeleteRouteUseCase', DeleteRouteUseCase);
+
+container.register('AssignRoleToUserUseCase', AssignRoleToUserUseCase);
+container.register('ListUserRolesUseCase', ListUserRolesUseCase);
+container.register('RemoveRoleFromUserUseCase', RemoveRoleFromUserUseCase);
+
+container.register('AssignRouteToRoleUseCase', AssignRouteToRoleUseCase);
+container.register('RemoveRouteFromRoleUseCase', RemoveRouteFromRoleUseCase);
+container.register('ListUserAllowedRoutesUseCase', ListUserAllowedRoutesUseCase);
