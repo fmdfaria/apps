@@ -80,6 +80,16 @@ import { ListBancosUseCase } from '../../core/application/use-cases/banco/ListBa
 import { UpdateBancoUseCase } from '../../core/application/use-cases/banco/UpdateBancoUseCase';
 import { DeleteBancoUseCase } from '../../core/application/use-cases/banco/DeleteBancoUseCase';
 
+// RBAC Imports
+import { IRolesRepository } from '../../core/domain/repositories/IRolesRepository';
+import { PrismaRolesRepository } from '../../infra/database/prisma/repositories/PrismaRolesRepository';
+import { IRoutesRepository } from '../../core/domain/repositories/IRoutesRepository';
+import { PrismaRoutesRepository } from '../../infra/database/prisma/repositories/PrismaRoutesRepository';
+import { IUserRolesRepository } from '../../core/domain/repositories/IUserRolesRepository';
+import { PrismaUserRolesRepository } from '../../infra/database/prisma/repositories/PrismaUserRolesRepository';
+import { IRoleRoutesRepository } from '../../core/domain/repositories/IRoleRoutesRepository';
+import { PrismaRoleRoutesRepository } from '../../infra/database/prisma/repositories/PrismaRoleRoutesRepository';
+
 container.registerInstance('PrismaClient', prisma);
 
 container.register<IEspecialidadesRepository>(
@@ -219,3 +229,24 @@ container.register('CreateBancoUseCase', CreateBancoUseCase);
 container.register('ListBancosUseCase', ListBancosUseCase);
 container.register('UpdateBancoUseCase', UpdateBancoUseCase);
 container.register('DeleteBancoUseCase', DeleteBancoUseCase);
+
+// RBAC Repositories
+container.registerSingleton<IRolesRepository>(
+  'RolesRepository',
+  PrismaRolesRepository
+);
+
+container.registerSingleton<IRoutesRepository>(
+  'RoutesRepository',
+  PrismaRoutesRepository
+);
+
+container.registerSingleton<IUserRolesRepository>(
+  'UserRolesRepository',
+  PrismaUserRolesRepository
+);
+
+container.registerSingleton<IRoleRoutesRepository>(
+  'RoleRoutesRepository',
+  PrismaRoleRoutesRepository
+);

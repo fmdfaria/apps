@@ -6,6 +6,7 @@ export interface User {
   email: string;
   tipo: UserType;
   ativo: boolean;
+  roles?: string[]; // Nova propriedade para roles RBAC
 }
 
 export interface AuthResponse {

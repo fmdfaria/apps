@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Users, UserCheck, Briefcase, Building, Building2, LayoutDashboard, LogOut, ChevronLeft, ChevronRight, Clock, DollarSign, CheckCircle, Stethoscope, ClipboardCheck, User, Landmark, Settings } from 'lucide-react';
+import { Calendar, Users, UserCheck, Briefcase, Building, Building2, LayoutDashboard, LogOut, ChevronLeft, ChevronRight, Clock, DollarSign, CheckCircle, Stethoscope, ClipboardCheck, User, Landmark, Settings, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useRef } from 'react';
@@ -26,7 +26,11 @@ const pageToModuleMap: Record<string, string> = {
   'conselhos': 'conselhos',
   'bancos': 'default',
   'administracao': 'default',
-  'administracao/usuarios': 'default'
+  'administracao/usuarios': 'default',
+  'administracao/roles': 'default',
+  'administracao/rotas': 'default',
+  'administracao/usuarios-roles': 'default',
+  'administracao/permissoes': 'default'
 };
 
 // Componente de Tooltip para sidebar recolhido
@@ -214,7 +218,11 @@ const menuItems = [
     label: 'Administração',
     icon: Settings,
     children: [
-      { id: 'administracao/usuarios', label: 'Usuários', icon: Users }
+      { id: 'administracao/usuarios', label: 'Usuários', icon: Users },
+      { id: 'administracao/roles', label: 'Roles', icon: Shield },
+      { id: 'administracao/rotas', label: 'Rotas', icon: Building },
+      { id: 'administracao/usuarios-roles', label: 'Usuários e Roles', icon: UserCheck },
+      { id: 'administracao/permissoes', label: 'Permissões', icon: Settings }
     ]
   },
 ];
@@ -270,7 +278,7 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
     )}>
       <div className={cn('flex items-center border-b border-gray-200', isCollapsed ? 'justify-center p-2' : 'justify-between p-4')}> 
         <img 
-          src="https://hfhtedjjznbktrnshmwa.supabase.co/storage/v1/object/public/files//logo-probotec-300x100.png" 
+          src="https://probotec.com.br/wp-content/uploads/2025/05/logo-probotec-300x100-2.png" 
           alt="Probotec Logo" 
           className={cn('h-10 w-auto transition-all duration-200', isCollapsed ? 'hidden' : 'block')}
         />

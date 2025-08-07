@@ -26,6 +26,10 @@ import { evolucoesPacientesRoutes } from './infra/http/routes/evolucoes-paciente
 import { authRoutes } from './infra/http/routes/auth.routes';
 import { usersRoutes } from './infra/http/routes/users.routes';
 import { bancosRoutes } from './infra/http/routes/bancos.routes';
+import { rolesRoutes } from './infra/http/routes/roles.routes';
+import { routesRoutes } from './infra/http/routes/routes.routes';
+import { userRolesRoutes } from './infra/http/routes/user-roles.routes';
+import { roleRoutesRoutes } from './infra/http/routes/role-routes.routes';
 
 const app = fastify({
   logger: true,
@@ -62,6 +66,10 @@ app.register(evolucoesPacientesRoutes);
 app.register(authRoutes);
 app.register(usersRoutes);
 app.register(bancosRoutes);
+app.register(rolesRoutes);
+app.register(routesRoutes);
+app.register(userRolesRoutes);
+app.register(roleRoutesRoutes);
 
 // Health check route
 app.get('/', async (request, reply) => {

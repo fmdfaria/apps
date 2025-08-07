@@ -38,6 +38,10 @@ import { ConselhosPageResponsive } from './pages/conselhos/ConselhosPageResponsi
 import { RecursosPageResponsive } from './pages/recursos/RecursosPageResponsive';
 import { EspecialidadesPageResponsive } from './pages/especialidades/EspecialidadesPageResponsive';
 import { UsuariosPageResponsive } from './pages/usuarios/UsuariosPageResponsive';
+import RolesPage from './pages/admin/RolesPage';
+import RoutesPage from './pages/admin/RoutesPage';
+import UserRolesPage from './pages/admin/UserRolesPage';
+import PermissionsPage from './pages/admin/PermissionsPage';
 
 export default function App() {
   const initializeAuth = useAuthStore((s) => s.initializeAuth);
@@ -87,6 +91,10 @@ export default function App() {
             <Route path="calendario" element={<CalendarioPage />} />
             <Route path="perfil" element={<Perfil />} />
             <Route path="administracao/usuarios" element={<UsuariosPageResponsive />} />
+            <Route path="administracao/roles" element={<RolesPage />} />
+            <Route path="administracao/rotas" element={<RoutesPage />} />
+            <Route path="administracao/usuarios-roles" element={<UserRolesPage />} />
+            <Route path="administracao/permissoes" element={<PermissionsPage />} />
           </Route>
         </Route>
 

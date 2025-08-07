@@ -13,6 +13,7 @@ export { InfiniteScrollLoader } from './InfiniteScrollLoader';
 export { ActionButton } from './ActionButton';
 export { ResponsiveCardFooter } from './ResponsiveCardFooter';
 export { PageTemplate } from './PageTemplate';
+export { ProtectedRoute, AdminRoute, ConditionalRender } from './ProtectedRoute';
 
 // Types Export
 export type { TableColumn, FilterType, FilterConfig } from './ResponsiveTable';
