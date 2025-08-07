@@ -102,5 +102,19 @@ export const rbacService = {
     await api.delete(`/role-routes/${roleId}/${routeId}`);
   },
 
+  getAllRoleRoutes: async (): Promise<RoleRoute[]> => {
+    const response = await api.get('/role-routes');
+    return response.data;
+  },
+
+  updateRoleRoute: async (id: string, data: UpdateRoleRouteRequest): Promise<RoleRoute> => {
+    const response = await api.put(`/role-routes/${id}`, data);
+    return response.data;
+  },
+
+  deleteRoleRoute: async (id: string): Promise<void> => {
+    await api.delete(`/role-routes/${id}`);
+  },
+
   // ============ UTILS ============
 };

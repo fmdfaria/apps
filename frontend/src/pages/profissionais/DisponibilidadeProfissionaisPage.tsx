@@ -94,7 +94,7 @@ export default function DisponibilidadeProfissionaisPage() {
   const { toast } = useToast();
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [profissionalSelecionado, setProfissionalSelecionado] = useState<Profissional | null>(null);
-  const [tipoEdicao, setTipoEdicao] = useState<'disponivel' | 'folga'>('disponivel');
+  const [tipoEdicao, setTipoEdicao] = useState<'presencial' | 'online' | 'folga'>('presencial');
   const [abaSelecionada, setAbaSelecionada] = useState<'semanal' | 'data-especifica'>('semanal');
   const [horariosSemana, setHorariosSemana] = useState<HorarioSemana[]>(criarHorarioSemanaPadrao());
   const [horariosOriginais, setHorariosOriginais] = useState<HorarioSemana[]>(criarHorarioSemanaPadrao());
@@ -255,7 +255,7 @@ export default function DisponibilidadeProfissionaisPage() {
     setShowResetConfirm(false);
     toast({
       title: "Horários resetados na tela",
-      description: "Padrão aplicado: Seg-Sex (07:00-12:00 disponível, 12:00-13:00 folga, 13:00-18:00 disponível). Ajuste se necessário e clique em 'Salvar Horários' para aplicar.",
+      description: "Padrão aplicado: Seg-Sex (07:00-12:00 presencial, 12:00-13:00 folga, 13:00-18:00 presencial). Ajuste se necessário e clique em 'Salvar Horários' para aplicar.",
     });
   };
 
@@ -513,14 +513,17 @@ export default function DisponibilidadeProfissionaisPage() {
   const getResumoHorarios = () => {
     const diasAtivos = horariosSemana.filter(h => h.ativo).length;
     const totalIntervalos = horariosSemana.reduce((acc, h) => acc + h.intervalos.length, 0);
-    const intervalosDisponiveis = horariosSemana.reduce((acc, h) => 
-      acc + h.intervalos.filter(i => i.tipo === 'disponivel').length, 0
+    const intervalosPresencial = horariosSemana.reduce((acc, h) => 
+      acc + h.intervalos.filter(i => i.tipo === 'presencial').length, 0
+    );
+    const intervalosOnline = horariosSemana.reduce((acc, h) => 
+      acc + h.intervalos.filter(i => i.tipo === 'online').length, 0
     );
     const intervalosFolga = horariosSemana.reduce((acc, h) => 
       acc + h.intervalos.filter(i => i.tipo === 'folga').length, 0
     );
 
-    return { diasAtivos, totalIntervalos, intervalosDisponiveis, intervalosFolga };
+    return { diasAtivos, totalIntervalos, intervalosPresencial, intervalosOnline, intervalosFolga };
   };
 
   const resumo = getResumoHorarios();
@@ -566,11 +569,23 @@ export default function DisponibilidadeProfissionaisPage() {
                 Tipo de Horário
               </div>
               <Tabs value={tipoEdicao} onValueChange={(value: any) => setTipoEdicao(value)}>
-                <TabsList className="grid w-full grid-cols-2 h-12">
-                  <TabsTrigger value="disponivel" className="data-[state=active]:bg-green-100 data-[state=active]:text-green-700">
-                    ✅ Disponível
+                <TabsList className="grid w-full grid-cols-3 h-12">
+                  <TabsTrigger 
+                    value="presencial" 
+                    className="data-[state=active]:bg-green-100 data-[state=active]:text-green-700 data-[state=active]:border-green-300 text-xs px-2 transition-all duration-200"
+                  >
+                    👥 Presencial
                   </TabsTrigger>
-                  <TabsTrigger value="folga" className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700">
+                  <TabsTrigger 
+                    value="online" 
+                    className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700 data-[state=active]:border-blue-300 text-xs px-2 transition-all duration-200"
+                  >
+                    💻 Online
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="folga" 
+                    className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700 data-[state=active]:border-red-300 text-xs px-2 transition-all duration-200"
+                  >
                     🚫 Folga
                   </TabsTrigger>
                 </TabsList>
@@ -593,11 +608,14 @@ export default function DisponibilidadeProfissionaisPage() {
                       </span>
                     </div>
                     <div className="h-4 w-px bg-gray-300 hidden sm:block"></div>
-                    <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs px-1 sm:px-2 py-1 whitespace-nowrap">
-                        {resumo.intervalosDisponiveis} disponíveis
+                    <div className="flex items-center gap-1 flex-shrink-0 overflow-hidden">
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs px-1 py-1 whitespace-nowrap">
+                        {resumo.intervalosPresencial} presencial
                       </Badge>
-                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs px-1 sm:px-2 py-1 whitespace-nowrap">
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs px-1 py-1 whitespace-nowrap">
+                        {resumo.intervalosOnline} online
+                      </Badge>
+                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs px-1 py-1 whitespace-nowrap">
                         {resumo.intervalosFolga} folgas
                       </Badge>
                     </div>
@@ -624,8 +642,10 @@ export default function DisponibilidadeProfissionaisPage() {
                 <TabsTrigger 
                   value="semanal" 
                   className={`flex items-center gap-2 transition-colors duration-200 ${
-                    tipoEdicao === 'disponivel' 
+                    tipoEdicao === 'presencial' 
                       ? 'data-[state=active]:bg-green-100 data-[state=active]:text-green-700 data-[state=active]:border-green-300' 
+                      : tipoEdicao === 'online'
+                      ? 'data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700 data-[state=active]:border-blue-300'
                       : 'data-[state=active]:bg-red-100 data-[state=active]:text-red-700 data-[state=active]:border-red-300'
                   }`}
                 >
@@ -635,8 +655,10 @@ export default function DisponibilidadeProfissionaisPage() {
                 <TabsTrigger 
                   value="data-especifica" 
                   className={`flex items-center gap-2 transition-colors duration-200 ${
-                    tipoEdicao === 'disponivel' 
+                    tipoEdicao === 'presencial' 
                       ? 'data-[state=active]:bg-green-100 data-[state=active]:text-green-700 data-[state=active]:border-green-300' 
+                      : tipoEdicao === 'online'
+                      ? 'data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700 data-[state=active]:border-blue-300'
                       : 'data-[state=active]:bg-red-100 data-[state=active]:text-red-700 data-[state=active]:border-red-300'
                   }`}
                 >
@@ -812,15 +834,17 @@ export default function DisponibilidadeProfissionaisPage() {
                               <div
                                 key={disp.id}
                                 className={`p-4 rounded-lg border transition-all duration-200 hover:shadow-md hover:scale-[1.01] group ${
-                                  disp.tipo === 'disponivel'
+                                  disp.tipo === 'presencial'
                                     ? 'border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-300'
+                                    : disp.tipo === 'online'
+                                    ? 'border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300'
                                     : 'border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300'
                                 }`}
                               >
                                                             <div className="flex items-center justify-between gap-4">
                               <div className="flex items-center gap-3 flex-1">
                                 <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                                  disp.tipo === 'disponivel' ? 'bg-green-500' : 'bg-red-500'
+                                  disp.tipo === 'presencial' ? 'bg-green-500' : disp.tipo === 'online' ? 'bg-blue-500' : 'bg-red-500'
                                 }`} />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -830,12 +854,14 @@ export default function DisponibilidadeProfissionaisPage() {
                                     <Badge 
                                       variant="outline" 
                                       className={`text-xs flex-shrink-0 ${
-                                        disp.tipo === 'disponivel' 
+                                        disp.tipo === 'presencial' 
                                           ? 'border-green-300 text-green-700 bg-green-100' 
+                                          : disp.tipo === 'online'
+                                          ? 'border-blue-300 text-blue-700 bg-blue-100'
                                           : 'border-red-300 text-red-700 bg-red-100'
                                       }`}
                                     >
-                                      {disp.tipo === 'disponivel' ? '✅ Disponível' : '🚫 Folga'}
+                                      {disp.tipo === 'presencial' ? '👥 Presencial' : disp.tipo === 'online' ? '💻 Online' : '🚫 Folga'}
                                     </Badge>
                                   </div>
                                   <div className="text-sm text-gray-600 flex items-center gap-1">
@@ -908,9 +934,9 @@ export default function DisponibilidadeProfissionaisPage() {
               <strong>Padrão aplicado:</strong>
               <ul className="mt-2 space-y-1 text-sm">
                 <li>• <strong>Segunda a Sexta:</strong></li>
-                <li className="ml-4">- 07:00 às 12:00 (Disponível)</li>
+                <li className="ml-4">- 07:00 às 12:00 (Presencial)</li>
                 <li className="ml-4">- 12:00 às 13:00 (Folga - Almoço)</li>
-                <li className="ml-4">- 13:00 às 18:00 (Disponível)</li>
+                <li className="ml-4">- 13:00 às 18:00 (Presencial)</li>
                 <li>• <strong>Sábado e Domingo:</strong> Sem horários configurados</li>
               </ul>
               <br />

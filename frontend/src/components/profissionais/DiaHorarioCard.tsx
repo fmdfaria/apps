@@ -5,9 +5,67 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { TimeSelectDropdown } from '@/components/ui/time-select-dropdown';
-import { Plus, Trash2, Clock } from 'lucide-react';
+import { Plus, Trash2, Clock, Monitor, Users, Home } from 'lucide-react';
 import type { HorarioSemana, IntervaloHorario } from '@/types/DisponibilidadeProfissional';
 import { validarIntervalo, verificarSobreposicao, marcarComoNovo } from '@/lib/horarios-utils';
+
+// Função para obter cores baseada no tipo
+const obterCoresPorTipo = (tipo: 'presencial' | 'online' | 'folga') => {
+  switch (tipo) {
+    case 'presencial':
+      return {
+        badge: 'bg-green-100 text-green-800 border-green-200',
+        card: 'border-green-200 bg-green-50',
+        button: 'text-green-600 hover:text-green-700'
+      };
+    case 'online':
+      return {
+        badge: 'bg-blue-100 text-blue-800 border-blue-200',
+        card: 'border-blue-200 bg-blue-50',
+        button: 'text-blue-600 hover:text-blue-700'
+      };
+    case 'folga':
+      return {
+        badge: 'bg-red-100 text-red-800 border-red-200',
+        card: 'border-red-200 bg-red-50',
+        button: 'text-red-600 hover:text-red-700'
+      };
+    default:
+      return {
+        badge: 'bg-gray-100 text-gray-800 border-gray-200',
+        card: 'border-gray-200 bg-gray-50',
+        button: 'text-gray-600 hover:text-gray-700'
+      };
+  }
+};
+
+// Função para obter ícone baseado no tipo
+const obterIconePorTipo = (tipo: 'presencial' | 'online' | 'folga') => {
+  switch (tipo) {
+    case 'presencial':
+      return <Users className="w-3 h-3" />;
+    case 'online':
+      return <Monitor className="w-3 h-3" />;
+    case 'folga':
+      return <Home className="w-3 h-3" />;
+    default:
+      return <Clock className="w-3 h-3" />;
+  }
+};
+
+// Função para obter texto do tipo
+const obterTextoTipo = (tipo: 'presencial' | 'online' | 'folga') => {
+  switch (tipo) {
+    case 'presencial':
+      return 'Presencial';
+    case 'online':
+      return 'Online';
+    case 'folga':
+      return 'Folga';
+    default:
+      return 'Desconhecido';
+  }
+};
 
 // Gerar opções de horário para início (06:00 até 21:00)
 const gerarOpcoesHorarioInicio = () => {
@@ -92,7 +150,7 @@ const ordenarIntervalos = (intervalos: IntervaloHorario[]): IntervaloHorario[] =
 
 interface Props {
   horario: HorarioSemana;
-  tipoEdicao: 'disponivel' | 'folga';
+  tipoEdicao: 'presencial' | 'online' | 'folga';
   onChange: (horario: HorarioSemana) => void;
 }
 
@@ -202,6 +260,8 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange }: Props)
 
 
 
+  // Função removida: não há mais alternância de tipo - usar as abas para definir tipo
+
   const handleExcluirIntervalo = (id: string) => {
     const intervalosAtualizados = horario.intervalos.filter(intervalo => intervalo.id !== id);
     onChange({
@@ -212,10 +272,9 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange }: Props)
     setIntervaloParaExcluir(null);
   };
 
-  const getTipoColor = (tipo: 'disponivel' | 'folga') => {
-    return tipo === 'disponivel' 
-      ? 'bg-green-100 text-green-700 border-green-200' 
-      : 'bg-red-100 text-red-700 border-red-200';
+  const getTipoColor = (tipo: 'presencial' | 'online' | 'folga') => {
+    const cores = obterCoresPorTipo(tipo);
+    return cores.card;
   };
 
   return (
@@ -238,8 +297,9 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange }: Props)
             </p>
           </div>
         </div>
-        <Badge variant="outline" className={`${getTipoColor(tipoEdicao)} font-medium flex-shrink-0 text-xs sm:text-sm`}>
-          {tipoEdicao === 'disponivel' ? '✅ Disponível' : '🚫 Folga'}
+        <Badge variant="outline" className={`${obterCoresPorTipo(tipoEdicao).badge} font-medium flex-shrink-0 text-xs sm:text-sm flex items-center gap-1`}>
+          {obterIconePorTipo(tipoEdicao)}
+          {obterTextoTipo(tipoEdicao)}
         </Badge>
       </div>
 
@@ -254,6 +314,14 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange }: Props)
                   <span className="font-medium text-sm sm:text-base">
                     {intervalo.horaInicio} - {intervalo.horaFim}
                   </span>
+                  {/* Badge do tipo do intervalo */}
+                  <Badge 
+                    variant="outline" 
+                    className={`${obterCoresPorTipo(intervalo.tipo).badge} text-xs flex items-center gap-1`}
+                  >
+                    {obterIconePorTipo(intervalo.tipo)}
+                    {obterTextoTipo(intervalo.tipo)}
+                  </Badge>
                   {/* Badge NOVO posicionado após o horário */}
                   {intervalo.isNew && (
                     <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
@@ -261,14 +329,16 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange }: Props)
                     </Badge>
                   )}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIntervaloParaExcluir(intervalo.id!)}
-                  className="text-red-600 hover:text-red-700 h-8 w-8 p-0 flex-shrink-0 self-end sm:self-center"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIntervaloParaExcluir(intervalo.id!)}
+                    className="text-red-600 hover:text-red-700 h-8 w-8 p-0 flex-shrink-0"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
               {intervalo.observacao && (
                 <p className="text-sm mt-2 opacity-75 break-words">{intervalo.observacao}</p>

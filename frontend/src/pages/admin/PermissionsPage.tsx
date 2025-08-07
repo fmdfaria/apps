@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { rbacService } from '@/services/rbac';
-import type { RoleRoute, Role, Route, CreateRoleRouteRequest, UpdateRoleRouteRequest } from '@/types/RBAC';
+import type { RoleRoute, Role, Route, AssignRouteToRoleRequest, UpdateRoleRouteRequest } from '@/types/RBAC';
 import { FormErrorMessage } from '@/components/form-error-message';
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
@@ -115,46 +115,56 @@ export const PermissionsPage = () => {
         if (item.role) {
           const colors = getRoleColor(item.role.nome);
           return (
-            <div className="flex flex-col">
-              <Badge className={`${colors.bg} ${colors.text} text-xs font-medium w-fit`}>
-                {item.role.nome}
-              </Badge>
-              {item.role.descricao && (
-                <span className="text-xs text-gray-500 mt-1">{item.role.descricao}</span>
-              )}
-            </div>
+            <Badge className={`${colors.bg} ${colors.text} text-xs font-medium w-fit`}>
+              {item.role.nome}
+            </Badge>
           );
         }
         return <span className="text-gray-400 text-xs">Role não encontrada</span>;
       }
     },
     {
-      key: 'route',
-      header: '🔗 Rota',
+      key: 'routeMethod',
+      header: '📝 Method',
       essential: true,
       filterable: {
-        type: 'text',
-        placeholder: 'Nome ou caminho da rota...',
-        label: 'Rota'
+        type: 'select',
+        label: 'Method',
+        options: [
+          { value: 'GET', label: 'GET' },
+          { value: 'POST', label: 'POST' },
+          { value: 'PUT', label: 'PUT' },
+          { value: 'DELETE', label: 'DELETE' },
+          { value: 'PATCH', label: 'PATCH' }
+        ]
       },
       render: (item) => {
         if (item.route) {
           const methodColors = getMethodColor(item.route.method);
           return (
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <Badge className={`${methodColors.bg} ${methodColors.text} text-xs font-medium`}>
-                  {item.route.method}
-                </Badge>
-                <span className="text-sm font-medium">{item.route.nome}</span>
-              </div>
-              <code className="text-xs bg-gray-100 px-2 py-1 rounded mt-1 w-fit">
-                {item.route.path}
-              </code>
-              {item.route.modulo && (
-                <span className="text-xs text-gray-500 mt-1">Módulo: {item.route.modulo}</span>
-              )}
-            </div>
+            <Badge className={`${methodColors.bg} ${methodColors.text} text-xs font-medium`}>
+              {item.route.method}
+            </Badge>
+          );
+        }
+        return <span className="text-gray-400 text-xs">-</span>;
+      }
+    },
+    {
+      key: 'routePath',
+      header: '🔗 Path',
+      essential: true,
+      filterable: {
+        type: 'text',
+        placeholder: 'Caminho da rota...',
+        label: 'Path'
+      },
+      render: (item) => {
+        if (item.route) {
+          return (
+            <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono">
+              {item.route.path}
+            </code>
           );
         }
         return <span className="text-gray-400 text-xs">Rota não encontrada</span>;
@@ -164,7 +174,6 @@ export const PermissionsPage = () => {
       key: 'ativo',
       header: '🟢 Status',
       essential: true,
-      className: 'text-center',
       filterable: {
         type: 'select',
         label: 'Status',
@@ -177,17 +186,6 @@ export const PermissionsPage = () => {
         <Badge variant={item.ativo ? "default" : "secondary"}>
           {item.ativo ? 'Ativo' : 'Inativo'}
         </Badge>
-      )
-    },
-    {
-      key: 'createdAt',
-      header: '📅 Atribuído em',
-      essential: false,
-      className: 'text-center',
-      render: (item) => (
-        <span className="text-sm text-gray-600">
-          {new Date(item.createdAt).toLocaleDateString('pt-BR')}
-        </span>
       )
     },
     {
@@ -279,7 +277,7 @@ export const PermissionsPage = () => {
   const fetchRoleRoutes = async () => {
     setLoading(true);
     try {
-      const data = await rbacService.getRoleRoutes();
+      const data = await rbacService.getAllRoleRoutes();
       setRoleRoutes(data);
     } catch (e) {
       toast.error('Erro ao carregar permissões');
@@ -464,17 +462,17 @@ export const PermissionsPage = () => {
     setFormLoading(true);
     try {
       if (editando) {
-        const payload: UpdateRoleRouteRequest = {
-          ativo: form.ativo,
-        };
-        await rbacService.updateRoleRoute(editando.id, payload);
-        toast.success('Permissão atualizada com sucesso');
+        // Para edição, apenas fechar o modal pois os campos estão desabilitados
+        // A edição agora é feita apenas através dos botões de ação
+        toast.info('Use os botões de ação para ativar/desativar permissões');
+        fecharModal();
+        return;
       } else {
-        const payload: CreateRoleRouteRequest = {
+        const payload: AssignRouteToRoleRequest = {
           roleId: form.roleId,
           routeId: form.routeId,
         };
-        await rbacService.createRoleRoute(payload);
+        await rbacService.assignRouteToRole(payload);
         toast.success('Permissão criada com sucesso');
       }
       fecharModal();
@@ -536,32 +534,6 @@ export const PermissionsPage = () => {
     );
   }
 
-  return (
-    <ProtectedRoute requiredModule="admin">
-      <PageContainer>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center max-w-md">
-            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">⚠️</span>
-            </div>
-            <h3 className="text-lg font-medium mb-2 text-orange-800">
-              Página em Desenvolvimento
-            </h3>
-            <p className="text-sm text-orange-600">
-              Esta página requer endpoints no backend que ainda não foram implementados:
-            </p>
-            <ul className="text-xs text-orange-600 mt-2 list-disc list-inside">
-              <li>GET /role-routes (listar todas as associações)</li>
-              <li>PUT /role-routes/:id (atualizar status ativo/inativo)</li>
-              <li>DELETE /role-routes/:id (remover por ID)</li>
-            </ul>
-          </div>
-        </div>
-      </PageContainer>
-    </ProtectedRoute>
-  );
-  
-  // Código original comentado até os endpoints serem implementados
   return (
     <ProtectedRoute requiredModule="admin">
       <PageContainer>
@@ -658,72 +630,44 @@ export const PermissionsPage = () => {
                 <DialogTitle>{editando ? 'Editar Permissão' : 'Nova Permissão'}</DialogTitle>
               </DialogHeader>
               <div className="py-2 space-y-4">
-                {!editando && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
-                        <span className="text-lg">🛡️</span>
-                        <span className="bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent font-semibold">Role</span>
-                        <span className="text-red-500">*</span>
-                      </label>
-                      <SingleSelectDropdown
-                        options={roles}
-                        selected={roles.find(r => r.id === form.roleId) || null}
-                        onChange={(selected) => setForm(f => ({ ...f, roleId: selected?.id || '' }))}
-                        placeholder="Digite para buscar roles..."
-                        formatOption={(option) => option.nome}
-                        headerText="Roles disponíveis"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
-                        <span className="text-lg">🔗</span>
-                        <span className="bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent font-semibold">Rota</span>
-                        <span className="text-red-500">*</span>
-                      </label>
-                      <SingleSelectDropdown
-                        options={routes}
-                        selected={routes.find(r => r.id === form.routeId) || null}
-                        onChange={(selected) => setForm(f => ({ ...f, routeId: selected?.id || '' }))}
-                        placeholder="Digite para buscar rotas..."
-                        formatOption={(option) => `${option.method} ${option.path} - ${option.nome}`}
-                        headerText="Rotas disponíveis"
-                      />
-                    </div>
-                  </>
-                )}
-
-                {editando && (
-                  <div className="space-y-4">
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="text-sm font-medium text-gray-800 mb-2">Permissão Atual</h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Role:</span>
-                          <span className="text-sm font-medium">{editando.role?.nome}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Rota:</span>
-                          <span className="text-sm font-medium">{editando.route?.nome}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Caminho:</span>
-                          <code className="text-xs bg-gray-200 px-2 py-1 rounded">{editando.route?.path}</code>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="ativo"
-                        checked={form.ativo}
-                        onCheckedChange={(checked) => setForm(f => ({ ...f, ativo: checked }))}
-                      />
-                      <Label htmlFor="ativo">Permissão ativa</Label>
-                    </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                    <span className="text-lg">🛡️</span>
+                    <span className="bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent font-semibold">Role</span>
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <div className="max-w-full">
+                    <SingleSelectDropdown
+                      options={roles}
+                      selected={roles.find(r => r.id === form.roleId) || null}
+                      onChange={editando ? undefined : (selected) => setForm(f => ({ ...f, roleId: selected?.id || '' }))}
+                      placeholder={editando ? "Campo somente leitura" : "Digite para buscar roles..."}
+                      formatOption={(option: Role) => option.nome.length > 25 ? option.nome.substring(0, 22) + '...' : option.nome}
+                      headerText="Roles disponíveis"
+                    />
                   </div>
-                )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                    <span className="text-lg">🔗</span>
+                    <span className="bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent font-semibold">Rota</span>
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <div className="max-w-full">
+                    <SingleSelectDropdown
+                      options={routes}
+                      selected={routes.find(r => r.id === form.routeId) || null}
+                      onChange={editando ? undefined : (selected) => setForm(f => ({ ...f, routeId: selected?.id || '' }))}
+                      placeholder={editando ? "Campo somente leitura" : "Digite para buscar rotas..."}
+                      formatOption={(option: Route) => {
+                        const text = `${option.method} ${option.path}`;
+                        return text.length > 40 ? text.substring(0, 37) + '...' : text;
+                      }}
+                      headerText="Rotas disponíveis"
+                    />
+                  </div>
+                </div>
 
                 {formError && <FormErrorMessage>{formError}</FormErrorMessage>}
               </div> 
@@ -743,7 +687,7 @@ export const PermissionsPage = () => {
                   disabled={formLoading}
                   className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200"
                 >
-                  {formLoading ? 'Salvando...' : 'Salvar'}
+                  {formLoading ? (editando ? 'Fechando...' : 'Salvando...') : (editando ? 'Fechar' : 'Salvar')}
                 </Button>
               </DialogFooter>
             </form>
@@ -757,7 +701,11 @@ export const PermissionsPage = () => {
           onConfirm={handleDelete}
           title="Confirmar Remoção de Permissão"
           entityName={excluindo?.role?.nome && excluindo?.route?.nome 
-            ? `${excluindo.role.nome} → ${excluindo.route.nome}`
+            ? (() => {
+                const roleName = excluindo.role.nome.length > 15 ? excluindo.role.nome.substring(0, 12) + '...' : excluindo.role.nome;
+                const routeName = excluindo.route.nome.length > 15 ? excluindo.route.nome.substring(0, 12) + '...' : excluindo.route.nome;
+                return `${roleName} → ${routeName}`;
+              })()
             : ''}
           entityType="permissão"
           isLoading={deleteLoading}

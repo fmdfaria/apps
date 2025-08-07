@@ -24,7 +24,7 @@ export const criarHorarioSemanaPadrao = (): HorarioSemana[] => {
       {
         horaInicio: '07:00',
         horaFim: '12:00',
-        tipo: 'disponivel'
+        tipo: 'presencial'
       },
       {
         horaInicio: '12:00',
@@ -34,7 +34,7 @@ export const criarHorarioSemanaPadrao = (): HorarioSemana[] => {
       {
         horaInicio: '13:00',
         horaFim: '18:00',
-        tipo: 'disponivel'
+        tipo: 'presencial'
       }
     ] : []
   }));
