@@ -247,22 +247,22 @@ container.register('UpdateBancoUseCase', UpdateBancoUseCase);
 container.register('DeleteBancoUseCase', DeleteBancoUseCase);
 
 // RBAC Repositories
-container.registerSingleton<IRolesRepository>(
+container.register<IRolesRepository>(
   'RolesRepository',
   PrismaRolesRepository
 );
 
-container.registerSingleton<IRoutesRepository>(
+container.register<IRoutesRepository>(
   'RoutesRepository',
   PrismaRoutesRepository
 );
 
-container.registerSingleton<IUserRolesRepository>(
+container.register<IUserRolesRepository>(
   'UserRolesRepository',
   PrismaUserRolesRepository
 );
 
-container.registerSingleton<IRoleRoutesRepository>(
+container.register<IRoleRoutesRepository>(
   'RoleRoutesRepository',
   PrismaRoleRoutesRepository
 );
