@@ -42,9 +42,9 @@ export class AuthenticateUserUseCase {
       throw new AppError('Usuário ou senha inválidos.', 401);
     }
     
-    // Buscar roles do usuário
-    const userRoles = await this.userRolesRepository.findActiveUserRoles(user.id);
-    const roleNames = userRoles.map(ur => ur.roleId); // Você pode ajustar para pegar o nome da role se necessário
+    // Buscar roles do usuário com nomes
+    const userRoles = await this.userRolesRepository.findActiveUserRolesWithNames(user.id);
+    const roleNames = userRoles.map(ur => ur.roleName);
     
     // Geração dos tokens
     const accessToken = jwt.sign(

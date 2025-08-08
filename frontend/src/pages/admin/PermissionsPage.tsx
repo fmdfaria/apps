@@ -31,7 +31,6 @@ import type { FilterConfig } from '@/types/filters';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
 import { useTableFilters } from '@/hooks/useTableFilters';
-import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 
 interface RoleRouteFormData {
   roleId: string;
@@ -535,7 +534,6 @@ export const PermissionsPage = () => {
   }
 
   return (
-    <ProtectedRoute requiredModule="admin">
       <PageContainer>
         {/* Header da página */}
         <PageHeader title="Gerenciar Permissões" module="permissions" icon={<Settings />}>
@@ -713,7 +711,6 @@ export const PermissionsPage = () => {
           confirmText="Remover Permissão"
         />
       </PageContainer>
-    </ProtectedRoute>
   );
 };
 

@@ -11,4 +11,5 @@ export interface IUserRolesRepository {
   delete(id: string): Promise<void>;
   deleteByUserAndRole(userId: string, roleId: string): Promise<void>;
   findActiveUserRoles(userId: string): Promise<UserRole[]>;
+  findActiveUserRolesWithNames(userId: string): Promise<{ roleId: string; roleName: string }[]>;
 }

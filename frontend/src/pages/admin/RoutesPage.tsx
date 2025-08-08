@@ -33,7 +33,6 @@ import type { FilterConfig } from '@/types/filters';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
 import { useTableFilters } from '@/hooks/useTableFilters';
-import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 
 interface RouteFormData {
   path: string;
@@ -569,7 +568,6 @@ export const RoutesPage = () => {
   }
 
   return (
-    <ProtectedRoute requiredModule="admin">
       <PageContainer>
         {/* Header da página */}
         <PageHeader title="Gerenciar Rotas" module="routes" icon={<RouteIcon />}>
@@ -805,7 +803,6 @@ export const RoutesPage = () => {
           confirmText="Excluir Rota"
         />
       </PageContainer>
-    </ProtectedRoute>
   );
 };
 

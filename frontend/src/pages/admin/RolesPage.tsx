@@ -32,7 +32,6 @@ import type { FilterConfig } from '@/types/filters';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
 import { useTableFilters } from '@/hooks/useTableFilters';
-import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 
 interface RoleFormData {
   nome: string;
@@ -404,7 +403,6 @@ export const RolesPage = () => {
   }
 
   return (
-    <ProtectedRoute requiredModule="admin">
       <PageContainer>
         {/* Header da página */}
         <PageHeader title="Gerenciar Roles" module="admin" icon={<Shield />}>
@@ -582,7 +580,6 @@ export const RolesPage = () => {
           confirmText="Excluir Role"
         />
       </PageContainer>
-    </ProtectedRoute>
   );
 };
 

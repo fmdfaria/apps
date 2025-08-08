@@ -33,7 +33,6 @@ import type { FilterConfig } from '@/types/filters';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
 import { useTableFilters } from '@/hooks/useTableFilters';
-import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 
 interface UserRoleFormData {
   userId: string;
@@ -546,7 +545,6 @@ export const UserRolesPage = () => {
   }
 
   return (
-    <ProtectedRoute requiredModule="admin">
       <PageContainer>
         {/* Header da página */}
         <PageHeader title="Atribuições de Usuário" module="permissions" icon={<Users />}>
@@ -765,7 +763,6 @@ export const UserRolesPage = () => {
           confirmText="Remover Atribuição"
         />
       </PageContainer>
-    </ProtectedRoute>
   );
 };
 
