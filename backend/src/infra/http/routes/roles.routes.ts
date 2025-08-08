@@ -11,7 +11,7 @@ export async function rolesRoutes(fastify: FastifyInstance) {
   }, rolesController.create);
   
   fastify.get('/roles', { 
-    preHandler: [ensureAuthenticated] 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/roles', 'GET')] 
   }, rolesController.list);
   
   fastify.put('/roles/:id', { 
