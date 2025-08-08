@@ -226,24 +226,41 @@ export const RecursosPage = () => {
       console.log('📋 Rotas permitidas recebidas:', allowedRoutes);
       
       // Verificar cada permissão específica para recursos
-      const canRead = allowedRoutes.some((route: any) => 
-        route.path === '/recursos' && route.method.toLowerCase() === 'get'
-      );
-      const canCreate = allowedRoutes.some((route: any) => 
-        route.path === '/recursos' && route.method.toLowerCase() === 'post'
-      );
-      const canUpdate = allowedRoutes.some((route: any) => 
-        route.path === '/recursos' && route.method.toLowerCase() === 'put'
-      );
-      const canDelete = allowedRoutes.some((route: any) => 
-        route.path === '/recursos' && route.method.toLowerCase() === 'delete'
-      );
+      console.log('🔍 Buscando rotas de recursos...');
+      
+      const canRead = allowedRoutes.some((route: any) => {
+        const match = route.path === '/recursos' && route.method.toLowerCase() === 'get';
+        console.log(`📋 Rota: ${route.path} ${route.method} - Match GET:`, match);
+        return match;
+      });
+      
+      const canCreate = allowedRoutes.some((route: any) => {
+        const match = route.path === '/recursos' && route.method.toLowerCase() === 'post';
+        console.log(`📋 Rota: ${route.path} ${route.method} - Match POST:`, match);
+        return match;
+      });
+      
+      const canUpdate = allowedRoutes.some((route: any) => {
+        const match = route.path === '/recursos/:id' && route.method.toLowerCase() === 'put';
+        console.log(`📋 Rota: ${route.path} ${route.method} - Match PUT:`, match);
+        return match;
+      });
+      
+      const canDelete = allowedRoutes.some((route: any) => {
+        const match = route.path === '/recursos/:id' && route.method.toLowerCase() === 'delete';
+        console.log(`📋 Rota: ${route.path} ${route.method} - Match DELETE:`, match);
+        return match;
+      });
       
       console.log('🎯 Permissões calculadas:', { canRead, canCreate, canUpdate, canDelete });
       
+      console.log('🔄 Atualizando estados das permissões...');
       setCanCreate(canCreate);
+      console.log('✅ canCreate definido como:', canCreate);
       setCanUpdate(canUpdate);
+      console.log('✅ canUpdate definido como:', canUpdate);
       setCanDelete(canDelete);
+      console.log('✅ canDelete definido como:', canDelete);
       
       // Se não tem nem permissão de leitura, marca como access denied
       if (!canRead) {
@@ -507,7 +524,10 @@ export const RecursosPage = () => {
           module="recursos"
         />
         
-        {canCreate ? (
+        {(() => {
+          console.log('🎨 Renderizando botão Novo Recurso - canCreate:', canCreate);
+          return canCreate;
+        })() ? (
           <Button 
             className="!h-10 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
             onClick={abrirModalNovo}

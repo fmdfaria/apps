@@ -10,11 +10,11 @@ export async function recursosRoutes(app: FastifyInstance) {
   }, recursosController.list);
   
   app.put('/recursos/:id', { 
-    preHandler: [ensureAuthenticated, ensureAuthorized('/recursos', 'PUT')] 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/recursos/:id', 'PUT')] 
   }, recursosController.update);
   
   app.delete('/recursos/:id', { 
-    preHandler: [ensureAuthenticated, ensureAuthorized('/recursos', 'DELETE')] 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/recursos/:id', 'DELETE')] 
   }, recursosController.delete);
 
   app.post('/recursos', { 
