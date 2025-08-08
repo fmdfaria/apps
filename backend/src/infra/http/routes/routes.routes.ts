@@ -21,4 +21,8 @@ export async function routesRoutes(fastify: FastifyInstance) {
   fastify.delete('/routes/:id', { 
     preHandler: [ensureAuthenticated, ensureAuthorized('/routes/:id', 'DELETE')] 
   }, routesController.delete);
+
+  fastify.get('/routes/find-by-path', { 
+    preHandler: [ensureAuthenticated] 
+  }, routesController.findByPathAndMethod);
 }

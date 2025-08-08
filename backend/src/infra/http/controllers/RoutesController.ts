@@ -5,6 +5,7 @@ import { CreateRouteUseCase } from '../../../core/application/use-cases/route/Cr
 import { ListRoutesUseCase } from '../../../core/application/use-cases/route/ListRoutesUseCase';
 import { UpdateRouteUseCase } from '../../../core/application/use-cases/route/UpdateRouteUseCase';
 import { DeleteRouteUseCase } from '../../../core/application/use-cases/route/DeleteRouteUseCase';
+import { FindRouteByPathAndMethodUseCase } from '../../../core/application/use-cases/route/FindRouteByPathAndMethodUseCase';
 
 export class RoutesController {
   async create(request: FastifyRequest, reply: FastifyReply) {
@@ -72,5 +73,31 @@ export class RoutesController {
     await useCase.execute({ id });
 
     return reply.status(204).send();
+  }
+
+  async findByPathAndMethod(request: FastifyRequest, reply: FastifyReply) {
+    const querySchema = z.object({
+      path: z.string().min(1),
+      method: z.string().min(1),
+    });
+
+    const { path, method } = querySchema.parse(request.query);
+
+    try {
+      const useCase = container.resolve(FindRouteByPathAndMethodUseCase);
+      const route = await useCase.execute({ path, method });
+
+      if (!route) {
+        return reply.status(404).send({ message: 'Rota não encontrada' });
+      }
+
+      return reply.send({
+        nome: route.nome,
+        descricao: route.descricao,
+        modulo: route.modulo,
+      });
+    } catch (error) {
+      return reply.status(500).send({ message: 'Erro interno do servidor' });
+    }
   }
 }

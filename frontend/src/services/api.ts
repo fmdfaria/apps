@@ -1,10 +1,51 @@
 import axios from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
+import { toast } from 'sonner';
+import { getRouteInfo } from './routes-info';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001',
   withCredentials: true, // para cookies de refresh token
 });
+
+// Função para tratar erros 403 com mensagens amigáveis
+async function handleForbiddenError(originalRequest: any) {
+  try {
+    // Extrai o path e método da requisição
+    const fullUrl = originalRequest.url;
+    const method = originalRequest.method?.toUpperCase() || 'GET';
+    
+    // Remove a base URL para obter apenas o path
+    const baseURL = api.defaults.baseURL || '';
+    const path = fullUrl.startsWith(baseURL) ? fullUrl.replace(baseURL, '') : fullUrl;
+    
+    // Remove query parameters para buscar a rota exata
+    const cleanPath = path.split('?')[0];
+    
+    // Busca informações da rota
+    const routeInfo = await getRouteInfo(cleanPath, method);
+    
+    if (routeInfo) {
+      // Mensagem amigável com informações da rota
+      toast.error(`Acesso Negado`, {
+        description: `Você não tem permissão para: "${routeInfo.nome}". ${routeInfo.descricao}`,
+        duration: 6000,
+      });
+    } else {
+      // Mensagem genérica se a rota não for encontrada
+      toast.error('Acesso Negado', {
+        description: 'Você não possui permissão para realizar esta ação. Entre em contato com o administrador.',
+        duration: 6000,
+      });
+    }
+  } catch (err) {
+    // Se houver erro ao buscar informações da rota, mostra mensagem genérica
+    toast.error('Acesso Negado', {
+      description: 'Você não possui permissão para realizar esta ação. Entre em contato com o administrador.',
+      duration: 6000,
+    });
+  }
+}
 
 // Interceptador para adicionar accessToken
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
@@ -52,6 +93,11 @@ api.interceptors.response.use(
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       window.location.href = '/auth/login';
+    }
+
+    // Trata erros 403 (Acesso Negado) com mensagem amigável
+    if (error.response?.status === 403) {
+      handleForbiddenError(originalRequest);
     }
 
     return Promise.reject(error);
