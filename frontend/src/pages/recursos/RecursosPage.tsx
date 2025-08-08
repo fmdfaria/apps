@@ -6,7 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useToast, toast } from '@/components/ui/use-toast';
+import { AppToast } from '@/services/toast';
+
 import { getRecursos, createRecurso, updateRecurso, deleteRecurso } from '@/services/recursos';
 import type { Recurso } from '@/types/Recurso';
 import api from '@/services/api';
@@ -300,7 +301,9 @@ export const RecursosPage = () => {
         }
         // Não mostra toast aqui pois o interceptor já cuida disso
       } else {
-        toast({ title: 'Erro ao carregar recursos', variant: 'destructive' });
+        AppToast.error('Erro ao carregar recursos', {
+          description: 'Ocorreu um problema ao carregar a lista de recursos. Tente novamente.'
+        });
       }
     } finally {
       setLoading(false);
@@ -436,27 +439,34 @@ export const RecursosPage = () => {
     e.preventDefault();
     if (!form.nome.trim() || form.nome.trim().length < 2) {
       setFormError('O nome deve ter pelo menos 2 caracteres.');
+      AppToast.validation('Nome muito curto', 'O nome do recurso deve ter pelo menos 2 caracteres.');
       return;
     }
     setFormLoading(true);
     try {
       if (editando) {
         await updateRecurso(editando.id, { nome: form.nome.trim(), descricao: form.descricao.trim() });
-        toast({ title: 'Recurso atualizado com sucesso', variant: 'success' });
+        AppToast.updated('Recurso', `O recurso "${form.nome.trim()}" foi atualizado com sucesso.`);
       } else {
         await createRecurso({ nome: form.nome.trim(), descricao: form.descricao.trim() });
-        toast({ title: 'Recurso criado com sucesso', variant: 'success' });
+        AppToast.created('Recurso', `O recurso "${form.nome.trim()}" foi criado com sucesso.`);
       }
       fecharModal();
       fetchRecursos();
     } catch (e: any) {
-      let msg = 'Erro ao salvar recurso';
-      if (e?.response?.data?.message) {
-        msg = e.response.data.message;
+      let title = 'Erro ao salvar recurso';
+      let description = 'Não foi possível salvar o recurso. Verifique os dados e tente novamente.';
+      
+      if (e?.response?.status === 403) {
+        // Erro de permissão será tratado pelo interceptor
+        return;
+      } else if (e?.response?.data?.message) {
+        description = e.response.data.message;
       } else if (e?.message) {
-        msg = e.message;
+        description = e.message;
       }
-      toast({ title: msg, variant: 'destructive' });
+      
+      AppToast.error(title, { description });
     } finally {
       setFormLoading(false);
     }
@@ -475,11 +485,18 @@ export const RecursosPage = () => {
     setDeleteLoading(true);
     try {
       await deleteRecurso(excluindo.id);
-      toast({ title: 'Recurso excluído com sucesso', variant: 'success' });
+      AppToast.deleted('Recurso', `O recurso "${excluindo.nome}" foi excluído permanentemente.`);
       setExcluindo(null);
       fetchRecursos();
-    } catch (e) {
-      toast({ title: 'Erro ao excluir recurso', variant: 'destructive' });
+    } catch (e: any) {
+      if (e?.response?.status === 403) {
+        // Erro de permissão será tratado pelo interceptor
+        return;
+      }
+      
+      AppToast.error('Erro ao excluir recurso', {
+        description: 'Não foi possível excluir o recurso. Tente novamente ou entre em contato com o suporte.'
+      });
     } finally {
       setDeleteLoading(false);
     }

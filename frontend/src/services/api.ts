@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
-import { toast } from 'sonner';
+import { AppToast } from './toast';
 import { getRouteInfo } from './routes-info';
 
 const api = axios.create({
@@ -27,23 +27,14 @@ async function handleForbiddenError(originalRequest: any) {
     
     if (routeInfo) {
       // Mensagem amigável com informações da rota
-      toast.error(`Acesso Negado`, {
-        description: `Você não tem permissão para: "${routeInfo.nome}". ${routeInfo.descricao}`,
-        duration: 6000,
-      });
+      AppToast.accessDenied(routeInfo.nome, routeInfo.descricao);
     } else {
       // Mensagem genérica se a rota não for encontrada
-      toast.error('Acesso Negado', {
-        description: 'Você não possui permissão para realizar esta ação. Entre em contato com o administrador.',
-        duration: 6000,
-      });
+      AppToast.accessDenied();
     }
   } catch (err) {
     // Se houver erro ao buscar informações da rota, mostra mensagem genérica
-    toast.error('Acesso Negado', {
-      description: 'Você não possui permissão para realizar esta ação. Entre em contato com o administrador.',
-      duration: 6000,
-    });
+    AppToast.accessDenied();
   }
 }
 
