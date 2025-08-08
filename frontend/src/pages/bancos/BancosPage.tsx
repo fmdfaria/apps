@@ -1,74 +1,403 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
+import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { useToast, toast } from '@/components/ui/use-toast';
+import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AppToast } from '@/services/toast';
+
 import { getBancos, createBanco, updateBanco, deleteBanco } from '@/services/bancos';
 import type { Banco } from '@/types/Banco';
+import api from '@/services/api';
 import { FormErrorMessage } from '@/components/form-error-message';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
+import { 
+  PageContainer, 
+  PageHeader, 
+  PageContent, 
+  ViewToggle, 
+  SearchBar, 
+  FilterButton,
+  DynamicFilterPanel,
+  ResponsiveTable, 
+  ResponsiveCards, 
+  ResponsivePagination,
+  ActionButton,
+  TableColumn,
+  ResponsiveCardFooter 
+} from '@/components/layout';
+import { useViewMode } from '@/hooks/useViewMode';
+import { useResponsiveTable } from '@/hooks/useResponsiveTable';
+import { useTableFilters } from '@/hooks/useTableFilters';
+
+// Definir tipo de formulário separado
+interface FormularioBanco {
+  codigo: string;
+  nome: string;
+}
 
 export const BancosPage = () => {
   const [bancos, setBancos] = useState<Banco[]>([]);
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [canCreate, setCanCreate] = useState(true);
+  const [canUpdate, setCanUpdate] = useState(true);
+  const [canDelete, setCanDelete] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState<Banco | null>(null);
-  const [codigo, setCodigo] = useState('');
-  const [nome, setNome] = useState('');
+  const [form, setForm] = useState<FormularioBanco>({
+    codigo: '',
+    nome: '',
+  });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
   const [excluindo, setExcluindo] = useState<Banco | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [itensPorPagina, setItensPorPagina] = useState(10);
-  const [paginaAtual, setPaginaAtual] = useState(1);
+
+  // Hooks responsivos
+  const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'bancos-view' });
+  
+  // Configuração das colunas da tabela com filtros dinâmicos
+  const columns: TableColumn<Banco>[] = [
+    {
+      key: 'codigo',
+      header: '🔢 Código',
+      essential: true,
+      filterable: {
+        type: 'text',
+        placeholder: 'Código do banco...',
+        label: 'Código'
+      },
+      render: (item) => (
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+            {item.codigo.charAt(0)}
+          </div>
+          <span className="text-sm font-medium font-mono">{item.codigo}</span>
+        </div>
+      )
+    },
+    {
+      key: 'nome',
+      header: '🏦 Nome',
+      essential: false,
+      filterable: {
+        type: 'text',
+        placeholder: 'Nome do banco...',
+        label: 'Nome'
+      },
+      render: (item) => <span className="text-sm text-gray-600">{item.nome}</span>
+    },
+    {
+      key: 'actions',
+      header: '⚙️ Ações',
+      essential: true,
+      render: (item) => {
+        return (
+        <div className="flex gap-1.5">
+          {canUpdate ? (
+            <ActionButton
+              variant="view"
+              module="bancos"
+              onClick={() => abrirModalEditar(item)}
+              title="Editar Banco"
+            >
+              <Edit className="w-4 h-4" />
+            </ActionButton>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 border-orange-300 text-orange-600 opacity-50 cursor-not-allowed"
+                      disabled={true}
+                      title="Sem permissão para editar"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para editar bancos</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
+          {canDelete ? (
+            <ActionButton
+              variant="delete"
+              module="bancos"
+              onClick={() => confirmarExclusao(item)}
+              title="Excluir Banco"
+            >
+              <Trash2 className="w-4 h-4" />
+            </ActionButton>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 border-red-300 text-red-600 opacity-50 cursor-not-allowed"
+                      disabled={true}
+                      title="Sem permissão para excluir"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para excluir bancos</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+        );
+      }
+    }
+  ];
+  
+  // Sistema de filtros dinâmicos
+  const {
+    activeFilters,
+    filterConfigs,
+    activeFiltersCount,
+    setFilter,
+    clearFilter,
+    clearAllFilters,
+    applyFilters
+  } = useTableFilters(columns);
+  
+  // Estado para mostrar/ocultar painel de filtros
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  
+  // Filtrar dados baseado na busca e filtros dinâmicos
+  const bancosFiltrados = useMemo(() => {
+    // Primeiro aplicar busca textual
+    let dadosFiltrados = bancos.filter(b =>
+      b.nome.toLowerCase().includes(busca.toLowerCase()) ||
+      b.codigo.toLowerCase().includes(busca.toLowerCase())
+    );
+    
+    // Depois aplicar filtros dinâmicos
+    return applyFilters(dadosFiltrados);
+  }, [bancos, busca, applyFilters]);
+
+  const {
+    data: bancosPaginados,
+    totalItems,
+    currentPage,
+    itemsPerPage,
+    totalPages,
+    handlePageChange,
+    handleItemsPerPageChange,
+    // Infinite scroll específico
+    isDesktop,
+    isMobile,
+    hasNextPage,
+    isLoadingMore,
+    targetRef
+  } = useResponsiveTable(bancosFiltrados, 10);
 
   useEffect(() => {
     fetchBancos();
+    checkPermissions();
   }, []);
+
+  const checkPermissions = async () => {
+    try {
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data;
+      
+      // Verificar cada permissão específica para bancos
+      const canRead = allowedRoutes.some((route: any) => {
+        return route.path === '/bancos' && route.method.toLowerCase() === 'get';
+      });
+      
+      const canCreate = allowedRoutes.some((route: any) => {
+        return route.path === '/bancos' && route.method.toLowerCase() === 'post';
+      });
+      
+      const canUpdate = allowedRoutes.some((route: any) => {
+        return route.path === '/bancos/:id' && route.method.toLowerCase() === 'put';
+      });
+      
+      const canDelete = allowedRoutes.some((route: any) => {
+        return route.path === '/bancos/:id' && route.method.toLowerCase() === 'delete';
+      });
+      
+      setCanCreate(canCreate);
+      setCanUpdate(canUpdate);
+      setCanDelete(canDelete);
+      
+      // Se não tem nem permissão de leitura, marca como access denied
+      if (!canRead) {
+        setAccessDenied(true);
+      }
+      
+    } catch (error: any) {
+      // Em caso de erro, desabilita tudo por segurança
+      setCanCreate(false);
+      setCanUpdate(false);
+      setCanDelete(false);
+      
+      // Se retornar 401/403 no endpoint de permissões, considera acesso negado
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setAccessDenied(true);
+      }
+    }
+  };
 
   const fetchBancos = async () => {
     setLoading(true);
+    setAccessDenied(false);
+    setBancos([]); // Limpa bancos para evitar mostrar dados antigos
     try {
       const data = await getBancos();
       setBancos(data);
-    } catch (e) {
-      toast({ title: 'Erro ao carregar bancos', variant: 'destructive' });
+    } catch (e: any) {
+      if (e?.response?.status === 403) {
+        setAccessDenied(true);
+        // Buscar informações da rota para mensagem mais específica
+        try {
+          const info = await getRouteInfo('/bancos', 'GET');
+          setRouteInfo(info);
+        } catch (routeError) {
+          // Erro ao buscar informações da rota
+        }
+        // Não mostra toast aqui pois o interceptor já cuida disso
+      } else {
+        AppToast.error('Erro ao carregar bancos', {
+          description: 'Ocorreu um problema ao carregar a lista de bancos. Tente novamente.'
+        });
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const bancosFiltrados = bancos
-    .filter(b =>
-      b.nome.toLowerCase().includes(busca.toLowerCase()) ||
-      b.codigo.toLowerCase().includes(busca.toLowerCase())
-    )
-    .sort((a, b) => a.codigo.localeCompare(b.codigo));
-
-  const totalPaginas = Math.ceil(bancosFiltrados.length / itensPorPagina);
-  const bancosPaginados = bancosFiltrados.slice(
-    (paginaAtual - 1) * itensPorPagina,
-    paginaAtual * itensPorPagina
+  // Renderização do card
+  const renderCard = (banco: Banco) => (
+    <Card className="h-full hover:shadow-md transition-shadow">
+      <CardHeader className="pb-2 pt-3 px-3">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-lg">🏦</span>
+            <CardTitle className="text-sm font-medium truncate">{banco.nome}</CardTitle>
+          </div>
+          <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+            {banco.codigo.charAt(0)}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0 px-3 pb-3">
+        <div className="space-y-2">
+          <div className="flex items-start gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Código:</span>
+            <span className="text-xs font-mono text-gray-600 flex-1">
+              {banco.codigo}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+      <ResponsiveCardFooter>
+        {canUpdate ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white"
+            onClick={() => abrirModalEditar(banco)}
+            title="Editar banco"
+          >
+            <Edit className="w-4 h-4" />
+          </Button>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-orange-300 text-orange-600 opacity-50 cursor-not-allowed"
+                    disabled={true}
+                    title="Sem permissão para editar"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para editar bancos</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        
+        {canDelete ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+            onClick={() => confirmarExclusao(banco)}
+            title="Excluir banco"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-red-300 text-red-600 opacity-50 cursor-not-allowed"
+                    disabled={true}
+                    title="Sem permissão para excluir"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para excluir bancos</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </ResponsiveCardFooter>
+    </Card>
   );
 
-  useEffect(() => {
-    setPaginaAtual(1);
-  }, [busca, itensPorPagina]);
-
+  // Funções de manipulação
   const abrirModalNovo = () => {
     setEditando(null);
-    setCodigo('');
-    setNome('');
+    setForm({
+      codigo: '',
+      nome: '',
+    });
     setFormError('');
     setShowModal(true);
   };
 
   const abrirModalEditar = (b: Banco) => {
     setEditando(b);
-    setCodigo(b.codigo);
-    setNome(b.nome);
+    setForm({
+      codigo: b.codigo,
+      nome: b.nome,
+    });
     setFormError('');
     setShowModal(true);
   };
@@ -76,40 +405,50 @@ export const BancosPage = () => {
   const fecharModal = () => {
     setShowModal(false);
     setEditando(null);
-    setCodigo('');
-    setNome('');
+    setForm({
+      codigo: '',
+      nome: '',
+    });
     setFormError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!codigo.trim() || codigo.trim().length < 1) {
-      setFormError('O código é obrigatório.');
+    if (!form.codigo.trim() || form.codigo.trim().length < 3) {
+      setFormError('O código deve ter 3 dígitos.');
+      AppToast.validation('Código inválido', 'O código do banco deve ter exatamente 3 dígitos.');
       return;
     }
-    if (!nome.trim() || nome.trim().length < 1) {
-      setFormError('O nome é obrigatório.');
+    if (!form.nome.trim() || form.nome.trim().length < 2) {
+      setFormError('O nome deve ter pelo menos 2 caracteres.');
+      AppToast.validation('Nome muito curto', 'O nome do banco deve ter pelo menos 2 caracteres.');
       return;
     }
     setFormLoading(true);
     try {
       if (editando) {
-        await updateBanco(editando.id, { codigo: codigo.trim(), nome: nome.trim() });
-        toast({ title: 'Banco atualizado com sucesso', variant: 'success' });
+        await updateBanco(editando.id, { codigo: form.codigo.trim(), nome: form.nome.trim() });
+        AppToast.updated('Banco', `O banco "${form.nome.trim()}" foi atualizado com sucesso.`);
       } else {
-        await createBanco({ codigo: codigo.trim(), nome: nome.trim() });
-        toast({ title: 'Banco criado com sucesso', variant: 'success' });
+        await createBanco({ codigo: form.codigo.trim(), nome: form.nome.trim() });
+        AppToast.created('Banco', `O banco "${form.nome.trim()}" foi criado com sucesso.`);
       }
       fecharModal();
       fetchBancos();
     } catch (e: any) {
-      let msg = 'Erro ao salvar banco';
-      if (e?.response?.data?.message) {
-        msg = e.response.data.message;
+      let title = 'Erro ao salvar banco';
+      let description = 'Não foi possível salvar o banco. Verifique os dados e tente novamente.';
+      
+      if (e?.response?.status === 403) {
+        // Erro de permissão será tratado pelo interceptor
+        return;
+      } else if (e?.response?.data?.message) {
+        description = e.response.data.message;
       } else if (e?.message) {
-        msg = e.message;
+        description = e.message;
       }
-      toast({ title: msg, variant: 'destructive' });
+      
+      AppToast.error(title, { description });
     } finally {
       setFormLoading(false);
     }
@@ -128,225 +467,208 @@ export const BancosPage = () => {
     setDeleteLoading(true);
     try {
       await deleteBanco(excluindo.id);
-      toast({ title: 'Banco excluído com sucesso', variant: 'success' });
+      AppToast.deleted('Banco', `O banco "${excluindo.nome}" foi excluído permanentemente.`);
       setExcluindo(null);
       fetchBancos();
-    } catch (e) {
-      toast({ title: 'Erro ao excluir banco', variant: 'destructive' });
+    } catch (e: any) {
+      if (e?.response?.status === 403) {
+        // Erro de permissão será tratado pelo interceptor
+        return;
+      }
+      
+      AppToast.error('Erro ao excluir banco', {
+        description: 'Não foi possível excluir o banco. Tente novamente ou entre em contato com o suporte.'
+      });
     } finally {
       setDeleteLoading(false);
     }
   };
 
-  return (
-    <div className="pt-2 pl-6 pr-6 h-full flex flex-col">
-      <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <span className="text-4xl">🏦</span>
-            <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-              Bancos
-            </span>
-          </h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar bancos..."
-              value={busca}
-              onChange={e => setBusca(e.target.value)}
-              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 transition-all duration-200 hover:border-emerald-300"
-            />
+  if (loading) {
+    return (
+      <PageContainer>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-2"></div>
+            <p className="text-gray-500">Carregando bancos...</p>
           </div>
-          <Button
+        </div>
+      </PageContainer>
+    );
+  }
+
+  return (
+    <PageContainer>
+      {/* Header da página */}
+      <PageHeader title="Bancos" module="bancos" icon="🏦">
+        <SearchBar
+          placeholder="Buscar bancos..."
+          value={busca}
+          onChange={setBusca}
+          module="bancos"
+        />
+        
+        <FilterButton
+          showFilters={mostrarFiltros}
+          onToggleFilters={() => setMostrarFiltros(prev => !prev)}
+          activeFiltersCount={activeFiltersCount}
+          module="bancos"
+          disabled={filterConfigs.length === 0}
+          tooltip={filterConfigs.length === 0 ? 'Nenhum filtro configurado' : undefined}
+        />
+        
+        <ViewToggle 
+          viewMode={viewMode} 
+          onViewModeChange={setViewMode} 
+          module="bancos"
+        />
+        
+        {canCreate ? (
+          <Button 
+            className="!h-10 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
             onClick={abrirModalNovo}
-            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
           >
             <Plus className="w-4 h-4 mr-2" />
             Novo Banco
           </Button>
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-sm border border-gray-100">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-gray-200">
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🔢</span>
-                  Código
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🏦</span>
-                  Nome
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">⚙️</span>
-                  Ações
-                </div>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {bancosPaginados.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={3} className="py-12 text-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                      <span className="text-3xl">🏦</span>
-                    </div>
-                    <p className="text-gray-500 font-medium">Nenhum banco encontrado</p>
-                    <p className="text-gray-400 text-sm">Tente ajustar os filtros de busca</p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              bancosPaginados.map((b) => (
-                <TableRow key={b.id} className="hover:bg-gradient-to-r hover:from-emerald-50 hover:to-teal-50 transition-all duration-200 h-12">
-                  <TableCell className="py-2">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                        {b.codigo.charAt(0)}
-                      </div>
-                      <span className="text-sm font-medium font-mono bg-emerald-100 px-2 py-1 rounded text-emerald-700">{b.codigo}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <span className="text-sm">{b.nome}</span>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <div className="flex gap-1.5 flex-wrap">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:from-emerald-700 hover:to-emerald-800 focus:ring-4 focus:ring-emerald-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                        onClick={() => abrirModalEditar(b)}
-                        title="Editar Banco"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                        onClick={() => confirmarExclusao(b)}
-                        title="Excluir Banco"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600 flex items-center gap-2">
-            <span className="text-lg">📊</span>
-            Exibir
-          </span>
-          <select
-            className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 transition-all duration-200 hover:border-emerald-300"
-            value={itensPorPagina}
-            onChange={e => setItensPorPagina(Number(e.target.value))}
-          >
-            {[10, 25, 50, 100].map(qtd => (
-              <option key={qtd} value={qtd}>{qtd}</option>
-            ))}
-          </select>
-          <span className="text-sm text-gray-600">itens por página</span>
-        </div>
-
-        <div className="text-sm text-gray-600 flex items-center gap-2">
-          <span className="text-lg">📈</span>
-          Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, bancosFiltrados.length)} de {bancosFiltrados.length} resultados
-        </div>
-
-        {totalPaginas > 1 && (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
-              disabled={paginaAtual === 1}
-              className="border-2 border-gray-200 text-gray-700 hover:border-emerald-500 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-teal-50 hover:text-emerald-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-            >
-              <span className="mr-1 text-gray-600 group-hover:text-emerald-600 transition-colors">⬅️</span>
-              Anterior
-            </Button>
-            {(() => {
-              const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
-              const endPage = Math.min(totalPaginas, startPage + 4);
-              return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
-                <Button
-                  key={page}
-                  variant={page === paginaAtual ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPaginaAtual(page)}
-                  className={page === paginaAtual
-                    ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg font-semibold"
-                    : "border-2 border-gray-200 text-gray-700 hover:border-emerald-500 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-teal-50 hover:text-emerald-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-                  }
-                >
-                  {page}
-                </Button>
-              ));
-            })()}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
-              disabled={paginaAtual === totalPaginas}
-              className="border-2 border-gray-200 text-gray-700 hover:border-emerald-500 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-teal-50 hover:text-emerald-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-            >
-              Próximo
-              <span className="ml-1 text-gray-600 group-hover:text-emerald-600 transition-colors">➡️</span>
-            </Button>
-          </div>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button 
+                    className="!h-10 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={true}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Novo Banco
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para criar bancos</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
-      </div>
+      </PageHeader>
+
+      {/* Conteúdo principal */}
+      <PageContent>
+        {/* Painel de Filtros Dinâmicos */}
+        <DynamicFilterPanel
+          isVisible={mostrarFiltros}
+          filterConfigs={filterConfigs}
+          activeFilters={activeFilters}
+          onFilterChange={setFilter}
+          onClearAll={clearAllFilters}
+          onClose={() => setMostrarFiltros(false)}
+          module="bancos"
+        />
+
+        {/* Conteúdo baseado no modo de visualização */}
+        {accessDenied ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <span className="text-3xl">🚫</span>
+            </div>
+            <p className="text-red-600 font-medium mb-2">Acesso Negado</p>
+            <div className="text-gray-600 text-sm space-y-1 max-w-md">
+              {routeInfo ? (
+                <>
+                  <p><strong>Rota:</strong> {routeInfo.nome}</p>
+                  <p><strong>Descrição:</strong> {routeInfo.descricao}</p>
+                  {routeInfo.modulo && <p><strong>Módulo:</strong> {routeInfo.modulo}</p>}
+                  <p className="text-gray-400 mt-2">Você não tem permissão para acessar este recurso</p>
+                </>
+              ) : (
+                <p>Você não tem permissão para visualizar bancos</p>
+              )}
+            </div>
+          </div>
+        ) : viewMode === 'table' ? (
+          <ResponsiveTable 
+            data={bancosPaginados}
+            columns={columns}
+            module="bancos"
+            emptyMessage="Nenhum banco encontrado"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
+          />
+        ) : (
+          <ResponsiveCards 
+            data={bancosPaginados}
+            renderCard={renderCard}
+            emptyMessage="Nenhum banco encontrado"
+            emptyIcon="🏦"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
+          />
+        )}
+      </PageContent>
+
+      {/* Paginação */}
+      {totalItems > 0 && (
+        <ResponsivePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          module="bancos"
+          onPageChange={handlePageChange}
+          onItemsPerPageChange={handleItemsPerPageChange}
+        />
+      )}
+
       {/* Modal de cadastro/edição */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle>{editando ? 'Editar Banco' : 'Novo Banco'}</DialogTitle>
             </DialogHeader>
-            <div className="mt-4 flex flex-col gap-4">
+            <div className="py-2 space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Código</label>
-                <input
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">🔢</span>
+                  <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent font-semibold">Código</span>
+                  <span className="text-red-500">*</span>
+                </label>
+                <Input
                   type="text"
-                  value={codigo}
-                  onChange={e => setCodigo(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  value={form.codigo}
+                  onChange={e => setForm(f => ({ ...f, codigo: e.target.value }))}
                   disabled={formLoading}
                   autoFocus
-                  placeholder="Ex: 001, 104, 237"
+                  maxLength={3}
+                  className="hover:border-emerald-300 focus:border-emerald-500 focus:ring-emerald-100 font-mono"
+                  placeholder="001"
                 />
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
-                <input
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">🏦</span>
+                  <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent font-semibold">Nome</span>
+                  <span className="text-red-500">*</span>
+                </label>
+                <Input
                   type="text"
-                  value={nome}
-                  onChange={e => setNome(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  value={form.nome}
+                  onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
                   disabled={formLoading}
-                  placeholder="Ex: Banco do Brasil S.A."
+                  minLength={2}
+                  className="hover:border-emerald-300 focus:border-emerald-500 focus:ring-emerald-100"
+                  placeholder="Ex: Banco do Brasil, Itaú"
                 />
               </div>
+
               {formError && <FormErrorMessage>{formError}</FormErrorMessage>}
-            </div>
+            </div> 
             <DialogFooter className="mt-6">
               <DialogClose asChild>
                 <Button
@@ -380,10 +702,11 @@ export const BancosPage = () => {
           </form>
         </DialogContent>
       </Dialog>
+
       {/* Modal de confirmação de exclusão */}
       <ConfirmDeleteModal
         open={!!excluindo}
-        onClose={() => setExcluindo(null)}
+        onClose={cancelarExclusao}
         onConfirm={handleDelete}
         title="Confirmar Exclusão de Banco"
         entityName={excluindo?.nome || ''}
@@ -392,6 +715,6 @@ export const BancosPage = () => {
         loadingText="Excluindo banco..."
         confirmText="Excluir Banco"
       />
-    </div>
+    </PageContainer>
   );
 };

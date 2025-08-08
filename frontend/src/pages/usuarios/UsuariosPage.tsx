@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { useToast, toast } from '@/components/ui/use-toast';
+import { AppToast } from '@/services/toast';
 import { getUsers, createUser, updateUser, deleteUser } from '@/services/users';
 import type { User } from '@/types/User';
 import { FormErrorMessage } from '@/components/form-error-message';
@@ -40,7 +40,7 @@ interface FormularioUsuario {
 
 
 
-export const UsuariosPageResponsive = () => {
+export const UsuariosPage = () => {
   const [usuarios, setUsuarios] = useState<User[]>([]);
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
@@ -206,7 +206,9 @@ export const UsuariosPageResponsive = () => {
       const data = await getUsers();
       setUsuarios(data);
     } catch (e) {
-      toast({ title: 'Erro ao carregar usuários', variant: 'destructive' });
+      AppToast.error('Erro ao carregar usuários', {
+        description: 'Ocorreu um problema ao carregar a lista de usuários. Tente novamente.'
+      });
     } finally {
       setLoading(false);
     }
@@ -371,7 +373,7 @@ export const UsuariosPageResponsive = () => {
         
         if (Object.keys(payload).length > 0) {
           await updateUser(editando.id, payload);
-          toast({ title: 'Usuário atualizado com sucesso', variant: 'success' });
+          AppToast.updated('Usuário', `O usuário "${form.nome.trim()}" foi atualizado com sucesso.`);
         }
       } else {
         await createUser({
@@ -379,18 +381,21 @@ export const UsuariosPageResponsive = () => {
           email: form.email.trim(),
           senha: form.senha.trim()
         });
-        toast({ title: 'Usuário criado com sucesso', variant: 'success' });
+        AppToast.created('Usuário', `O usuário "${form.nome.trim()}" foi criado com sucesso.`);
       }
       fecharModal();
       fetchUsuarios();
     } catch (e: any) {
-      let msg = 'Erro ao salvar usuário';
+      let title = 'Erro ao salvar usuário';
+      let description = 'Não foi possível salvar o usuário. Verifique os dados e tente novamente.';
+      
       if (e?.response?.data?.message) {
-        msg = e.response.data.message;
+        description = e.response.data.message;
       } else if (e?.message) {
-        msg = e.message;
+        description = e.message;
       }
-      toast({ title: msg, variant: 'destructive' });
+      
+      AppToast.error(title, { description });
     } finally {
       setFormLoading(false);
     }
@@ -399,13 +404,12 @@ export const UsuariosPageResponsive = () => {
   const toggleUsuarioStatus = async (usuario: User) => {
     try {
       await updateUser(usuario.id, { ativo: !usuario.ativo });
-      toast({ 
-        title: `Usuário ${!usuario.ativo ? 'ativado' : 'desativado'} com sucesso`, 
-        variant: 'success' 
-      });
+      AppToast.updated('Status do Usuário', `O usuário "${usuario.nome}" foi ${!usuario.ativo ? 'ativado' : 'desativado'} com sucesso.`);
       fetchUsuarios();
     } catch (e) {
-      toast({ title: 'Erro ao alterar status do usuário', variant: 'destructive' });
+      AppToast.error('Erro ao alterar status', {
+        description: 'Não foi possível alterar o status do usuário. Tente novamente.'
+      });
     }
   };
 
@@ -422,11 +426,13 @@ export const UsuariosPageResponsive = () => {
     setDeleteLoading(true);
     try {
       await deleteUser(excluindo.id);
-      toast({ title: 'Usuário excluído com sucesso', variant: 'success' });
+      AppToast.deleted('Usuário', `O usuário "${excluindo.nome}" foi excluído permanentemente.`);
       setExcluindo(null);
       fetchUsuarios();
     } catch (e) {
-      toast({ title: 'Erro ao excluir usuário', variant: 'destructive' });
+      AppToast.error('Erro ao excluir usuário', {
+        description: 'Não foi possível excluir o usuário. Tente novamente ou entre em contato com o suporte.'
+      });
     } finally {
       setDeleteLoading(false);
     }

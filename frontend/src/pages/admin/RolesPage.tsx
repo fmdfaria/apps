@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
+import { AppToast } from '@/services/toast';
 import { rbacService } from '@/services/rbac';
 import type { Role, CreateRoleRequest, UpdateRoleRequest } from '@/types/RBAC';
 import { FormErrorMessage } from '@/components/form-error-message';
@@ -198,7 +198,9 @@ export const RolesPage = () => {
       const data = await rbacService.getRoles();
       setRoles(data);
     } catch (e) {
-      toast.error('Erro ao carregar roles');
+      AppToast.error('Erro ao carregar roles', {
+        description: 'Ocorreu um problema ao carregar a lista de roles. Tente novamente.'
+      });
     } finally {
       setLoading(false);
     }
@@ -311,6 +313,7 @@ export const RolesPage = () => {
     e.preventDefault();
     if (!form.nome.trim() || form.nome.trim().length < 2) {
       setFormError('O nome deve ter pelo menos 2 caracteres.');
+      AppToast.validation('Nome muito curto', 'O nome da role deve ter pelo menos 2 caracteres.');
       return;
     }
 
@@ -320,6 +323,7 @@ export const RolesPage = () => {
     );
     if (nomeDuplicado) {
       setFormError('Já existe uma role com este nome.');
+      AppToast.validation('Nome duplicado', 'Já existe uma role com este nome. Escolha um nome diferente.');
       return;
     }
 
@@ -332,20 +336,28 @@ export const RolesPage = () => {
           ativo: form.ativo,
         };
         await rbacService.updateRole(editando.id, payload);
-        toast.success('Role atualizada com sucesso');
+        AppToast.updated('Role', `A role "${form.nome.trim()}" foi atualizada com sucesso.`);
       } else {
         const payload: CreateRoleRequest = {
           nome: form.nome,
           descricao: form.descricao || undefined,
         };
         await rbacService.createRole(payload);
-        toast.success('Role criada com sucesso');
+        AppToast.created('Role', `A role "${form.nome.trim()}" foi criada com sucesso.`);
       }
       fecharModal();
       fetchRoles();
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Erro ao salvar role';
-      toast.error(msg);
+      let title = 'Erro ao salvar role';
+      let description = 'Não foi possível salvar a role. Verifique os dados e tente novamente.';
+      
+      if (e?.response?.data?.message) {
+        description = e.response.data.message;
+      } else if (e?.message) {
+        description = e.message;
+      }
+      
+      AppToast.error(title, { description });
     } finally {
       setFormLoading(false);
     }
@@ -359,10 +371,12 @@ export const RolesPage = () => {
         ativo: !role.ativo,
       };
       await rbacService.updateRole(role.id, payload);
-      toast.success(`Role ${!role.ativo ? 'ativada' : 'desativada'} com sucesso`);
+      AppToast.updated('Status da Role', `A role "${role.nome}" foi ${!role.ativo ? 'ativada' : 'desativada'} com sucesso.`);
       fetchRoles();
     } catch (e) {
-      toast.error('Erro ao alterar status da role');
+      AppToast.error('Erro ao alterar status', {
+        description: 'Não foi possível alterar o status da role. Tente novamente.'
+      });
     }
   };
 
@@ -379,11 +393,13 @@ export const RolesPage = () => {
     setDeleteLoading(true);
     try {
       await rbacService.deleteRole(excluindo.id);
-      toast.success('Role excluída com sucesso');
+      AppToast.deleted('Role', `A role "${excluindo.nome}" foi excluída permanentemente.`);
       setExcluindo(null);
       fetchRoles();
     } catch (e) {
-      toast.error('Erro ao excluir role');
+      AppToast.error('Erro ao excluir role', {
+        description: 'Não foi possível excluir a role. Tente novamente ou entre em contato com o suporte.'
+      });
     } finally {
       setDeleteLoading(false);
     }

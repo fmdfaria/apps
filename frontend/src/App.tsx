@@ -26,7 +26,6 @@ import { ConveniosPageResponsive } from '@/pages/convenios/ConveniosPageResponsi
 import { EspecialidadesPage } from '@/pages/especialidades/EspecialidadesPage';
 import { ConselhosPage } from '@/pages/conselhos/ConselhosPage';
 import { BancosPage } from '@/pages/bancos/BancosPage';
-import { BancosPageResponsive } from '@/pages/bancos/BancosPageResponsive';
 import { AgendamentosPage } from '@/pages/agendamentos/AgendamentosPage';
 import { LiberarPage } from '@/pages/agendamentos/LiberarPage';
 import { AtenderPage } from '@/pages/agendamentos/AtenderPage';
@@ -34,10 +33,9 @@ import { AprovarPage } from '@/pages/agendamentos/AprovarPage';
 import { CalendarioPage } from '@/pages/agendamentos/CalendarioPage';
 import PrecosParticularPage from '@/pages/pacientes/PrecosParticularPage';
 import { Perfil } from '@/pages/perfil/Perfil';
-import { ConselhosPageResponsive } from './pages/conselhos/ConselhosPageResponsive';
 import { RecursosPage } from './pages/recursos/RecursosPage';
 import { EspecialidadesPageResponsive } from './pages/especialidades/EspecialidadesPageResponsive';
-import { UsuariosPageResponsive } from './pages/usuarios/UsuariosPageResponsive';
+import { UsuariosPage } from './pages/usuarios/UsuariosPage';
 import RolesPage from './pages/admin/RolesPage';
 import RoutesPage from './pages/admin/RoutesPage';
 import UserRolesPage from './pages/admin/UserRolesPage';
@@ -78,10 +76,8 @@ export default function App() {
             <Route path="convenios-antigos" element={<ConveniosPage />} />
             <Route path="especialidades" element={<EspecialidadesPageResponsive />} />
             <Route path="especialidades-antigas" element={<EspecialidadesPage />} />
-            <Route path="conselhos" element={<ConselhosPageResponsive />} />
-            <Route path="conselhos-antigos" element={<ConselhosPage />} />
-            <Route path="bancos" element={<BancosPageResponsive />} />
-            <Route path="bancos-antigos" element={<BancosPage />} />
+            <Route path="conselhos" element={<ConselhosPage />} />
+            <Route path="bancos" element={<BancosPage />} />
             <Route path="recursos" element={<RecursosPage />} />
             <Route path="agendamentos" element={<AgendamentosPage />} />
             <Route path="agendamentos/liberacao" element={<LiberarPage />} />
@@ -89,7 +85,7 @@ export default function App() {
             <Route path="agendamentos/conclusao" element={<AprovarPage />} />
             <Route path="calendario" element={<CalendarioPage />} />
             <Route path="perfil" element={<Perfil />} />
-            <Route path="administracao/usuarios" element={<UsuariosPageResponsive />} />
+            <Route path="administracao/usuarios" element={<UsuariosPage />} />
             <Route path="administracao/roles" element={<RolesPage />} />
             <Route path="administracao/rotas" element={<RoutesPage />} />
             <Route path="administracao/usuarios-roles" element={<UserRolesPage />} />

@@ -98,7 +98,6 @@ export const RecursosPage = () => {
       header: '⚙️ Ações',
       essential: true,
       render: (item) => {
-        console.log('🎯 Renderizando ações - canUpdate:', canUpdate, 'canDelete:', canDelete);
         return (
         <div className="flex gap-1.5">
           {canUpdate ? (
@@ -218,50 +217,30 @@ export const RecursosPage = () => {
   }, []);
 
   const checkPermissions = async () => {
-    console.log('🔍 Verificando permissões do usuário');
-    
     try {
       const response = await api.get('/users/me/permissions');
       const allowedRoutes = response.data;
       
-      console.log('📋 Rotas permitidas recebidas:', allowedRoutes);
-      
       // Verificar cada permissão específica para recursos
-      console.log('🔍 Buscando rotas de recursos...');
-      
       const canRead = allowedRoutes.some((route: any) => {
-        const match = route.path === '/recursos' && route.method.toLowerCase() === 'get';
-        console.log(`📋 Rota: ${route.path} ${route.method} - Match GET:`, match);
-        return match;
+        return route.path === '/recursos' && route.method.toLowerCase() === 'get';
       });
       
       const canCreate = allowedRoutes.some((route: any) => {
-        const match = route.path === '/recursos' && route.method.toLowerCase() === 'post';
-        console.log(`📋 Rota: ${route.path} ${route.method} - Match POST:`, match);
-        return match;
+        return route.path === '/recursos' && route.method.toLowerCase() === 'post';
       });
       
       const canUpdate = allowedRoutes.some((route: any) => {
-        const match = route.path === '/recursos/:id' && route.method.toLowerCase() === 'put';
-        console.log(`📋 Rota: ${route.path} ${route.method} - Match PUT:`, match);
-        return match;
+        return route.path === '/recursos/:id' && route.method.toLowerCase() === 'put';
       });
       
       const canDelete = allowedRoutes.some((route: any) => {
-        const match = route.path === '/recursos/:id' && route.method.toLowerCase() === 'delete';
-        console.log(`📋 Rota: ${route.path} ${route.method} - Match DELETE:`, match);
-        return match;
+        return route.path === '/recursos/:id' && route.method.toLowerCase() === 'delete';
       });
       
-      console.log('🎯 Permissões calculadas:', { canRead, canCreate, canUpdate, canDelete });
-      
-      console.log('🔄 Atualizando estados das permissões...');
       setCanCreate(canCreate);
-      console.log('✅ canCreate definido como:', canCreate);
       setCanUpdate(canUpdate);
-      console.log('✅ canUpdate definido como:', canUpdate);
       setCanDelete(canDelete);
-      console.log('✅ canDelete definido como:', canDelete);
       
       // Se não tem nem permissão de leitura, marca como access denied
       if (!canRead) {
@@ -269,7 +248,6 @@ export const RecursosPage = () => {
       }
       
     } catch (error: any) {
-      console.log('❌ Erro ao verificar permissões:', error);
       // Em caso de erro, desabilita tudo por segurança
       setCanCreate(false);
       setCanUpdate(false);
@@ -297,7 +275,7 @@ export const RecursosPage = () => {
           const info = await getRouteInfo('/recursos', 'GET');
           setRouteInfo(info);
         } catch (routeError) {
-          console.log('❌ Erro ao buscar route info:', routeError);
+          // Erro ao buscar informações da rota
         }
         // Não mostra toast aqui pois o interceptor já cuida disso
       } else {
@@ -541,10 +519,7 @@ export const RecursosPage = () => {
           module="recursos"
         />
         
-        {(() => {
-          console.log('🎨 Renderizando botão Novo Recurso - canCreate:', canCreate);
-          return canCreate;
-        })() ? (
+        {canCreate ? (
           <Button 
             className="!h-10 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
             onClick={abrirModalNovo}

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
+import { AppToast } from '@/services/toast';
 import { rbacService } from '@/services/rbac';
 import { getUsers } from '@/services/users';
 import type { UserRole, Role, AssignRoleToUserRequest } from '@/types/RBAC';
@@ -281,7 +281,9 @@ export const UserRolesPage = () => {
       const userRoles = await rbacService.getAllUserRoles();
       setRawUserRoles(userRoles);
     } catch (e) {
-      toast.error('Erro ao carregar atribuições de usuário');
+      AppToast.error('Erro ao carregar atribuições', {
+        description: 'Ocorreu um problema ao carregar as atribuições de usuário. Tente novamente.'
+      });
     }
   };
 
@@ -290,7 +292,9 @@ export const UserRolesPage = () => {
       const data = await rbacService.getRoles();
       setRoles(data.filter(r => r.ativo)); // Apenas roles ativas para atribuição
     } catch (e) {
-      toast.error('Erro ao carregar roles');
+      AppToast.error('Erro ao carregar roles', {
+        description: 'Ocorreu um problema ao carregar as roles. Tente novamente.'
+      });
     }
   };
 
@@ -299,7 +303,9 @@ export const UserRolesPage = () => {
       const data = await getUsers();
       setUsers(data.filter(u => u.ativo)); // Apenas usuários ativos para atribuição
     } catch (e) {
-      toast.error('Erro ao carregar usuários');
+      AppToast.error('Erro ao carregar usuários', {
+        description: 'Ocorreu um problema ao carregar os usuários. Tente novamente.'
+      });
     }
   };
 
@@ -473,7 +479,7 @@ export const UserRolesPage = () => {
             roleId: form.roleId,
           };
           await rbacService.assignRoleToUser(payload);
-          toast.success('Atribuição atualizada com sucesso');
+          AppToast.updated('Atribuição', `A atribuição foi atualizada com sucesso.`);
         } else {
           toast.info('Nenhuma alteração foi feita.');
         }
@@ -483,13 +489,21 @@ export const UserRolesPage = () => {
           roleId: form.roleId,
         };
         await rbacService.assignRoleToUser(payload);
-        toast.success('Role atribuída ao usuário com sucesso');
+        AppToast.created('Atribuição', `A role foi atribuída ao usuário com sucesso.`);
       }
       fecharModal();
       fetchUserRoles();
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Erro ao salvar atribuição';
-      toast.error(msg);
+      let title = 'Erro ao salvar atribuição';
+      let description = 'Não foi possível salvar a atribuição. Verifique os dados e tente novamente.';
+      
+      if (e?.response?.data?.message) {
+        description = e.response.data.message;
+      } else if (e?.message) {
+        description = e.message;
+      }
+      
+      AppToast.error(title, { description });
     } finally {
       setFormLoading(false);
     }
@@ -501,10 +515,12 @@ export const UserRolesPage = () => {
     
     try {
       await rbacService.updateUserRole(userRole.id, { ativo: novoStatus });
-      toast.success(`Atribuição ${acao === 'ativar' ? 'ativada' : 'desativada'} com sucesso`);
+      AppToast.updated('Status da Atribuição', `A atribuição foi ${acao === 'ativar' ? 'ativada' : 'desativada'} com sucesso.`);
       fetchUserRoles();
     } catch (e) {
-      toast.error(`Erro ao ${acao} atribuição`);
+      AppToast.error(`Erro ao ${acao} atribuição`, {
+        description: `Não foi possível ${acao} a atribuição. Tente novamente.`
+      });
     }
   };
 
@@ -521,11 +537,13 @@ export const UserRolesPage = () => {
     setDeleteLoading(true);
     try {
       await rbacService.removeRoleFromUser(excluindo.userId, excluindo.roleId);
-      toast.success('Atribuição removida com sucesso');
+      AppToast.deleted('Atribuição', `A atribuição foi removida permanentemente.`);
       setExcluindo(null);
       fetchUserRoles();
     } catch (e) {
-      toast.error('Erro ao remover atribuição');
+      AppToast.error('Erro ao remover atribuição', {
+        description: 'Não foi possível remover a atribuição. Tente novamente ou entre em contato com o suporte.'
+      });
     } finally {
       setDeleteLoading(false);
     }

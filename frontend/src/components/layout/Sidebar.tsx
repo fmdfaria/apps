@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getModuleTheme } from '@/types/theme';
+import { useMenuPermissions } from '@/hooks/useMenuPermissions';
 
 // Mapeamento de páginas para módulos de tema
 const pageToModuleMap: Record<string, string> = {
@@ -24,7 +25,7 @@ const pageToModuleMap: Record<string, string> = {
   'recursos': 'recursos',
   'especialidades': 'especialidades',
   'conselhos': 'conselhos',
-  'bancos': 'default',
+  'bancos': 'bancos',
   'administracao': 'default',
   'administracao/usuarios': 'default',
   'administracao/roles': 'default',
@@ -233,6 +234,7 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const isCollapsed = isCollapsedProp !== undefined ? isCollapsedProp : internalCollapsed;
   const setIsCollapsed = setIsCollapsedProp || setInternalCollapsed;
+  const { hasPermission, hasAnyChildPermission, loading: permissionsLoading } = useMenuPermissions();
   const handleToggle = () => {
     if (setIsCollapsedProp) {
       setIsCollapsed(!isCollapsed);
@@ -342,14 +344,33 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
         </div>
       )}
       <nav className="mt-4 flex-1 overflow-y-auto overflow-x-visible">
-        {menuItems
-          .map((item) => {
-            const Icon = item.icon;
-            const itemModule = pageToModuleMap[item.id] || 'default';
-            const itemTheme = getModuleTheme(itemModule);
-            const isActive = currentPage === item.id;
-            
-            return (
+        {permissionsLoading ? (
+          /* Skeleton loading para o menu */
+          <div className="space-y-2 px-4">
+            {Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className="animate-pulse">
+                <div className="h-10 bg-gray-200 rounded-md"></div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          menuItems
+            .filter((item) => {
+              // Filtrar itens baseado nas permissões
+              if (item.children) {
+                // Para itens com filhos, mostrar se tem pelo menos um filho com permissão
+                return hasAnyChildPermission(item.children);
+              }
+              // Para itens normais, verificar permissão direta
+              return hasPermission(item.id);
+            })
+            .map((item) => {
+              const Icon = item.icon;
+              const itemModule = pageToModuleMap[item.id] || 'default';
+              const itemTheme = getModuleTheme(itemModule);
+              const isActive = currentPage === item.id;
+              
+              return (
               <div key={item.id}>
                 {isCollapsed ? (
                   <SidebarTooltip 
@@ -399,29 +420,32 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
                 {/* Submenu */}
                 {item.children && !isCollapsed && (
                   <div className="ml-8">
-                    {item.children.map((child) => {
-                      const ChildIcon = child.icon;
-                      return (
-                        <button
-                          key={child.id}
-                          onClick={() => onPageChange(child.id)}
-                          className={cn(
-                            'w-full flex items-center px-3 py-1.5 text-left text-sm rounded transition-colors hover:bg-blue-50',
-                            currentPage === child.id
-                              ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700' 
-                              : 'text-gray-600 hover:text-blue-700'
-                          )}
-                        >
-                          {ChildIcon && <ChildIcon className="w-4 h-4 mr-2" />}
-                          {child.label}
-                        </button>
-                      );
-                    })}
+                    {item.children
+                      .filter((child) => hasPermission(child.id))
+                      .map((child) => {
+                        const ChildIcon = child.icon;
+                        return (
+                          <button
+                            key={child.id}
+                            onClick={() => onPageChange(child.id)}
+                            className={cn(
+                              'w-full flex items-center px-3 py-1.5 text-left text-sm rounded transition-colors hover:bg-blue-50',
+                              currentPage === child.id
+                                ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700' 
+                                : 'text-gray-600 hover:text-blue-700'
+                            )}
+                          >
+                            {ChildIcon && <ChildIcon className="w-4 h-4 mr-2" />}
+                            {child.label}
+                          </button>
+                        );
+                      })}
                   </div>
                 )}
               </div>
             );
-          })}
+          })
+        )}
       </nav>
       <div className={cn('border-t border-gray-200 flex-shrink-0', isCollapsed ? 'py-3 px-2' : 'py-3 px-4')}>
         {isCollapsed ? (

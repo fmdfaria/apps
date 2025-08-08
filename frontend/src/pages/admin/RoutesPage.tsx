@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from 'sonner';
+import { AppToast } from '@/services/toast';
 import { rbacService } from '@/services/rbac';
 import type { Route, CreateRouteRequest, UpdateRouteRequest } from '@/types/RBAC';
 import { FormErrorMessage } from '@/components/form-error-message';
@@ -316,7 +316,9 @@ export const RoutesPage = () => {
       const data = await rbacService.getRoutes();
       setRoutes(data);
     } catch (e) {
-      toast.error('Erro ao carregar rotas');
+      AppToast.error('Erro ao carregar rotas', {
+        description: 'Ocorreu um problema ao carregar a lista de rotas. Tente novamente.'
+      });
     } finally {
       setLoading(false);
     }
@@ -468,14 +470,17 @@ export const RoutesPage = () => {
     e.preventDefault();
     if (!form.nome.trim() || form.nome.trim().length < 2) {
       setFormError('O nome deve ter pelo menos 2 caracteres.');
+      AppToast.validation('Nome muito curto', 'O nome da rota deve ter pelo menos 2 caracteres.');
       return;
     }
     if (!form.path.trim()) {
       setFormError('O caminho é obrigatório.');
+      AppToast.validation('Caminho obrigatório', 'O caminho da rota é obrigatório.');
       return;
     }
     if (!form.method.trim()) {
       setFormError('O método HTTP é obrigatório.');
+      AppToast.validation('Método obrigatório', 'O método HTTP é obrigatório.');
       return;
     }
 
@@ -491,7 +496,7 @@ export const RoutesPage = () => {
           ativo: form.ativo,
         };
         await rbacService.updateRoute(editando.id, payload);
-        toast.success('Rota atualizada com sucesso');
+        AppToast.updated('Rota', `A rota "${form.nome.trim()}" foi atualizada com sucesso.`);
       } else {
         const payload: CreateRouteRequest = {
           path: form.path,
@@ -501,13 +506,21 @@ export const RoutesPage = () => {
           modulo: form.modulo || undefined,
         };
         await rbacService.createRoute(payload);
-        toast.success('Rota criada com sucesso');
+        AppToast.created('Rota', `A rota "${form.nome.trim()}" foi criada com sucesso.`);
       }
       fecharModal();
       fetchRoutes();
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Erro ao salvar rota';
-      toast.error(msg);
+      let title = 'Erro ao salvar rota';
+      let description = 'Não foi possível salvar a rota. Verifique os dados e tente novamente.';
+      
+      if (e?.response?.data?.message) {
+        description = e.response.data.message;
+      } else if (e?.message) {
+        description = e.message;
+      }
+      
+      AppToast.error(title, { description });
     } finally {
       setFormLoading(false);
     }
@@ -524,10 +537,12 @@ export const RoutesPage = () => {
         ativo: !route.ativo,
       };
       await rbacService.updateRoute(route.id, payload);
-      toast.success(`Rota ${!route.ativo ? 'ativada' : 'desativada'} com sucesso`);
+      AppToast.updated('Status da Rota', `A rota "${route.nome}" foi ${!route.ativo ? 'ativada' : 'desativada'} com sucesso.`);
       fetchRoutes();
     } catch (e) {
-      toast.error('Erro ao alterar status da rota');
+      AppToast.error('Erro ao alterar status', {
+        description: 'Não foi possível alterar o status da rota. Tente novamente.'
+      });
     }
   };
 
@@ -544,11 +559,13 @@ export const RoutesPage = () => {
     setDeleteLoading(true);
     try {
       await rbacService.deleteRoute(excluindo.id);
-      toast.success('Rota excluída com sucesso');
+      AppToast.deleted('Rota', `A rota "${excluindo.nome}" foi excluída permanentemente.`);
       setExcluindo(null);
       fetchRoutes();
     } catch (e) {
-      toast.error('Erro ao excluir rota');
+      AppToast.error('Erro ao excluir rota', {
+        description: 'Não foi possível excluir a rota. Tente novamente ou entre em contato com o suporte.'
+      });
     } finally {
       setDeleteLoading(false);
     }

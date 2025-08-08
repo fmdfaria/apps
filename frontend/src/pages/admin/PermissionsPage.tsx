@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
+import { AppToast } from '@/services/toast';
 import { rbacService } from '@/services/rbac';
 import type { RoleRoute, Role, Route, AssignRouteToRoleRequest, UpdateRoleRouteRequest } from '@/types/RBAC';
 import { FormErrorMessage } from '@/components/form-error-message';
@@ -279,7 +279,9 @@ export const PermissionsPage = () => {
       const data = await rbacService.getAllRoleRoutes();
       setRoleRoutes(data);
     } catch (e) {
-      toast.error('Erro ao carregar permissões');
+      AppToast.error('Erro ao carregar permissões', {
+        description: 'Ocorreu um problema ao carregar as permissões. Tente novamente.'
+      });
     } finally {
       setLoading(false);
     }
@@ -290,7 +292,9 @@ export const PermissionsPage = () => {
       const data = await rbacService.getRoles();
       setRoles(data.filter(r => r.ativo)); // Apenas roles ativas
     } catch (e) {
-      toast.error('Erro ao carregar roles');
+      AppToast.error('Erro ao carregar roles', {
+        description: 'Ocorreu um problema ao carregar as roles. Tente novamente.'
+      });
     }
   };
 
@@ -299,7 +303,9 @@ export const PermissionsPage = () => {
       const data = await rbacService.getRoutes();
       setRoutes(data.filter(r => r.ativo)); // Apenas rotas ativas
     } catch (e) {
-      toast.error('Erro ao carregar rotas');
+      AppToast.error('Erro ao carregar rotas', {
+        description: 'Ocorreu um problema ao carregar as rotas. Tente novamente.'
+      });
     }
   };
 
@@ -472,13 +478,21 @@ export const PermissionsPage = () => {
           routeId: form.routeId,
         };
         await rbacService.assignRouteToRole(payload);
-        toast.success('Permissão criada com sucesso');
+        AppToast.created('Permissão', `A permissão foi criada com sucesso.`);
       }
       fecharModal();
       fetchRoleRoutes();
     } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Erro ao salvar permissão';
-      toast.error(msg);
+      let title = 'Erro ao salvar permissão';
+      let description = 'Não foi possível salvar a permissão. Verifique os dados e tente novamente.';
+      
+      if (e?.response?.data?.message) {
+        description = e.response.data.message;
+      } else if (e?.message) {
+        description = e.message;
+      }
+      
+      AppToast.error(title, { description });
     } finally {
       setFormLoading(false);
     }
@@ -490,10 +504,12 @@ export const PermissionsPage = () => {
         ativo: !roleRoute.ativo,
       };
       await rbacService.updateRoleRoute(roleRoute.id, payload);
-      toast.success(`Permissão ${!roleRoute.ativo ? 'ativada' : 'desativada'} com sucesso`);
+      AppToast.updated('Status da Permissão', `A permissão foi ${!roleRoute.ativo ? 'ativada' : 'desativada'} com sucesso.`);
       fetchRoleRoutes();
     } catch (e) {
-      toast.error('Erro ao alterar status da permissão');
+      AppToast.error('Erro ao alterar status', {
+        description: 'Não foi possível alterar o status da permissão. Tente novamente.'
+      });
     }
   };
 
@@ -510,11 +526,13 @@ export const PermissionsPage = () => {
     setDeleteLoading(true);
     try {
       await rbacService.deleteRoleRoute(excluindo.id);
-      toast.success('Permissão removida com sucesso');
+      AppToast.deleted('Permissão', `A permissão foi removida permanentemente.`);
       setExcluindo(null);
       fetchRoleRoutes();
     } catch (e) {
-      toast.error('Erro ao remover permissão');
+      AppToast.error('Erro ao remover permissão', {
+        description: 'Não foi possível remover a permissão. Tente novamente ou entre em contato com o suporte.'
+      });
     } finally {
       setDeleteLoading(false);
     }
