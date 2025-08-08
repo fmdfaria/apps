@@ -19,10 +19,8 @@ import DisponibilidadeProfissionaisPage from '@/pages/profissionais/Disponibilid
 import { PacientesPage } from '@/pages/pacientes/PacientesPage';
 import { PacientesPageResponsive } from '@/pages/pacientes/PacientesPageResponsive';
 import { ServicosPage } from '@/pages/servicos/ServicosPage';
-import { ServicosPageResponsive } from '@/pages/servicos/ServicosPageResponsive';
 import PrecosServicoProfissionalPage from '@/pages/servicos/PrecosServicoProfissionalPage';
 import { ConveniosPage } from '@/pages/convenios/ConveniosPage';
-import { ConveniosPageResponsive } from '@/pages/convenios/ConveniosPageResponsive';
 import { EspecialidadesPage } from '@/pages/especialidades/EspecialidadesPage';
 import { ConselhosPage } from '@/pages/conselhos/ConselhosPage';
 import { BancosPage } from '@/pages/bancos/BancosPage';
@@ -34,7 +32,6 @@ import { CalendarioPage } from '@/pages/agendamentos/CalendarioPage';
 import PrecosParticularPage from '@/pages/pacientes/PrecosParticularPage';
 import { Perfil } from '@/pages/perfil/Perfil';
 import { RecursosPage } from './pages/recursos/RecursosPage';
-import { EspecialidadesPageResponsive } from './pages/especialidades/EspecialidadesPageResponsive';
 import { UsuariosPage } from './pages/usuarios/UsuariosPage';
 import RolesPage from './pages/admin/RolesPage';
 import RoutesPage from './pages/admin/RoutesPage';
@@ -69,13 +66,10 @@ export default function App() {
             <Route path="pacientes" element={<PacientesPageResponsive />} />
             <Route path="pacientes-antigo" element={<PacientesPage />} />
             <Route path="pacientes/precos-particulares" element={<PrecosParticularPage />} />
-            <Route path="servicos" element={<ServicosPageResponsive />} />
-            <Route path="servicos-antigo" element={<ServicosPage />} />
+            <Route path="servicos" element={<ServicosPage />} />
             <Route path="servicos/precos-profissionais" element={<PrecosServicoProfissionalPage />} />
-            <Route path="convenios" element={<ConveniosPageResponsive />} />
-            <Route path="convenios-antigos" element={<ConveniosPage />} />
-            <Route path="especialidades" element={<EspecialidadesPageResponsive />} />
-            <Route path="especialidades-antigas" element={<EspecialidadesPage />} />
+            <Route path="convenios" element={<ConveniosPage />} />
+            <Route path="especialidades" element={<EspecialidadesPage />} />
             <Route path="conselhos" element={<ConselhosPage />} />
             <Route path="bancos" element={<BancosPage />} />
             <Route path="recursos" element={<RecursosPage />} />

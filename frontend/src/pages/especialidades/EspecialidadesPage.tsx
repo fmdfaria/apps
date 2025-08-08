@@ -1,71 +1,388 @@
-import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
-import { getEspecialidades, createEspecialidade, updateEspecialidade, deleteEspecialidade } from '@/services/especialidades';
-import type { Especialidade } from '@/types/Especialidade';
+import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { useToast, toast } from '@/components/ui/use-toast';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AppToast } from '@/services/toast';
+import { getEspecialidades, createEspecialidade, updateEspecialidade, deleteEspecialidade } from '@/services/especialidades';
+import api from '@/services/api';
+import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
+import type { Especialidade } from '@/types/Especialidade';
 import { FormErrorMessage } from '@/components/form-error-message';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import { 
+  PageContainer, 
+  PageHeader, 
+  PageContent, 
+  ViewToggle, 
+  SearchBar, 
+  FilterButton,
+  DynamicFilterPanel,
+  ResponsiveTable, 
+  ResponsiveCards, 
+  ResponsivePagination,
+  ActionButton,
+  TableColumn,
+  ResponsiveCardFooter 
+} from '@/components/layout';
+import { useViewMode } from '@/hooks/useViewMode';
+import { useResponsiveTable } from '@/hooks/useResponsiveTable';
+import { useTableFilters } from '@/hooks/useTableFilters';
+import { getModuleTheme } from '@/types/theme';
+
+// Definir tipo de formulário separado
+interface FormularioEspecialidade {
+  nome: string;
+}
 
 export const EspecialidadesPage = () => {
+  const theme = getModuleTheme('especialidades');
   const [especialidades, setEspecialidades] = useState<Especialidade[]>([]);
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [canCreate, setCanCreate] = useState(true);
+  const [canUpdate, setCanUpdate] = useState(true);
+  const [canDelete, setCanDelete] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState<Especialidade | null>(null);
-  const [nome, setNome] = useState('');
+  const [form, setForm] = useState<FormularioEspecialidade>({
+    nome: '',
+  });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
   const [excluindo, setExcluindo] = useState<Especialidade | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [itensPorPagina, setItensPorPagina] = useState(10);
-  const [paginaAtual, setPaginaAtual] = useState(1);
+
+  // Hooks responsivos
+  const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'especialidades-view' });
+  
+  // Configuração das colunas da tabela com filtros dinâmicos
+  const columns: TableColumn<Especialidade>[] = [
+    {
+      key: 'nome',
+      header: '🎯 Nome',
+      essential: true,
+      filterable: {
+        type: 'text',
+        placeholder: 'Nome da especialidade...',
+        label: 'Nome'
+      },
+      render: (item) => (
+        <div className="flex items-center gap-3">
+          <div className={`w-8 h-8 bg-gradient-to-r ${theme.primaryButton} rounded-full flex items-center justify-center text-white text-sm font-bold`}>
+            {item.nome.charAt(0).toUpperCase()}
+          </div>
+          <span className="text-sm font-medium">{item.nome}</span>
+        </div>
+      )
+    },
+    {
+      key: 'actions',
+      header: '⚙️ Ações',
+      essential: true,
+      render: (item) => {
+        return (
+        <div className="flex gap-1.5">
+          {canUpdate ? (
+            <ActionButton
+              variant="view"
+              module="especialidades"
+              onClick={() => abrirModalEditar(item)}
+              title="Editar Especialidade"
+            >
+              <Edit className="w-4 h-4" />
+            </ActionButton>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 border-orange-300 text-orange-600 opacity-50 cursor-not-allowed"
+                      disabled={true}
+                      title="Sem permissão para editar"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para editar especialidades</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
+          {canDelete ? (
+            <ActionButton
+              variant="delete"
+              module="especialidades"
+              onClick={() => confirmarExclusao(item)}
+              title="Excluir Especialidade"
+            >
+              <Trash2 className="w-4 h-4" />
+            </ActionButton>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 border-red-300 text-red-600 opacity-50 cursor-not-allowed"
+                      disabled={true}
+                      title="Sem permissão para excluir"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para excluir especialidades</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+        );
+      }
+    }
+  ];
+  
+  // Sistema de filtros dinâmicos
+  const {
+    activeFilters,
+    filterConfigs,
+    activeFiltersCount,
+    setFilter,
+    clearFilter,
+    clearAllFilters,
+    applyFilters
+  } = useTableFilters(columns);
+  
+  // Estado para mostrar/ocultar painel de filtros
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  
+  // Filtrar dados baseado na busca e filtros dinâmicos
+  const especialidadesFiltradas = useMemo(() => {
+    // Primeiro aplicar busca textual
+    let dadosFiltrados = especialidades.filter(e =>
+      e.nome.toLowerCase().includes(busca.toLowerCase())
+    );
+    
+    // Depois aplicar filtros dinâmicos
+    return applyFilters(dadosFiltrados);
+  }, [especialidades, busca, applyFilters]);
+
+  const {
+    data: especialidadesPaginadas,
+    totalItems,
+    currentPage,
+    itemsPerPage,
+    totalPages,
+    handlePageChange,
+    handleItemsPerPageChange,
+    // Infinite scroll específico
+    isDesktop,
+    isMobile,
+    hasNextPage,
+    isLoadingMore,
+    targetRef
+  } = useResponsiveTable(especialidadesFiltradas, 10);
 
   useEffect(() => {
     fetchEspecialidades();
+    checkPermissions();
   }, []);
+
+  const checkPermissions = async () => {
+    try {
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data;
+      
+      // Verificar cada permissão específica para especialidades
+      const canRead = allowedRoutes.some((route: any) => {
+        return route.path === '/especialidades' && route.method.toLowerCase() === 'get';
+      });
+      
+      const canCreate = allowedRoutes.some((route: any) => {
+        return route.path === '/especialidades' && route.method.toLowerCase() === 'post';
+      });
+      
+      const canUpdate = allowedRoutes.some((route: any) => {
+        return route.path === '/especialidades/:id' && route.method.toLowerCase() === 'put';
+      });
+      
+      const canDelete = allowedRoutes.some((route: any) => {
+        return route.path === '/especialidades/:id' && route.method.toLowerCase() === 'delete';
+      });
+      
+      setCanCreate(canCreate);
+      setCanUpdate(canUpdate);
+      setCanDelete(canDelete);
+      
+      // Se não tem nem permissão de leitura, marca como access denied
+      if (!canRead) {
+        setAccessDenied(true);
+      }
+      
+    } catch (error: any) {
+      // Em caso de erro, desabilita tudo por segurança
+      setCanCreate(false);
+      setCanUpdate(false);
+      setCanDelete(false);
+      
+      // Se retornar 401/403 no endpoint de permissões, considera acesso negado
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setAccessDenied(true);
+      }
+    }
+  };
 
   const fetchEspecialidades = async () => {
     setLoading(true);
+    setAccessDenied(false);
+    setEspecialidades([]); // Limpa especialidades para evitar mostrar dados antigos
     try {
       const data = await getEspecialidades();
       setEspecialidades(data);
-    } catch (e) {
-      toast({ title: 'Erro ao carregar especialidades', variant: 'destructive' });
+    } catch (e: any) {
+      if (e?.response?.status === 403) {
+        setAccessDenied(true);
+        // Buscar informações da rota para mensagem mais específica
+        try {
+          const info = await getRouteInfo('/especialidades', 'GET');
+          setRouteInfo(info);
+        } catch (routeError) {
+          // Erro ao buscar informações da rota
+        }
+        // Não mostra toast aqui pois o interceptor já cuida disso
+      } else {
+        AppToast.error('Erro ao carregar especialidades', {
+          description: 'Ocorreu um problema ao carregar a lista de especialidades. Tente novamente.'
+        });
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const especialidadesFiltradas = especialidades
-    .filter(e =>
-      e.nome.toLowerCase().includes(busca.toLowerCase())
-    )
-    .sort((a, b) => a.nome.localeCompare(b.nome));
-
-  const totalPaginas = Math.ceil(especialidadesFiltradas.length / itensPorPagina);
-  const especialidadesPaginadas = especialidadesFiltradas.slice(
-    (paginaAtual - 1) * itensPorPagina,
-    paginaAtual * itensPorPagina
+  // Renderização do card
+  const renderCard = (especialidade: Especialidade) => (
+    <Card className="h-full hover:shadow-md transition-shadow">
+      <CardHeader className="pb-2 pt-3 px-3">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-lg">🎯</span>
+            <CardTitle className="text-sm font-medium truncate">{especialidade.nome}</CardTitle>
+          </div>
+          <div className={`w-8 h-8 bg-gradient-to-r ${theme.primaryButton} rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
+            {especialidade.nome.charAt(0).toUpperCase()}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0 px-3 pb-3">
+        <div className="space-y-2">
+          <div className="flex items-start gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Nome:</span>
+            <span className="text-xs text-gray-600 flex-1">
+              {especialidade.nome}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+      <ResponsiveCardFooter>
+        {canUpdate ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white"
+            onClick={() => abrirModalEditar(especialidade)}
+            title="Editar especialidade"
+          >
+            <Edit className="w-4 h-4" />
+          </Button>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-orange-300 text-orange-600 opacity-50 cursor-not-allowed"
+                    disabled={true}
+                    title="Sem permissão para editar"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para editar especialidades</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        
+        {canDelete ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+            onClick={() => confirmarExclusao(especialidade)}
+            title="Excluir especialidade"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-red-300 text-red-600 opacity-50 cursor-not-allowed"
+                    disabled={true}
+                    title="Sem permissão para excluir"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para excluir especialidades</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </ResponsiveCardFooter>
+    </Card>
   );
 
-  useEffect(() => {
-    setPaginaAtual(1); // Sempre volta para página 1 ao buscar
-  }, [busca, itensPorPagina]);
-
+  // Funções de manipulação
   const abrirModalNova = () => {
     setEditando(null);
-    setNome('');
+    setForm({
+      nome: '',
+    });
     setFormError('');
     setShowModal(true);
   };
 
   const abrirModalEditar = (esp: Especialidade) => {
     setEditando(esp);
-    setNome(esp.nome);
+    setForm({
+      nome: esp.nome,
+    });
     setFormError('');
     setShowModal(true);
   };
@@ -73,37 +390,46 @@ export const EspecialidadesPage = () => {
   const fecharModal = () => {
     setShowModal(false);
     setEditando(null);
-    setNome('');
+    setForm({
+      nome: '',
+    });
     setFormError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nome.trim() || nome.trim().length < 1) {
-      setFormError('O nome é obrigatório.');
+    if (!form.nome.trim() || form.nome.trim().length < 2) {
+      setFormError('O nome deve ter pelo menos 2 caracteres.');
+      AppToast.validation('Nome muito curto', 'O nome da especialidade deve ter pelo menos 2 caracteres.');
       return;
     }
     setFormLoading(true);
     try {
       if (editando) {
-        await updateEspecialidade(editando.id, { nome: nome.trim() });
-        toast({ title: 'Especialidade atualizada com sucesso', variant: 'success' });
+        await updateEspecialidade(editando.id, { nome: form.nome.trim() });
+        AppToast.updated('Especialidade', `A especialidade "${form.nome.trim()}" foi atualizada com sucesso.`);
       } else {
-        await createEspecialidade({ nome: nome.trim() });
-        toast({ title: 'Especialidade criada com sucesso', variant: 'success' });
+        await createEspecialidade({ nome: form.nome.trim() });
+        AppToast.created('Especialidade', `A especialidade "${form.nome.trim()}" foi criada com sucesso.`);
       }
       fecharModal();
       fetchEspecialidades();
     } catch (e: any) {
-        let msg = 'Erro ao salvar especialidade';
-        if (e?.response?.data?.message) {
-          msg = e.response.data.message;
-        } else if (e?.message) {
-          msg = e.message;
-        }
-        toast({ title: msg, variant: 'destructive' });
-      } finally {
-        setFormLoading(false);
+      let title = 'Erro ao salvar especialidade';
+      let description = 'Não foi possível salvar a especialidade. Verifique os dados e tente novamente.';
+      
+      if (e?.response?.status === 403) {
+        // Erro de permissão será tratado pelo interceptor
+        return;
+      } else if (e?.response?.data?.message) {
+        description = e.response.data.message;
+      } else if (e?.message) {
+        description = e.message;
+      }
+      
+      AppToast.error(title, { description });
+    } finally {
+      setFormLoading(false);
     }
   };
 
@@ -120,215 +446,191 @@ export const EspecialidadesPage = () => {
     setDeleteLoading(true);
     try {
       await deleteEspecialidade(excluindo.id);
-      toast({ title: 'Especialidade excluída com sucesso', variant: 'success' });
+      AppToast.deleted('Especialidade', `A especialidade "${excluindo.nome}" foi excluída permanentemente.`);
       setExcluindo(null);
       fetchEspecialidades();
     } catch (e) {
-      toast({ title: 'Erro ao excluir especialidade', variant: 'destructive' });
+      if (e?.response?.status === 403) {
+        // Erro de permissão será tratado pelo interceptor
+        return;
+      }
+      
+      AppToast.error('Erro ao excluir especialidade', {
+        description: 'Não foi possível excluir a especialidade. Tente novamente ou entre em contato com o suporte.'
+      });
     } finally {
       setDeleteLoading(false);
     }
   };
 
-  return (
-    <div className="pt-2 pl-6 pr-6 h-full flex flex-col">
-      <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <span className="text-4xl">🎯</span>
-            <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Especialidades
-            </span>
-          </h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar especialidades..."
-              value={busca}
-              onChange={e => setBusca(e.target.value)}
-              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all duration-200 hover:border-purple-300"
-            />
+  if (loading) {
+    return (
+      <PageContainer>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-2"></div>
+            <p className="text-gray-500">Carregando especialidades...</p>
           </div>
+        </div>
+      </PageContainer>
+    );
+  }
+
+  return (
+    <PageContainer>
+      {/* Header da página */}
+      <PageHeader title="Especialidades" module="especialidades" icon="🎯">
+        <SearchBar
+          placeholder="Buscar especialidades..."
+          value={busca}
+          onChange={setBusca}
+          module="especialidades"
+        />
+        
+        <FilterButton
+          showFilters={mostrarFiltros}
+          onToggleFilters={() => setMostrarFiltros(prev => !prev)}
+          activeFiltersCount={activeFiltersCount}
+          module="especialidades"
+          disabled={filterConfigs.length === 0}
+          tooltip={filterConfigs.length === 0 ? 'Nenhum filtro configurado' : undefined}
+        />
+        
+        <ViewToggle 
+          viewMode={viewMode} 
+          onViewModeChange={setViewMode} 
+          module="especialidades"
+        />
+        
+        {canCreate ? (
           <Button 
-            onClick={abrirModalNova} 
-            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
+            className={`!h-10 bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} shadow-lg hover:shadow-xl transition-all duration-200 font-semibold`}
+            onClick={abrirModalNova}
           >
             <Plus className="w-4 h-4 mr-2" />
             Nova Especialidade
           </Button>
-        </div>
-      </div>
-      {loading ? (
-        <div className="py-12 text-center">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-              <span className="text-3xl">⏳</span>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button 
+                    className={`!h-10 bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} shadow-lg hover:shadow-xl transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed`}
+                    disabled={true}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nova Especialidade
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para criar especialidades</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </PageHeader>
+
+      {/* Conteúdo principal */}
+      <PageContent>
+        {/* Painel de Filtros Dinâmicos */}
+        <DynamicFilterPanel
+          isVisible={mostrarFiltros}
+          filterConfigs={filterConfigs}
+          activeFilters={activeFilters}
+          onFilterChange={setFilter}
+          onClearAll={clearAllFilters}
+          onClose={() => setMostrarFiltros(false)}
+          module="especialidades"
+        />
+
+        {/* Conteúdo baseado no modo de visualização */}
+        {accessDenied ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <span className="text-3xl">🚫</span>
             </div>
-            <p className="text-gray-500 font-medium">Carregando especialidades...</p>
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-sm border border-gray-100">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200">
-                <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">🎯</span>
-                    Nome
-                  </div>
-                </TableHead>
-                <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">⚙️</span>
-                    Ações
-                  </div>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {especialidadesPaginadas.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={2} className="py-12 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                        <span className="text-3xl">🎯</span>
-                      </div>
-                      <p className="text-gray-500 font-medium">Nenhuma especialidade encontrada</p>
-                      <p className="text-gray-400 text-sm">Tente ajustar os filtros de busca</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
+            <p className="text-red-600 font-medium mb-2">Acesso Negado</p>
+            <div className="text-gray-600 text-sm space-y-1 max-w-md">
+              {routeInfo ? (
+                <>
+                  <p><strong>Rota:</strong> {routeInfo.nome}</p>
+                  <p><strong>Descrição:</strong> {routeInfo.descricao}</p>
+                  {routeInfo.modulo && <p><strong>Módulo:</strong> {routeInfo.modulo}</p>}
+                  <p className="text-gray-400 mt-2">Você não tem permissão para acessar este recurso</p>
+                </>
               ) : (
-                especialidadesPaginadas.map((esp) => (
-                  <TableRow key={esp.id} className="hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 transition-all duration-200 h-12">
-                    <TableCell className="py-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                          {esp.nome.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="text-sm font-medium">{esp.nome}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <div className="flex gap-1.5 flex-wrap">
-                        <Button 
-                          variant="default" 
-                          size="sm" 
-                          className="bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform" 
-                          onClick={() => abrirModalEditar(esp)}
-                          title="Editar Especialidade"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                          onClick={() => confirmarExclusao(esp)}
-                          title="Excluir Especialidade"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                <p>Você não tem permissão para visualizar especialidades</p>
               )}
-            </TableBody>
-          </Table>
-        </div>
+            </div>
+          </div>
+        ) : viewMode === 'table' ? (
+          <ResponsiveTable 
+            data={especialidadesPaginadas}
+            columns={columns}
+            module="especialidades"
+            emptyMessage="Nenhuma especialidade encontrada"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
+          />
+        ) : (
+          <ResponsiveCards 
+            data={especialidadesPaginadas}
+            renderCard={renderCard}
+            emptyMessage="Nenhuma especialidade encontrada"
+            emptyIcon="🎯"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
+          />
+        )}
+      </PageContent>
+
+      {/* Paginação */}
+      {totalItems > 0 && (
+        <ResponsivePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          module="especialidades"
+          onPageChange={handlePageChange}
+          onItemsPerPageChange={handleItemsPerPageChange}
+        />
       )}
 
-      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600 flex items-center gap-2">
-            <span className="text-lg">📊</span>
-            Exibir
-          </span>
-          <select
-            className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-100 focus:border-purple-500 transition-all duration-200 hover:border-purple-300"
-            value={itensPorPagina}
-            onChange={e => setItensPorPagina(Number(e.target.value))}
-          >
-            {[10, 25, 50, 100].map(qtd => (
-              <option key={qtd} value={qtd}>{qtd}</option>
-            ))}
-          </select>
-          <span className="text-sm text-gray-600">itens por página</span>
-        </div>
-        
-        <div className="text-sm text-gray-600 flex items-center gap-2">
-          <span className="text-lg">📈</span>
-          Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, especialidadesFiltradas.length)} de {especialidadesFiltradas.length} resultados
-        </div>
-
-        {totalPaginas > 1 && (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
-              disabled={paginaAtual === 1}
-              className="border-2 border-gray-200 text-gray-700 hover:border-purple-500 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 hover:text-purple-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-            >
-              <span className="mr-1 text-gray-600 group-hover:text-purple-600 transition-colors">⬅️</span>
-              Anterior
-            </Button>
-            {(() => {
-              const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
-              const endPage = Math.min(totalPaginas, startPage + 4);
-              return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
-                <Button
-                  key={page}
-                  variant={page === paginaAtual ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPaginaAtual(page)}
-                  className={page === paginaAtual 
-                    ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg font-semibold" 
-                    : "border-2 border-gray-200 text-gray-700 hover:border-purple-500 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 hover:text-purple-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-                  }
-                >
-                  {page}
-                </Button>
-              ));
-            })()}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
-              disabled={paginaAtual === totalPaginas}
-              className="border-2 border-gray-200 text-gray-700 hover:border-purple-500 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 hover:text-purple-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-            >
-              Próximo
-              <span className="ml-1 text-gray-600 group-hover:text-purple-600 transition-colors">➡️</span>
-            </Button>
-          </div>
-        )}
-      </div>
-
+      {/* Modal de cadastro/edição */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle>{editando ? 'Editar Especialidade' : 'Nova Especialidade'}</DialogTitle>
             </DialogHeader>
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nome <span className="text-red-500">*</span></label>
-              <input
-                type="text"
-                value={nome}
-                onChange={e => setNome(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                minLength={1}
-                disabled={formLoading}
-                autoFocus
-              />
+            <div className="py-2 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">🎯</span>
+                  <span className={`bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent font-semibold`}>Nome</span>
+                  <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="text"
+                  value={form.nome}
+                  onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
+                  disabled={formLoading}
+                  autoFocus
+                  minLength={1}
+                  className="hover:border-indigo-300 focus:border-indigo-500 focus:ring-indigo-100"
+                  placeholder="Ex: Cardiologia, Dermatologia, Pediatria"
+                />
+              </div>
+
               {formError && <FormErrorMessage>{formError}</FormErrorMessage>}
-            </div>
+            </div> 
             <DialogFooter className="mt-6">
               <DialogClose asChild>
                 <Button
@@ -344,7 +646,7 @@ export const EspecialidadesPage = () => {
               <Button 
                 type="submit" 
                 disabled={formLoading}
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200 "
+                className={`bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200`}
               >
                 {formLoading ? (
                   <>
@@ -366,7 +668,7 @@ export const EspecialidadesPage = () => {
       {/* Modal de confirmação de exclusão */}
       <ConfirmDeleteModal
         open={!!excluindo}
-        onClose={() => setExcluindo(null)}
+        onClose={cancelarExclusao}
         onConfirm={handleDelete}
         title="Confirmar Exclusão de Especialidade"
         entityName={excluindo?.nome || ''}
@@ -375,6 +677,6 @@ export const EspecialidadesPage = () => {
         loadingText="Excluindo especialidade..."
         confirmText="Excluir Especialidade"
       />
-    </div>
+    </PageContainer>
   );
 }; 

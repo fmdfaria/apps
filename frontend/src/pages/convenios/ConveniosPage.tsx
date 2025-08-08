@@ -1,68 +1,388 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
+import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { useToast, toast } from '@/components/ui/use-toast';
+import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AppToast } from '@/services/toast';
+import api from '@/services/api';
+import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { getConvenios, createConvenio, updateConvenio, deleteConvenio } from '@/services/convenios';
 import type { Convenio } from '@/types/Convenio';
 import { FormErrorMessage } from '@/components/form-error-message';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import { 
+  PageContainer, 
+  PageHeader, 
+  PageContent, 
+  ViewToggle, 
+  SearchBar, 
+  FilterButton,
+  DynamicFilterPanel,
+  ResponsiveTable, 
+  ResponsiveCards, 
+  ResponsivePagination,
+  ActionButton,
+  TableColumn,
+  ResponsiveCardFooter 
+} from '@/components/layout';
+import { useViewMode } from '@/hooks/useViewMode';
+import { useResponsiveTable } from '@/hooks/useResponsiveTable';
+import { useTableFilters } from '@/hooks/useTableFilters';
+import { getModuleTheme } from '@/types/theme';
+
+// Definir tipo de formulário separado
+interface FormularioConvenio {
+  nome: string;
+}
 
 export const ConveniosPage = () => {
+  const theme = getModuleTheme('convenios');
   const [convenios, setConvenios] = useState<Convenio[]>([]);
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [canCreate, setCanCreate] = useState(true);
+  const [canUpdate, setCanUpdate] = useState(true);
+  const [canDelete, setCanDelete] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState<Convenio | null>(null);
-  const [nome, setNome] = useState('');
+  const [form, setForm] = useState<FormularioConvenio>({
+    nome: '',
+  });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
   const [excluindo, setExcluindo] = useState<Convenio | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [itensPorPagina, setItensPorPagina] = useState(10);
-  const [paginaAtual, setPaginaAtual] = useState(1);
+
+  // Hooks responsivos
+  const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'convenios-view' });
+  
+  // Configuração das colunas da tabela com filtros dinâmicos
+  const columns: TableColumn<Convenio>[] = [
+    {
+      key: 'nome',
+      header: '🏥 Nome',
+      essential: true,
+      filterable: {
+        type: 'text',
+        placeholder: 'Nome do convênio...',
+        label: 'Nome'
+      },
+      render: (item) => (
+        <div className="flex items-center gap-3">
+          <div className={`w-8 h-8 bg-gradient-to-r ${theme.primaryButton} rounded-full flex items-center justify-center text-white text-sm font-bold`}>
+            {item.nome.charAt(0).toUpperCase()}
+          </div>
+          <span className="text-sm font-medium">{item.nome}</span>
+        </div>
+      )
+    },
+    {
+      key: 'actions',
+      header: '⚙️ Ações',
+      essential: true,
+      render: (item) => {
+        return (
+        <div className="flex gap-1.5">
+          {canUpdate ? (
+            <ActionButton
+              variant="view"
+              module="convenios"
+              onClick={() => abrirModalEditar(item)}
+              title="Editar Convênio"
+            >
+              <Edit className="w-4 h-4" />
+            </ActionButton>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 border-orange-300 text-orange-600 opacity-50 cursor-not-allowed"
+                      disabled={true}
+                      title="Sem permissão para editar"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para editar convênios</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
+          {canDelete ? (
+            <ActionButton
+              variant="delete"
+              module="convenios"
+              onClick={() => confirmarExclusao(item)}
+              title="Excluir Convênio"
+            >
+              <Trash2 className="w-4 h-4" />
+            </ActionButton>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 border-red-300 text-red-600 opacity-50 cursor-not-allowed"
+                      disabled={true}
+                      title="Sem permissão para excluir"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para excluir convênios</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+        );
+      }
+    }
+  ];
+  
+  // Sistema de filtros dinâmicos
+  const {
+    activeFilters,
+    filterConfigs,
+    activeFiltersCount,
+    setFilter,
+    clearFilter,
+    clearAllFilters,
+    applyFilters
+  } = useTableFilters(columns);
+  
+  // Estado para mostrar/ocultar painel de filtros
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  
+  // Filtrar dados baseado na busca e filtros dinâmicos
+  const conveniosFiltrados = useMemo(() => {
+    // Primeiro aplicar busca textual
+    let dadosFiltrados = convenios.filter(c =>
+      c.nome.toLowerCase().includes(busca.toLowerCase())
+    );
+    
+    // Depois aplicar filtros dinâmicos
+    return applyFilters(dadosFiltrados);
+  }, [convenios, busca, applyFilters]);
+
+  const {
+    data: conveniosPaginados,
+    totalItems,
+    currentPage,
+    itemsPerPage,
+    totalPages,
+    handlePageChange,
+    handleItemsPerPageChange,
+    // Infinite scroll específico
+    isDesktop,
+    isMobile,
+    hasNextPage,
+    isLoadingMore,
+    targetRef
+  } = useResponsiveTable(conveniosFiltrados, 10);
 
   useEffect(() => {
     fetchConvenios();
+    checkPermissions();
   }, []);
+
+  const checkPermissions = async () => {
+    try {
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data;
+      
+      // Verificar cada permissão específica para convênios
+      const canRead = allowedRoutes.some((route: any) => {
+        return route.path === '/convenios' && route.method.toLowerCase() === 'get';
+      });
+      
+      const canCreate = allowedRoutes.some((route: any) => {
+        return route.path === '/convenios' && route.method.toLowerCase() === 'post';
+      });
+      
+      const canUpdate = allowedRoutes.some((route: any) => {
+        return route.path === '/convenios/:id' && route.method.toLowerCase() === 'put';
+      });
+      
+      const canDelete = allowedRoutes.some((route: any) => {
+        return route.path === '/convenios/:id' && route.method.toLowerCase() === 'delete';
+      });
+      
+      setCanCreate(canCreate);
+      setCanUpdate(canUpdate);
+      setCanDelete(canDelete);
+      
+      // Se não tem nem permissão de leitura, marca como access denied
+      if (!canRead) {
+        setAccessDenied(true);
+      }
+      
+    } catch (error: any) {
+      // Em caso de erro, desabilita tudo por segurança
+      setCanCreate(false);
+      setCanUpdate(false);
+      setCanDelete(false);
+      
+      // Se retornar 401/403 no endpoint de permissões, considera acesso negado
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setAccessDenied(true);
+      }
+    }
+  };
 
   const fetchConvenios = async () => {
     setLoading(true);
+    setAccessDenied(false);
+    setConvenios([]); // Limpa convênios para evitar mostrar dados antigos
     try {
       const data = await getConvenios();
       setConvenios(data);
-    } catch (e) {
-      toast({ title: 'Erro ao carregar convênios', variant: 'destructive' });
+    } catch (e: any) {
+      if (e?.response?.status === 403) {
+        setAccessDenied(true);
+        // Buscar informações da rota para mensagem mais específica
+        try {
+          const info = await getRouteInfo('/convenios', 'GET');
+          setRouteInfo(info);
+        } catch (routeError) {
+          // Erro ao buscar informações da rota
+        }
+        // Não mostra toast aqui pois o interceptor já cuida disso
+      } else {
+        AppToast.error('Erro ao carregar convênios', {
+          description: 'Ocorreu um problema ao carregar a lista de convênios. Tente novamente.'
+        });
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const conveniosFiltrados = convenios.filter(c =>
-    c.nome.toLowerCase().includes(busca.toLowerCase())
+  // Renderização do card
+  const renderCard = (convenio: Convenio) => (
+    <Card className="h-full hover:shadow-md transition-shadow">
+      <CardHeader className="pb-2 pt-3 px-3">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-lg">🏥</span>
+            <CardTitle className="text-sm font-medium truncate">{convenio.nome}</CardTitle>
+          </div>
+          <div className={`w-8 h-8 bg-gradient-to-r ${theme.primaryButton} rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
+            {convenio.nome.charAt(0).toUpperCase()}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0 px-3 pb-3">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Convênio:</span>
+            <span className="text-xs font-medium text-blue-700">
+              {convenio.nome}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+      <ResponsiveCardFooter>
+        {canUpdate ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white"
+            onClick={() => abrirModalEditar(convenio)}
+            title="Editar convênio"
+          >
+            <Edit className="w-4 h-4" />
+          </Button>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-orange-300 text-orange-600 opacity-50 cursor-not-allowed"
+                    disabled={true}
+                    title="Sem permissão para editar"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para editar convênios</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        
+        {canDelete ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+            onClick={() => confirmarExclusao(convenio)}
+            title="Excluir convênio"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-red-300 text-red-600 opacity-50 cursor-not-allowed"
+                    disabled={true}
+                    title="Sem permissão para excluir"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para excluir convênios</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </ResponsiveCardFooter>
+    </Card>
   );
 
-  const totalPaginas = Math.ceil(conveniosFiltrados.length / itensPorPagina);
-  const conveniosPaginados = conveniosFiltrados.slice(
-    (paginaAtual - 1) * itensPorPagina,
-    paginaAtual * itensPorPagina
-  );
-
-  useEffect(() => {
-    setPaginaAtual(1);
-  }, [busca, itensPorPagina]);
-
-  const abrirModalNovo = () => {
+  // Funções de manipulação
+  const abrirModalNova = () => {
     setEditando(null);
-    setNome('');
+    setForm({
+      nome: '',
+    });
     setFormError('');
     setShowModal(true);
   };
 
   const abrirModalEditar = (c: Convenio) => {
     setEditando(c);
-    setNome(c.nome);
+    setForm({
+      nome: c.nome,
+    });
     setFormError('');
     setShowModal(true);
   };
@@ -70,35 +390,44 @@ export const ConveniosPage = () => {
   const fecharModal = () => {
     setShowModal(false);
     setEditando(null);
-    setNome('');
+    setForm({
+      nome: '',
+    });
     setFormError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nome.trim() || nome.trim().length < 2) {
+    if (!form.nome.trim() || form.nome.trim().length < 2) {
       setFormError('O nome deve ter pelo menos 2 caracteres.');
+      AppToast.validation('Nome muito curto', 'O nome do convênio deve ter pelo menos 2 caracteres.');
       return;
     }
     setFormLoading(true);
     try {
       if (editando) {
-        await updateConvenio(editando.id, { nome: nome.trim() });
-        toast({ title: 'Convênio atualizado com sucesso', variant: 'success' });
+        await updateConvenio(editando.id, { nome: form.nome.trim() });
+        AppToast.updated('Convênio', `O convênio "${form.nome.trim()}" foi atualizado com sucesso.`);
       } else {
-        await createConvenio({ nome: nome.trim() });
-        toast({ title: 'Convênio criado com sucesso', variant: 'success' });
+        await createConvenio({ nome: form.nome.trim() });
+        AppToast.created('Convênio', `O convênio "${form.nome.trim()}" foi criado com sucesso.`);
       }
       fecharModal();
       fetchConvenios();
     } catch (e: any) {
-      let msg = 'Erro ao salvar convênio';
-      if (e?.response?.data?.message) {
-        msg = e.response.data.message;
+      let title = 'Erro ao salvar convênio';
+      let description = 'Não foi possível salvar o convênio. Verifique os dados e tente novamente.';
+      
+      if (e?.response?.status === 403) {
+        // Erro de permissão será tratado pelo interceptor
+        return;
+      } else if (e?.response?.data?.message) {
+        description = e.response.data.message;
       } else if (e?.message) {
-        msg = e.message;
+        description = e.message;
       }
-      toast({ title: msg, variant: 'destructive' });
+      
+      AppToast.error(title, { description });
     } finally {
       setFormLoading(false);
     }
@@ -117,205 +446,191 @@ export const ConveniosPage = () => {
     setDeleteLoading(true);
     try {
       await deleteConvenio(excluindo.id);
-      toast({ title: 'Convênio excluído com sucesso', variant: 'success' });
+      AppToast.deleted('Convênio', `O convênio "${excluindo.nome}" foi excluído permanentemente.`);
       setExcluindo(null);
       fetchConvenios();
     } catch (e) {
-      toast({ title: 'Erro ao excluir convênio', variant: 'destructive' });
+      if (e?.response?.status === 403) {
+        // Erro de permissão será tratado pelo interceptor
+        return;
+      }
+      
+      AppToast.error('Erro ao excluir convênio', {
+        description: 'Não foi possível excluir o convênio. Tente novamente ou entre em contato com o suporte.'
+      });
     } finally {
       setDeleteLoading(false);
     }
   };
 
-  return (
-    <div className="pt-2 pl-6 pr-6 h-full flex flex-col">
-      <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <span className="text-4xl">🏥</span>
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Convênios
-            </span>
-          </h1>
-        </div>
-        <div className="flex items-center gap-4">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar convênios..."
-              value={busca}
-              onChange={e => setBusca(e.target.value)}
-              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 hover:border-blue-300"
-              />
+  if (loading) {
+    return (
+      <PageContainer>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <p className="text-gray-500">Carregando convênios...</p>
           </div>
+        </div>
+      </PageContainer>
+    );
+  }
+
+  return (
+    <PageContainer>
+      {/* Header da página */}
+      <PageHeader title="Convênios" module="convenios" icon="🏥">
+        <SearchBar
+          placeholder="Buscar convênios..."
+          value={busca}
+          onChange={setBusca}
+          module="convenios"
+        />
+        
+        <FilterButton
+          showFilters={mostrarFiltros}
+          onToggleFilters={() => setMostrarFiltros(prev => !prev)}
+          activeFiltersCount={activeFiltersCount}
+          module="convenios"
+          disabled={filterConfigs.length === 0}
+          tooltip={filterConfigs.length === 0 ? 'Nenhum filtro configurado' : undefined}
+        />
+        
+        <ViewToggle 
+          viewMode={viewMode} 
+          onViewModeChange={setViewMode} 
+          module="convenios"
+        />
+        
+        {canCreate ? (
           <Button 
-            onClick={abrirModalNovo} 
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
+            className={`!h-10 bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} shadow-lg hover:shadow-xl transition-all duration-200 font-semibold`}
+            onClick={abrirModalNova}
           >
             <Plus className="w-4 h-4 mr-2" />
             Novo Convênio
           </Button>
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-sm border border-gray-100">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🏥</span>
-                  Nome
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">⚙️</span>
-                  Ações
-                </div>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {conveniosPaginados.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={2} className="py-12 text-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                      <span className="text-3xl">🏥</span>
-                    </div>
-                    <p className="text-gray-500 font-medium">Nenhum convênio encontrado</p>
-                    <p className="text-gray-400 text-sm">Tente ajustar os filtros de busca</p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              conveniosPaginados.map((c) => (
-                <TableRow key={c.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200 h-12">
-                  <TableCell className="py-2">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                        {c.nome.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="text-sm font-medium">{c.nome}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">
-                      <div className="flex gap-1.5 flex-wrap">
-                      <Button 
-                        variant="default" 
-                        size="sm" 
-                        className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform" 
-                        onClick={() => abrirModalEditar(c)}
-                        title="Editar Convênio"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                        className="group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                        onClick={() => confirmarExclusao(c)}
-                        title="Excluir Convênio"
-                        >
-                        <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
-                        </Button>
-                      </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600 flex items-center gap-2">
-            <span className="text-lg">📊</span>
-            Exibir
-          </span>
-          <select
-            className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 hover:border-blue-300"
-            value={itensPorPagina}
-            onChange={e => setItensPorPagina(Number(e.target.value))}
-          >
-            {[10, 25, 50, 100].map(qtd => (
-              <option key={qtd} value={qtd}>{qtd}</option>
-                ))}
-          </select>
-          <span className="text-sm text-gray-600">itens por página</span>
-        </div>
-        
-        <div className="text-sm text-gray-600 flex items-center gap-2">
-          <span className="text-lg">📈</span>
-          Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, conveniosFiltrados.length)} de {conveniosFiltrados.length} resultados
-        </div>
-
-        {totalPaginas > 1 && (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
-              disabled={paginaAtual === 1}
-              className="border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-            >
-              <span className="mr-1 text-gray-600 group-hover:text-blue-600 transition-colors">⬅️</span>
-              Anterior
-            </Button>
-            {(() => {
-              const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
-              const endPage = Math.min(totalPaginas, startPage + 4);
-              return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
-                <Button
-                  key={page}
-                  variant={page === paginaAtual ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPaginaAtual(page)}
-                  className={page === paginaAtual 
-                    ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg font-semibold" 
-                    : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-                  }
-                >
-                  {page}
-                </Button>
-              ));
-            })()}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
-              disabled={paginaAtual === totalPaginas}
-              className="border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-            >
-              Próximo
-              <span className="ml-1 text-gray-600 group-hover:text-blue-600 transition-colors">➡️</span>
-            </Button>
-          </div>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button 
+                    className={`!h-10 bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} shadow-lg hover:shadow-xl transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed`}
+                    disabled={true}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Novo Convênio
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para criar convênios</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
-      </div>
+      </PageHeader>
+
+      {/* Conteúdo principal */}
+      <PageContent>
+        {/* Painel de Filtros Dinâmicos */}
+        <DynamicFilterPanel
+          isVisible={mostrarFiltros}
+          filterConfigs={filterConfigs}
+          activeFilters={activeFilters}
+          onFilterChange={setFilter}
+          onClearAll={clearAllFilters}
+          onClose={() => setMostrarFiltros(false)}
+          module="convenios"
+        />
+
+        {/* Conteúdo baseado no modo de visualização */}
+        {accessDenied ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <span className="text-3xl">🚫</span>
+            </div>
+            <p className="text-red-600 font-medium mb-2">Acesso Negado</p>
+            <div className="text-gray-600 text-sm space-y-1 max-w-md">
+              {routeInfo ? (
+                <>
+                  <p><strong>Rota:</strong> {routeInfo.nome}</p>
+                  <p><strong>Descrição:</strong> {routeInfo.descricao}</p>
+                  {routeInfo.modulo && <p><strong>Módulo:</strong> {routeInfo.modulo}</p>}
+                  <p className="text-gray-400 mt-2">Você não tem permissão para acessar este recurso</p>
+                </>
+              ) : (
+                <p>Você não tem permissão para visualizar convênios</p>
+              )}
+            </div>
+          </div>
+        ) : viewMode === 'table' ? (
+          <ResponsiveTable 
+            data={conveniosPaginados}
+            columns={columns}
+            module="convenios"
+            emptyMessage="Nenhum convênio encontrado"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
+          />
+        ) : (
+          <ResponsiveCards 
+            data={conveniosPaginados}
+            renderCard={renderCard}
+            emptyMessage="Nenhum convênio encontrado"
+            emptyIcon="🏥"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
+          />
+        )}
+      </PageContent>
+
+      {/* Paginação */}
+      {totalItems > 0 && (
+        <ResponsivePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          module="convenios"
+          onPageChange={handlePageChange}
+          onItemsPerPageChange={handleItemsPerPageChange}
+        />
+      )}
+
       {/* Modal de cadastro/edição */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle>{editando ? 'Editar Convênio' : 'Novo Convênio'}</DialogTitle>
             </DialogHeader>
-            <div className="mt-4 flex flex-col gap-4">
+            <div className="py-2 space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome <span className="text-red-500">*</span></label>
-                <input
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">🏥</span>
+                  <span className={`bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent font-semibold`}>Nome</span>
+                  <span className="text-red-500">*</span>
+                </label>
+                <Input
                   type="text"
-                  value={nome}
-                  onChange={e => setNome(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  minLength={2}
+                  value={form.nome}
+                  onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
                   disabled={formLoading}
                   autoFocus
+                  minLength={2}
+                  className="hover:border-blue-300 focus:border-blue-500 focus:ring-blue-100"
+                  placeholder="Ex: Unimed, Amil, Bradesco Saúde"
                 />
               </div>
+
               {formError && <FormErrorMessage>{formError}</FormErrorMessage>}
-            </div>
+            </div> 
             <DialogFooter className="mt-6">
               <DialogClose asChild>
                 <Button
@@ -331,7 +646,7 @@ export const ConveniosPage = () => {
               <Button 
                 type="submit" 
                 disabled={formLoading}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200 "
+                className={`bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200`}
               >
                 {formLoading ? (
                   <>
@@ -349,10 +664,11 @@ export const ConveniosPage = () => {
           </form>
         </DialogContent>
       </Dialog>
+
       {/* Modal de confirmação de exclusão */}
       <ConfirmDeleteModal
         open={!!excluindo}
-        onClose={() => setExcluindo(null)}
+        onClose={cancelarExclusao}
         onConfirm={handleDelete}
         title="Confirmar Exclusão de Convênio"
         entityName={excluindo?.nome || ''}
@@ -361,6 +677,6 @@ export const ConveniosPage = () => {
         loadingText="Excluindo convênio..."
         confirmText="Excluir Convênio"
       />
-    </div>
+    </PageContainer>
   );
-};
+}; 

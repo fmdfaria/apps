@@ -1,22 +1,42 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
+import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { useToast, toast } from '@/components/ui/use-toast';
+import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AppToast } from '@/services/toast';
+import api from '@/services/api';
+import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { getServicos, createServico, updateServico, deleteServico } from '@/services/servicos';
 import { getConvenios } from '@/services/convenios';
 import type { Servico } from '@/types/Servico';
 import type { Convenio } from '@/types/Convenio';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronDown } from 'lucide-react';
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
 import { FormErrorMessage } from '@/components/form-error-message';
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
+import { Slider } from '@/components/ui/slider';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import { 
+  PageContainer, 
+  PageHeader, 
+  PageContent, 
+  ViewToggle, 
+  SearchBar, 
+  FilterButton,
+  DynamicFilterPanel,
+  ResponsiveTable, 
+  ResponsiveCards, 
+  ResponsivePagination,
+  ActionButton,
+  TableColumn,
+  ResponsiveCardFooter 
+} from '@/components/layout';
+import type { FilterConfig } from '@/types/filters';
+import { useViewMode } from '@/hooks/useViewMode';
+import { useResponsiveTable } from '@/hooks/useResponsiveTable';
+import { useTableFilters } from '@/hooks/useTableFilters';
+import { getModuleTheme } from '@/types/theme';
 
 // Interface para compatibilidade com API atual
 interface ServicoAPI extends Servico {
@@ -42,7 +62,6 @@ function formatarMoedaBRL(valor: string | number) {
   if (typeof valor === 'number') {
     num = valor;
   } else {
-    // Só troca vírgula por ponto, não remove pontos de milhar
     num = Number(valor.replace(',', '.'));
   }
   if (isNaN(num)) return '';
@@ -66,12 +85,11 @@ function getConvenioColor(convenioId: string) {
     { bg: 'bg-violet-100', text: 'text-violet-800' },
   ];
   
-  // Gera um hash simples do ID para sempre ter a mesma cor para o mesmo convênio
   let hash = 0;
   for (let i = 0; i < convenioId.length; i++) {
     const char = convenioId.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
+    hash = hash & hash;
   }
   
   const index = Math.abs(hash) % colors.length;
@@ -79,32 +97,32 @@ function getConvenioColor(convenioId: string) {
 }
 
 // Função para determinar a cor de fundo baseada no percentual do profissional
-// Padrão: 62% profissional (verde) - quanto maior que 62%, mais vermelho
-// Usada também para clínica: se profissional está verde, clínica também está
 function getPercentualProfissionalColor(percentual: number | null) {
   if (percentual === null) return { bg: 'bg-gray-100', text: 'text-gray-600' };
   
-  const padrao = 62; // Percentual padrão para profissionais
+  const padrao = 62;
   
   if (percentual <= padrao) {
-    // Verde: percentual menor ou igual ao padrão
     return { bg: 'bg-green-100', text: 'text-green-800' };
   } else if (percentual <= padrao + 5) {
-    // Amarelo: até 5% acima do padrão (62% a 67%)
     return { bg: 'bg-yellow-100', text: 'text-yellow-800' };
   } else if (percentual <= padrao + 10) {
-    // Laranja: até 10% acima do padrão (67% a 72%)
     return { bg: 'bg-orange-100', text: 'text-orange-800' };
   } else {
-    // Vermelho: mais de 10% acima do padrão (>72%)
     return { bg: 'bg-red-100', text: 'text-red-800' };
   }
 }
 
 export const ServicosPage = () => {
+  const theme = getModuleTheme('servicos');
   const [servicos, setServicos] = useState<ServicoAPI[]>([]);
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [canCreate, setCanCreate] = useState(true);
+  const [canUpdate, setCanUpdate] = useState(true);
+  const [canDelete, setCanDelete] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState<Servico | null>(null);
   const [convenios, setConvenios] = useState<Convenio[]>([]);
@@ -123,21 +141,367 @@ export const ServicosPage = () => {
   const [formError, setFormError] = useState('');
   const [excluindo, setExcluindo] = useState<Servico | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [itensPorPagina, setItensPorPagina] = useState(10);
-  const [paginaAtual, setPaginaAtual] = useState(1);
+
+  // Hooks responsivos
+  const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'servicos-view' });
+  
+  // Configuração das colunas da tabela com filtros dinâmicos (movido para antes dos hooks)
+  const columns: TableColumn<ServicoAPI>[] = [
+    {
+      key: 'convenio',
+      header: '🏥 Convênios',
+      essential: true,
+      className: 'text-center',
+      filterable: {
+        type: 'text',
+        placeholder: 'Nome do convênio...',
+        label: 'Convênio'
+      },
+      render: (item) => {
+        if (item.convenio) {
+          const colors = getConvenioColor(item.convenio.id);
+          return (
+            <span className={`${colors.bg} ${colors.text} text-xs font-medium px-2 py-0.5 rounded`}>
+              {item.convenio.nome}
+            </span>
+          );
+        }
+        return <span className="text-gray-400 text-xs">Nenhum</span>;
+      }
+    },
+    {
+      key: 'nome',
+      header: '📋 Nome',
+      essential: true,
+      filterable: {
+        type: 'text',
+        placeholder: 'Nome do serviço...',
+        label: 'Nome'
+      },
+      render: (item) => <span className="text-sm font-medium">{item.nome}</span>
+    },
+    {
+      key: 'descricao',
+      header: '📝 Descrição',
+      essential: false,
+      filterable: {
+        type: 'text',
+        placeholder: 'Buscar na descrição...',
+        label: 'Descrição'
+      },
+      render: (item) => <span className="text-sm">{item.descricao}</span>
+    },
+    {
+      key: 'duracaoMinutos',
+      header: '⏱️ Duração',
+      essential: true,
+      className: 'text-center',
+      filterable: {
+        type: 'range',
+        label: 'Duração (min)',
+        min: 0,
+        max: 480
+      },
+      render: (item) => <span className="text-sm">{item.duracaoMinutos} min</span>
+    },
+    {
+      key: 'preco',
+      header: '💰 Preço',
+      essential: true,
+      className: 'text-center',
+      filterable: {
+        type: 'currency',
+        label: 'Preço (R$)',
+        currency: 'BRL'
+      },
+      render: (item) => (
+        <span className="text-sm font-medium text-green-600">
+          {item.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+        </span>
+      )
+    },
+    {
+      key: 'valorClinica',
+      header: '💰 Valor Clínica',
+      essential: false,
+      className: 'text-center',
+      filterable: {
+        type: 'currency',
+        label: 'Valor Clínica (R$)',
+        currency: 'BRL'
+      },
+      render: (item) => (
+        <span className="text-sm font-medium text-blue-600">
+          {item.percentualClinica != null && item.preco != null 
+            ? ((item.percentualClinica / 100) * item.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+            : '-'
+          }
+        </span>
+      )
+    },
+    {
+      key: 'valorProfissional',
+      header: '💵 Valor Profissional',
+      essential: false,
+      className: 'text-center',
+      filterable: {
+        type: 'currency',
+        label: 'Valor Profissional (R$)',
+        currency: 'BRL'
+      },
+      render: (item) => (
+        <span className="text-sm font-medium text-emerald-600">
+          {item.percentualProfissional != null && item.preco != null 
+            ? ((item.percentualProfissional / 100) * item.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+            : '-'
+          }
+        </span>
+      )
+    },
+    {
+      key: 'percentualClinica',
+      header: '🏥 Clínica',
+      essential: false,
+      className: 'text-center',
+      filterable: {
+        type: 'percentage',
+        label: 'Percentual Clínica (%)',
+        min: 0,
+        max: 100
+      },
+      render: (item) => {
+        const colors = getPercentualProfissionalColor(item.percentualProfissional);
+        return (
+          <span className={`text-sm px-2 py-1 rounded-md font-medium ${colors.bg} ${colors.text}`}>
+            {item.percentualClinica != null ? `${item.percentualClinica.toFixed(2).replace('.', ',')}%` : '-'}
+          </span>
+        );
+      }
+    },
+    {
+      key: 'percentualProfissional',
+      header: '👨‍⚕️ Profissional',
+      essential: false,
+      className: 'text-center',
+      filterable: {
+        type: 'percentage',
+        label: 'Percentual Profissional (%)',
+        min: 0,
+        max: 100
+      },
+      render: (item) => {
+        const colors = getPercentualProfissionalColor(item.percentualProfissional);
+        return (
+          <span className={`text-sm px-2 py-1 rounded-md font-medium ${colors.bg} ${colors.text}`}>
+            {item.percentualProfissional != null ? `${item.percentualProfissional.toFixed(2).replace('.', ',')}%` : '-'}
+          </span>
+        );
+      }
+    },
+    {
+      key: 'actions',
+      header: '⚙️ Ações',
+      essential: true,
+      render: (item) => {
+        return (
+        <div className="flex gap-1.5">
+          {canUpdate ? (
+            <ActionButton
+              variant="view"
+              module="servicos"
+              onClick={() => abrirModalEditar(item)}
+              title="Editar Serviço"
+            >
+              <Edit className="w-4 h-4" />
+            </ActionButton>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 border-orange-300 text-orange-600 opacity-50 cursor-not-allowed"
+                      disabled={true}
+                      title="Sem permissão para editar"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para editar serviços</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
+          {canDelete ? (
+            <ActionButton
+              variant="delete"
+              module="servicos"
+              onClick={() => confirmarExclusao(item)}
+              title="Excluir Serviço"
+            >
+              <Trash2 className="w-4 h-4" />
+            </ActionButton>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 border-red-300 text-red-600 opacity-50 cursor-not-allowed"
+                      disabled={true}
+                      title="Sem permissão para excluir"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para excluir serviços</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+        );
+      }
+    }
+  ];
+  
+  // Sistema de filtros dinâmicos
+  const {
+    activeFilters,
+    filterConfigs,
+    activeFiltersCount,
+    setFilter,
+    clearFilter,
+    clearAllFilters,
+    applyFilters
+  } = useTableFilters(columns);
+  
+  // Estado para mostrar/ocultar painel de filtros
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  
+  // Filtrar dados baseado na busca e filtros dinâmicos
+  const servicosFiltrados = useMemo(() => {
+    // Primeiro aplicar busca textual
+    let dadosFiltrados = servicos.filter(s =>
+      s.nome.toLowerCase().includes(busca.toLowerCase()) ||
+      (s.descricao || '').toLowerCase().includes(busca.toLowerCase()) ||
+      s.convenio?.nome.toLowerCase().includes(busca.toLowerCase())
+    );
+    
+    // Depois aplicar filtros dinâmicos baseados nas colunas
+    // Precisamos ajustar os dados para que o hook possa aplicar os filtros corretamente
+    dadosFiltrados = dadosFiltrados.map(servico => ({
+      ...servico,
+      // Extrair valores para filtros de campos calculados
+      valorClinica: servico.percentualClinica != null && servico.preco != null 
+        ? (servico.percentualClinica / 100) * servico.preco 
+        : 0,
+      valorProfissional: servico.percentualProfissional != null && servico.preco != null 
+        ? (servico.percentualProfissional / 100) * servico.preco 
+        : 0
+    }));
+    
+    return applyFilters(dadosFiltrados);
+  }, [servicos, busca, applyFilters]);
+
+  const {
+    data: servicosPaginados,
+    totalItems,
+    currentPage,
+    itemsPerPage,
+    totalPages,
+    handlePageChange,
+    handleItemsPerPageChange,
+    // Infinite scroll específico
+    isDesktop,
+    isMobile,
+    hasNextPage,
+    isLoadingMore,
+    targetRef
+  } = useResponsiveTable(servicosFiltrados, 10);
 
   useEffect(() => {
     fetchServicos();
     fetchConvenios();
+    checkPermissions();
   }, []);
+
+  const checkPermissions = async () => {
+    try {
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data;
+      
+      // Verificar cada permissão específica para serviços
+      const canRead = allowedRoutes.some((route: any) => {
+        return route.path === '/servicos' && route.method.toLowerCase() === 'get';
+      });
+      
+      const canCreate = allowedRoutes.some((route: any) => {
+        return route.path === '/servicos' && route.method.toLowerCase() === 'post';
+      });
+      
+      const canUpdate = allowedRoutes.some((route: any) => {
+        return route.path === '/servicos/:id' && route.method.toLowerCase() === 'put';
+      });
+      
+      const canDelete = allowedRoutes.some((route: any) => {
+        return route.path === '/servicos/:id' && route.method.toLowerCase() === 'delete';
+      });
+      
+      setCanCreate(canCreate);
+      setCanUpdate(canUpdate);
+      setCanDelete(canDelete);
+      
+      // Se não tem nem permissão de leitura, marca como access denied
+      if (!canRead) {
+        setAccessDenied(true);
+      }
+      
+    } catch (error: any) {
+      // Em caso de erro, desabilita tudo por segurança
+      setCanCreate(false);
+      setCanUpdate(false);
+      setCanDelete(false);
+      
+      // Se retornar 401/403 no endpoint de permissões, considera acesso negado
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setAccessDenied(true);
+      }
+    }
+  };
 
   const fetchServicos = async () => {
     setLoading(true);
+    setAccessDenied(false);
+    setServicos([]); // Limpa serviços para evitar mostrar dados antigos
     try {
       const data = await getServicos();
       setServicos(data);
-    } catch (e) {
-      toast({ title: 'Erro ao carregar serviços', variant: 'destructive' });
+    } catch (e: any) {
+      if (e?.response?.status === 403) {
+        setAccessDenied(true);
+        // Buscar informações da rota para mensagem mais específica
+        try {
+          const info = await getRouteInfo('/servicos', 'GET');
+          setRouteInfo(info);
+        } catch (routeError) {
+          // Erro ao buscar informações da rota
+        }
+        // Não mostra toast aqui pois o interceptor já cuida disso
+      } else {
+        AppToast.error('Erro ao carregar serviços', {
+          description: 'Ocorreu um problema ao carregar a lista de serviços. Tente novamente.'
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -148,25 +512,160 @@ export const ServicosPage = () => {
       const data = await getConvenios();
       setConvenios(data);
     } catch (e) {
-      toast({ title: 'Erro ao carregar convênios', variant: 'destructive' });
+      AppToast.error('Erro ao carregar convênios', {
+        description: 'Ocorreu um problema ao carregar a lista de convênios. Tente novamente.'
+      });
     }
   };
 
-  const servicosFiltrados = servicos.filter(s =>
-    s.nome.toLowerCase().includes(busca.toLowerCase()) ||
-    (s.descricao || '').toLowerCase().includes(busca.toLowerCase())
+
+  // Renderização do card
+  const renderCard = (servico: ServicoAPI) => (
+    <Card className="h-full hover:shadow-md transition-shadow">
+      <CardHeader className="pb-2 pt-3 px-3">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-lg">🩺</span>
+            <CardTitle className="text-sm font-medium truncate">{servico.nome}</CardTitle>
+          </div>
+          {servico.convenio && (() => {
+            const colors = getConvenioColor(servico.convenio.id);
+            return (
+              <Badge className={`text-xs flex-shrink-0 ml-2 ${colors.bg} ${colors.text}`}>
+                {servico.convenio.nome}
+              </Badge>
+            );
+          })()}
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0 px-3 pb-3">
+        <div className="space-y-2 mb-3">
+          {servico.descricao && (
+            <CardDescription className="line-clamp-2 text-xs">
+              {servico.descricao}
+            </CardDescription>
+          )}
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="flex items-center gap-1">
+              <span>⏱️</span>
+              <span>{servico.duracaoMinutos} min</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span>💰</span>
+              <span className="font-bold text-green-600">
+                {servico.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </span>
+            </div>
+          </div>
+          {servico.percentualClinica != null && servico.percentualProfissional != null && (
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Clínica:</span>
+                <div className="flex items-center gap-1">
+                  {(() => {
+                    const colors = getPercentualProfissionalColor(servico.percentualProfissional);
+                    return (
+                      <Badge variant="outline" className={`text-xs px-1 py-0 ${colors.bg} ${colors.text}`}>
+                        {servico.percentualClinica.toFixed(0)}%
+                      </Badge>
+                    );
+                  })()}
+                  <span className="text-blue-600 font-medium">
+                    {((servico.percentualClinica / 100) * servico.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Profissional:</span>
+                <div className="flex items-center gap-1">
+                  {(() => {
+                    const colors = getPercentualProfissionalColor(servico.percentualProfissional);
+                    return (
+                      <Badge variant="outline" className={`text-xs px-1 py-0 ${colors.bg} ${colors.text}`}>
+                        {servico.percentualProfissional.toFixed(0)}%
+                      </Badge>
+                    );
+                  })()}
+                  <span className="text-emerald-600 font-medium">
+                    {((servico.percentualProfissional / 100) * servico.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </CardContent>
+      <ResponsiveCardFooter>
+        {canUpdate ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white"
+            onClick={() => abrirModalEditar(servico)}
+            title="Editar serviço"
+          >
+            <Edit className="w-4 h-4" />
+          </Button>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-orange-300 text-orange-600 opacity-50 cursor-not-allowed"
+                    disabled={true}
+                    title="Sem permissão para editar"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para editar serviços</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        
+        {canDelete ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+            onClick={() => confirmarExclusao(servico)}
+            title="Excluir serviço"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-red-300 text-red-600 opacity-50 cursor-not-allowed"
+                    disabled={true}
+                    title="Sem permissão para excluir"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para excluir serviços</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </ResponsiveCardFooter>
+    </Card>
   );
 
-  const totalPaginas = Math.ceil(servicosFiltrados.length / itensPorPagina);
-  const servicosPaginados = servicosFiltrados.slice(
-    (paginaAtual - 1) * itensPorPagina,
-    paginaAtual * itensPorPagina
-  );
-
-  useEffect(() => {
-    setPaginaAtual(1);
-  }, [busca, itensPorPagina]);
-
+  // Funções de manipulação
   const abrirModalNovo = () => {
     setEditando(null);
     setForm({
@@ -226,6 +725,7 @@ export const ServicosPage = () => {
     e.preventDefault();
     if (!form.nome.trim() || form.nome.trim().length < 2) {
       setFormError('O nome deve ter pelo menos 2 caracteres.');
+      AppToast.validation('Nome muito curto', 'O nome do serviço deve ter pelo menos 2 caracteres.');
       return;
     }
     const duracaoNumber = Number(form.duracaoMinutos);
@@ -233,7 +733,6 @@ export const ServicosPage = () => {
       setFormError('A duração deve ser maior ou igual a 1.');
       return;
     }
-    // Converter para número puro (substituir vírgula por ponto, remover pontos)
     const precoNumber = Number(form.preco.replace(/\./g, '').replace(',', '.'));
     if (isNaN(precoNumber) || precoNumber < 1) {
       setFormError('O preço deve ser maior ou igual a 1.');
@@ -257,24 +756,29 @@ export const ServicosPage = () => {
     setFormLoading(true);
     try {
       const payload = { ...form, duracaoMinutos: duracaoNumber, preco: precoNumber, convenioId: form.convenioId };
-      console.log('Payload enviado para o backend:', payload);
       if (editando) {
         await updateServico(editando.id, payload);
-        toast({ title: 'Serviço atualizado com sucesso', variant: 'success' });
+        AppToast.updated('Serviço', `O serviço "${form.nome.trim()}" foi atualizado com sucesso.`);
       } else {
         await createServico(payload);
-        toast({ title: 'Serviço criado com sucesso', variant: 'success' });
+        AppToast.created('Serviço', `O serviço "${form.nome.trim()}" foi criado com sucesso.`);
       }
       fecharModal();
       fetchServicos();
     } catch (e: any) {
-      let msg = 'Erro ao salvar serviço';
-      if (e?.response?.data?.message) {
-        msg = e.response.data.message;
+      let title = 'Erro ao salvar serviço';
+      let description = 'Não foi possível salvar o serviço. Verifique os dados e tente novamente.';
+      
+      if (e?.response?.status === 403) {
+        // Erro de permissão será tratado pelo interceptor
+        return;
+      } else if (e?.response?.data?.message) {
+        description = e.response.data.message;
       } else if (e?.message) {
-        msg = e.message;
+        description = e.message;
       }
-      toast({ title: msg, variant: 'destructive' });
+      
+      AppToast.error(title, { description });
     } finally {
       setFormLoading(false);
     }
@@ -293,284 +797,164 @@ export const ServicosPage = () => {
     setDeleteLoading(true);
     try {
       await deleteServico(excluindo.id);
-      toast({ title: 'Serviço excluído com sucesso', variant: 'success' });
+      AppToast.deleted('Serviço', `O serviço "${excluindo.nome}" foi excluído permanentemente.`);
       setExcluindo(null);
       fetchServicos();
     } catch (e) {
-      toast({ title: 'Erro ao excluir serviço', variant: 'destructive' });
+      if (e?.response?.status === 403) {
+        // Erro de permissão será tratado pelo interceptor
+        return;
+      }
+      
+      AppToast.error('Erro ao excluir serviço', {
+        description: 'Não foi possível excluir o serviço. Tente novamente ou entre em contato com o suporte.'
+      });
     } finally {
       setDeleteLoading(false);
     }
   };
 
-  return (
-    <div className="pt-2 pl-6 pr-6 h-full flex flex-col">
-      <div className="bg-white border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <span className="text-4xl">🩺</span>
-            <span className="bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-              Serviços
-            </span>
-          </h1>
-        </div>
-        <div className="flex items-center gap-4">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Buscar serviços..."
-                value={busca}
-                onChange={e => setBusca(e.target.value)}
-                className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 hover:border-blue-300"
-              />
+  if (loading) {
+    return (
+      <PageContainer>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-2"></div>
+            <p className="text-gray-500">Carregando serviços...</p>
           </div>
+        </div>
+      </PageContainer>
+    );
+  }
+
+  return (
+    <PageContainer>
+      {/* Header da página */}
+      <PageHeader title="Serviços" module="servicos" icon="🩺">
+        <SearchBar
+          placeholder="Buscar serviços..."
+          value={busca}
+          onChange={setBusca}
+          module="servicos"
+        />
+        
+        <FilterButton
+          showFilters={mostrarFiltros}
+          onToggleFilters={() => setMostrarFiltros(prev => !prev)}
+          activeFiltersCount={activeFiltersCount}
+          module="servicos"
+          disabled={filterConfigs.length === 0}
+          tooltip={filterConfigs.length === 0 ? 'Nenhum filtro configurado' : undefined}
+        />
+        
+        <ViewToggle 
+          viewMode={viewMode} 
+          onViewModeChange={setViewMode} 
+          module="servicos"
+        />
+        
+        {canCreate ? (
           <Button 
-            onClick={abrirModalNovo} 
-            className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
+            className={`!h-10 bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} shadow-lg hover:shadow-xl transition-all duration-200 font-semibold`}
+            onClick={abrirModalNovo}
           >
             <Plus className="w-4 h-4 mr-2" />
             Novo Serviço
           </Button>
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-sm border border-gray-100">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-gradient-to-r from-green-50 to-blue-50 border-b border-gray-200">
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">🏥</span>
-                  Convênios
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">📋</span>
-                  Nome
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">📝</span>
-                  Descrição
-                </div>
-              </TableHead>
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">⏱️</span>
-                  Duração
-                </div>
-              </TableHead>
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">💰</span>
-                  Preço
-                </div>
-              </TableHead>
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">💰</span>
-                  Valor Clínica
-                </div>
-              </TableHead>
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">💵</span>
-                  Valor Profissional
-                </div>
-              </TableHead>
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">🏥</span>
-                  Clínica
-                </div>
-              </TableHead>
-              <TableHead className="text-center py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg">👨‍⚕️</span>
-                  Profissional
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">⚙️</span>
-                  Ações
-                </div>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {servicosPaginados.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={10} className="py-12 text-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                      <span className="text-3xl">🩺</span>
-                    </div>
-                    <p className="text-gray-500 font-medium">Nenhum serviço encontrado</p>
-                    <p className="text-gray-400 text-sm">Tente ajustar os filtros de busca</p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              servicosPaginados.map((s) => (
-                <TableRow key={s.id} className="hover:bg-gradient-to-r hover:from-green-50 hover:to-blue-50 transition-all duration-200 h-12">
-                  <TableCell className="text-center py-2">
-                    {s.convenio ? (() => {
-                      const colors = getConvenioColor(s.convenio.id);
-                      return (
-                        <span className={`${colors.bg} ${colors.text} text-xs font-medium px-2 py-0.5 rounded`}>
-                          {s.convenio.nome}
-                        </span>
-                      );
-                    })() : (
-                      <span className="text-gray-400 text-xs">Nenhum</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <span className="text-sm font-medium">{s.nome}</span>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <span className="text-sm">{s.descricao}</span>
-                  </TableCell>
-                  <TableCell className="text-center py-2">
-                    <span className="text-sm">{s.duracaoMinutos} min</span>
-                  </TableCell>
-                  <TableCell className="text-center py-2">
-                    <span className="text-sm font-medium text-green-600">{s.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                  </TableCell>
-                  <TableCell className="text-center py-2">
-                    <span className="text-sm font-medium text-blue-600">
-                      {s.percentualClinica != null && s.preco != null 
-                        ? ((s.percentualClinica / 100) * s.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                        : '-'
-                      }
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-center py-2">
-                    <span className="text-sm font-medium text-emerald-600">
-                      {s.percentualProfissional != null && s.preco != null 
-                        ? ((s.percentualProfissional / 100) * s.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                        : '-'
-                      }
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-center py-2">
-                    {(() => {
-                      const colors = getPercentualProfissionalColor(s.percentualProfissional);
-                      return (
-                        <span className={`text-sm px-2 py-1 rounded-md font-medium ${colors.bg} ${colors.text}`}>
-                          {s.percentualClinica != null ? `${s.percentualClinica.toFixed(2).replace('.', ',')}%` : '-'}
-                        </span>
-                      );
-                    })()} 
-                  </TableCell>
-                  <TableCell className="text-center py-2">
-                    {(() => {
-                      const colors = getPercentualProfissionalColor(s.percentualProfissional);
-                      return (
-                        <span className={`text-sm px-2 py-1 rounded-md font-medium ${colors.bg} ${colors.text}`}>
-                          {s.percentualProfissional != null ? `${s.percentualProfissional.toFixed(2).replace('.', ',')}%` : '-'}
-                        </span>
-                      );
-                    })()} 
-                  </TableCell>
-                  <TableCell className="py-2">
-                      <div className="flex gap-1.5 flex-wrap">
-                      <Button 
-                        variant="default" 
-                        size="sm" 
-                        className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform" 
-                        onClick={() => abrirModalEditar(s)}
-                        title="Editar Serviço"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                        className="group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                        onClick={() => confirmarExclusao(s)}
-                        title="Excluir Serviço"
-                        >
-                        <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
-                        </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600 flex items-center gap-2">
-            <span className="text-lg">📊</span>
-            Exibir
-          </span>
-          <select
-            className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 hover:border-blue-300"
-            value={itensPorPagina}
-            onChange={e => setItensPorPagina(Number(e.target.value))}
-          >
-            {[10, 25, 50, 100].map(qtd => (
-              <option key={qtd} value={qtd}>{qtd}</option>
-            ))}
-          </select>
-          <span className="text-sm text-gray-600">itens por página</span>
-        </div>
-        
-        <div className="text-sm text-gray-600 flex items-center gap-2">
-          <span className="text-lg">📈</span>
-          Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, servicosFiltrados.length)} de {servicosFiltrados.length} resultados
-        </div>
-
-        {totalPaginas > 1 && (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
-              disabled={paginaAtual === 1}
-              className="border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-            >
-              <span className="mr-1 text-gray-600 group-hover:text-blue-600 transition-colors">⬅️</span>
-              Anterior
-            </Button>
-            {(() => {
-              const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
-              const endPage = Math.min(totalPaginas, startPage + 4);
-              return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
-                <Button
-                  key={page}
-                  variant={page === paginaAtual ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPaginaAtual(page)}
-                  className={page === paginaAtual 
-                    ? "bg-gradient-to-r from-green-600 to-blue-600 text-white shadow-lg font-semibold" 
-                    : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-                  }
-                >
-                  {page}
-                </Button>
-              ));
-            })()}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
-              disabled={paginaAtual === totalPaginas}
-              className="border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-            >
-              Próximo
-              <span className="ml-1 text-gray-600 group-hover:text-blue-600 transition-colors">➡️</span>
-            </Button>
-          </div>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button 
+                    className={`!h-10 bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} shadow-lg hover:shadow-xl transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed`}
+                    disabled={true}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Novo Serviço
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para criar serviços</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
-      </div>
-      {/* Modal de cadastro/edição */}
+      </PageHeader>
+
+      {/* Conteúdo principal */}
+      <PageContent>
+        {/* Painel de Filtros Dinâmicos */}
+        <DynamicFilterPanel
+          isVisible={mostrarFiltros}
+          filterConfigs={filterConfigs}
+          activeFilters={activeFilters}
+          onFilterChange={setFilter}
+          onClearAll={clearAllFilters}
+          onClose={() => setMostrarFiltros(false)}
+          module="servicos"
+        />
+
+        {/* Conteúdo baseado no modo de visualização */}
+        {accessDenied ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <span className="text-3xl">🚫</span>
+            </div>
+            <p className="text-red-600 font-medium mb-2">Acesso Negado</p>
+            <div className="text-gray-600 text-sm space-y-1 max-w-md">
+              {routeInfo ? (
+                <>
+                  <p><strong>Rota:</strong> {routeInfo.nome}</p>
+                  <p><strong>Descrição:</strong> {routeInfo.descricao}</p>
+                  {routeInfo.modulo && <p><strong>Módulo:</strong> {routeInfo.modulo}</p>}
+                  <p className="text-gray-400 mt-2">Você não tem permissão para acessar este recurso</p>
+                </>
+              ) : (
+                <p>Você não tem permissão para visualizar serviços</p>
+              )}
+            </div>
+          </div>
+        ) : viewMode === 'table' ? (
+          <ResponsiveTable 
+            data={servicosPaginados}
+            columns={columns}
+            module="servicos"
+            emptyMessage="Nenhum serviço encontrado"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
+          />
+        ) : (
+          <ResponsiveCards 
+            data={servicosPaginados}
+            renderCard={renderCard}
+            emptyMessage="Nenhum serviço encontrado"
+            emptyIcon="🩺"
+            isLoadingMore={isLoadingMore}
+            hasNextPage={hasNextPage}
+            isMobile={isMobile}
+            scrollRef={targetRef}
+          />
+        )}
+      </PageContent>
+
+      {/* Paginação */}
+      {totalItems > 0 && (
+        <ResponsivePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          module="servicos"
+          onPageChange={handlePageChange}
+          onItemsPerPageChange={handleItemsPerPageChange}
+        />
+      )}
+
+      {/* Modal de cadastro/edição - mantido igual ao original */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="max-w-2xl">
           <form onSubmit={handleSubmit}>
@@ -581,7 +965,7 @@ export const ServicosPage = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
                   <span className="text-lg">🏥</span>
-                  <span className="bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent font-semibold">Convênio</span>
+                  <span className={`bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent font-semibold`}>Convênio</span>
                   <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -599,7 +983,7 @@ export const ServicosPage = () => {
               <div className="space-y-1">
                 <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
                   <span className="text-lg">📋</span>
-                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">Nome do Serviço</span>
+                  <span className={`bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent font-semibold`}>Nome do Serviço</span>
                   <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -610,7 +994,7 @@ export const ServicosPage = () => {
                     minLength={2}
                     disabled={formLoading}
                     autoFocus
-                    className="hover:border-blue-300 focus:border-blue-500 focus:ring-blue-100"
+                    className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
                     placeholder="Ex: Consulta Médica"
                   />
                 </div>
@@ -619,7 +1003,7 @@ export const ServicosPage = () => {
               <div className="space-y-1">
                 <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
                   <span className="text-lg">📝</span>
-                  <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-semibold">Descrição</span>
+                  <span className={`bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent font-semibold`}>Descrição</span>
                 </label>
                 <div className="relative">
                   <Input
@@ -627,16 +1011,17 @@ export const ServicosPage = () => {
                     value={form.descricao || ''}
                     onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
                     disabled={formLoading}
-                    className="hover:border-purple-300 focus:border-purple-500 focus:ring-purple-100"
+                    className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
                     placeholder="Ex: Consulta médica especializada"
                   />
                 </div>
               </div>
+
               <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-4">
                 <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
                     <span className="text-lg">⏱️</span>
-                    <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent font-semibold">Duração (min)</span>
+                    <span className={`bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent font-semibold`}>Duração (min)</span>
                     <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -646,7 +1031,7 @@ export const ServicosPage = () => {
                       onChange={e => setForm(f => ({ ...f, duracaoMinutos: e.target.value }))}
                       min={1}
                       disabled={formLoading}
-                      className="hover:border-orange-300 focus:border-orange-500 focus:ring-orange-100"
+                      className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
                       placeholder="Ex: 30"
                     />
                   </div>
@@ -654,7 +1039,7 @@ export const ServicosPage = () => {
                 <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
                     <span className="text-lg">💰</span>
-                    <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent font-semibold">Preço (R$)</span>
+                    <span className={`bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent font-semibold`}>Preço (R$)</span>
                     <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -691,12 +1076,13 @@ export const ServicosPage = () => {
                   </div>
                 </div>
               </div>
+
               <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-4">
                 {/* Clínica */}
                 <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
                     <span className="text-lg">🏥</span>
-                    <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent font-semibold">Valor Clínica</span>
+                    <span className={`bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent font-semibold`}>Valor Clínica</span>
                   </label>
                   <div className="flex gap-2 items-center">
                     <div className="grid grid-cols-2 gap-2 w-full">
@@ -722,7 +1108,7 @@ export const ServicosPage = () => {
                           max={100}
                           step={0.01}
                           disabled={formLoading || !form.preco || isNaN(Number(form.preco.replace(/\./g, '').replace(',', '.'))) || Number(form.preco.replace(/\./g, '').replace(',', '.')) <= 0}
-                          className="hover:border-blue-300 focus:border-blue-500 focus:ring-blue-100"
+                          className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
                         />
                       </div>
                       <div className="flex items-center gap-1">
@@ -740,7 +1126,6 @@ export const ServicosPage = () => {
                             valor = valor.replace(/[^\d,]/g, '');
                             const partes = valor.split(',');
                             if (partes.length > 2) valor = partes[0] + ',' + partes.slice(1).join('');
-                            // Atualiza percentualClinica e percentualProfissional a partir do valor em R$
                             const precoNum = Number(form.preco.replace(/\./g, '').replace(',', '.'));
                             if (!precoNum) return setForm(f => ({ ...f, percentualClinica: null, percentualProfissional: null }));
                             const valorNum = Number(valor.replace(/\./g, '').replace(',', '.'));
@@ -757,7 +1142,7 @@ export const ServicosPage = () => {
                             });
                           }}
                           disabled={formLoading || !form.preco || isNaN(Number(form.preco.replace(/\./g, '').replace(',', '.'))) || Number(form.preco.replace(/\./g, '').replace(',', '.')) <= 0}
-                          className="hover:border-blue-300 focus:border-blue-500 focus:ring-blue-100"
+                          className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
                         />
                       </div>
                     </div>
@@ -767,7 +1152,7 @@ export const ServicosPage = () => {
                 <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
                     <span className="text-lg">👨‍⚕️</span>
-                    <span className="bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent font-semibold">Valor Profissional</span>
+                    <span className={`bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent font-semibold`}>Valor Profissional</span>
                   </label>
                   <div className="flex gap-2 items-center">
                     <div className="grid grid-cols-2 gap-2 w-full">
@@ -811,7 +1196,6 @@ export const ServicosPage = () => {
                             valor = valor.replace(/[^\d,]/g, '');
                             const partes = valor.split(',');
                             if (partes.length > 2) valor = partes[0] + ',' + partes.slice(1).join('');
-                            // Atualiza percentualProfissional e percentualClinica a partir do valor em R$
                             const precoNum = Number(form.preco.replace(/\./g, '').replace(',', '.'));
                             if (!precoNum) return setForm(f => ({ ...f, percentualProfissional: null, percentualClinica: null }));
                             const valorNum = Number(valor.replace(/\./g, '').replace(',', '.'));
@@ -835,6 +1219,7 @@ export const ServicosPage = () => {
                   </div>
                 </div>
               </div>
+
               <div className="w-full mt-6 mb-2">
                 <Slider
                   min={0}
@@ -855,11 +1240,12 @@ export const ServicosPage = () => {
                   <span>100%</span>
                 </div>
               </div>
+
               <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-4">
                 <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
                     <span className="text-lg">🩺</span>
-                    <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-semibold">Procedimento 1º Atendimento</span>
+                    <span className={`bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent font-semibold`}>Procedimento 1º Atendimento</span>
                   </label>
                   <div className="relative">
                     <Input
@@ -867,7 +1253,7 @@ export const ServicosPage = () => {
                       value={form.procedimentoPrimeiroAtendimento || ''}
                       onChange={e => setForm(f => ({ ...f, procedimentoPrimeiroAtendimento: e.target.value }))}
                       disabled={formLoading}
-                      className="hover:border-purple-300 focus:border-purple-500 focus:ring-purple-100"
+                      className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
                       placeholder="Ex: 10101012"
                     />
                   </div>
@@ -875,7 +1261,7 @@ export const ServicosPage = () => {
                 <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
                     <span className="text-lg">🩺</span>
-                    <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-semibold">Procedimento Demais Atendimentos</span>
+                    <span className={`bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent font-semibold`}>Procedimento Demais Atendimentos</span>
                   </label>
                   <div className="relative">
                     <Input
@@ -883,12 +1269,14 @@ export const ServicosPage = () => {
                       value={form.procedimentoDemaisAtendimentos || ''}
                       onChange={e => setForm(f => ({ ...f, procedimentoDemaisAtendimentos: e.target.value }))}
                       disabled={formLoading}
-                      className="hover:border-indigo-300 focus:border-indigo-500 focus:ring-indigo-100"
+                      className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
                       placeholder="Ex: 10101013"
                     />
                   </div>
                 </div>
               </div>
+
+              {formError && <FormErrorMessage>{formError}</FormErrorMessage>}
             </div> 
             <DialogFooter className="mt-6">
               <DialogClose asChild>
@@ -905,7 +1293,7 @@ export const ServicosPage = () => {
               <Button 
                 type="submit" 
                 disabled={formLoading}
-                className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200 "
+                className={`bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200`}
               >
                 {formLoading ? (
                   <>
@@ -923,10 +1311,11 @@ export const ServicosPage = () => {
           </form>
         </DialogContent>
       </Dialog>
+
       {/* Modal de confirmação de exclusão */}
       <ConfirmDeleteModal
         open={!!excluindo}
-        onClose={() => setExcluindo(null)}
+        onClose={cancelarExclusao}
         onConfirm={handleDelete}
         title="Confirmar Exclusão de Serviço"
         entityName={excluindo?.nome || ''}
@@ -935,6 +1324,6 @@ export const ServicosPage = () => {
         loadingText="Excluindo serviço..."
         confirmText="Excluir Serviço"
       />
-    </div>
+    </PageContainer>
   );
 };
