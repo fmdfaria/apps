@@ -1,5 +1,5 @@
 import { prisma } from '../../../../shared/database/prisma';
-import { User, UserType } from '../../../../core/domain/entities/User';
+import { User } from '../../../../core/domain/entities/User';
 import { IUsersRepository } from '../../../../core/domain/repositories/IUsersRepository';
 
 export class PrismaUsersRepository implements IUsersRepository {
@@ -7,7 +7,6 @@ export class PrismaUsersRepository implements IUsersRepository {
     const user = await prisma.user.create({
       data: {
         ...data,
-        tipo: data.tipo as UserType,
         profissionalId: data.profissionalId ?? null,
         pacienteId: data.pacienteId ?? null,
       },
@@ -39,7 +38,7 @@ export class PrismaUsersRepository implements IUsersRepository {
     await prisma.user.delete({ where: { id } });
   }
 
-  async list(filters?: Partial<Pick<User, 'tipo' | 'ativo'>>): Promise<User[]> {
+  async list(filters?: Partial<Pick<User, 'ativo'>>): Promise<User[]> {
     return (await prisma.user.findMany({ where: { ...filters } })) as User[];
   }
 

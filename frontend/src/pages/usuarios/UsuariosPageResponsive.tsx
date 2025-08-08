@@ -7,9 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Input } from '@/components/ui/input';
 import { useToast, toast } from '@/components/ui/use-toast';
 import { getUsers, createUser, updateUser, deleteUser } from '@/services/users';
-import type { User, UserType } from '@/types/User';
+import type { User } from '@/types/User';
 import { FormErrorMessage } from '@/components/form-error-message';
-import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import { 
   PageContainer, 
@@ -36,38 +35,10 @@ interface FormularioUsuario {
   nome: string;
   email: string;
   senha: string;
-  tipo: UserType | '';
 }
 
-// Opções de tipos de usuário
-const tiposUsuario = [
-  { id: 'ADMIN' as const, nome: 'Administrador' },
-  { id: 'RECEPCIONISTA' as const, nome: 'Recepcionista' },
-  { id: 'PROFISSIONAL' as const, nome: 'Profissional' },
-  { id: 'PACIENTE' as const, nome: 'Paciente' }
-];
 
-// Função para obter cor do badge baseado no tipo de usuário
-function getUserTypeColor(tipo: UserType) {
-  const colors = {
-    'ADMIN': { bg: 'bg-red-100', text: 'text-red-800' },
-    'RECEPCIONISTA': { bg: 'bg-blue-100', text: 'text-blue-800' },
-    'PROFISSIONAL': { bg: 'bg-green-100', text: 'text-green-800' },
-    'PACIENTE': { bg: 'bg-purple-100', text: 'text-purple-800' }
-  };
-  return colors[tipo] || { bg: 'bg-gray-100', text: 'text-gray-800' };
-}
 
-// Função para obter texto amigável do tipo de usuário
-function getUserTypeLabel(tipo: UserType) {
-  const labels = {
-    'ADMIN': 'Administrador',
-    'RECEPCIONISTA': 'Recepcionista',
-    'PROFISSIONAL': 'Profissional',
-    'PACIENTE': 'Paciente'
-  };
-  return labels[tipo] || tipo;
-}
 
 export const UsuariosPageResponsive = () => {
   const [usuarios, setUsuarios] = useState<User[]>([]);
@@ -79,7 +50,6 @@ export const UsuariosPageResponsive = () => {
     nome: '',
     email: '',
     senha: '',
-    tipo: '',
   });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
@@ -114,16 +84,22 @@ export const UsuariosPageResponsive = () => {
       render: (item) => <span className="text-sm">{item.email}</span>
     },
     {
-      key: 'tipo',
-      header: '🏷️ Tipo',
+      key: 'roles',
+      header: '🏷️ Roles',
       essential: true,
       className: 'text-center',
       render: (item) => {
-        const colors = getUserTypeColor(item.tipo);
+        if (!item.roles || item.roles.length === 0) {
+          return <span className="text-xs text-gray-400">Nenhum role</span>;
+        }
         return (
-          <span className={`${colors.bg} ${colors.text} text-xs font-medium px-2 py-0.5 rounded`}>
-            {getUserTypeLabel(item.tipo)}
-          </span>
+          <div className="flex flex-wrap gap-1">
+            {item.roles.map((role, index) => (
+              <span key={index} className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded">
+                {role}
+              </span>
+            ))}
+          </div>
         );
       }
     },
@@ -197,7 +173,7 @@ export const UsuariosPageResponsive = () => {
     let dadosFiltrados = usuarios.filter(u =>
       u.nome.toLowerCase().includes(busca.toLowerCase()) ||
       u.email.toLowerCase().includes(busca.toLowerCase()) ||
-      getUserTypeLabel(u.tipo).toLowerCase().includes(busca.toLowerCase())
+      (u.roles && u.roles.some(role => role.toLowerCase().includes(busca.toLowerCase())))
     );
     
     // Aplicar filtros dinâmicos
@@ -245,14 +221,24 @@ export const UsuariosPageResponsive = () => {
             <span className="text-lg">👤</span>
             <CardTitle className="text-sm font-medium truncate">{usuario.nome}</CardTitle>
           </div>
-          {(() => {
-            const colors = getUserTypeColor(usuario.tipo);
-            return (
-              <Badge className={`text-xs flex-shrink-0 ml-2 ${colors.bg} ${colors.text}`}>
-                {getUserTypeLabel(usuario.tipo)}
+          <div className="flex flex-wrap gap-1 ml-2">
+            {usuario.roles && usuario.roles.length > 0 ? (
+              usuario.roles.slice(0, 2).map((role, index) => (
+                <Badge key={index} className="text-xs flex-shrink-0 bg-blue-100 text-blue-800">
+                  {role}
+                </Badge>
+              ))
+            ) : (
+              <Badge className="text-xs flex-shrink-0 bg-gray-100 text-gray-800">
+                Sem roles
               </Badge>
-            );
-          })()}
+            )}
+            {usuario.roles && usuario.roles.length > 2 && (
+              <Badge className="text-xs flex-shrink-0 bg-gray-100 text-gray-600">
+                +{usuario.roles.length - 2}
+              </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0 px-3 pb-3">
@@ -318,7 +304,6 @@ export const UsuariosPageResponsive = () => {
       nome: '',
       email: '',
       senha: '',
-      tipo: '',
     });
     setFormError('');
     setShowModal(true);
@@ -330,7 +315,6 @@ export const UsuariosPageResponsive = () => {
       nome: usuario.nome,
       email: usuario.email,
       senha: '', // Não mostramos a senha atual
-      tipo: usuario.tipo,
     });
     setFormError('');
     setShowModal(true);
@@ -343,7 +327,6 @@ export const UsuariosPageResponsive = () => {
       nome: '',
       email: '',
       senha: '',
-      tipo: '',
     });
     setFormError('');
   };
@@ -366,10 +349,6 @@ export const UsuariosPageResponsive = () => {
       return;
     }
     
-    if (!form.tipo) {
-      setFormError('Selecione um tipo de usuário.');
-      return;
-    }
 
     // Verificar se email já existe
     const emailDuplicado = usuarios.some(u =>
@@ -389,7 +368,6 @@ export const UsuariosPageResponsive = () => {
         const payload: any = {};
         if (form.nome !== editando.nome) payload.nome = form.nome.trim();
         if (form.email !== editando.email) payload.email = form.email.trim();
-        if (form.tipo !== editando.tipo) payload.tipo = form.tipo;
         
         if (Object.keys(payload).length > 0) {
           await updateUser(editando.id, payload);
@@ -399,8 +377,7 @@ export const UsuariosPageResponsive = () => {
         await createUser({
           nome: form.nome.trim(),
           email: form.email.trim(),
-          senha: form.senha.trim(),
-          tipo: form.tipo as UserType
+          senha: form.senha.trim()
         });
         toast({ title: 'Usuário criado com sucesso', variant: 'success' });
       }
@@ -615,21 +592,6 @@ export const UsuariosPageResponsive = () => {
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
-                  <span className="text-lg">🏷️</span>
-                  <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent font-semibold">Tipo de Usuário</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <SingleSelectDropdown
-                  options={tiposUsuario}
-                  selected={tiposUsuario.find(t => t.id === form.tipo) || null}
-                  onChange={(selected) => setForm(f => ({ ...f, tipo: selected?.id as UserType || '' }))}
-                  placeholder="Selecione o tipo de usuário..."
-                  formatOption={(option) => option.nome}
-                  headerText="Tipos de usuário disponíveis"
-                />
-              </div>
 
               {formError && <FormErrorMessage>{formError}</FormErrorMessage>}
             </div> 

@@ -35,9 +35,9 @@ export class RefreshTokenUseCase {
     if (!user || !user.ativo) {
       throw new AppError('Usuário não encontrado ou inativo.', 401);
     }
-    // Gera novos tokens
+    // Gera novos tokens  
     const accessToken = jwt.sign(
-      { sub: user.id, tipo: user.tipo },
+      { sub: user.id, roles: [] }, // TODO: buscar roles do usuário
       process.env.JWT_SECRET as string,
       { expiresIn: '15m' }
     );

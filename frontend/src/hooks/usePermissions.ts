@@ -77,7 +77,7 @@ export const usePermissions = () => {
 
   // Verificar se o usuário é admin (tem role ADMIN)
   const isAdmin = () => {
-    return user?.roles?.includes('ADMIN') || user?.tipo === 'ADMIN';
+    return user?.roles?.includes('ADMIN');
   };
 
   // Verificar se o usuário tem uma role específica

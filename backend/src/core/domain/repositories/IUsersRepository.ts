@@ -6,7 +6,7 @@ export interface IUsersRepository {
   findById(id: string): Promise<User | null>;
   update(id: string, data: Partial<Omit<User, 'id' | 'criadoEm' | 'atualizadoEm'>>): Promise<User>;
   delete(id: string): Promise<void>;
-  list(filters?: Partial<Pick<User, 'tipo' | 'ativo'>>): Promise<User[]>;
+  list(filters?: Partial<Pick<User, 'ativo'>>): Promise<User[]>;
   findByProfissionalId(profissionalId: string): Promise<User | null>;
   findByPacienteId(pacienteId: string): Promise<User | null>;
 } 

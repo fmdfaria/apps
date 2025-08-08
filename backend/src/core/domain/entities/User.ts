@@ -1,13 +1,10 @@
 import { randomUUID } from 'crypto';
 
-export type UserType = 'ADMIN' | 'RECEPCIONISTA' | 'PROFISSIONAL' | 'PACIENTE';
-
 export class User {
   id!: string;
   nome!: string;
   email!: string;
   senha!: string;
-  tipo!: UserType;
   ativo!: boolean;
   profissionalId?: string | null;
   pacienteId?: string | null;

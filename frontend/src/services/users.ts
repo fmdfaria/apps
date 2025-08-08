@@ -1,18 +1,16 @@
 import api from './api';
-import type { User, UserType } from '../types/User';
+import type { User } from '../types/User';
 
 // Interface para criar/atualizar usuário
 export interface CreateUserData {
   nome: string;
   email: string;
   senha: string;
-  tipo: UserType;
 }
 
 export interface UpdateUserData {
   nome?: string;
   email?: string;
-  tipo?: UserType;
   ativo?: boolean;
 }
 

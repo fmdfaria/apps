@@ -332,7 +332,6 @@ model User {
   nome                   String         @db.VarChar(150)
   email                  String         @unique @db.VarChar(100)
   senha                  String         @db.VarChar(255)
-  tipo                   UserType       @map("tipo")
   ativo                  Boolean        @default(true)
   profissionalId         String?        @map("profissional_id") @db.Uuid
   pacienteId             String?        @map("paciente_id") @db.Uuid
@@ -346,7 +345,6 @@ model User {
   userRoles              UserRole[]
 
   @@index([email], map: "idx_users_email")
-  @@index([tipo], map: "idx_users_tipo")
   @@map("users")
 }
 
@@ -426,11 +424,3 @@ model RoleRoute {
   @@map("role_routes")
 }
 
-enum UserType {
-  ADMIN
-  RECEPCIONISTA
-  PROFISSIONAL
-  PACIENTE
-
-  @@map("user_type")
-}

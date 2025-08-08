@@ -1,12 +1,9 @@
-export type UserType = 'ADMIN' | 'RECEPCIONISTA' | 'PROFISSIONAL' | 'PACIENTE';
-
 export interface User {
   id: string;
   nome: string;
   email: string;
-  tipo: UserType;
   ativo: boolean;
-  roles?: string[]; // Nova propriedade para roles RBAC
+  roles: string[]; // Array de roles para RBAC
 }
 
 export interface AuthResponse {

@@ -1,9 +1,8 @@
 import { inject, injectable } from 'tsyringe';
 import { IUsersRepository } from '../../../domain/repositories/IUsersRepository';
-import { User, UserType } from '../../../domain/entities/User';
+import { User } from '../../../domain/entities/User';
 
 interface IRequest {
-  tipo?: UserType;
   ativo?: boolean;
   email?: string;
   nome?: string;

@@ -48,7 +48,7 @@ export class AuthenticateUserUseCase {
     
     // Geração dos tokens
     const accessToken = jwt.sign(
-      { sub: user.id, tipo: user.tipo, roles: roleNames },
+      { sub: user.id, roles: roleNames },
       process.env.JWT_SECRET as string,
       { expiresIn: '15m' }
     );

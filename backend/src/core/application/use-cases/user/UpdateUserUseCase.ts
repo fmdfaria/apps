@@ -1,13 +1,11 @@
 import { inject, injectable } from 'tsyringe';
 import { IUsersRepository } from '../../../domain/repositories/IUsersRepository';
 import { AppError } from '../../../../shared/errors/AppError';
-import { UserType } from '../../../domain/entities/User';
 
 interface IRequest {
   userId: string;
   nome?: string;
   email?: string;
-  tipo?: UserType;
   ativo?: boolean;
   profissionalId?: string;
   pacienteId?: string;
