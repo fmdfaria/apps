@@ -23,10 +23,10 @@ export async function userRolesRoutes(fastify: FastifyInstance) {
   }, userRolesController.removeRole);
   
   fastify.get('/users/:userId/roles', { 
-    preHandler: [ensureAuthenticated, ensureAuthorized('/users/:userId/roles', 'GET')] 
+    preHandler: [ensureAuthenticated] 
   }, userRolesController.listUserRoles);
   
   fastify.get('/users/:userId/allowed-routes', { 
-    preHandler: [ensureAuthenticated, ensureAuthorized('/users/:userId/allowed-routes', 'GET')] 
+    preHandler: [ensureAuthenticated] 
   }, userRolesController.listUserAllowedRoutes);
 }
