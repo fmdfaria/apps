@@ -35,7 +35,6 @@ interface FormularioUsuario {
   nome: string;
   email: string;
   senha: string;
-  tipo: 'ADMIN' | 'RECEPCIONISTA' | 'PROFISSIONAL' | 'PACIENTE';
 }
 
 
@@ -51,7 +50,6 @@ export const UsuariosPageResponsive = () => {
     nome: '',
     email: '',
     senha: '',
-    tipo: 'PACIENTE',
   });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
@@ -306,7 +304,6 @@ export const UsuariosPageResponsive = () => {
       nome: '',
       email: '',
       senha: '',
-      tipo: 'PACIENTE',
     });
     setFormError('');
     setShowModal(true);
@@ -318,7 +315,6 @@ export const UsuariosPageResponsive = () => {
       nome: usuario.nome,
       email: usuario.email,
       senha: '', // Não mostramos a senha atual
-      tipo: 'PACIENTE', // Default para edição
     });
     setFormError('');
     setShowModal(true);
@@ -331,7 +327,6 @@ export const UsuariosPageResponsive = () => {
       nome: '',
       email: '',
       senha: '',
-      tipo: 'PACIENTE',
     });
     setFormError('');
   };
@@ -382,8 +377,7 @@ export const UsuariosPageResponsive = () => {
         await createUser({
           nome: form.nome.trim(),
           email: form.email.trim(),
-          senha: form.senha.trim(),
-          tipo: form.tipo
+          senha: form.senha.trim()
         });
         toast({ title: 'Usuário criado com sucesso', variant: 'success' });
       }
@@ -577,25 +571,6 @@ export const UsuariosPageResponsive = () => {
                   className="hover:border-blue-300 focus:border-blue-500 focus:ring-blue-100"
                   placeholder="email@exemplo.com"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
-                  <span className="text-lg">🏷️</span>
-                  <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent font-semibold">Tipo de Usuário</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={form.tipo}
-                  onChange={e => setForm(f => ({ ...f, tipo: e.target.value as 'ADMIN' | 'RECEPCIONISTA' | 'PROFISSIONAL' | 'PACIENTE' }))}
-                  disabled={formLoading}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md hover:border-blue-300 focus:border-blue-500 focus:ring-blue-100 focus:outline-none focus:ring-2 text-sm"
-                >
-                  <option value="PACIENTE">Paciente</option>
-                  <option value="RECEPCIONISTA">Recepcionista</option>
-                  <option value="PROFISSIONAL">Profissional</option>
-                  <option value="ADMIN">Admin</option>
-                </select>
               </div>
 
               {!editando && (

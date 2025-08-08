@@ -17,7 +17,6 @@ export class AuthController {
       nome: z.string().min(3),
       email: z.string().email(),
       senha: z.string().min(6),
-      tipo: z.enum(['ADMIN', 'RECEPCIONISTA', 'PROFISSIONAL', 'PACIENTE']),
       profissionalId: z.string().uuid().optional(),
       pacienteId: z.string().uuid().optional(),
     });

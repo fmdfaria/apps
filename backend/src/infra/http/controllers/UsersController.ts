@@ -9,7 +9,6 @@ import { IUsersRepository } from '../../../core/domain/repositories/IUsersReposi
 export class UsersController {
   async list(request: FastifyRequest, reply: FastifyReply) {
     const querySchema = z.object({
-      tipo: z.enum(['ADMIN', 'RECEPCIONISTA', 'PROFISSIONAL', 'PACIENTE']).optional(),
       ativo: z.coerce.boolean().optional(),
       email: z.string().email().optional(),
       nome: z.string().optional(),
@@ -25,7 +24,6 @@ export class UsersController {
     const bodySchema = z.object({
       nome: z.string().min(3).optional(),
       email: z.string().email().optional(),
-      tipo: z.enum(['ADMIN', 'RECEPCIONISTA', 'PROFISSIONAL', 'PACIENTE']).optional(),
       ativo: z.boolean().optional(),
       profissionalId: z.string().uuid().optional(),
       pacienteId: z.string().uuid().optional(),

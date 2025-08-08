@@ -1,14 +1,24 @@
 import { FastifyInstance } from 'fastify';
 import { RolesController } from '../controllers/RolesController';
 import { ensureAuthenticated } from '../middlewares/ensureAuthenticated';
+import { ensureAuthorized } from '../middlewares/ensureAuthorized';
 
 export async function rolesRoutes(fastify: FastifyInstance) {
   const rolesController = new RolesController();
 
-  fastify.addHook('preHandler', ensureAuthenticated);
-
-  fastify.post('/roles', rolesController.create);
-  fastify.get('/roles', rolesController.list);
-  fastify.put('/roles/:id', rolesController.update);
-  fastify.delete('/roles/:id', rolesController.delete);
+  fastify.post('/roles', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/roles', 'POST')] 
+  }, rolesController.create);
+  
+  fastify.get('/roles', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/roles', 'GET')] 
+  }, rolesController.list);
+  
+  fastify.put('/roles/:id', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/roles/:id', 'PUT')] 
+  }, rolesController.update);
+  
+  fastify.delete('/roles/:id', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/roles/:id', 'DELETE')] 
+  }, rolesController.delete);
 }

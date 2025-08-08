@@ -6,7 +6,6 @@ export interface CreateUserData {
   nome: string;
   email: string;
   senha: string;
-  tipo: 'ADMIN' | 'RECEPCIONISTA' | 'PROFISSIONAL' | 'PACIENTE';
 }
 
 export interface UpdateUserData {
