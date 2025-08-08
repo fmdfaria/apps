@@ -181,6 +181,31 @@ export class PrismaUserRolesRepository implements IUserRolesRepository {
     );
   }
 
+  async findActiveUserRolesWithNames(userId: string): Promise<{ roleId: string; roleName: string }[]> {
+    const data = await this.prisma.userRole.findMany({
+      where: {
+        userId,
+        ativo: true,
+        role: {
+          ativo: true,
+        },
+      },
+      include: {
+        role: {
+          select: {
+            id: true,
+            nome: true,
+          },
+        },
+      },
+    });
+
+    return data.map((item) => ({
+      roleId: item.roleId,
+      roleName: item.role.nome,
+    }));
+  }
+
   async update(userRole: UserRole): Promise<UserRole> {
     const data = await this.prisma.userRole.update({
       where: { id: userRole.id },

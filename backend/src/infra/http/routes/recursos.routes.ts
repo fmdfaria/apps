@@ -5,9 +5,17 @@ import { ensureAuthorized } from '../middlewares/ensureAuthorized';
 const recursosController = new RecursosController();
 
 export async function recursosRoutes(app: FastifyInstance) {
-  app.get('/recursos', recursosController.list);
-  app.put('/recursos/:id', recursosController.update);
-  app.delete('/recursos/:id', recursosController.delete);
+  app.get('/recursos', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/recursos', 'GET')] 
+  }, recursosController.list);
+  
+  app.put('/recursos/:id', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/recursos', 'PUT')] 
+  }, recursosController.update);
+  
+  app.delete('/recursos/:id', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/recursos', 'DELETE')] 
+  }, recursosController.delete);
 
   app.post('/recursos', { 
     preHandler: [ensureAuthenticated, ensureAuthorized('/recursos', 'POST')] 
