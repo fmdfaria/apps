@@ -64,4 +64,56 @@ export class AgendamentosController {
     await useCase.execute(id);
     return reply.status(204).send();
   }
+
+  async liberar(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const paramsSchema = z.object({ id: z.string().uuid() });
+    const { id } = paramsSchema.parse(request.params);
+    
+    // Schema específico para liberação - apenas campos permitidos para liberação
+    const liberarBodySchema = z.object({
+      codLiberacao: z.string(),
+      statusCodLiberacao: z.string(),
+      dataCodLiberacao: z.coerce.date(),
+      status: z.literal('LIBERADO') // Força o status para LIBERADO
+    });
+    
+    const data = liberarBodySchema.parse(request.body);
+    const useCase = container.resolve(UpdateAgendamentoUseCase);
+    const agendamento = await useCase.execute(id, data);
+    return reply.status(200).send(agendamento);
+  }
+
+  async atender(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const paramsSchema = z.object({ id: z.string().uuid() });
+    const { id } = paramsSchema.parse(request.params);
+    
+    // Schema específico para atendimento - apenas campos permitidos para atendimento
+    const atenderBodySchema = z.object({
+      status: z.literal('ATENDIDO'), // Força o status para ATENDIDO
+      dataHoraInicio: z.coerce.date().optional(), // Permite ajustar horário de início
+      observacoes: z.string().optional() // Campo para observações do atendimento
+    });
+    
+    const data = atenderBodySchema.parse(request.body);
+    const useCase = container.resolve(UpdateAgendamentoUseCase);
+    const agendamento = await useCase.execute(id, data);
+    return reply.status(200).send(agendamento);
+  }
+
+  async concluir(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const paramsSchema = z.object({ id: z.string().uuid() });
+    const { id } = paramsSchema.parse(request.params);
+    
+    // Schema específico para conclusão - apenas campos permitidos para conclusão
+    const concluirBodySchema = z.object({
+      status: z.literal('FINALIZADO'), // Força o status para FINALIZADO
+      observacoes: z.string().optional(), // Campo para observações finais
+      resultadoConsulta: z.string().optional() // Campo para resultado da consulta
+    });
+    
+    const data = concluirBodySchema.parse(request.body);
+    const useCase = container.resolve(UpdateAgendamentoUseCase);
+    const agendamento = await useCase.execute(id, data);
+    return reply.status(200).send(agendamento);
+  }
 } 

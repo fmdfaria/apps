@@ -33,6 +33,9 @@ import type { Agendamento, StatusAgendamento } from '@/types/Agendamento';
 import { getAgendamentos, deleteAgendamento } from '@/services/agendamentos';
 import { NovoAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import api from '@/services/api';
+import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
+import { AppToast } from '@/services/toast';
 
 export const AgendamentosPage = () => {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
@@ -40,6 +43,14 @@ export const AgendamentosPage = () => {
   const [busca, setBusca] = useState('');
   const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
   const [filtroStatus, setFiltroStatus] = useState<StatusAgendamento | 'TODOS'>('TODOS');
+  
+  // Estados para controle de permissões RBAC
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [canRead, setCanRead] = useState(true);
+  const [canCreate, setCanCreate] = useState(true);
+  const [canUpdate, setCanUpdate] = useState(true);
+  const [canDelete, setCanDelete] = useState(true);
   const [showNovoAgendamento, setShowNovoAgendamento] = useState(false);
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
@@ -64,6 +75,7 @@ export const AgendamentosPage = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
+    checkPermissions();
     carregarAgendamentos();
   }, []);
 
@@ -71,13 +83,80 @@ export const AgendamentosPage = () => {
     setPaginaAtual(1);
   }, [busca, itensPorPagina, filtroStatus, filtros]);
 
+  const checkPermissions = async () => {
+    try {
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data;
+      
+      // Verificar cada permissão específica para agendamentos
+      const canRead = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos' && route.method.toLowerCase() === 'get';
+      });
+      
+      const canCreate = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos' && route.method.toLowerCase() === 'post';
+      });
+      
+      const canUpdate = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos/:id' && route.method.toLowerCase() === 'put';
+      });
+      
+      const canDelete = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos/:id' && route.method.toLowerCase() === 'delete';
+      });
+      
+      setCanRead(canRead);
+      setCanCreate(canCreate);
+      setCanUpdate(canUpdate);
+      setCanDelete(canDelete);
+      
+      // Se não tem nem permissão de leitura, marca como access denied
+      if (!canRead) {
+        setAccessDenied(true);
+      }
+      
+    } catch (error: any) {
+      // Em caso de erro, desabilita tudo por segurança
+      setCanRead(false);
+      setCanCreate(false);
+      setCanUpdate(false);
+      setCanDelete(false);
+      
+      // Se retornar 401/403 no endpoint de permissões, considera acesso negado
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setAccessDenied(true);
+      }
+    }
+  };
+
   const carregarAgendamentos = async () => {
+    if (!canRead) {
+      setAccessDenied(true);
+      return;
+    }
+    
     setLoading(true);
+    setAccessDenied(false);
+    setAgendamentos([]); // Limpa agendamentos para evitar mostrar dados antigos
     try {
       const dados = await getAgendamentos();
       setAgendamentos(dados);
-    } catch (error) {
-      console.error('Erro ao carregar agendamentos:', error);
+    } catch (e: any) {
+      if (e?.response?.status === 403) {
+        setAccessDenied(true);
+        // Buscar informações da rota para mensagem mais específica
+        try {
+          const info = await getRouteInfo('/agendamentos', 'GET');
+          setRouteInfo(info);
+        } catch (routeError) {
+          // Erro ao buscar informações da rota
+        }
+        // Não mostra toast aqui pois o interceptor já cuida disso
+      } else {
+        AppToast.error('Erro ao carregar agendamentos', {
+          description: 'Ocorreu um problema ao carregar a lista de agendamentos. Tente novamente.'
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -332,33 +411,69 @@ export const AgendamentosPage = () => {
                   </div>
                   
                   <div className="flex gap-1">
-                    <Button 
-                      size="sm" 
-                      variant="default"
-                      className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
-                      onClick={() => handleVerDetalhes(agendamento)}
-                    >
-                      Visualizar
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="flex-1 h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
-                      onClick={() => {
-                        // TODO: Implementar modal de edição
-                        console.log('Editar agendamento:', agendamento.id);
-                      }}
-                    >
-                      Editar
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="flex-1 h-7 text-xs border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
-                      onClick={() => confirmarExclusao(agendamento)}
-                    >
-                      Excluir
-                    </Button>
+                    {canRead ? (
+                      <Button 
+                        size="sm" 
+                        variant="default"
+                        className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                        onClick={() => handleVerDetalhes(agendamento)}
+                        title="Visualizar Agendamento"
+                      >
+                        Visualizar
+                      </Button>
+                    ) : (
+                      <Button 
+                        size="sm" 
+                        disabled={true}
+                        className="flex-1 h-7 text-xs bg-gray-400 cursor-not-allowed"
+                        title="Você não tem permissão para visualizar agendamentos"
+                      >
+                        Visualizar
+                      </Button>
+                    )}
+                    {canUpdate ? (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="flex-1 h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
+                        onClick={() => {
+                          // TODO: Implementar modal de edição
+                          console.log('Editar agendamento:', agendamento.id);
+                        }}
+                        title="Editar Agendamento"
+                      >
+                        Editar
+                      </Button>
+                    ) : (
+                      <Button 
+                        size="sm" 
+                        disabled={true}
+                        className="flex-1 h-7 text-xs border-gray-300 text-gray-400 cursor-not-allowed"
+                        title="Você não tem permissão para editar agendamentos"
+                      >
+                        Editar
+                      </Button>
+                    )}
+                    {canDelete ? (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="flex-1 h-7 text-xs border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+                        onClick={() => confirmarExclusao(agendamento)}
+                        title="Excluir Agendamento"
+                      >
+                        Excluir
+                      </Button>
+                    ) : (
+                      <Button 
+                        size="sm" 
+                        disabled={true}
+                        className="flex-1 h-7 text-xs border-gray-300 text-gray-400 cursor-not-allowed"
+                        title="Você não tem permissão para excluir agendamentos"
+                      >
+                        Excluir
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -493,36 +608,72 @@ export const AgendamentosPage = () => {
                   </TableCell>
                   <TableCell className="py-2">
                     <div className="flex gap-1.5">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                        onClick={() => handleVerDetalhes(agendamento)}
-                        title="Visualizar Agendamento"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                        onClick={() => {
-                          // TODO: Implementar modal de edição
-                          console.log('Editar agendamento:', agendamento.id);
-                        }}
-                        title="Editar Agendamento"
-                      >
-                        <Edit className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                        onClick={() => confirmarExclusao(agendamento)}
-                        title="Excluir Agendamento"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
-                      </Button>
+                      {canRead ? (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                          onClick={() => handleVerDetalhes(agendamento)}
+                          title="Visualizar Agendamento"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          disabled={true}
+                          className="bg-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                          title="Você não tem permissão para visualizar agendamentos"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {canUpdate ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                          onClick={() => {
+                            // TODO: Implementar modal de edição
+                            console.log('Editar agendamento:', agendamento.id);
+                          }}
+                          title="Editar Agendamento"
+                        >
+                          <Edit className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={true}
+                          className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                          title="Você não tem permissão para editar agendamentos"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {canDelete ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                          onClick={() => confirmarExclusao(agendamento)}
+                          title="Excluir Agendamento"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={true}
+                          className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                          title="Você não tem permissão para excluir agendamentos"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -540,6 +691,38 @@ export const AgendamentosPage = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
           <p className="text-gray-500">Carregando agendamentos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Tela de acesso negado
+  if (accessDenied) {
+    return (
+      <div className="pt-2 pl-6 pr-6 h-full flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">🚫</span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Acesso Negado</h2>
+          <p className="text-gray-600 mb-4">
+            Você não tem permissão para acessar esta funcionalidade.
+          </p>
+          
+          {routeInfo && (
+            <div className="bg-gray-50 p-4 rounded-lg mb-4">
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">Informações da Rota:</h3>
+              <div className="space-y-1 text-sm">
+                <p><span className="font-medium">Rota:</span> {routeInfo.path}</p>
+                <p><span className="font-medium">Método:</span> {routeInfo.method}</p>
+                <p><span className="font-medium">Módulo:</span> {routeInfo.modulo || 'N/A'}</p>
+              </div>
+            </div>
+          )}
+          
+          <p className="text-sm text-gray-500">
+            Entre em contato com o administrador do sistema para solicitar as devidas permissões.
+          </p>
         </div>
       </div>
     );
@@ -606,13 +789,24 @@ export const AgendamentosPage = () => {
             )}
           </Button>
           
-          <Button 
-            className="bg-blue-600 hover:bg-blue-700"
-            onClick={() => setShowNovoAgendamento(true)}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Novo Agendamento
-          </Button>
+          {canCreate ? (
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => setShowNovoAgendamento(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Novo Agendamento
+            </Button>
+          ) : (
+            <Button 
+              disabled={true}
+              className="bg-gray-400 cursor-not-allowed"
+              title="Você não tem permissão para criar agendamentos"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Novo Agendamento
+            </Button>
+          )}
         </div>
       </div>
 
