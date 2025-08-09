@@ -4,9 +4,17 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { CalendarHeader } from '@/components/calendar/CalendarHeader';
 import { SchedulerGrid } from '@/components/calendar/SchedulerGrid';
-import { CriarAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
+import { 
+  FluxoSelecao, 
+  FormularioPorProfissional, 
+  FormularioPorData, 
+  DetalhesAgendamentoModal,
+  useAgendamentoForm,
+  type TipoFluxo 
+} from '@/components/agendamentos';
 import { 
   Calendar as CalendarIcon, 
   Plus,
@@ -15,9 +23,10 @@ import {
   ChevronDown,
   ChevronUp,
   X,
-  Building2
+  Building2,
+  ArrowLeft
 } from 'lucide-react';
-import { getAgendamentos } from '@/services/agendamentos';
+import { getAgendamentos, createAgendamento } from '@/services/agendamentos';
 import { getProfissionais } from '@/services/profissionais';
 import { getConvenios } from '@/services/convenios';
 import { getRecursos } from '@/services/recursos';
@@ -27,6 +36,7 @@ import type { Profissional } from '@/types/Profissional';
 import type { Convenio } from '@/types/Convenio';
 import type { Recurso } from '@/types/Recurso';
 import type { DisponibilidadeProfissional } from '@/types/DisponibilidadeProfissional';
+import { toast } from 'sonner';
 
 interface CalendarProfissional {
   id: string;
@@ -65,11 +75,13 @@ export const CalendarioPage = () => {
   const [disponibilidades, setDisponibilidades] = useState<DisponibilidadeProfissional[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Estados para modais
-  const [showCriarAgendamento, setShowCriarAgendamento] = useState(false);
+  // Estados para modais de agendamento  
+  const [showFluxoSelecao, setShowFluxoSelecao] = useState(false);
+  const [showFormulario, setShowFormulario] = useState(false);
+  const [tipoFluxoSelecionado, setTipoFluxoSelecionado] = useState<TipoFluxo | null>(null);
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
-  const [preenchimentoCriarAgendamento, setPreenchimentoCriarAgendamento] = useState<{
+  const [preenchimentoInicial, setPreenchimentoInicial] = useState<{
     profissionalId?: string;
     dataHoraInicio?: string;
   } | undefined>(undefined);
@@ -84,6 +96,87 @@ export const CalendarioPage = () => {
   const [filtroCalendarioAberto, setFiltroCalendarioAberto] = useState(true);
   const [filtroProfissionaisAberto, setFiltroProfissionaisAberto] = useState(false);
   const [filtroRecursosAberto, setFiltroRecursosAberto] = useState(false);
+
+  // Funções de controle do formulário
+  const handleFecharTodosModais = () => {
+    setShowFluxoSelecao(false);
+    setShowFormulario(false);
+    setTipoFluxoSelecionado(null);
+    setPreenchimentoInicial(undefined);
+  };
+
+  // Hook do formulário de agendamento
+  const agendamentoFormContext = useAgendamentoForm({
+    isOpen: showFluxoSelecao || showFormulario,
+    preenchimentoInicial,
+    onSuccess: () => {
+      carregarDados();
+      handleFecharTodosModais();
+    },
+    onClose: handleFecharTodosModais
+  });
+
+  const handleAbrirNovoAgendamento = () => {
+    setShowFluxoSelecao(true);
+  };
+
+  const handleFluxoSelecionado = (fluxo: TipoFluxo) => {
+    setTipoFluxoSelecionado(fluxo);
+    agendamentoFormContext.updateTipoFluxo(fluxo);
+    setShowFluxoSelecao(false);
+    setShowFormulario(true);
+  };
+
+  const handleVoltarParaFluxo = () => {
+    setShowFormulario(false);
+    setTipoFluxoSelecionado(null);
+    setShowFluxoSelecao(true);
+  };
+
+  function handleAbrirFormularioDireto(dados?: { profissionalId?: string; dataHoraInicio?: string }) {
+    setPreenchimentoInicial(dados);
+    // Para duplo clique, ir direto para formulário por profissional
+    setTipoFluxoSelecionado('por-profissional');
+    agendamentoFormContext.updateTipoFluxo('por-profissional');
+    setShowFormulario(true);
+  }
+
+  const handleSubmitFormulario = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const { state } = agendamentoFormContext;
+    
+    // Validações
+    if (!state.formData.pacienteId || !state.formData.profissionalId || !state.formData.servicoId || 
+        !state.formData.convenioId || !state.formData.recursoId || !state.dataAgendamento || !state.horaAgendamento) {
+      toast('Preencha todos os campos obrigatórios', { type: 'error' });
+      return;
+    }
+
+    // Combinar data e hora
+    const dataHoraCombinada = `${state.dataAgendamento}T${state.horaAgendamento}`;
+    
+    try {
+      const dadosParaEnvio = {
+        ...state.formData,
+        dataHoraInicio: dataHoraCombinada,
+        recorrencia: state.temRecorrencia ? {
+          tipo: state.recorrencia.tipo,
+          ...(state.recorrencia.repeticoes && { repeticoes: state.recorrencia.repeticoes }),
+          ...(state.recorrencia.ate && { ate: state.recorrencia.ate })
+        } : undefined
+      };
+
+      await createAgendamento(dadosParaEnvio);
+      toast('Agendamento criado com sucesso!', { type: 'success' });
+      agendamentoFormContext.resetForm();
+      carregarDados();
+      handleFecharTodosModais();
+    } catch (error) {
+      console.error('Erro ao criar agendamento:', error);
+      toast('Erro ao criar agendamento', { type: 'error' });
+    }
+  };
 
   // Carregamento de dados
   useEffect(() => {
@@ -363,10 +456,7 @@ export const CalendarioPage = () => {
           
           <Button 
             className="bg-blue-600 hover:bg-blue-700"
-            onClick={() => {
-              setPreenchimentoCriarAgendamento(undefined);
-              setShowCriarAgendamento(true);
-            }}
+            onClick={handleAbrirNovoAgendamento}
           >
             <Plus className="w-4 h-4 mr-2" />
             Novo Agendamento
@@ -759,11 +849,10 @@ export const CalendarioPage = () => {
                   const dataHoraLocal = `${ano}-${mes}-${dia}T${horaFormatada}:${minutoFormatado}`;
                   
                   // Para profissionais, usar como profissionalId, para recursos, deixar vazio
-                  setPreenchimentoCriarAgendamento({
+                  handleAbrirFormularioDireto({
                     profissionalId: gridViewType === 'profissionais' ? entityId : undefined,
                     dataHoraInicio: dataHoraLocal
                   });
-                  setShowCriarAgendamento(true);
                 }}
               />
             </CardContent>
@@ -771,15 +860,12 @@ export const CalendarioPage = () => {
         </div>
       </div>
 
-      {/* Modais */}
-      <CriarAgendamentoModal
-        isOpen={showCriarAgendamento}
-        onClose={() => {
-          setShowCriarAgendamento(false);
-          setPreenchimentoCriarAgendamento(undefined);
-        }}
-        onSuccess={carregarDados}
-        preenchimentoInicial={preenchimentoCriarAgendamento}
+      {/* Modal Unificado de Agendamento */}
+      <FluxoSelecao
+        isOpen={showFluxoSelecao || showFormulario}
+        onClose={handleFecharTodosModais}
+        context={agendamentoFormContext}
+        onSubmit={handleSubmitFormulario}
       />
 
       <DetalhesAgendamentoModal

@@ -9,15 +9,6 @@ import type { ProfissionalServico } from '@/services/profissionais-servicos';
 
 export type TipoFluxo = 'por-profissional' | 'por-data';
 
-export interface CriarAgendamentoModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-  preenchimentoInicial?: {
-    profissionalId?: string;
-    dataHoraInicio?: string;
-  };
-}
 
 export interface RecorrenciaState {
   tipo: TipoRecorrencia;

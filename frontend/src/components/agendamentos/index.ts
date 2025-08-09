@@ -1,8 +1,4 @@
-// Componente principal
-export { CriarAgendamentoModal } from './CriarAgendamentoModal';
-
 // Componentes de agendamento
-export { NovoAgendamentoModal } from './NovoAgendamentoModal';
 export { AprovarAgendamentoModal } from './AprovarAgendamentoModal';
 export { LiberarAgendamentoModal } from './LiberarAgendamentoModal';
 export { DetalhesAgendamentoModal } from './DetalhesAgendamentoModal';
@@ -19,7 +15,6 @@ export { useAgendamentoForm } from './hooks/useAgendamentoForm';
 // Tipos
 export type {
   TipoFluxo,
-  CriarAgendamentoModalProps,
   RecorrenciaState,
   AgendamentoFormState,
   AgendamentoDataState,

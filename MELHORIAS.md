@@ -3,8 +3,6 @@ Profissional, Recurso (presencial), Convênio, Especialidade (serviço),  propos
 Funcionalidade para propor horários disponíveis conforme input. Mostrar volume de cada profissional para tomada de decisão...
 Mapa de Sala | Profissional | Especialidade por dia de SEMANA.
 
-Criar pacientes: Deixar somente os campos Nome e Whatsapp como obrigatórios
-
 Anexos dos pacientes > permitir mais que 1
 
 Criar uma página dedicada para os pedidos medicos vencidos (proximo do vencimento)

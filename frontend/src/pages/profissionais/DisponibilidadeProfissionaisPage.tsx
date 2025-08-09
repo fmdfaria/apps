@@ -632,7 +632,7 @@ export default function DisponibilidadeProfissionaisPage() {
   // Se acesso negado, mostrar mensagem de acesso negado
   if (accessDenied) {
     return (
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="h-full p-6">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
@@ -665,7 +665,7 @@ export default function DisponibilidadeProfissionaisPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="h-full p-6">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">

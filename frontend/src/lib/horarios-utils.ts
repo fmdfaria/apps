@@ -1,13 +1,13 @@
 import type { HorarioSemana, IntervaloHorario, DisponibilidadeProfissional } from '@/types/DisponibilidadeProfissional';
 
 export const DIAS_SEMANA = [
-  { numero: 0, nome: 'Domingo', abrev: 'Dom' },
   { numero: 1, nome: 'Segunda-feira', abrev: 'Seg' },
   { numero: 2, nome: 'Terça-feira', abrev: 'Ter' },
   { numero: 3, nome: 'Quarta-feira', abrev: 'Qua' },
   { numero: 4, nome: 'Quinta-feira', abrev: 'Qui' },
   { numero: 5, nome: 'Sexta-feira', abrev: 'Sex' },
-  { numero: 6, nome: 'Sábado', abrev: 'Sáb' }
+  { numero: 6, nome: 'Sábado', abrev: 'Sáb' },
+  { numero: 0, nome: 'Domingo', abrev: 'Dom' }
 ];
 
 export const HORARIOS_PADRAO = Array.from({ length: 24 }, (_, i) => {
