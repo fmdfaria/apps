@@ -10,7 +10,7 @@ export async function disponibilidadesProfissionaisRoutes(app: FastifyInstance) 
     preHandler: [ensureAuthenticated, ensureAuthorized('/disponibilidades-profissionais', 'GET')] 
   }, controller.list);
   
-  app.post(' ', { 
+  app.post('/disponibilidades-profissionais', { 
     preHandler: [ensureAuthenticated, ensureAuthorized('/disponibilidades-profissionais', 'POST')] 
   }, controller.create);
   

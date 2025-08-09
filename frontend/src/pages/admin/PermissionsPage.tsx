@@ -1,11 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2, Settings, UserX, UserCheck, Link as LinkIcon } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { AppToast } from '@/services/toast';
 import { rbacService } from '@/services/rbac';
 import type { RoleRoute, Role, Route, AssignRouteToRoleRequest, UpdateRoleRouteRequest } from '@/types/RBAC';
@@ -16,7 +14,7 @@ import {
   PageContainer, 
   PageHeader, 
   PageContent, 
-  ViewToggle, 
+  ViewToggle,
   SearchBar, 
   FilterButton,
   DynamicFilterPanel,
@@ -469,7 +467,7 @@ export const PermissionsPage = () => {
       if (editando) {
         // Para edição, apenas fechar o modal pois os campos estão desabilitados
         // A edição agora é feita apenas através dos botões de ação
-        toast.info('Use os botões de ação para ativar/desativar permissões');
+        AppToast.info('Use os botões de ação para ativar/desativar permissões');
         fecharModal();
         return;
       } else {
@@ -640,37 +638,34 @@ export const PermissionsPage = () => {
 
         {/* Modal de cadastro/edição */}
         <Dialog open={showModal} onOpenChange={setShowModal}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-2xl w-full">
             <form onSubmit={handleSubmit}>
               <DialogHeader>
                 <DialogTitle>{editando ? 'Editar Permissão' : 'Nova Permissão'}</DialogTitle>
               </DialogHeader>
-              <div className="py-2 space-y-4">
+              <div className="py-4 space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <label className="block text-sm font-medium text-gray-800 mb-2 flex items-center gap-2">
                     <span className="text-lg">🛡️</span>
                     <span className="bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent font-semibold">Role</span>
                     <span className="text-red-500">*</span>
                   </label>
-                  <div className="max-w-full">
-                    <SingleSelectDropdown
-                      options={roles}
-                      selected={roles.find(r => r.id === form.roleId) || null}
-                      onChange={editando ? undefined : (selected) => setForm(f => ({ ...f, roleId: selected?.id || '' }))}
-                      placeholder={editando ? "Campo somente leitura" : "Digite para buscar roles..."}
-                      formatOption={(option: Role) => option.nome.length > 25 ? option.nome.substring(0, 22) + '...' : option.nome}
-                      headerText="Roles disponíveis"
-                    />
-                  </div>
+                  <SingleSelectDropdown
+                    options={roles}
+                    selected={roles.find(r => r.id === form.roleId) || null}
+                    onChange={editando ? undefined : (selected) => setForm(f => ({ ...f, roleId: selected?.id || '' }))}
+                    placeholder={editando ? "Campo somente leitura" : "Digite para buscar roles..."}
+                    formatOption={(option: Role) => option.nome}
+                    headerText="Roles disponíveis"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <label className="block text-sm font-medium text-gray-800 mb-2 flex items-center gap-2">
                     <span className="text-lg">🔗</span>
                     <span className="bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent font-semibold">Rota</span>
                     <span className="text-red-500">*</span>
                   </label>
-                  <div className="max-w-full">
                     <SingleSelectDropdown
                       options={routes.map(route => ({
                         id: route.id,
@@ -708,9 +703,7 @@ export const PermissionsPage = () => {
                         </div>
                       )}
                       headerText="Busque por método, caminho ou módulo"
-                      className="w-full"
                     />
-                  </div>
                 </div>
 
                 {formError && <FormErrorMessage>{formError}</FormErrorMessage>}

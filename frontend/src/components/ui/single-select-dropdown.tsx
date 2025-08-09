@@ -7,6 +7,7 @@ interface Option {
   nome: string;
   sigla?: string;
   disponivel?: boolean;
+  [key: string]: any; // Permite propriedades extras
 }
 
 interface SingleSelectDropdownProps {
@@ -14,14 +15,15 @@ interface SingleSelectDropdownProps {
   selected?: Option | null;
   onChange: (selected: Option | null) => void;
   placeholder?: string;
-  formatOption?: (option: Option) => string;
+  formatOption?: (option: Option) => string | React.ReactElement;
   headerText?: string;
   dotColor?: 'green' | 'blue' | 'red' | 'yellow' | 'purple' | 'gray' | 'orange' | 'pink';
   getDotColor?: (option: Option) => 'green' | 'blue' | 'red' | 'yellow' | 'purple' | 'gray' | 'orange' | 'pink' | undefined;
   getDisabled?: (option: Option) => boolean;
+  searchFields?: string[];
 }
 
-export function SingleSelectDropdown({ options, selected, onChange, placeholder = 'Selecione...', formatOption, headerText = 'Opções disponíveis', dotColor = 'green', getDotColor, getDisabled }: SingleSelectDropdownProps) {
+export function SingleSelectDropdown({ options, selected, onChange, placeholder = 'Selecione...', formatOption, headerText = 'Opções disponíveis', dotColor = 'green', getDotColor, getDisabled, searchFields = ['nome'] }: SingleSelectDropdownProps) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [inputFocused, setInputFocused] = useState(false);
@@ -111,9 +113,14 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
   }
   const lowerInput = normalize(input);
   const filtered = options.filter(opt => {
-    const nomeMatch = normalize(opt.nome).includes(lowerInput);
-    const siglaMatch = opt.sigla ? normalize(opt.sigla).includes(lowerInput) : false;
-    return nomeMatch || siglaMatch;
+    // Busca nos campos especificados em searchFields
+    return searchFields.some(field => {
+      const value = (opt as any)[field];
+      if (value && typeof value === 'string') {
+        return normalize(value).includes(lowerInput);
+      }
+      return false;
+    });
   });
   const showOptions = input.trim() === '' ? options : filtered;
 
@@ -176,7 +183,7 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
              <div className="flex items-center flex-1 min-w-0">
                <span 
                  className="text-gray-700 font-medium truncate flex-1" 
-                 title={formatOption ? formatOption(selected) : selected.nome}
+                 title={selected.nome}
                >
                  {formatOption ? formatOption(selected) : selected.nome}
                </span>
@@ -216,7 +223,7 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
                    }
                  }, 0);
                }}
-               placeholder={selected ? (formatOption ? formatOption(selected) : selected.nome) : placeholder}
+               placeholder={selected ? selected.nome : placeholder}
                className="flex-1 border-none outline-none bg-transparent text-gray-700 placeholder:text-gray-400 font-medium min-w-0"
                autoComplete="off"
              />
