@@ -4,6 +4,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { TimeSelectDropdown } from '@/components/ui/time-select-dropdown';
 import { Plus, Trash2, Clock, Monitor, Users, Home } from 'lucide-react';
 import type { HorarioSemana, IntervaloHorario } from '@/types/DisponibilidadeProfissional';
@@ -152,9 +153,10 @@ interface Props {
   horario: HorarioSemana;
   tipoEdicao: 'presencial' | 'online' | 'folga';
   onChange: (horario: HorarioSemana) => void;
+  canModify?: boolean;
 }
 
-export default function DiaHorarioCard({ horario, tipoEdicao, onChange }: Props) {
+export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModify = true }: Props) {
   const [novoIntervalo, setNovoIntervalo] = useState<IntervaloHorario>({
     horaInicio: '',
     horaFim: '',
@@ -282,11 +284,30 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange }: Props)
       {/* Header do dia */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div className="flex items-center gap-3 min-w-0">
-          <Switch
-            checked={horario.ativo}
-            onCheckedChange={handleToggleAtivo}
-            className="data-[state=checked]:bg-blue-600 flex-shrink-0"
-          />
+          {canModify ? (
+            <Switch
+              checked={horario.ativo}
+              onCheckedChange={handleToggleAtivo}
+              className="data-[state=checked]:bg-blue-600 flex-shrink-0"
+            />
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Switch
+                      checked={horario.ativo}
+                      disabled={true}
+                      className="data-[state=checked]:bg-blue-600 flex-shrink-0 disabled:opacity-50"
+                    />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para ativar/desativar este dia</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           <div className="min-w-0">
             <h3 className="font-medium text-gray-900 truncate">{horario.nomeDia}</h3>
             <p className="text-sm text-gray-500">
@@ -330,14 +351,26 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange }: Props)
                   )}
                 </div>
                 <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIntervaloParaExcluir(intervalo.id!)}
-                    className="text-red-600 hover:text-red-700 h-8 w-8 p-0 flex-shrink-0"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  {canModify ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIntervaloParaExcluir(intervalo.id!)}
+                      className="text-red-600 hover:text-red-700 h-8 w-8 p-0 flex-shrink-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={true}
+                      className="text-gray-400 h-8 w-8 p-0 flex-shrink-0 opacity-50 cursor-not-allowed"
+                      title="Você não tem permissão para remover intervalos"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
               {intervalo.observacao && (
@@ -361,9 +394,10 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange }: Props)
                   <TimeSelectDropdown
                     options={OPCOES_HORARIO_INICIO}
                     selected={horarioInicioSelecionado}
-                    onChange={handleHorarioInicioChange}
+                    onChange={canModify ? handleHorarioInicioChange : undefined}
                     placeholder="Horário de início"
                     headerText="Horário de início"
+                    disabled={!canModify}
                   />
                 </div>
                 <div className="text-center">
@@ -373,21 +407,34 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange }: Props)
                   <TimeSelectDropdown
                     options={opcoesHorarioFim}
                     selected={horarioFimSelecionado}
-                    onChange={handleHorarioFimChange}
+                    onChange={canModify ? handleHorarioFimChange : undefined}
                     placeholder="Horário de fim"
                     headerText="Horário de fim"
+                    disabled={!canModify}
                   />
                 </div>
                 <div className="flex justify-center">
-                  <Button
-                    size="sm"
-                    onClick={handleAdicionarIntervalo}
-                    className="h-8 px-4 bg-blue-600 hover:bg-blue-700"
-                    title="Adicionar intervalo"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Adicionar
-                  </Button>
+                  {canModify ? (
+                    <Button
+                      size="sm"
+                      onClick={handleAdicionarIntervalo}
+                      className="h-8 px-4 bg-blue-600 hover:bg-blue-700"
+                      title="Adicionar intervalo"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Adicionar
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      disabled={true}
+                      className="h-8 px-4 bg-gray-400 cursor-not-allowed"
+                      title="Você não tem permissão para adicionar intervalos"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Adicionar
+                    </Button>
+                  )}
                 </div>
               </div>
               
@@ -397,9 +444,10 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange }: Props)
                   <TimeSelectDropdown
                     options={OPCOES_HORARIO_INICIO}
                     selected={horarioInicioSelecionado}
-                    onChange={handleHorarioInicioChange}
+                    onChange={canModify ? handleHorarioInicioChange : undefined}
                     placeholder="Início"
                     headerText="Horário de início"
+                    disabled={!canModify}
                   />
                 </div>
                 <span className="text-sm text-gray-500 px-1 flex-shrink-0">até</span>
@@ -407,19 +455,31 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange }: Props)
                   <TimeSelectDropdown
                     options={opcoesHorarioFim}
                     selected={horarioFimSelecionado}
-                    onChange={handleHorarioFimChange}
+                    onChange={canModify ? handleHorarioFimChange : undefined}
                     placeholder="Fim"
                     headerText="Horário de fim"
+                    disabled={!canModify}
                   />
                 </div>
-                <Button
-                  size="sm"
-                  onClick={handleAdicionarIntervalo}
-                  className="h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700 flex-shrink-0"
-                  title="Adicionar intervalo"
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
+                {canModify ? (
+                  <Button
+                    size="sm"
+                    onClick={handleAdicionarIntervalo}
+                    className="h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700 flex-shrink-0"
+                    title="Adicionar intervalo"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    disabled={true}
+                    className="h-8 w-8 p-0 bg-gray-400 cursor-not-allowed flex-shrink-0"
+                    title="Você não tem permissão para adicionar intervalos"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
             </div>
             

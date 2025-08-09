@@ -13,6 +13,7 @@ interface TimeSelectDropdownProps {
   onChange: (selected: TimeOption | null) => void;
   placeholder?: string;
   headerText?: string;
+  disabled?: boolean;
 }
 
 export function TimeSelectDropdown({ 
@@ -20,7 +21,8 @@ export function TimeSelectDropdown({
   selected, 
   onChange, 
   placeholder = 'Selecione...', 
-  headerText = 'Horários disponíveis' 
+  headerText = 'Horários disponíveis',
+  disabled = false
 }: TimeSelectDropdownProps) {
   const [open, setOpen] = useState(false);
   const [triggerWidth, setTriggerWidth] = useState<number | undefined>(undefined);
@@ -71,25 +73,33 @@ export function TimeSelectDropdown({
   }, []);
 
   function handleSelect(opt: TimeOption) {
-    onChange(opt);
-    setOpen(false);
+    if (!disabled) {
+      onChange(opt);
+      setOpen(false);
+    }
   }
 
   return (
     <div className="w-full max-w-full block">
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={!disabled && open} onOpenChange={disabled ? undefined : setOpen}>
         <PopoverTrigger asChild>
           <div
             ref={triggerRef}
-            className="w-full border-2 border-gray-200 rounded-xl px-2 sm:px-3 py-2 flex items-center justify-between min-h-[36px] bg-white cursor-pointer hover:border-blue-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden"
-            tabIndex={0}
+            className={`w-full border-2 rounded-xl px-2 sm:px-3 py-2 flex items-center justify-between min-h-[36px] transition-all duration-200 shadow-sm overflow-hidden ${
+              disabled 
+                ? 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-60' 
+                : 'border-gray-200 bg-white cursor-pointer hover:border-blue-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 hover:shadow-md'
+            }`}
+            tabIndex={disabled ? -1 : 0}
             onClick={() => {
-              setOpen(true);
-              setTimeout(() => {
-                if (triggerRef.current) {
-                  setTriggerWidth(triggerRef.current.offsetWidth);
-                }
-              }, 0);
+              if (!disabled) {
+                setOpen(true);
+                setTimeout(() => {
+                  if (triggerRef.current) {
+                    setTriggerWidth(triggerRef.current.offsetWidth);
+                  }
+                }, 0);
+              }
             }}
           >
            {/* Mostrar item selecionado */}
@@ -104,7 +114,9 @@ export function TimeSelectDropdown({
              <span className="text-gray-400 text-xs sm:text-sm text-center flex-1 truncate">{placeholder}</span>
            )}
            
-           <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0 transition-transform duration-200 ml-1 ${open ? 'rotate-180' : ''}`} />
+           <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0 transition-transform duration-200 ml-1 ${
+             disabled ? 'text-gray-300' : 'text-gray-400'
+           } ${!disabled && open ? 'rotate-180' : ''}`} />
          </div>
       </PopoverTrigger>
       <PopoverContent 
