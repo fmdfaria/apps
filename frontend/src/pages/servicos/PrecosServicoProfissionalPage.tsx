@@ -22,8 +22,12 @@ import {
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
 import { useTableFilters } from '@/hooks/useTableFilters';
+import { getModuleTheme } from '@/types/theme';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { useToast, toast } from '@/components/ui/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AppToast } from '@/services/toast';
+import api from '@/services/api';
+import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 
 import { Badge } from '@/components/ui/badge';
 import type { PrecoServicoProfissional } from '@/types/PrecoServicoProfissional';
@@ -69,11 +73,17 @@ function getPercentualProfissionalColor(percentual: number | null) {
 }
 
 export default function PrecosServicoProfissionalPage() {
+  const theme = getModuleTheme('servicos');
   const [precos, setPrecos] = useState<PrecoServicoProfissional[]>([]);
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [canCreate, setCanCreate] = useState(true);
+  const [canUpdate, setCanUpdate] = useState(true);
+  const [canDelete, setCanDelete] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState<PrecoServicoProfissional | null>(null);
   const [form, setForm] = useState<FormData>({
@@ -104,7 +114,7 @@ export default function PrecosServicoProfissionalPage() {
         const profissional = profissionais.find(p => p.id === item.profissionalId);
         return (
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+            <div className={`w-8 h-8 bg-gradient-to-r ${theme.primaryButton} rounded-full flex items-center justify-center text-white text-sm font-bold`}>
               {profissional?.nome?.charAt(0).toUpperCase() || 'P'}
             </div>
             <span className="text-sm font-medium">{profissional?.nome || 'N/A'}</span>
@@ -203,26 +213,75 @@ export default function PrecosServicoProfissionalPage() {
       key: 'actions',
       header: '⚙️ Ações',
       essential: true,
-      render: (item) => (
+      render: (item) => {
+        return (
         <div className="flex gap-1.5">
-          <ActionButton
-            variant="edit"
-            module="servicos"
-            onClick={() => abrirModalEditar(item)}
-            title="Editar Preço"
-          >
-            <Edit className="w-4 h-4" />
-          </ActionButton>
-          <ActionButton
-            variant="delete"
-            module="servicos"
-            onClick={() => confirmarExclusao(item)}
-            title="Excluir Preço"
-          >
-            <Trash2 className="w-4 h-4" />
-          </ActionButton>
+          {canUpdate ? (
+            <ActionButton
+              variant="edit"
+              module="servicos"
+              onClick={() => abrirModalEditar(item)}
+              title="Editar Preço"
+            >
+              <Edit className="w-4 h-4" />
+            </ActionButton>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 border-green-300 text-green-600 opacity-50 cursor-not-allowed"
+                      disabled={true}
+                      title="Sem permissão para editar"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para editar preços</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
+          {canDelete ? (
+            <ActionButton
+              variant="delete"
+              module="servicos"
+              onClick={() => confirmarExclusao(item)}
+              title="Excluir Preço"
+            >
+              <Trash2 className="w-4 h-4" />
+            </ActionButton>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 border-red-300 text-red-600 opacity-50 cursor-not-allowed"
+                      disabled={true}
+                      title="Sem permissão para excluir"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para excluir preços</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
-      )
+        );
+      }
     }
   ];
   
@@ -242,10 +301,57 @@ export default function PrecosServicoProfissionalPage() {
 
   useEffect(() => {
     carregarDados();
+    checkPermissions();
   }, []);
+
+  const checkPermissions = async () => {
+    try {
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data;
+      
+      // Verificar cada permissão específica para precos-servicos-profissionais
+      const canRead = allowedRoutes.some((route: any) => {
+        return route.path === '/precos-servicos-profissionais' && route.method.toLowerCase() === 'get';
+      });
+      
+      const canCreate = allowedRoutes.some((route: any) => {
+        return route.path === '/precos-servicos-profissionais' && route.method.toLowerCase() === 'post';
+      });
+      
+      const canUpdate = allowedRoutes.some((route: any) => {
+        return route.path === '/precos-servicos-profissionais/:id' && route.method.toLowerCase() === 'put';
+      });
+      
+      const canDelete = allowedRoutes.some((route: any) => {
+        return route.path === '/precos-servicos-profissionais/:id' && route.method.toLowerCase() === 'delete';
+      });
+      
+      setCanCreate(canCreate);
+      setCanUpdate(canUpdate);
+      setCanDelete(canDelete);
+      
+      // Se não tem nem permissão de leitura, marca como access denied
+      if (!canRead) {
+        setAccessDenied(true);
+      }
+      
+    } catch (error: any) {
+      // Em caso de erro, desabilita tudo por segurança
+      setCanCreate(false);
+      setCanUpdate(false);
+      setCanDelete(false);
+      
+      // Se retornar 401/403 no endpoint de permissões, considera acesso negado
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setAccessDenied(true);
+      }
+    }
+  };
 
   const carregarDados = async () => {
     setLoading(true);
+    setAccessDenied(false);
+    setPrecos([]); // Limpa dados para evitar mostrar dados antigos
     try {
       const [precosData, profissionaisData, servicosData] = await Promise.all([
         getPrecosServicoProfissional(),
@@ -256,9 +362,23 @@ export default function PrecosServicoProfissionalPage() {
       setPrecos(precosData);
       setProfissionais(profissionaisData);
       setServicos(servicosData);
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-      setFormError('Erro ao carregar dados. Tente novamente.');
+    } catch (error: any) {
+      if (error?.response?.status === 403) {
+        setAccessDenied(true);
+        // Buscar informações da rota para mensagem mais específica
+        try {
+          const info = await getRouteInfo('/precos-servicos-profissionais', 'GET');
+          setRouteInfo(info);
+        } catch (routeError) {
+          // Erro ao buscar informações da rota
+        }
+        // Não mostra toast aqui pois o interceptor já cuida disso
+      } else {
+        console.error('Erro ao carregar dados:', error);
+        AppToast.error('Erro ao carregar dados', {
+          description: 'Ocorreu um problema ao carregar os dados. Tente novamente.'
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -346,7 +466,7 @@ export default function PrecosServicoProfissionalPage() {
                 {profissional?.nome || 'N/A'}
               </CardTitle>
             </div>
-            <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+            <div className={`w-8 h-8 bg-gradient-to-r ${theme.primaryButton} rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
               {profissional?.nome?.charAt(0).toUpperCase() || 'P'}
             </div>
           </div>
@@ -391,7 +511,7 @@ export default function PrecosServicoProfissionalPage() {
             <Button 
               variant="outline" 
               size="sm" 
-              className="flex-1 h-7 text-xs border-indigo-300 text-indigo-600 hover:bg-indigo-600 hover:text-white"
+              className="flex-1 h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
               onClick={() => abrirModalEditar(preco)}
             >
               <Edit className="w-3 h-3 mr-1" />
@@ -494,11 +614,13 @@ export default function PrecosServicoProfissionalPage() {
     
     if (!form.profissionalId) {
       setFormError('Selecione um profissional.');
+      AppToast.validation('Profissional obrigatório', 'Selecione um profissional para continuar.');
       return;
     }
     
     if (!form.servicoId) {
       setFormError('Selecione um serviço.');
+      AppToast.validation('Serviço obrigatório', 'Selecione um serviço para continuar.');
       return;
     }
     
@@ -552,15 +674,37 @@ export default function PrecosServicoProfissionalPage() {
       if (editando) {
         const precoAtualizado = await updatePrecoServicoProfissional(editando.id, dadosPreco);
         setPrecos(prev => prev.map(p => p.id === editando.id ? precoAtualizado : p));
+        const profissional = profissionais.find(p => p.id === form.profissionalId);
+        const servico = servicos.find(s => s.id === form.servicoId);
+        AppToast.updated('Preço', `Preço de ${profissional?.nome} para "${servico?.nome}" foi atualizado com sucesso.`);
       } else {
         const novoPreco = await createPrecoServicoProfissional(dadosPreco);
         setPrecos(prev => [...prev, novoPreco]);
+        const profissional = profissionais.find(p => p.id === form.profissionalId);
+        const servico = servicos.find(s => s.id === form.servicoId);
+        AppToast.created('Preço', `Preço personalizado para ${profissional?.nome} no serviço "${servico?.nome}" foi criado com sucesso.`);
       }
       
       fecharModal();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar:', error);
-      setFormError('Erro ao salvar preço personalizado. Tente novamente.');
+      
+      if (error?.response?.status === 403) {
+        // Erro de permissão será tratado pelo interceptor
+        return;
+      }
+      
+      let title = 'Erro ao salvar preço';
+      let description = 'Não foi possível salvar o preço personalizado. Verifique os dados e tente novamente.';
+      
+      if (error?.response?.data?.message) {
+        description = error.response.data.message;
+      } else if (error?.message) {
+        description = error.message;
+      }
+      
+      setFormError(description);
+      AppToast.error(title, { description });
     } finally {
       setFormLoading(false);
     }
@@ -581,9 +725,23 @@ export default function PrecosServicoProfissionalPage() {
     try {
       await deletePrecoServicoProfissional(excluindo.id);
       setPrecos(prev => prev.filter(p => p.id !== excluindo.id));
+      
+      const profissional = profissionais.find(p => p.id === excluindo.profissionalId);
+      const servico = servicos.find(s => s.id === excluindo.servicoId);
+      AppToast.deleted('Preço', `Preço personalizado de ${profissional?.nome} para "${servico?.nome}" foi excluído permanentemente.`);
+      
       setExcluindo(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao excluir:', error);
+      
+      if (error?.response?.status === 403) {
+        // Erro de permissão será tratado pelo interceptor
+        return;
+      }
+      
+      AppToast.error('Erro ao excluir preço', {
+        description: 'Não foi possível excluir o preço personalizado. Tente novamente ou entre em contato com o suporte.'
+      });
     } finally {
       setDeleteLoading(false);
     }
@@ -654,13 +812,34 @@ export default function PrecosServicoProfissionalPage() {
             module="servicos"
           />
           
-          <Button 
-            className="!h-10 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
-            onClick={abrirModalNovo}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Novo Preço
-          </Button>
+          {canCreate ? (
+            <Button 
+              className={`!h-10 bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} shadow-lg hover:shadow-xl transition-all duration-200 font-semibold`}
+              onClick={abrirModalNovo}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Novo Preço
+            </Button>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button 
+                      className={`!h-10 bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} shadow-lg hover:shadow-xl transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed`}
+                      disabled={true}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Novo Preço
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para criar preços personalizados</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </PageHeader>
 
         {/* Conteúdo principal */}
@@ -677,7 +856,26 @@ export default function PrecosServicoProfissionalPage() {
           />
 
           {/* Conteúdo baseado no modo de visualização */}
-          {viewMode === 'table' ? (
+          {accessDenied ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <span className="text-3xl">🚫</span>
+              </div>
+              <p className="text-red-600 font-medium mb-2">Acesso Negado</p>
+              <div className="text-gray-600 text-sm space-y-1 max-w-md">
+                {routeInfo ? (
+                  <>
+                    <p><strong>Rota:</strong> {routeInfo.nome}</p>
+                    <p><strong>Descrição:</strong> {routeInfo.descricao}</p>
+                    {routeInfo.modulo && <p><strong>Módulo:</strong> {routeInfo.modulo}</p>}
+                    <p className="text-gray-400 mt-2">Você não tem permissão para acessar este recurso</p>
+                  </>
+                ) : (
+                  <p>Você não tem permissão para visualizar preços personalizados</p>
+                )}
+              </div>
+            </div>
+          ) : viewMode === 'table' ? (
             <ResponsiveTable 
               data={precosPaginados}
               columns={columns}
@@ -983,7 +1181,7 @@ export default function PrecosServicoProfissionalPage() {
               <Button 
                 type="submit" 
                 disabled={formLoading}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200 "
+                className={`bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200`}
               >
                 {formLoading ? (
                   <>

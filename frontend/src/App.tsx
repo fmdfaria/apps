@@ -13,11 +13,9 @@ import { useAuthStore } from './store/auth';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { Dashboard } from '@/pages/dashboard/Dashboard';
-import ProfissionaisPage from '@/pages/profissionais/ProfissionaisPage';
-import { ProfissionaisPageResponsive } from '@/pages/profissionais/ProfissionaisPageResponsive';
+import { ProfissionaisPage } from '@/pages/profissionais/ProfissionaisPage';
 import DisponibilidadeProfissionaisPage from '@/pages/profissionais/DisponibilidadeProfissionaisPage';
 import { PacientesPage } from '@/pages/pacientes/PacientesPage';
-import { PacientesPageResponsive } from '@/pages/pacientes/PacientesPageResponsive';
 import { ServicosPage } from '@/pages/servicos/ServicosPage';
 import PrecosServicoProfissionalPage from '@/pages/servicos/PrecosServicoProfissionalPage';
 import { ConveniosPage } from '@/pages/convenios/ConveniosPage';
@@ -60,11 +58,9 @@ export default function App() {
         <Route element={<PrivateRoute />}> 
             <Route element={<Index />}> {/* Layout compartilhado com Sidebar */}
             <Route path="dashboard" element={<Dashboard />} />
-            <Route path="profissionais" element={<ProfissionaisPageResponsive />} />
-            <Route path="profissionais-antigo" element={<ProfissionaisPage />} />
+            <Route path="profissionais" element={<ProfissionaisPage />} />
             <Route path="profissionais/disponibilidade" element={<DisponibilidadeProfissionaisPage />} />
-            <Route path="pacientes" element={<PacientesPageResponsive />} />
-            <Route path="pacientes-antigo" element={<PacientesPage />} />
+            <Route path="pacientes" element={<PacientesPage />} />
             <Route path="pacientes/precos-particulares" element={<PrecosParticularPage />} />
             <Route path="servicos" element={<ServicosPage />} />
             <Route path="servicos/precos-profissionais" element={<PrecosServicoProfissionalPage />} />

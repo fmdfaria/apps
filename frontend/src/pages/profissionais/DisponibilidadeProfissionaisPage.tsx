@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TimeSelectDropdown } from '@/components/ui/time-select-dropdown';
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
-import { useToast } from '@/components/ui/use-toast';
+import { AppToast } from '@/services/toast';
 import { Calendar as CalendarIcon, Clock, User, Save, RotateCcw, Info, CalendarDays, Trash2 } from 'lucide-react';
 import DiaHorarioCard from '@/components/profissionais/DiaHorarioCard';
 import { getProfissionais } from '@/services/profissionais';
@@ -91,7 +91,6 @@ const OPCOES_HORARIO_INICIO = gerarOpcoesHorarioInicio();
 const OPCOES_HORARIO_FIM = gerarOpcoesHorarioFim();
 
 export default function DisponibilidadeProfissionaisPage() {
-  const { toast } = useToast();
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [profissionalSelecionado, setProfissionalSelecionado] = useState<Profissional | null>(null);
   const [tipoEdicao, setTipoEdicao] = useState<'presencial' | 'online' | 'folga'>('presencial');
@@ -151,10 +150,8 @@ export default function DisponibilidadeProfissionaisPage() {
       );
       setProfissionais(profissionaisOrdenados);
     } catch (err) {
-      toast({
-        title: "Erro ao carregar",
-        description: "Erro ao carregar profissionais",
-        variant: "destructive",
+      AppToast.error('Erro ao carregar profissionais', {
+        description: 'Ocorreu um problema ao carregar a lista de profissionais. Tente novamente.'
       });
     } finally {
       setLoading(false);
@@ -253,9 +250,8 @@ export default function DisponibilidadeProfissionaisPage() {
     // Isso evita que o sistema tente excluir horários que não existem mais
     setHorariosOriginais(criarHorarioSemanaPadrao());
     setShowResetConfirm(false);
-    toast({
-      title: "Horários resetados na tela",
-      description: "Padrão aplicado: Seg-Sex (07:00-12:00 presencial, 12:00-13:00 folga, 13:00-18:00 presencial). Ajuste se necessário e clique em 'Salvar Horários' para aplicar.",
+    AppToast.success('Horários resetados na tela', {
+      description: "Padrão aplicado: Seg-Sex (07:00-12:00 presencial, 12:00-13:00 folga, 13:00-18:00 presencial). Ajuste se necessário e clique em 'Salvar Horários' para aplicar."
     });
   };
 
@@ -271,9 +267,8 @@ export default function DisponibilidadeProfissionaisPage() {
     }));
     setHorariosSemana(horariosVazios);
     setShowClearConfirm(false);
-    toast({
-      title: "Horários limpos na tela",
-      description: "Todos os horários foram removidos da tela. Clique em 'Salvar Horários' para aplicar as mudanças no sistema.",
+    AppToast.success('Horários limpos na tela', {
+      description: "Todos os horários foram removidos da tela. Clique em 'Salvar Horários' para aplicar as mudanças no sistema."
     });
   };
 

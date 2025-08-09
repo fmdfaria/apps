@@ -22,13 +22,13 @@ const routePermissionMap: Record<string, { path: string; method: string }> = {
   'agendamentos/conclusao': { path: '/agendamentos', method: 'GET' },
   
   // Subpáginas de pacientes
-  'pacientes/precos-particulares': { path: '/pacientes', method: 'GET' },
+  'pacientes/precos-particulares': { path: '/precos-particulares', method: 'GET' },
   
   // Subpáginas de profissionais
-  'profissionais/disponibilidade': { path: '/profissionais', method: 'GET' },
+  'profissionais/disponibilidade': { path: '/disponibilidades-profissionais', method: 'GET' },
   
   // Subpáginas de serviços
-  'servicos/precos-profissionais': { path: '/servicos', method: 'GET' },
+  'servicos/precos-profissionais': { path: '/precos-servicos-profissionais', method: 'GET' },
   
   // Páginas de administração
   'administracao': { path: '/users', method: 'GET' }, // Administração geral

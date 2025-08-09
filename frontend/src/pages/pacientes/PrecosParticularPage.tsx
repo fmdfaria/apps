@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2 } from 'lucide-react';
-import { PageContainer, PageHeader, PageContent, ResponsiveTable, ResponsiveCards, ResponsivePagination, ViewToggle, SearchBar, FilterButton, DynamicFilterPanel } from '@/components/layout';
+import { PageContainer, PageHeader, PageContent, ResponsiveTable, ResponsiveCards, ResponsivePagination, ViewToggle, SearchBar, FilterButton, DynamicFilterPanel, ActionButton } from '@/components/layout';
 import type { PrecoParticular } from '@/types/PrecoParticular';
 import { getPrecosParticulares, createPrecoParticular, updatePrecoParticular, deletePrecoParticular } from '@/services/precos-particulares';
 import { getPacientes } from '@/services/pacientes';
@@ -15,9 +15,19 @@ import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
 import { useTableFilters } from '@/hooks/useTableFilters';
 import { getModuleTheme } from '@/types/theme';
+import api from '@/services/api';
+import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AppToast } from '@/services/toast';
 
 export default function PrecosParticularPage() {
   const [precos, setPrecos] = useState<PrecoParticular[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [canCreate, setCanCreate] = useState(true);
+  const [canUpdate, setCanUpdate] = useState(true);
+  const [canDelete, setCanDelete] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState<PrecoParticular | null>(null);
   const [form, setForm] = useState({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '' });
@@ -34,6 +44,7 @@ export default function PrecosParticularPage() {
 
   useEffect(() => {
     carregarPrecos();
+    checkPermissions();
     getPacientes().then(setPacientes);
     getServicos().then(setServicos);
     getConvenios().then(convenios => {
@@ -42,12 +53,76 @@ export default function PrecosParticularPage() {
     });
   }, []);
 
+  const checkPermissions = async () => {
+    try {
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data;
+      
+      // Verificar cada permissão específica para precos-particulares
+      const canRead = allowedRoutes.some((route: any) => {
+        return route.path === '/precos-particulares' && route.method.toLowerCase() === 'get';
+      });
+      
+      const canCreate = allowedRoutes.some((route: any) => {
+        return route.path === '/precos-particulares' && route.method.toLowerCase() === 'post';
+      });
+      
+      const canUpdate = allowedRoutes.some((route: any) => {
+        return route.path === '/precos-particulares/:id' && route.method.toLowerCase() === 'put';
+      });
+      
+      const canDelete = allowedRoutes.some((route: any) => {
+        return route.path === '/precos-particulares/:id' && route.method.toLowerCase() === 'delete';
+      });
+      
+      setCanCreate(canCreate);
+      setCanUpdate(canUpdate);
+      setCanDelete(canDelete);
+      
+      // Se não tem nem permissão de leitura, marca como access denied
+      if (!canRead) {
+        setAccessDenied(true);
+      }
+      
+    } catch (error: any) {
+      // Em caso de erro, desabilita tudo por segurança
+      setCanCreate(false);
+      setCanUpdate(false);
+      setCanDelete(false);
+      
+      // Se retornar 401/403 no endpoint de permissões, considera acesso negado
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setAccessDenied(true);
+      }
+    }
+  };
+
   const carregarPrecos = async () => {
+    setLoading(true);
+    setAccessDenied(false);
+    setPrecos([]); // Limpa dados para evitar mostrar dados antigos
     try {
       const data = await getPrecosParticulares();
       setPrecos(data);
-    } catch (err) {
-      // Pode adicionar feedback de erro
+    } catch (error: any) {
+      if (error?.response?.status === 403) {
+        setAccessDenied(true);
+        // Buscar informações da rota para mensagem mais específica
+        try {
+          const info = await getRouteInfo('/precos-particulares', 'GET');
+          setRouteInfo(info);
+        } catch (routeError) {
+          // Erro ao buscar informações da rota
+        }
+        // Não mostra toast aqui pois o interceptor já cuida disso
+      } else {
+        console.error('Erro ao carregar dados:', error);
+        AppToast.error('Erro ao carregar dados', {
+          description: 'Ocorreu um problema ao carregar os dados. Tente novamente.'
+        });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -87,24 +162,70 @@ export default function PrecosParticularPage() {
           </span>
         </div>
         <div className="flex gap-1.5 flex-wrap mt-2">
-          <Button 
-            variant="default" 
-            size="sm" 
-            className={`bg-gradient-to-r ${theme.primaryButton} text-white hover:${theme.primaryButtonHover} focus:ring-4 ${theme.focusRing} h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform`} 
-            onClick={() => abrirModalEditar(p)}
-            title="Editar Preço"
-          >
-            <Edit className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-            onClick={() => confirmarExclusao(p)}
-            title="Excluir Preço"
-          >
-            <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
-          </Button>
+          {canUpdate ? (
+            <Button 
+              variant="default" 
+              size="sm" 
+              className={`bg-gradient-to-r ${theme.primaryButton} text-white hover:${theme.primaryButtonHover} focus:ring-4 ${theme.focusRing} h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform`} 
+              onClick={() => abrirModalEditar(p)}
+              title="Editar Preço"
+            >
+              <Edit className="w-4 h-4" />
+            </Button>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 bg-orange-300 text-orange-600 opacity-50 cursor-not-allowed shadow-md"
+                      disabled={true}
+                      title="Sem permissão para editar"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para editar preços</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          {canDelete ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+              onClick={() => confirmarExclusao(p)}
+              title="Excluir Preço"
+            >
+              <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
+            </Button>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0 border-red-300 text-red-600 opacity-50 cursor-not-allowed shadow-md"
+                      disabled={true}
+                      title="Sem permissão para excluir"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para excluir preços</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </div>
     );
@@ -165,24 +286,70 @@ export default function PrecosParticularPage() {
       header: '⚙️ Ações',
       render: (p: PrecoParticular) => (
         <div className="flex gap-1.5 flex-wrap">
-          <Button 
-            variant="default" 
-            size="sm" 
-            className={`bg-gradient-to-r ${theme.primaryButton} text-white hover:${theme.primaryButtonHover} focus:ring-4 ${theme.focusRing} h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform`} 
-            onClick={() => abrirModalEditar(p)}
-            title="Editar Preço"
-          >
-            <Edit className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-            onClick={() => confirmarExclusao(p)}
-            title="Excluir Preço"
-          >
-            <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
-          </Button>
+          {canUpdate ? (
+            <Button 
+              variant="default" 
+              size="sm" 
+              className={`bg-gradient-to-r ${theme.primaryButton} text-white hover:${theme.primaryButtonHover} focus:ring-4 ${theme.focusRing} h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform`} 
+              onClick={() => abrirModalEditar(p)}
+              title="Editar Preço"
+            >
+              <Edit className="w-4 h-4" />
+            </Button>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 border-green-300 text-green-600 opacity-50 cursor-not-allowed shadow-md"
+                      disabled={true}
+                      title="Sem permissão para editar"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para editar preços</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          {canDelete ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+              onClick={() => confirmarExclusao(p)}
+              title="Excluir Preço"
+            >
+              <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
+            </Button>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0 border-red-300 text-red-600 opacity-50 cursor-not-allowed shadow-md"
+                      disabled={true}
+                      title="Sem permissão para excluir"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para excluir preços</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       ),
       className: 'py-2',
@@ -320,8 +487,16 @@ export default function PrecosParticularPage() {
         setExcluindo(null);
         carregarPrecos();
       }
-    } catch (err) {
-      // Pode adicionar feedback de erro
+    } catch (error: any) {
+      if (error?.response?.status === 403) {
+        // O toast já será mostrado pelo interceptor
+        setExcluindo(null);
+      } else {
+        console.error('Erro ao excluir preço:', error);
+        AppToast.error('Erro ao excluir', {
+          description: 'Ocorreu um problema ao excluir o preço. Tente novamente.'
+        });
+      }
     } finally {
       setDeleteLoading(false);
     }
@@ -349,13 +524,34 @@ export default function PrecosParticularPage() {
             module="pacientes"
           />
           <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} module="pacientes" />
-          <Button 
-            onClick={abrirModalNovo} 
-            className={`bg-gradient-to-r ${theme.primaryButton} hover:${theme.primaryButtonHover} shadow-lg hover:shadow-xl transition-all duration-200 font-semibold text-white`}
-          >
-            <span className="mr-2"><Plus className="w-4 h-4" /></span>
-            Novo Preço
-          </Button>
+          {canCreate ? (
+            <Button 
+              onClick={abrirModalNovo} 
+              className={`bg-gradient-to-r ${theme.primaryButton} hover:${theme.primaryButtonHover} shadow-lg hover:shadow-xl transition-all duration-200 font-semibold text-white`}
+            >
+              <span className="mr-2"><Plus className="w-4 h-4" /></span>
+              Novo Preço
+            </Button>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button 
+                      className={`bg-gradient-to-r ${theme.primaryButton} hover:${theme.primaryButtonHover} shadow-lg hover:shadow-xl transition-all duration-200 font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed`}
+                      disabled={true}
+                    >
+                      <span className="mr-2"><Plus className="w-4 h-4" /></span>
+                      Novo Preço
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para criar preços particulares</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </PageHeader>
         <DynamicFilterPanel
           isVisible={mostrarFiltros}
@@ -367,24 +563,50 @@ export default function PrecosParticularPage() {
           module="pacientes"
         />
         <PageContent scrollRef={isMobile ? targetRef : undefined}>
-          {viewMode === 'table' ? (
-            <ResponsiveTable
-              data={precosPaginados}
-              columns={columns}
-              module="pacientes"
-              emptyMessage="Nenhum preço encontrado"
-              isMobile={isMobile}
-              scrollRef={isMobile ? targetRef : undefined}
-            />
+          {accessDenied ? (
+            <div className="flex flex-col items-center justify-center py-20 px-4">
+              <div className="text-red-500 text-6xl mb-4">🚫</div>
+              <h2 className="text-2xl font-semibold text-gray-800 mb-2 text-center">
+                Acesso Negado
+              </h2>
+              <p className="text-gray-600 text-center mb-6 max-w-md">
+                Você não tem permissão para acessar esta página.
+              </p>
+              {routeInfo && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-md">
+                  <p className="text-sm text-red-700">
+                    <strong>Rota:</strong> {routeInfo.path} ({routeInfo.method})
+                  </p>
+                  {routeInfo.descricao && (
+                    <p className="text-sm text-red-600 mt-1">
+                      <strong>Descrição:</strong> {routeInfo.descricao}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           ) : (
-            <ResponsiveCards
-              data={precosPaginados}
-              renderCard={renderCard}
-              emptyMessage="Nenhum preço encontrado"
-              emptyIcon="💰"
-              isMobile={isMobile}
-              scrollRef={isMobile ? targetRef : undefined}
-            />
+            <>
+              {viewMode === 'table' ? (
+                <ResponsiveTable
+                  data={precosPaginados}
+                  columns={columns}
+                  module="pacientes"
+                  emptyMessage="Nenhum preço encontrado"
+                  isMobile={isMobile}
+                  scrollRef={isMobile ? targetRef : undefined}
+                />
+              ) : (
+                <ResponsiveCards
+                  data={precosPaginados}
+                  renderCard={renderCard}
+                  emptyMessage="Nenhum preço encontrado"
+                  emptyIcon="💰"
+                  isMobile={isMobile}
+                  scrollRef={isMobile ? targetRef : undefined}
+                />
+              )}
+            </>
           )}
         </PageContent>
         {totalItems > 0 && (

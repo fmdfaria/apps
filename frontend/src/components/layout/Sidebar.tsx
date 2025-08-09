@@ -175,57 +175,26 @@ interface SidebarProps {
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'calendario', label: 'Calendário', icon: Calendar },
-  {
-    id: 'agendamentos',
-    label: 'Agendamentos',
-    icon: Calendar,
-    children: [
-        { id: 'agendamentos/liberacao', label: 'Liberação', icon: CheckCircle },
-        { id: 'agendamentos/atendimento', label: 'Atendimento', icon: Stethoscope },
-        { id: 'agendamentos/conclusao', label: 'Conclusão', icon: ClipboardCheck }
-    ]
-  },
-  {
-    id: 'pacientes',
-    label: 'Pacientes',
-    icon: Users,
-    children: [
-      { id: 'pacientes/precos-particulares', label: 'Preços Particulares', icon: DollarSign }
-    ]
-  },
-  {
-    id: 'profissionais', 
-    label: 'Profissionais', 
-    icon: UserCheck,
-    children: [
-      { id: 'profissionais/disponibilidade', label: 'Disponibilidades', icon: Clock }
-    ]
-  },
-  {
-    id: 'servicos',
-    label: 'Serviços',
-    icon: Briefcase,
-    children: [
-      { id: 'servicos/precos-profissionais', label: 'Preços Profissionais', icon: DollarSign }
-    ]
-  },
+  { id: 'agendamentos', label: 'Agendamentos', icon: Calendar },
+  { id: 'agendamentos/liberacao', label: 'Liberação', icon: CheckCircle },
+  { id: 'agendamentos/atendimento', label: 'Atendimento', icon: Stethoscope },
+  { id: 'agendamentos/conclusao', label: 'Conclusão', icon: ClipboardCheck },
+  { id: 'pacientes', label: 'Pacientes', icon: Users },
+  { id: 'pacientes/precos-particulares', label: 'Preços Particulares', icon: DollarSign },
+  { id: 'profissionais', label: 'Profissionais', icon: UserCheck },
+  { id: 'profissionais/disponibilidade', label: 'Disponibilidades', icon: Clock },
+  { id: 'servicos', label: 'Serviços', icon: Briefcase },
+  { id: 'servicos/precos-profissionais', label: 'Preços Profissionais', icon: DollarSign },
   { id: 'convenios', label: 'Convênios', icon: Building },
   { id: 'recursos', label: 'Recursos', icon: Building2 },
   { id: 'especialidades', label: 'Especialidades', icon: Briefcase },
   { id: 'conselhos', label: 'Conselhos Profissionais', icon: Building },
   { id: 'bancos', label: 'Bancos', icon: Landmark },
-  {
-    id: 'administracao',
-    label: 'Administração',
-    icon: Settings,
-    children: [
-      { id: 'administracao/usuarios', label: 'Usuários', icon: Users },
-      { id: 'administracao/roles', label: 'Roles', icon: Shield },
-      { id: 'administracao/rotas', label: 'Rotas', icon: Building },
-      { id: 'administracao/usuarios-roles', label: 'Usuários e Roles', icon: UserCheck },
-      { id: 'administracao/permissoes', label: 'Permissões', icon: Settings }
-    ]
-  },
+  { id: 'administracao/usuarios', label: 'Usuários', icon: Users },
+  { id: 'administracao/roles', label: 'Roles', icon: Shield },
+  { id: 'administracao/rotas', label: 'Rotas', icon: Building },
+  { id: 'administracao/usuarios-roles', label: 'Usuários e Roles', icon: UserCheck },
+  { id: 'administracao/permissoes', label: 'Permissões', icon: Settings }
 ];
 
 export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedProp, setIsCollapsed: setIsCollapsedProp }: SidebarProps) => {
@@ -252,26 +221,13 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
       .join('');
   };
 
-  // Função para obter cor do badge baseado no tipo de usuário
-  const getUserTypeColor = (tipo: string) => {
-    const colors = {
-      'ADMIN': 'bg-red-500',
-      'RECEPCIONISTA': 'bg-blue-500',
-      'PROFISSIONAL': 'bg-green-500',
-      'PACIENTE': 'bg-purple-500'
-    };
-    return colors[tipo as keyof typeof colors] || 'bg-gray-500';
-  };
-
-  // Função para obter texto amigável do tipo de usuário
-  const getUserTypeLabel = (tipo: string) => {
-    const labels = {
-      'ADMIN': 'Administrador',
-      'RECEPCIONISTA': 'Recepcionista',
-      'PROFISSIONAL': 'Profissional',
-      'PACIENTE': 'Paciente'
-    };
-    return labels[tipo as keyof typeof labels] || tipo;
+  // Função para obter cor do badge baseado nas roles do usuário
+  const getUserRoleColor = (roles: string[]) => {
+    if (roles.includes('ADMIN')) return 'bg-red-500';
+    if (roles.includes('RECEPCIONISTA')) return 'bg-blue-500';
+    if (roles.includes('PROFISSIONAL')) return 'bg-green-500';
+    if (roles.includes('PACIENTE')) return 'bg-purple-500';
+    return 'bg-gray-500';
   };
   return (
     <div className={cn(
@@ -302,7 +258,7 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
               <button 
                 className={cn(
                   'flex items-center justify-center rounded-full text-white font-semibold text-sm w-8 h-8 cursor-pointer hover:opacity-90 transition-opacity',
-                  getUserTypeColor(user.tipo)
+                  getUserRoleColor(user.roles)
                 )}
                 title={`${user.nome} - Clique para ver perfil`}
                 onClick={() => navigate('/perfil')}
@@ -318,7 +274,7 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
                 <button 
                   className={cn(
                     'flex items-center justify-center rounded-full text-white font-semibold text-sm w-10 h-10 cursor-pointer hover:opacity-90 transition-opacity',
-                    getUserTypeColor(user.tipo)
+                    getUserRoleColor(user.roles)
                   )}
                   title="Ver perfil"
                   onClick={() => navigate('/perfil')}
@@ -356,12 +312,7 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
         ) : (
           menuItems
             .filter((item) => {
-              // Filtrar itens baseado nas permissões
-              if (item.children) {
-                // Para itens com filhos, mostrar se tem pelo menos um filho com permissão
-                return hasAnyChildPermission(item.children);
-              }
-              // Para itens normais, verificar permissão direta
+              // Para todos os itens, verificar permissão direta
               return hasPermission(item.id);
             })
             .map((item) => {
@@ -416,31 +367,6 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
                       {item.label}
                     </span>
                   </button>
-                )}
-                {/* Submenu */}
-                {item.children && !isCollapsed && (
-                  <div className="ml-8">
-                    {item.children
-                      .filter((child) => hasPermission(child.id))
-                      .map((child) => {
-                        const ChildIcon = child.icon;
-                        return (
-                          <button
-                            key={child.id}
-                            onClick={() => onPageChange(child.id)}
-                            className={cn(
-                              'w-full flex items-center px-3 py-1.5 text-left text-sm rounded transition-colors hover:bg-blue-50',
-                              currentPage === child.id
-                                ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700' 
-                                : 'text-gray-600 hover:text-blue-700'
-                            )}
-                          >
-                            {ChildIcon && <ChildIcon className="w-4 h-4 mr-2" />}
-                            {child.label}
-                          </button>
-                        );
-                      })}
-                  </div>
                 )}
               </div>
             );

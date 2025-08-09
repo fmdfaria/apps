@@ -2,14 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import LoginForm from '@/components/auth/LoginForm';
-import { useToast } from '@/components/ui/use-toast';
+import { AppToast } from '@/services/toast';
 
 export default function Login() {
   const { login, loading, error, isAuthenticated } = useAuth();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,24 +17,20 @@ export default function Login() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      toast({
-        title: 'Login realizado com sucesso!',
-        description: 'Bem-vindo ao painel.',
-        variant: 'success',
+      AppToast.success('Login realizado com sucesso!', {
+        description: 'Bem-vindo ao painel da clínica.'
       });
       navigate('/dashboard');
     }
-  }, [isAuthenticated, navigate, toast]);
+  }, [isAuthenticated, navigate]);
 
   useEffect(() => {
     if (error) {
-      toast({
-        title: 'Erro ao fazer login',
-        description: error,
-        variant: 'destructive',
+      AppToast.error('Erro ao fazer login', {
+        description: error
       });
     }
-  }, [error, toast]);
+  }, [error]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">

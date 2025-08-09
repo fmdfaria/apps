@@ -672,15 +672,43 @@ export const PermissionsPage = () => {
                   </label>
                   <div className="max-w-full">
                     <SingleSelectDropdown
-                      options={routes}
-                      selected={routes.find(r => r.id === form.routeId) || null}
+                      options={routes.map(route => ({
+                        id: route.id,
+                        nome: `${route.method} ${route.path}`,
+                        path: route.path,
+                        method: route.method,
+                        modulo: route.modulo
+                      }))}
+                      selected={routes.find(r => r.id === form.routeId) ? {
+                        id: form.routeId,
+                        nome: `${routes.find(r => r.id === form.routeId)!.method} ${routes.find(r => r.id === form.routeId)!.path}`,
+                        path: routes.find(r => r.id === form.routeId)!.path,
+                        method: routes.find(r => r.id === form.routeId)!.method
+                      } : null}
                       onChange={editando ? undefined : (selected) => setForm(f => ({ ...f, routeId: selected?.id || '' }))}
-                      placeholder={editando ? "Campo somente leitura" : "Digite para buscar rotas..."}
-                      formatOption={(option: Route) => {
-                        const text = `${option.method} ${option.path}`;
-                        return text.length > 40 ? text.substring(0, 37) + '...' : text;
-                      }}
-                      headerText="Rotas disponíveis"
+                      placeholder={editando ? "Campo somente leitura" : "Digite para buscar rotas (ex: /profissionais/:id/servicos)..."}
+                      searchFields={['nome', 'path', 'method', 'modulo']}
+                      formatOption={(option: any) => (
+                        <div className="flex items-center gap-3 py-1">
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${
+                            option.method === 'GET' ? 'bg-blue-100 text-blue-800' :
+                            option.method === 'POST' ? 'bg-green-100 text-green-800' :
+                            option.method === 'PUT' ? 'bg-yellow-100 text-yellow-800' :
+                            option.method === 'DELETE' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {option.method}
+                          </span>
+                          <span className="font-mono text-sm flex-1">{option.path}</span>
+                          {option.modulo && (
+                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                              {option.modulo}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      headerText="Busque por método, caminho ou módulo"
+                      className="w-full"
                     />
                   </div>
                 </div>
