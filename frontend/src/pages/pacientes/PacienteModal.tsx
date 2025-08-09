@@ -2,6 +2,7 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { FormErrorMessage } from '@/components/form-error-message';
+import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import type { Paciente } from '@/types/Paciente';
 import { useInputMask } from '@/hooks/useInputMask';
 
@@ -50,7 +51,7 @@ export default function PacienteModal({
           </DialogHeader>
 
           <div className="mt-4 flex flex-col gap-6">
-            {/* Primeira linha: Nome Completo + Tipo de Serviço */}
+            {/* Linha 1: Nome Completo | CPF */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -61,7 +62,7 @@ export default function PacienteModal({
                   type="text"
                   value={form.nomeCompleto}
                   onChange={e => onFormChange({ nomeCompleto: e.target.value })}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
                   minLength={2}
                   disabled={formLoading}
                   autoFocus
@@ -70,53 +71,22 @@ export default function PacienteModal({
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <span className="text-lg">🏥</span>
-                  Tipo de Serviço <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={form.tipoServico}
-                  onChange={e => onFormChange({ tipoServico: e.target.value })}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
-                  disabled={formLoading}
-                >
-                  <option value="">Selecione o tipo de serviço</option>
-                  <option value="Particular">Particular</option>
-                  <option value="Convênio">Convênio</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Campos básicos */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">🆔</span>
-                  CPF <span className="text-red-500">*</span>
+                  CPF
                 </label>
                 <input
                   type="text"
                   value={form.cpf}
                   onChange={e => onFormChange({ cpf: maskCPF(e.target.value) })}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
-                  minLength={14}
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
+                  placeholder="000.000.000-00"
                   disabled={formLoading}
                 />
               </div>
+            </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <span className="text-lg">📧</span>
-                  E-mail <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={e => onFormChange({ email: e.target.value })}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
-                  disabled={formLoading}
-                />
-              </div>
-
+            {/* Linha 2: WhatsApp | E-mail */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">📱</span>
@@ -126,21 +96,65 @@ export default function PacienteModal({
                   type="text"
                   value={form.whatsapp}
                   onChange={e => onFormChange({ whatsapp: maskTelefone(e.target.value) })}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
+                  placeholder="+55 (11) 99999-9999"
                   disabled={formLoading}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <span className="text-lg">📧</span>
+                  E-mail
+                </label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={e => onFormChange({ email: e.target.value })}
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
+                  placeholder="nome@email.com"
+                  disabled={formLoading}
+                />
+              </div>
+            </div>
+
+            {/* Linha 3: Tipo de Serviço | Data de Nascimento */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <span className="text-lg">🏥</span>
+                  Tipo de Serviço <span className="text-red-500">*</span>
+                </label>
+                <div className="w-full">
+                  <SingleSelectDropdown
+                    options={[
+                      { id: 'Particular', nome: 'Particular' },
+                      { id: 'Convênio', nome: 'Convênio' }
+                    ]}
+                    selected={form.tipoServico ? {
+                      id: form.tipoServico,
+                      nome: form.tipoServico
+                    } : null}
+                    onChange={(selected) => {
+                      onFormChange({ tipoServico: selected?.id || '' });
+                    }}
+                    placeholder="Selecione..."
+                    headerText="Tipos de serviço"
+                    formatOption={(option) => option.nome}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">🎂</span>
-                  Data de Nascimento <span className="text-red-500">*</span>
+                  Data de Nascimento
                 </label>
                 <input
                   type="date"
                   value={form.dataNascimento}
                   onChange={e => onFormChange({ dataNascimento: e.target.value })}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
                   disabled={formLoading}
                 />
               </div>

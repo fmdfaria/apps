@@ -333,9 +333,9 @@ export const CalendarioPage = () => {
   }
 
   return (
-    <div className="pt-2 pl-6 pr-6 h-screen flex flex-col">
+    <div className="pt-2 pl-6 pr-6 h-screen flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
+      <div className="bg-white border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 flex-shrink-0">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Calendário</h1>
           <p className="text-gray-600">Visualização em agenda dos agendamentos</p>
@@ -739,7 +739,7 @@ export const CalendarioPage = () => {
                   // Verificar se o horário está disponível antes de permitir criar agendamento
                   if (gridViewType === 'profissionais') {
                     const status = verificarStatusDisponibilidade(entityId, currentDate, horario);
-                    if (status !== 'disponivel') {
+                    if (status === 'folga' || status === 'nao_configurado') {
                       return; // Não permitir criar agendamento em horário indisponível ou não configurado
                     }
                   }

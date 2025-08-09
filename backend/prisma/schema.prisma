@@ -75,10 +75,10 @@ model Paciente {
   id                  String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nomeCompleto        String                       @map("nome_completo") @db.VarChar(150)
   email               String?                      @unique @db.VarChar(100)
-  whatsapp            String?                      @db.VarChar(20)
-  cpf                 String                       @unique @db.VarChar(14)
+  whatsapp            String                       @db.VarChar(20)
+  cpf                 String?                      @unique @db.VarChar(14)
   dataNascimento      DateTime?                    @map("data_nascimento") @db.Date
-  tipoServico         String                       @map("tipo_servico") @db.VarChar(20)
+  tipoServico         String?                      @map("tipo_servico") @db.VarChar(20)
   convenioId          String?                      @map("convenio_id") @db.Uuid
   numeroCarteirinha   String?                      @map("numero_carteirinha") @db.VarChar(50)
   dataPedidoMedico    DateTime?                    @map("data_pedido_medico") @db.Date

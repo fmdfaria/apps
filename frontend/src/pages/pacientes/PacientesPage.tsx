@@ -843,30 +843,50 @@ export const PacientesPage = () => {
         onSubmit={async (e) => {
           e.preventDefault();
           
-          // Validação
+          // Validação - Nome Completo, WhatsApp e Tipo de Serviço são obrigatórios no frontend
           if (!form.nomeCompleto.trim() || form.nomeCompleto.trim().length < 2) {
-            setFormError('O nome deve ter pelo menos 2 caracteres.');
+            AppToast.error('Erro de Validação', {
+              description: 'O Nome Completo deve ter pelo menos 2 caracteres.'
+            });
             return;
           }
-          if (!form.cpf.trim() || form.cpf.length < 14) {
-            setFormError('CPF inválido. Exemplo: xxx.xxx.xxx-xx.');
+          
+          if (!form.whatsapp.trim()) {
+            AppToast.error('Erro de Validação', {
+              description: 'O WhatsApp é obrigatório.'
+            });
             return;
           }
-          if (!form.email.trim() || !form.email.includes('@')) {
-            setFormError('E-mail inválido. Exemplo: nome@email.com');
+          
+          if (!form.tipoServico.trim()) {
+            AppToast.error('Erro de Validação', {
+              description: 'O Tipo de Serviço é obrigatório.'
+            });
             return;
           }
-          if (!form.dataNascimento) {
-            setFormError('Informe a data de nascimento.');
-            return;
-          }
-          if (!form.tipoServico) {
-            setFormError('Selecione o tipo de serviço.');
-            return;
-          }
+          
+          // Validar formato do WhatsApp apenas se estiver preenchido
           const telefoneValido = /^\+55 \(\d{2}\) \d{5}-\d{4}$/.test(form.whatsapp.trim());
           if (!telefoneValido) {
-            setFormError('Telefone inválido. Exemplo: +55 (12) 99999-9999');
+            AppToast.error('Erro de Validação', {
+              description: 'WhatsApp inválido. Exemplo: +55 (12) 99999-9999'
+            });
+            return;
+          }
+          
+          // Validar formato do CPF apenas se estiver preenchido
+          if (form.cpf.trim() && form.cpf.length < 14) {
+            AppToast.error('Erro de Validação', {
+              description: 'CPF inválido. Exemplo: xxx.xxx.xxx-xx.'
+            });
+            return;
+          }
+          
+          // Validar formato do email apenas se estiver preenchido
+          if (form.email.trim() && !form.email.includes('@')) {
+            AppToast.error('Erro de Validação', {
+              description: 'E-mail inválido. Exemplo: nome@email.com'
+            });
             return;
           }
 
@@ -875,10 +895,10 @@ export const PacientesPage = () => {
           const whatsappNumeros = form.whatsapp.replace(/\D/g, '');
           const pacientePayload: any = {
             nomeCompleto: form.nomeCompleto,
-            cpf: form.cpf,
-            email: form.email || null,
-            whatsapp: whatsappNumeros || null,
-            dataNascimento: form.dataNascimento,
+            cpf: form.cpf.trim() || null,
+            email: form.email.trim() || null,
+            whatsapp: whatsappNumeros,
+            dataNascimento: form.dataNascimento || null,
             tipoServico: form.tipoServico,
           };
 

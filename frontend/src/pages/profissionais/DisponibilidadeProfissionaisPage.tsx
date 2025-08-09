@@ -22,12 +22,12 @@ import { parseDataLocal, formatarDataLocal } from '@/lib/utils';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 
-// Gerar opções de horário para início (06:00 até 21:00)
+// Gerar opções de horário para início (07:00 até 20:00)
 const gerarOpcoesHorarioInicio = () => {
   const opcoes = [];
-  for (let hora = 6; hora <= 21; hora++) {
+  for (let hora = 7; hora <= 20; hora++) {
     for (let minuto = 0; minuto < 60; minuto += 30) {
-      if (hora === 21 && minuto > 0) break; // Para às 21:00
+      if (hora === 20 && minuto > 0) break; // Para às 20:00
       const horarioFormatado = `${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
       opcoes.push({
         id: horarioFormatado,
@@ -38,12 +38,12 @@ const gerarOpcoesHorarioInicio = () => {
   return opcoes;
 };
 
-// Gerar opções de horário para fim (06:30 até 21:30)
+// Gerar opções de horário para fim (07:30 até 20:30)
 const gerarOpcoesHorarioFim = () => {
   const opcoes = [];
-  for (let hora = 6; hora <= 21; hora++) {
+  for (let hora = 7; hora <= 20; hora++) {
     for (let minuto = 0; minuto < 60; minuto += 30) {
-      if (hora === 6 && minuto === 0) continue; // Começa às 06:30
+      if (hora === 7 && minuto === 0) continue; // Começa às 07:30
       const horarioFormatado = `${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
       opcoes.push({
         id: horarioFormatado,

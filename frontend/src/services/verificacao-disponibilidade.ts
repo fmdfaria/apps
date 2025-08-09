@@ -9,7 +9,8 @@ export type StatusDisponibilidade = 'disponivel' | 'ocupado' | 'indisponivel';
 export interface VerificacaoCompleta {
   status: StatusDisponibilidade;
   motivo?: string;
-  dotColor: 'green' | 'blue' | 'red';
+  dotColor: 'blue' | 'green' | 'red';
+  isOcupado?: boolean;
 }
 
 export interface HorarioVerificado {
@@ -115,7 +116,7 @@ const verificarDisponibilidadeHorario = (
   data: Date, 
   horario: string,
   disponibilidades: DisponibilidadeProfissional[]
-): 'disponivel' | 'folga' | 'nao_configurado' => {
+): 'presencial' | 'online' | 'folga' | 'nao_configurado' => {
   const diaSemana = data.getDay(); // 0 = domingo, 1 = segunda, etc.
   const [hora, minuto] = horario.split(':').map(Number);
   const horarioMinutos = hora * 60 + minuto;
@@ -140,9 +141,17 @@ const verificarDisponibilidadeHorario = (
         if (disponibilidade.tipo === 'folga') {
           return 'folga';
         }
-        // Se é tipo 'disponivel', retornar disponível
+        // Se é tipo 'presencial', retornar presencial
+        if (disponibilidade.tipo === 'presencial') {
+          return 'presencial';
+        }
+        // Se é tipo 'online', retornar online
+        if (disponibilidade.tipo === 'online') {
+          return 'online';
+        }
+        // Para compatibilidade com versões antigas, tratar 'disponivel' como 'presencial'
         if (disponibilidade.tipo === 'disponivel') {
-          return 'disponivel';
+          return 'presencial';
         }
       }
     }
@@ -160,42 +169,47 @@ const verificarStatusCompleto = (
   disponibilidades: DisponibilidadeProfissional[],
   agendamentos: Agendamento[]
 ): VerificacaoCompleta => {
-  // 1. Primeiro verificar se está ocupado
-  const ocupado = verificarHorarioOcupado(profissionalId, data, horario, agendamentos);
-  if (ocupado) {
-    return {
-      status: 'ocupado',
-      motivo: 'Horário já possui agendamento',
-      dotColor: 'blue'
-    };
-  }
-
-  // 2. Depois verificar disponibilidade
+  // 1. Verificar disponibilidade primeiro
   const statusDisponibilidade = verificarDisponibilidadeHorario(profissionalId, data, horario, disponibilidades);
   
+  // 2. Depois verificar se está ocupado
+  const ocupado = verificarHorarioOcupado(profissionalId, data, horario, agendamentos);
+  
   switch (statusDisponibilidade) {
-    case 'disponivel':
+    case 'presencial':
       return {
-        status: 'disponivel',
-        dotColor: 'green'
+        status: ocupado ? 'ocupado' : 'disponivel',
+        motivo: ocupado ? 'Horário já possui agendamento (presencial)' : 'Disponível para atendimento presencial',
+        dotColor: 'blue',
+        isOcupado: ocupado
+      };
+    case 'online':
+      return {
+        status: ocupado ? 'ocupado' : 'disponivel',
+        motivo: ocupado ? 'Horário já possui agendamento (online)' : 'Disponível para atendimento online',
+        dotColor: 'green',
+        isOcupado: ocupado
       };
     case 'folga':
       return {
         status: 'indisponivel',
         motivo: 'Profissional está de folga',
-        dotColor: 'red'
+        dotColor: 'red',
+        isOcupado: false
       };
     case 'nao_configurado':
       return {
         status: 'indisponivel',
         motivo: 'Profissional não atende neste horário',
-        dotColor: 'red'
+        dotColor: 'red',
+        isOcupado: false
       };
     default:
       return {
         status: 'indisponivel',
         motivo: 'Disponibilidade não configurada',
-        dotColor: 'red'
+        dotColor: 'red',
+        isOcupado: false
       };
   }
 };

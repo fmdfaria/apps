@@ -1014,7 +1014,8 @@ export const AgendamentosPage = () => {
       {visualizacao === 'cards' ? renderCardView() : renderTableView()}
 
       {/* Paginação */}
-      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
+      {agendamentosFiltrados.length > 0 && (
+        <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-600 flex items-center gap-2">
             <span className="text-lg">📊</span>
@@ -1037,49 +1038,57 @@ export const AgendamentosPage = () => {
           Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, agendamentosFiltrados.length)} de {agendamentosFiltrados.length} resultados
         </div>
 
-        {totalPaginas > 1 && (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
-              disabled={paginaAtual === 1}
-              className="border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-            >
-              <span className="mr-1 text-gray-600 group-hover:text-blue-600 transition-colors">⬅️</span>
-              Anterior
-            </Button>
-            {(() => {
-              const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
-              const endPage = Math.min(totalPaginas, startPage + 4);
-              return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
-                <Button
-                  key={page}
-                  variant={page === paginaAtual ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPaginaAtual(page)}
-                  className={page === paginaAtual 
-                    ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg font-semibold" 
-                    : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-                  }
-                >
-                  {page}
-                </Button>
-              ));
-            })()}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
-              disabled={paginaAtual === totalPaginas}
-              className="border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-            >
-              Próximo
-              <span className="ml-1 text-gray-600 group-hover:text-blue-600 transition-colors">➡️</span>
-            </Button>
-          </div>
-        )}
-      </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
+            disabled={paginaAtual === 1 || totalPaginas === 1}
+            className={(paginaAtual === 1 || totalPaginas === 1)
+              ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50" 
+              : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+            }
+          >
+            <span className="mr-1 text-gray-600 group-hover:text-blue-600 transition-colors">⬅️</span>
+            Anterior
+          </Button>
+          {(() => {
+            const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
+            const endPage = Math.min(totalPaginas, startPage + 4);
+            return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
+              <Button
+                key={page}
+                variant={page === paginaAtual ? "default" : "outline"}
+                size="sm"
+                onClick={() => totalPaginas > 1 ? setPaginaAtual(page) : undefined}
+                disabled={totalPaginas === 1}
+                className={page === paginaAtual 
+                  ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg font-semibold" 
+                  : totalPaginas === 1
+                  ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
+                  : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+                }
+              >
+                {page}
+              </Button>
+            ));
+          })()}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
+            disabled={paginaAtual === totalPaginas || totalPaginas === 1}
+            className={(paginaAtual === totalPaginas || totalPaginas === 1)
+              ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
+              : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+            }
+          >
+            Próximo
+            <span className="ml-1 text-gray-600 group-hover:text-blue-600 transition-colors">➡️</span>
+          </Button>
+        </div>
+        </div>
+      )}
 
       {/* Modais */}
       {/* Modal de confirmação de exclusão */}

@@ -35,16 +35,16 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
   // Map dot colors to Tailwind classes
   const getDotColorClasses = (color: string) => {
     const colorMap = {
-      green: 'bg-green-400 group-hover:bg-green-600',
-      blue: 'bg-blue-400 group-hover:bg-blue-600',
-      red: 'bg-red-400 group-hover:bg-red-600',
+      green: 'bg-green-500 group-hover:bg-green-600',
+      blue: 'bg-blue-500 group-hover:bg-blue-600',
+      red: 'bg-red-500 group-hover:bg-red-600',
       yellow: 'bg-yellow-400 group-hover:bg-yellow-600',
       purple: 'bg-purple-400 group-hover:bg-purple-600',
       gray: 'bg-gray-400 group-hover:bg-gray-600',
       orange: 'bg-orange-400 group-hover:bg-orange-600',
       pink: 'bg-pink-400 group-hover:bg-pink-600'
     };
-    return colorMap[color as keyof typeof colorMap] || colorMap.green;
+    return colorMap[color as keyof typeof colorMap] || colorMap.blue;
   };
 
   // Update trigger width when component mounts or trigger changes

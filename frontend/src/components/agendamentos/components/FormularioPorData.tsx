@@ -145,16 +145,16 @@ export const FormularioPorData: React.FC<FormularioPorDataProps> = ({ context })
                   getDotColor={(option) => {
                     if (profissionaisVerificados.length > 0) {
                       const profissionalInfo = profissionaisVerificados.find(pd => pd.profissionalId === option.id);
-                      return profissionalInfo?.verificacao.dotColor || 'green';
+                      return profissionalInfo?.verificacao.dotColor || 'blue';
                     }
-                    return 'green';
+                    return 'blue';
                   }}
                   getDisabled={(option) => {
                     if (profissionaisVerificados.length > 0) {
                       const profissionalInfo = profissionaisVerificados.find(pd => pd.profissionalId === option.id);
-                      const dotColor = profissionalInfo?.verificacao.dotColor || 'green';
-                      // Desabilitar se for vermelho (indisponível) ou azul (ocupado)
-                      return dotColor === 'red' || dotColor === 'blue';
+                      const verificacao = profissionalInfo?.verificacao;
+                      // Desabilitar apenas se for indisponível (vermelho) ou se estiver ocupado
+                      return verificacao?.dotColor === 'red' || verificacao?.isOcupado === true;
                     }
                     return false;
                   }}
@@ -164,14 +164,14 @@ export const FormularioPorData: React.FC<FormularioPorDataProps> = ({ context })
               {/* Legenda de status */}
               {profissionaisVerificados.length > 0 && (
                 <div className="mt-2 text-xs text-gray-600">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>Disponível</span>
-                    </div>
+                  <div className="flex items-center gap-4 flex-wrap">
                     <div className="flex items-center gap-1">
                       <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      <span>Ocupado</span>
+                      <span>Presencial</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span>Online</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <div className="w-2 h-2 bg-red-500 rounded-full"></div>

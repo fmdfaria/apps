@@ -383,30 +383,36 @@ export const liberarAgendamento = async (id: string, dadosLiberacao: {
   statusCodLiberacao: string;
   dataCodLiberacao: string;
 }): Promise<Agendamento> => {
-  return updateAgendamento(id, {
+  // Usar a nova rota específica para liberação
+  const response = await api.put(`/agendamentos-liberar/${id}`, {
     ...dadosLiberacao,
     status: 'LIBERADO'
   });
+  return response.data;
 };
 
 export const atenderAgendamento = async (id: string, dadosAtendimento: {
-  dataAtendimento: string;
-  observacoesAtendimento?: string;
+  dataHoraInicio?: string;
+  observacoes?: string;
 }): Promise<Agendamento> => {
-  return updateAgendamento(id, {
+  // Usar a nova rota específica para atendimento
+  const response = await api.put(`/agendamentos-atender/${id}`, {
     ...dadosAtendimento,
     status: 'ATENDIDO'
   });
+  return response.data;
 };
 
 export const aprovarAgendamento = async (id: string, dadosAprovacao: {
-  dataAprovacao: string;
-  aprovadoPor: string;
+  observacoes?: string;
+  resultadoConsulta?: string;
 }): Promise<Agendamento> => {
-  return updateAgendamento(id, {
+  // Usar a nova rota específica para conclusão
+  const response = await api.put(`/agendamentos-concluir/${id}`, {
     ...dadosAprovacao,
     status: 'FINALIZADO'
   });
+  return response.data;
 };
 
 export const cancelarAgendamento = async (id: string, dadosCancelamento: {

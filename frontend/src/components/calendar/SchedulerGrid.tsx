@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { AppointmentCard } from './AppointmentCard';
 import { cn } from '@/lib/utils';
-import { X } from 'lucide-react';
+import { X, User, Monitor, Coffee } from 'lucide-react';
 
 interface SchedulerGridProps {
   profissionais: Array<{
@@ -37,7 +37,7 @@ interface SchedulerGridProps {
   onAppointmentClick?: (appointmentId: string) => void;
   onDoubleClick?: (entityId: string, horario: string) => void;
   verificarDisponibilidade?: (profissionalId: string, data: Date, horario: string) => boolean;
-  verificarStatusDisponibilidade?: (profissionalId: string, data: Date, horario: string) => 'disponivel' | 'folga' | 'nao_configurado';
+  verificarStatusDisponibilidade?: (profissionalId: string, data: Date, horario: string) => 'presencial' | 'online' | 'folga' | 'nao_configurado';
 }
 
 export const SchedulerGrid = ({
@@ -92,20 +92,32 @@ export const SchedulerGrid = ({
 
   // Sync scroll between time column and entity columns
   useEffect(() => {
+    let scrollTimeout: NodeJS.Timeout;
+    
     const handleScroll = (e: Event) => {
       const target = e.target as HTMLElement;
       if (timeColumnRef.current && target !== timeColumnRef.current) {
+        // Immediate sync
         timeColumnRef.current.scrollTop = target.scrollTop;
+        
+        // Additional correction after scroll ends
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+          if (timeColumnRef.current) {
+            timeColumnRef.current.scrollTop = target.scrollTop;
+          }
+        }, 50);
       }
     };
 
     const entitiesContainer = entitiesColumnsContainerRef.current;
 
     if (entitiesContainer && timeColumnRef.current) {
-      entitiesContainer.addEventListener('scroll', handleScroll);
+      entitiesContainer.addEventListener('scroll', handleScroll, { passive: true });
 
       return () => {
         entitiesContainer.removeEventListener('scroll', handleScroll);
+        clearTimeout(scrollTimeout);
       };
     }
   }, []);
@@ -142,71 +154,91 @@ export const SchedulerGrid = ({
   };
 
   return (
-    <div className="flex h-[600px] border rounded-lg overflow-hidden bg-white">
+    <div className="flex h-full border rounded-lg overflow-hidden bg-white">
       {/* Time Column */}
-      <div 
-        ref={timeColumnRef}
-        className="w-20 bg-gray-50 border-r overflow-y-hidden"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-      >
-        <div className="h-16 border-b bg-white"></div> {/* Header spacer */}
-        <div className="relative">
-          {timeSlots.map((time, index) => (
-            <div
-              key={time}
-              className={cn(
-                "h-[60px] border-b border-gray-100 flex items-center justify-center text-sm text-gray-600 font-medium",
-                index % 2 === 0 ? "bg-gray-50" : "bg-white"
-              )}
-            >
-              {time}
-            </div>
-          ))}
+      <div className="w-20 bg-gray-50 border-r flex flex-col flex-shrink-0">
+        {/* Fixed Time Header */}
+        <div className="h-16 border-b bg-white flex items-center justify-center text-sm font-semibold text-gray-700 sticky top-0 z-40 shadow-sm">
+          Hora
+        </div>
+        
+        {/* Scrollable Time Content */}
+        <div 
+          ref={timeColumnRef}
+          className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden"
+          style={{ 
+            scrollbarWidth: 'none', 
+            msOverflowStyle: 'none'
+          }}
+        >
+          <div className="relative">
+            {timeSlots.map((time, index) => (
+              <div
+                key={time}
+                className={cn(
+                  "h-[60px] border-b border-gray-100 flex items-center justify-center text-sm text-gray-600 font-medium flex-shrink-0",
+                  index % 2 === 0 ? "bg-gray-50" : "bg-white"
+                )}
+              >
+                {time}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Entity Columns */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Grid Container with Headers */}
-        <div ref={entitiesColumnsContainerRef} className="flex flex-1 flex-col overflow-auto" style={{ scrollbarWidth: 'thin' }}>
-          {/* Headers */}
-          <div className="flex bg-white border-b h-16 flex-shrink-0 sticky top-0 z-20">
-            {filteredEntities.map((entity) => (
-              <div
-                key={entity.id}
-                className="min-w-[200px] flex-1 border-r border-gray-200 p-3 flex items-center gap-3"
+        {/* Fixed Headers */}
+        <div className="flex bg-white border-b h-16 flex-shrink-0 z-30 shadow-sm">
+          {filteredEntities.map((entity) => (
+            <div
+              key={entity.id}
+              className="min-w-[200px] flex-1 border-r border-gray-200 p-3 flex items-center gap-3"
+            >
+              <div 
+                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white"
+                style={{ backgroundColor: entity.cor }}
               >
-                <div 
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white"
-                  style={{ backgroundColor: entity.cor }}
-                >
-                  {entity.avatar}
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 text-sm">{entity.nome}</div>
-                  <div className="text-xs text-gray-500">
-                    {entity.horarioInicio} - {entity.horarioFim}
-                  </div>
+                {entity.avatar}
+              </div>
+              <div>
+                <div className="font-semibold text-gray-900 text-sm">{entity.nome}</div>
+                <div className="text-xs text-gray-500">
+                  {entity.horarioInicio} - {entity.horarioFim}
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
+        </div>
 
+        {/* Scrollable Content */}
+        <div 
+          ref={entitiesColumnsContainerRef} 
+          className="flex-1 overflow-auto" 
+          style={{ 
+            scrollbarWidth: 'thin',
+            scrollBehavior: 'smooth'
+          }}
+        >
           {/* Grid */}
-          <div className="flex flex-1">
+          <div className="flex min-h-full">
             {filteredEntities.map((entity) => (
             <div
               key={entity.id}
-              className="min-w-[200px] flex-1 border-r border-gray-200 relative bg-white"
+              className="min-w-[200px] flex-1 border-r border-gray-200 relative bg-white flex-shrink-0"
             >
               {/* Time grid background */}
               {timeSlots.map((timeSlot, index) => {
-                let statusDisponibilidade: 'disponivel' | 'folga' | 'nao_configurado' = 'disponivel';
+                let statusDisponibilidade: 'presencial' | 'online' | 'folga' | 'nao_configurado' = 'presencial';
                 let isDisponivel = true;
                 
                 if (viewType === 'profissionais' && verificarStatusDisponibilidade) {
                   statusDisponibilidade = verificarStatusDisponibilidade(entity.id, currentDate, timeSlot);
-                  isDisponivel = statusDisponibilidade === 'disponivel';
+                  isDisponivel = statusDisponibilidade === 'presencial' || statusDisponibilidade === 'online';
+                } else if (viewType === 'recursos') {
+                  // Para recursos, sempre permitir duplo clique
+                  isDisponivel = true;
                 }
                 
                 // Determinar classes CSS baseadas no status
@@ -216,21 +248,30 @@ export const SchedulerGrid = ({
                 
                 if (viewType === 'profissionais' && verificarStatusDisponibilidade) {
                   switch (statusDisponibilidade) {
-                    case 'disponivel':
-                      statusClasses = "cursor-pointer hover:bg-blue-50/30";
-                      statusTitle = "Horário disponível";
+                    case 'presencial':
+                      statusClasses = "cursor-pointer hover:bg-blue-50/30 bg-blue-50/20 border-l-2 border-blue-300";
+                      statusTitle = "Disponível para atendimento presencial - Duplo clique para agendar";
+                      statusIcon = <User className="w-3 h-3 text-blue-500 opacity-60" />;
+                      break;
+                    case 'online':
+                      statusClasses = "cursor-pointer hover:bg-green-50/30 bg-green-50/20 border-l-2 border-green-300";
+                      statusTitle = "Disponível para atendimento online - Duplo clique para agendar";
+                      statusIcon = <Monitor className="w-3 h-3 text-green-500 opacity-60" />;
                       break;
                     case 'folga':
-                      statusClasses = "cursor-not-allowed bg-red-50/50 hover:bg-red-100/50";
+                      statusClasses = "cursor-not-allowed bg-red-50/50 hover:bg-red-100/50 border-l-2 border-red-300";
                       statusTitle = "Horário indisponível (folga)";
-                      statusIcon = <X className="w-4 h-4 text-red-400 opacity-50" />;
+                      statusIcon = <Coffee className="w-3 h-3 text-red-400 opacity-60" />;
                       break;
                     case 'nao_configurado':
                       statusClasses = "cursor-not-allowed bg-gray-100/50 hover:bg-gray-200/50";
                       statusTitle = "Horário não configurado";
-                      statusIcon = <X className="w-4 h-4 text-gray-400 opacity-50" />;
+                      statusIcon = <X className="w-3 h-3 text-gray-400 opacity-50" />;
                       break;
                   }
+                } else if (viewType === 'recursos') {
+                  statusClasses = "cursor-pointer hover:bg-orange-50/30";
+                  statusTitle = "Duplo clique para agendar neste recurso";
                 }
                 
                 return (
@@ -245,7 +286,7 @@ export const SchedulerGrid = ({
                     title={statusTitle}
                   >
                     {statusIcon && (
-                      <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="absolute top-1 right-1">
                         {statusIcon}
                       </div>
                     )}

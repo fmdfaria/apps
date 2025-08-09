@@ -24,10 +24,18 @@ import {
 import type { Agendamento } from '@/types/Agendamento';
 import { getAgendamentos } from '@/services/agendamentos';
 import { AtenderAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
+import api from '@/services/api';
+import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
+import { AppToast } from '@/services/toast';
 
 export const AtenderPage = () => {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Estados para controle de permissões RBAC
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [canAtender, setCanAtender] = useState(true);
   const [busca, setBusca] = useState('');
   const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
   const [showAtenderAgendamento, setShowAtenderAgendamento] = useState(false);
@@ -50,6 +58,7 @@ export const AtenderPage = () => {
   });
 
   useEffect(() => {
+    checkPermissions();
     carregarAgendamentos();
   }, []);
 
@@ -57,13 +66,57 @@ export const AtenderPage = () => {
     setPaginaAtual(1);
   }, [busca, itensPorPagina, filtros]);
 
+  const checkPermissions = async () => {
+    try {
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data;
+      
+      // Verificar apenas a permissão específica desta página
+      const canAtender = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos-atender/:id' && route.method.toLowerCase() === 'put';
+      });
+      
+      setCanAtender(canAtender);
+      
+      // Se não tem permissão de atendimento, marca como access denied
+      if (!canAtender) {
+        setAccessDenied(true);
+      }
+      
+    } catch (error: any) {
+      // Em caso de erro, desabilita tudo por segurança
+      setCanAtender(false);
+      
+      // Se retornar 401/403 no endpoint de permissões, considera acesso negado
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setAccessDenied(true);
+      }
+    }
+  };
+
   const carregarAgendamentos = async () => {
+    // Não verifica canRead aqui pois a verificação é apenas para a permissão de atendimento
     setLoading(true);
+    setAgendamentos([]); // Limpa agendamentos para evitar mostrar dados antigos
     try {
       const dados = await getAgendamentos();
       setAgendamentos(dados);
-    } catch (error) {
-      console.error('Erro ao carregar agendamentos:', error);
+    } catch (e: any) {
+      if (e?.response?.status === 403) {
+        setAccessDenied(true);
+        // Buscar informações da rota para mensagem mais específica
+        try {
+          const info = await getRouteInfo('/agendamentos-atender/:id', 'PUT');
+          setRouteInfo(info);
+        } catch (routeError) {
+          // Erro ao buscar informações da rota
+        }
+        // Não mostra toast aqui pois o interceptor já cuida disso
+      } else {
+        AppToast.error('Erro ao carregar agendamentos', {
+          description: 'Ocorreu um problema ao carregar a lista de agendamentos. Tente novamente.'
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -235,14 +288,26 @@ export const AtenderPage = () => {
                   >
                     Prontuário
                   </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    className="flex-1 h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
-                    onClick={() => handleAtender(agendamento)}
-                  >
-                    Finalizar Atendimento
-                  </Button>
+                  {canAtender ? (
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="flex-1 h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
+                      onClick={() => handleAtender(agendamento)}
+                      title="Finalizar Atendimento"
+                    >
+                      Finalizar Atendimento
+                    </Button>
+                  ) : (
+                    <Button 
+                      size="sm" 
+                      disabled={true}
+                      className="flex-1 h-7 text-xs border-gray-300 text-gray-400 cursor-not-allowed"
+                      title="Você não tem permissão para finalizar atendimentos"
+                    >
+                      Finalizar Atendimento
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -397,15 +462,27 @@ export const AtenderPage = () => {
                       >
                         <ClipboardList className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                        onClick={() => handleAtender(agendamento)}
-                        title="Finalizar Atendimento"
-                      >
-                        <CheckSquare className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
-                      </Button>
+                      {canAtender ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                          onClick={() => handleAtender(agendamento)}
+                          title="Finalizar Atendimento"
+                        >
+                          <CheckSquare className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={true}
+                          className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                          title="Você não tem permissão para finalizar atendimentos"
+                        >
+                          <CheckSquare className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -422,6 +499,38 @@ export const AtenderPage = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
           <p className="text-gray-500">Carregando agendamentos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Tela de acesso negado
+  if (accessDenied) {
+    return (
+      <div className="pt-2 pl-6 pr-6 h-full flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">🚫</span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Acesso Negado</h2>
+          <p className="text-gray-600 mb-4">
+            Você não tem permissão para acessar esta funcionalidade.
+          </p>
+          
+          {routeInfo && (
+            <div className="bg-gray-50 p-4 rounded-lg mb-4">
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">Informações da Rota:</h3>
+              <div className="space-y-1 text-sm">
+                <p><span className="font-medium">Rota:</span> {routeInfo.path}</p>
+                <p><span className="font-medium">Método:</span> {routeInfo.method}</p>
+                <p><span className="font-medium">Módulo:</span> {routeInfo.modulo || 'N/A'}</p>
+              </div>
+            </div>
+          )}
+          
+          <p className="text-sm text-gray-500">
+            Entre em contato com o administrador do sistema para solicitar as devidas permissões.
+          </p>
         </div>
       </div>
     );
@@ -652,7 +761,8 @@ export const AtenderPage = () => {
       </div>
 
       {/* Paginação */}
-      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
+      {agendamentosFiltrados.length > 0 && (
+        <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-600 flex items-center gap-2">
             <span className="text-lg">📊</span>
@@ -675,49 +785,57 @@ export const AtenderPage = () => {
           Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, agendamentosFiltrados.length)} de {agendamentosFiltrados.length} resultados
         </div>
 
-        {totalPaginas > 1 && (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
-              disabled={paginaAtual === 1}
-              className="border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-            >
-              <span className="mr-1 text-gray-600 group-hover:text-blue-600 transition-colors">⬅️</span>
-              Anterior
-            </Button>
-            {(() => {
-              const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
-              const endPage = Math.min(totalPaginas, startPage + 4);
-              return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
-                <Button
-                  key={page}
-                  variant={page === paginaAtual ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPaginaAtual(page)}
-                  className={page === paginaAtual 
-                    ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg font-semibold" 
-                    : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-                  }
-                >
-                  {page}
-                </Button>
-              ));
-            })()}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
-              disabled={paginaAtual === totalPaginas}
-              className="border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-            >
-              Próximo
-              <span className="ml-1 text-gray-600 group-hover:text-blue-600 transition-colors">➡️</span>
-            </Button>
-          </div>
-        )}
-      </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
+            disabled={paginaAtual === 1 || totalPaginas === 1}
+            className={(paginaAtual === 1 || totalPaginas === 1)
+              ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50" 
+              : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+            }
+          >
+            <span className="mr-1 text-gray-600 group-hover:text-blue-600 transition-colors">⬅️</span>
+            Anterior
+          </Button>
+          {(() => {
+            const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
+            const endPage = Math.min(totalPaginas, startPage + 4);
+            return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
+              <Button
+                key={page}
+                variant={page === paginaAtual ? "default" : "outline"}
+                size="sm"
+                onClick={() => totalPaginas > 1 ? setPaginaAtual(page) : undefined}
+                disabled={totalPaginas === 1}
+                className={page === paginaAtual 
+                  ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg font-semibold" 
+                  : totalPaginas === 1
+                  ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
+                  : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+                }
+              >
+                {page}
+              </Button>
+            ));
+          })()}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
+            disabled={paginaAtual === totalPaginas || totalPaginas === 1}
+            className={(paginaAtual === totalPaginas || totalPaginas === 1)
+              ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
+              : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+            }
+          >
+            Próximo
+            <span className="ml-1 text-gray-600 group-hover:text-blue-600 transition-colors">➡️</span>
+          </Button>
+        </div>
+        </div>
+      )}
 
       {/* Modais */}
       <AtenderAgendamentoModal
