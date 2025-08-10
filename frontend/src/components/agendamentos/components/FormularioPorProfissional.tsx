@@ -10,7 +10,6 @@ import { getAllDisponibilidades } from '@/services/disponibilidades';
 import { getRecursosByDate, type RecursoComAgendamentos } from '@/services/recursos';
 import type { AgendamentoFormContext } from '../types/agendamento-form';
 import type { TipoAtendimento } from '@/types/Agendamento';
-import type { DisponibilidadeProfissional } from '@/types/DisponibilidadeProfissional';
 
 interface FormularioPorProfissionalProps {
   context: AgendamentoFormContext;
@@ -147,15 +146,15 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
     }
   }, [dataAgendamento, profissionais]);
 
-  // Função para verificar disponibilidade dos recursos
+  // Função para verificar disponibilidade dos recursos usando a nova API
   const verificarDisponibilidadeRecursos = async () => {
-    if (!dataAgendamento || !horaAgendamento || recursos.length === 0) {
+    if (!dataAgendamento || !horaAgendamento) {
       setRecursosVerificados({});
       return;
     }
 
     try {
-      // Usar a nova API que já retorna os recursos com seus agendamentos
+      // Chamar a nova API que já retorna os recursos com seus agendamentos para a data
       const recursosComAgendamentos = await getRecursosByDate(dataAgendamento);
       
       // Parse do horário selecionado
@@ -190,7 +189,7 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
         if (agendamentoConflitante) {
           verificacoes[recurso.id] = { 
             disponivel: false, 
-            ocupadoPor: agendamentoConflitante.pacienteNome || 'Paciente não identificado'
+            ocupadoPor: agendamentoConflitante.profissionalNome || 'Profissional não identificado'
           };
         } else {
           verificacoes[recurso.id] = { disponivel: true };
@@ -204,10 +203,10 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
     }
   };
 
-  // Verificar recursos quando data, hora ou recursos mudarem
+  // Verificar recursos quando data e hora mudarem
   useEffect(() => {
     verificarDisponibilidadeRecursos();
-  }, [dataAgendamento, horaAgendamento, recursos]);
+  }, [dataAgendamento, horaAgendamento]);
 
   return (
     <>
@@ -498,14 +497,14 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                       return {
                         id: r.id,
                         nome: r.nome,
-                        sigla: verificacao && !verificacao.disponivel ? `Ocupado: ${verificacao.ocupadoPor}` : undefined
+                        sigla: verificacao && !verificacao.disponivel ? `Em uso: ${verificacao.ocupadoPor}` : undefined
                       };
                     }) : []}
                     selected={recursos.find(r => r.id === formData.recursoId) ? {
                       id: formData.recursoId,
                       nome: recursos.find(r => r.id === formData.recursoId)?.nome || '',
                       sigla: recursosVerificados[formData.recursoId] && !recursosVerificados[formData.recursoId].disponivel ? 
-                        `Ocupado: ${recursosVerificados[formData.recursoId].ocupadoPor}` : undefined
+                        `Em uso: ${recursosVerificados[formData.recursoId].ocupadoPor}` : undefined
                     } : null}
                     onChange={(selected) => {
                       const recursoId = selected?.id || '';

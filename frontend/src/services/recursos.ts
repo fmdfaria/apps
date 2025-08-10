@@ -4,10 +4,11 @@ import type { Recurso } from '@/types/Recurso';
 export interface RecursoComAgendamentos {
   id: string;
   nome: string;
-  descricao?: string;
+  descricao?: string | null;
   agendamentos: Array<{
     id: string;
     pacienteNome?: string;
+    profissionalNome?: string;
     horaInicio: string;
     horaFim: string;
     status: string;

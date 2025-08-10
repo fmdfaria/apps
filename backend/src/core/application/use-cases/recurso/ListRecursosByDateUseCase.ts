@@ -9,10 +9,11 @@ interface IRequest {
 interface IResponse {
   id: string;
   nome: string;
-  descricao?: string;
+  descricao?: string | null;
   agendamentos: Array<{
     id: string;
     pacienteNome?: string;
+    profissionalNome?: string;
     horaInicio: string;
     horaFim: string;
     status: string;
@@ -63,7 +64,8 @@ export class ListRecursosByDateUseCase {
 
             return {
               id: agendamento.id,
-              pacienteNome: agendamento.pacienteNome,
+              pacienteNome: agendamento.paciente?.nomeCompleto,
+              profissionalNome: agendamento.profissional?.nome,
               horaInicio: dataHoraInicio.toTimeString().substring(0, 5), // HH:MM
               horaFim: dataHoraFim.toTimeString().substring(0, 5), // HH:MM
               status: agendamento.status
