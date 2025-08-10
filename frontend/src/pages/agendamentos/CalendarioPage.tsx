@@ -96,6 +96,9 @@ export const CalendarioPage = () => {
   const [filtroCalendarioAberto, setFiltroCalendarioAberto] = useState(true);
   const [filtroProfissionaisAberto, setFiltroProfissionaisAberto] = useState(false);
   const [filtroRecursosAberto, setFiltroRecursosAberto] = useState(false);
+  
+  // Estado para filtro de funcionários ativos
+  const [filtrarFuncionariosAtivos, setFiltrarFuncionariosAtivos] = useState(false);
 
   // Funções de controle do formulário
   const handleFecharTodosModais = () => {
@@ -321,20 +324,55 @@ export const CalendarioPage = () => {
     return status === 'disponivel';
   };
 
-  // Converter profissionais para o formato do calendário
-  const calendarProfissionais: CalendarProfissional[] = profissionais.map((prof, index) => {
-    const cores = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4', '#F97316', '#84CC16'];
-    const cor = cores[index % cores.length];
+  // Função para verificar se um profissional tem disponibilidade configurada para uma data específica
+  const profissionalTemDisponibilidade = (profissionalId: string, data: Date): boolean => {
+    const diaSemana = data.getDay(); // 0 = domingo, 1 = segunda, etc.
     
-    return {
-      id: prof.id,
-      nome: prof.nome,
-      avatar: prof.nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
-      horarioInicio: '08:00',
-      horarioFim: '18:00',
-      cor
-    };
-  });
+    // Filtrar disponibilidades do profissional
+    const disponibilidadesProfissional = disponibilidades.filter(d => d.profissionalId === profissionalId);
+    
+    // Verificar se há dataEspecifica para esta data
+    const temDataEspecifica = disponibilidadesProfissional.some(d => {
+      if (!d.dataEspecifica) return false;
+      
+      const dataDisponibilidade = new Date(d.dataEspecifica);
+      const dataParametro = new Date(data);
+      
+      return dataDisponibilidade.getFullYear() === dataParametro.getFullYear() &&
+             dataDisponibilidade.getMonth() === dataParametro.getMonth() &&
+             dataDisponibilidade.getDate() === dataParametro.getDate();
+    });
+    
+    // Verificar se há horário semanal para este dia
+    const temHorarioSemanal = disponibilidadesProfissional.some(d => 
+      d.diaSemana !== null && d.diaSemana === diaSemana && !d.dataEspecifica
+    );
+    
+    return temDataEspecifica || temHorarioSemanal;
+  };
+
+  // Converter profissionais para o formato do calendário
+  const calendarProfissionais: CalendarProfissional[] = profissionais
+    .filter(prof => {
+      // Se o filtro de funcionários ativos está ativo, só mostrar profissionais com disponibilidade
+      if (filtrarFuncionariosAtivos) {
+        return profissionalTemDisponibilidade(prof.id, currentDate);
+      }
+      return true;
+    })
+    .map((prof, index) => {
+      const cores = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4', '#F97316', '#84CC16'];
+      const cor = cores[index % cores.length];
+      
+      return {
+        id: prof.id,
+        nome: prof.nome,
+        avatar: prof.nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+        horarioInicio: '08:00',
+        horarioFim: '18:00',
+        cor
+      };
+    });
 
   // Converter recursos para o formato do calendário
   const calendarRecursos: CalendarProfissional[] = recursos.map((recurso, index) => {
@@ -453,6 +491,7 @@ export const CalendarioPage = () => {
               Recursos
             </Button>
           </div>
+
           
           <Button 
             className="bg-blue-600 hover:bg-blue-700"
@@ -792,15 +831,38 @@ export const CalendarioPage = () => {
                   />
                 </div>
                 
-                <Button 
-                  variant="outline"
-                  size="sm"
-                  className="h-9 px-3 bg-blue-600 hover:bg-blue-700 text-white"
-                  onClick={() => setCurrentDate(new Date())}
-                >
-                  <CalendarIcon className="w-4 h-4 mr-1" />
-                  Hoje
-                </Button>
+                <div className="flex items-center gap-2">
+                  {/* Botão Ativos - apenas para visualização de profissionais */}
+                  {gridViewType === 'profissionais' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={filtrarFuncionariosAtivos 
+                        ? "h-9 px-3 bg-green-600 hover:bg-green-700 text-white" 
+                        : "h-9 px-3 border-green-600 text-green-600 hover:bg-green-600 hover:text-white"
+                      }
+                      onClick={() => setFiltrarFuncionariosAtivos(!filtrarFuncionariosAtivos)}
+                    >
+                      <Users className="w-4 h-4 mr-1" />
+                      Ativos
+                      {filtrarFuncionariosAtivos && (
+                        <span className="ml-2 bg-green-200 text-green-800 px-2 py-1 rounded-full text-xs font-semibold">
+                          {calendarProfissionais.length}
+                        </span>
+                      )}
+                    </Button>
+                  )}
+                  
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-3 bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => setCurrentDate(new Date())}
+                  >
+                    <CalendarIcon className="w-4 h-4 mr-1" />
+                    Hoje
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0 flex-1 min-h-0">

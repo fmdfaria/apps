@@ -1,12 +1,16 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar, Clock, User, Users, Stethoscope, CreditCard, MapPin, Smartphone } from 'lucide-react';
 import { OPCOES_HORARIOS } from '../utils/agendamento-constants';
 import { useVerificacaoAgendamento } from '@/hooks/useVerificacaoAgendamento';
+import { getAgendamentos } from '@/services/agendamentos';
+import { getAllDisponibilidades } from '@/services/disponibilidades';
+import { getRecursosByDate, type RecursoComAgendamentos } from '@/services/recursos';
 import type { AgendamentoFormContext } from '../types/agendamento-form';
 import type { TipoAtendimento } from '@/types/Agendamento';
+import type { DisponibilidadeProfissional } from '@/types/DisponibilidadeProfissional';
 
 interface FormularioPorProfissionalProps {
   context: AgendamentoFormContext;
@@ -17,6 +21,12 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
   const { formData, dataAgendamento, horaAgendamento } = state;
   const { profissionais, pacientes, convenios, servicos, recursos, conveniosDoProfissional, servicosDoProfissional } = dataState;
   const { loadingData } = loadingState;
+
+  // Estado para armazenar ocupações semanais dos profissionais
+  const [ocupacoesSemana, setOcupacoesSemana] = useState<{ [profissionalId: string]: { ocupados: number, total: number, percentual: number } }>({});
+
+  // Estado para armazenar verificação de disponibilidade dos recursos
+  const [recursosVerificados, setRecursosVerificados] = useState<{ [recursoId: string]: { disponivel: boolean, ocupadoPor?: string } }>({});
 
   // Hook para verificação de disponibilidade
   const {
@@ -34,6 +44,170 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
       verificarHorarios(formData.profissionalId, dataObj);
     }
   }, [formData.profissionalId, dataAgendamento, verificarHorarios]);
+
+  // Função para calcular ocupação semanal de um profissional
+  const calcularOcupacaoSemanal = async (profissionalId: string, semanaData: Date): Promise<{ ocupados: number, total: number, percentual: number }> => {
+    try {
+      // Calcular primeiro e último dia da semana (segunda a domingo)
+      const inicioDaSemana = new Date(semanaData);
+      const diaSemana = inicioDaSemana.getDay();
+      const diasParaSegunda = diaSemana === 0 ? -6 : 1 - diaSemana; // Se domingo, volta 6 dias
+      inicioDaSemana.setDate(inicioDaSemana.getDate() + diasParaSegunda);
+      inicioDaSemana.setHours(0, 0, 0, 0);
+
+      const fimDaSemana = new Date(inicioDaSemana);
+      fimDaSemana.setDate(fimDaSemana.getDate() + 6);
+      fimDaSemana.setHours(23, 59, 59, 999);
+
+      // Buscar disponibilidades e agendamentos
+      const [disponibilidades, agendamentos] = await Promise.all([
+        getAllDisponibilidades(),
+        getAgendamentos()
+      ]);
+
+      // Filtrar disponibilidades do profissional
+      const disponibilidadesProfissional = disponibilidades.filter(d => d.profissionalId === profissionalId);
+      
+      // Calcular total de slots disponíveis na semana (em slots de 30 min)
+      let totalSlotsDisponiveis = 0;
+      
+      for (let dia = new Date(inicioDaSemana); dia <= fimDaSemana; dia.setDate(dia.getDate() + 1)) {
+        const diaSemanaNum = dia.getDay();
+        
+        // Verificar disponibilidades para este dia
+        const disponibilidadesDoDia = disponibilidadesProfissional.filter(d => {
+          // Data específica tem prioridade
+          if (d.dataEspecifica) {
+            const dataDisp = new Date(d.dataEspecifica);
+            return dataDisp.getDate() === dia.getDate() && 
+                   dataDisp.getMonth() === dia.getMonth() && 
+                   dataDisp.getFullYear() === dia.getFullYear();
+          }
+          // Senão, usar dia da semana
+          return d.diaSemana === diaSemanaNum;
+        });
+
+        // Somar slots disponíveis (apenas presencial e online)
+        disponibilidadesDoDia.forEach(d => {
+          if (d.tipo === 'presencial' || d.tipo === 'online') {
+            const horaInicio = d.horaInicio.getHours() * 60 + d.horaInicio.getMinutes();
+            const horaFim = d.horaFim.getHours() * 60 + d.horaFim.getMinutes();
+            const slotsNoPeriodo = (horaFim - horaInicio) / 30; // Slots de 30 min
+            totalSlotsDisponiveis += slotsNoPeriodo;
+          }
+        });
+      }
+
+      // Filtrar agendamentos do profissional na semana
+      const agendamentosDaSemana = agendamentos.filter(agendamento => {
+        if (agendamento.profissionalId !== profissionalId) return false;
+        
+        const dataAgendamento = new Date(agendamento.dataHoraInicio);
+        return dataAgendamento >= inicioDaSemana && dataAgendamento <= fimDaSemana;
+      });
+
+      // Calcular slots ocupados (assumindo 30 min por agendamento como padrão)
+      const slotsOcupados = agendamentosDaSemana.length; // Simplificado por agora
+
+      // Calcular percentual
+      const percentual = totalSlotsDisponiveis === 0 ? 0 : Math.round((slotsOcupados / totalSlotsDisponiveis) * 100);
+      
+      return {
+        ocupados: slotsOcupados,
+        total: totalSlotsDisponiveis,
+        percentual
+      };
+
+    } catch (error) {
+      console.error('Erro ao calcular ocupação semanal:', error);
+      return { ocupados: 0, total: 0, percentual: 0 };
+    }
+  };
+
+  // Calcular ocupações quando data for selecionada
+  useEffect(() => {
+    if (dataAgendamento && profissionais.length > 0) {
+      const [ano, mes, dia] = dataAgendamento.split('-').map(Number);
+      const dataObj = new Date(ano, mes - 1, dia);
+      
+      // Calcular ocupação para todos os profissionais
+      Promise.all(
+        profissionais.map(async (prof) => {
+          const ocupacao = await calcularOcupacaoSemanal(prof.id, dataObj);
+          return { id: prof.id, ocupacao };
+        })
+      ).then(resultados => {
+        const ocupacoesMap = resultados.reduce((acc, { id, ocupacao }) => {
+          acc[id] = ocupacao;
+          return acc;
+        }, {} as { [id: string]: { ocupados: number, total: number, percentual: number } });
+        
+        setOcupacoesSemana(ocupacoesMap);
+      });
+    }
+  }, [dataAgendamento, profissionais]);
+
+  // Função para verificar disponibilidade dos recursos
+  const verificarDisponibilidadeRecursos = async () => {
+    if (!dataAgendamento || !horaAgendamento || recursos.length === 0) {
+      setRecursosVerificados({});
+      return;
+    }
+
+    try {
+      // Usar a nova API que já retorna os recursos com seus agendamentos
+      const recursosComAgendamentos = await getRecursosByDate(dataAgendamento);
+      
+      // Parse do horário selecionado
+      const [hora, minuto] = horaAgendamento.split(':').map(Number);
+      const horarioSelecionado = hora * 60 + minuto; // converter para minutos
+      
+      const verificacoes: { [recursoId: string]: { disponivel: boolean, ocupadoPor?: string } } = {};
+      
+      recursosComAgendamentos.forEach(recurso => {
+        // Recursos online sempre disponíveis
+        if (recurso.nome.toLowerCase().includes('online')) {
+          verificacoes[recurso.id] = { disponivel: true };
+          return;
+        }
+        
+        // Verificar se há agendamentos conflitantes para este recurso no horário selecionado
+        const agendamentoConflitante = recurso.agendamentos.find(agendamento => {
+          // Parse dos horários do agendamento
+          const [horaInicioAg, minutoInicioAg] = agendamento.horaInicio.split(':').map(Number);
+          const [horaFimAg, minutoFimAg] = agendamento.horaFim.split(':').map(Number);
+          
+          const inicioAgendamento = horaInicioAg * 60 + minutoInicioAg;
+          const fimAgendamento = horaFimAg * 60 + minutoFimAg;
+          
+          // Assumindo 30 minutos de duração para o novo agendamento
+          const fimNovoAgendamento = horarioSelecionado + 30;
+          
+          // Verificar sobreposição
+          return (horarioSelecionado < fimAgendamento && fimNovoAgendamento > inicioAgendamento);
+        });
+        
+        if (agendamentoConflitante) {
+          verificacoes[recurso.id] = { 
+            disponivel: false, 
+            ocupadoPor: agendamentoConflitante.pacienteNome || 'Paciente não identificado'
+          };
+        } else {
+          verificacoes[recurso.id] = { disponivel: true };
+        }
+      });
+      
+      setRecursosVerificados(verificacoes);
+    } catch (error) {
+      console.error('Erro ao verificar disponibilidade dos recursos:', error);
+      setRecursosVerificados({});
+    }
+  };
+
+  // Verificar recursos quando data, hora ou recursos mudarem
+  useEffect(() => {
+    verificarDisponibilidadeRecursos();
+  }, [dataAgendamento, horaAgendamento, recursos]);
 
   return (
     <>
@@ -55,12 +229,16 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                 options={profissionais.map(p => ({
                   id: p.id,
                   nome: p.nome,
-                  sigla: undefined
+                  sigla: ocupacoesSemana[p.id] !== undefined ? 
+                    `${ocupacoesSemana[p.id].ocupados} de ${ocupacoesSemana[p.id].total} (${ocupacoesSemana[p.id].percentual}%)` : 
+                    undefined
                 }))}
                 selected={profissionais.find(p => p.id === formData.profissionalId) ? {
                   id: formData.profissionalId,
                   nome: profissionais.find(p => p.id === formData.profissionalId)?.nome || '',
-                  sigla: undefined
+                  sigla: ocupacoesSemana[formData.profissionalId] !== undefined ? 
+                    `${ocupacoesSemana[formData.profissionalId].ocupados} de ${ocupacoesSemana[formData.profissionalId].total} (${ocupacoesSemana[formData.profissionalId].percentual}%)` : 
+                    undefined
                 } : null}
                 onChange={(selected) => {
                   const profissionalId = selected?.id || '';
@@ -74,7 +252,7 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                 }}
                 placeholder={loadingData ? "Carregando profissionais..." : "Buscar profissional..."}
                 headerText="Profissionais disponíveis"
-                formatOption={(option) => option.nome}
+                formatOption={(option) => option.sigla ? `${option.nome} - ${option.sigla}` : option.nome}
               />
             </div>
           </div>
@@ -315,13 +493,19 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                 </label>
                 <div className="w-full">
                   <SingleSelectDropdown
-                    options={formData.servicoId ? recursos.map(r => ({
-                      id: r.id,
-                      nome: r.nome
-                    })) : []}
+                    options={formData.servicoId ? recursos.map(r => {
+                      const verificacao = recursosVerificados[r.id];
+                      return {
+                        id: r.id,
+                        nome: r.nome,
+                        sigla: verificacao && !verificacao.disponivel ? `Ocupado: ${verificacao.ocupadoPor}` : undefined
+                      };
+                    }) : []}
                     selected={recursos.find(r => r.id === formData.recursoId) ? {
                       id: formData.recursoId,
-                      nome: recursos.find(r => r.id === formData.recursoId)?.nome || ''
+                      nome: recursos.find(r => r.id === formData.recursoId)?.nome || '',
+                      sigla: recursosVerificados[formData.recursoId] && !recursosVerificados[formData.recursoId].disponivel ? 
+                        `Ocupado: ${recursosVerificados[formData.recursoId].ocupadoPor}` : undefined
                     } : null}
                     onChange={(selected) => {
                       const recursoId = selected?.id || '';
@@ -344,6 +528,18 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                     }}
                     placeholder={!formData.servicoId ? "Selecione um serviço primeiro..." : loadingData ? "Carregando recursos..." : "Buscar recurso..."}
                     headerText="Recursos disponíveis"
+                    formatOption={(option) => {
+                      return option.sigla ? `${option.nome} - ${option.sigla}` : option.nome;
+                    }}
+                    getDotColor={(option) => {
+                      const verificacao = recursosVerificados[option.id];
+                      if (!verificacao) return 'blue';
+                      return verificacao.disponivel ? 'green' : 'red';
+                    }}
+                    getDisabled={(option) => {
+                      const verificacao = recursosVerificados[option.id];
+                      return verificacao ? !verificacao.disponivel : false;
+                    }}
                   />
                 </div>
               </div>

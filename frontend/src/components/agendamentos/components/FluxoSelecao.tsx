@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, Calendar, ArrowLeft } from 'lucide-react';
+import { Users, Calendar, ArrowLeft, Plus } from 'lucide-react';
 import { FormularioPorProfissional } from './FormularioPorProfissional';
 import { FormularioPorData } from './FormularioPorData';
 import type { TipoFluxo, AgendamentoFormContext } from '../types/agendamento-form';
@@ -145,6 +145,45 @@ export const FluxoSelecao: React.FC<FluxoSelecaoProps> = ({
                 <FormularioPorData context={context} />
               ) : null}
             </div>
+
+            <DialogFooter className="mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleVoltarParaFluxo}
+                disabled={context?.loadingState.loading || context?.loadingState.loadingData}
+                className="border-2 border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 font-semibold px-6"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Voltar
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                disabled={context?.loadingState.loading || context?.loadingState.loadingData}
+                className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={context?.loadingState.loading || context?.loadingState.loadingData}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl font-semibold px-8"
+              >
+                {context?.loadingState.loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Criando...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Plus className="w-4 h-4" />
+                    Criar Agendamento
+                  </div>
+                )}
+              </Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       )}

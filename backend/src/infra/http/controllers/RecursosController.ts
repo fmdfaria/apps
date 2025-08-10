@@ -3,6 +3,7 @@ import { container } from 'tsyringe';
 import { z } from 'zod';
 import { CreateRecursoUseCase } from '../../../core/application/use-cases/recurso/CreateRecursoUseCase';
 import { ListRecursosUseCase } from '../../../core/application/use-cases/recurso/ListRecursosUseCase';
+import { ListRecursosByDateUseCase } from '../../../core/application/use-cases/recurso/ListRecursosByDateUseCase';
 import { UpdateRecursoUseCase } from '../../../core/application/use-cases/recurso/UpdateRecursoUseCase';
 import { DeleteRecursoUseCase } from '../../../core/application/use-cases/recurso/DeleteRecursoUseCase';
 
@@ -26,6 +27,20 @@ export class RecursosController {
     const listRecursosUseCase = container.resolve(ListRecursosUseCase);
 
     const recursos = await listRecursosUseCase.execute();
+
+    return reply.status(200).send(recursos);
+  }
+
+  async listByDate(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const listRecursosByDateQuerySchema = z.object({
+      data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data deve estar no formato YYYY-MM-DD'),
+    });
+
+    const { data } = listRecursosByDateQuerySchema.parse(request.query);
+
+    const listRecursosByDateUseCase = container.resolve(ListRecursosByDateUseCase);
+
+    const recursos = await listRecursosByDateUseCase.execute({ data });
 
     return reply.status(200).send(recursos);
   }

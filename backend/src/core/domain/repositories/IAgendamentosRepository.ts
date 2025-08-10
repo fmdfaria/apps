@@ -30,5 +30,6 @@ export interface IAgendamentosRepository {
   findById(id: string): Promise<Agendamento | null>;
   findAll(filters?: Partial<{ profissionalId: string; pacienteId: string; dataHoraInicio: Date; status: string }>): Promise<Agendamento[]>;
   findByProfissionalAndDataHoraInicio(profissionalId: string, dataHoraInicio: Date): Promise<Agendamento | null>;
+  findByRecursoAndDateRange(recursoId: string, dataInicio: Date, dataFim: Date): Promise<Agendamento[]>;
   delete(id: string): Promise<void>;
 } 

@@ -125,26 +125,28 @@ export const AppointmentCard = ({
           onDragEnd={onDragEnd}
         >
           <div className={`h-full flex flex-col justify-between ${isLongerAppointment ? 'p-2' : 'p-1'}`}>
-            {/* Primeira linha: Paciente */}
-            <div className={`font-medium truncate leading-tight ${isLongerAppointment ? 'text-sm' : 'text-xs'}`}>
-              {appointment.paciente}
+            {/* Primeira linha: Nome Completo | Status */}
+            <div className="flex items-start justify-between gap-1">
+              <div className={`font-medium truncate leading-tight ${isLongerAppointment ? 'text-sm' : 'text-xs'}`}>
+                {appointment.paciente}
+              </div>
+              <div className="flex-shrink-0">
+                {getStatusBadge()}
+              </div>
             </div>
             
-            {/* Segunda linha: Serviço */}
-            <div className={`text-gray-600 truncate leading-tight ${isLongerAppointment ? 'text-sm' : 'text-xs'}`}>
-              {appointment.servico}
-            </div>
-            
-            {/* Terceira linha: Status + Profissional/Recursos */}
-            <div className={`flex items-center justify-between ${isLongerAppointment ? 'mt-2' : 'mt-1'}`}>
-              <div className={isLongerAppointment ? 'text-sm' : 'text-xs'}>{getStatusBadge()}</div>
+            {/* Segunda linha: Serviço | Recurso */}
+            <div className="flex items-start justify-between gap-1">
+              <div className={`text-gray-600 truncate leading-tight ${isLongerAppointment ? 'text-sm' : 'text-xs'}`}>
+                {appointment.servico}
+              </div>
               {viewType === 'profissionais' && appointment.recursoNome && (
-                <div className={`text-gray-500 truncate ${isLongerAppointment ? 'text-sm' : 'text-xs'}`}>
+                <div className={`text-gray-500 truncate flex-shrink-0 ${isLongerAppointment ? 'text-sm' : 'text-xs'}`}>
                   {appointment.recursoNome}
                 </div>
               )}
               {viewType === 'recursos' && appointment.profissionalNome && (
-                <div className={`text-gray-500 truncate ${isLongerAppointment ? 'text-sm' : 'text-xs'}`}>
+                <div className={`text-gray-500 truncate flex-shrink-0 ${isLongerAppointment ? 'text-sm' : 'text-xs'}`}>
                   {appointment.profissionalNome}
                 </div>
               )}

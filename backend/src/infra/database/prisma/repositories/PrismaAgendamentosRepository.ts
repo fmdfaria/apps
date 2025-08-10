@@ -73,6 +73,21 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     return agendamento ? toDomain(agendamento) : null;
   }
 
+  async findByRecursoAndDateRange(recursoId: string, dataInicio: Date, dataFim: Date): Promise<Agendamento[]> {
+    const agendamentos = await this.prisma.agendamento.findMany({
+      where: {
+        recursoId,
+        dataHoraInicio: {
+          gte: dataInicio,
+          lte: dataFim,
+        },
+      },
+      include: { servico: true, paciente: true, profissional: true, recurso: true, convenio: true },
+      orderBy: { dataHoraInicio: 'asc' },
+    });
+    return agendamentos.map(toDomain);
+  }
+
   async delete(id: string): Promise<void> {
     await this.prisma.agendamento.delete({ where: { id } });
   }

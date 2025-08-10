@@ -54,6 +54,7 @@ export const SchedulerGrid = ({
   const [draggedAppointment, setDraggedAppointment] = useState<string | null>(null);
   const timeColumnRef = useRef<HTMLDivElement>(null);
   const entitiesColumnsContainerRef = useRef<HTMLDivElement>(null);
+  const headerScrollRef = useRef<HTMLDivElement>(null);
 
   // Generate time slots (7:00 to 20:00 in 30-minute intervals)
   const timeSlots = [];
@@ -90,11 +91,11 @@ export const SchedulerGrid = ({
     return true;
   });
 
-  // Sync scroll between time column and entity columns
+  // Sync scroll between time column and entity columns (vertical) + header and content (horizontal)
   useEffect(() => {
     let scrollTimeout: NodeJS.Timeout;
     
-    const handleScroll = (e: Event) => {
+    const handleVerticalScroll = (e: Event) => {
       const target = e.target as HTMLElement;
       if (timeColumnRef.current && target !== timeColumnRef.current) {
         // Immediate sync
@@ -110,13 +111,35 @@ export const SchedulerGrid = ({
       }
     };
 
+    const handleHorizontalScroll = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (headerScrollRef.current && target !== headerScrollRef.current) {
+        headerScrollRef.current.scrollLeft = target.scrollLeft;
+      }
+      if (entitiesColumnsContainerRef.current && target !== entitiesColumnsContainerRef.current) {
+        entitiesColumnsContainerRef.current.scrollLeft = target.scrollLeft;
+      }
+    };
+
     const entitiesContainer = entitiesColumnsContainerRef.current;
+    const headerContainer = headerScrollRef.current;
 
     if (entitiesContainer && timeColumnRef.current) {
-      entitiesContainer.addEventListener('scroll', handleScroll, { passive: true });
+      // Vertical scroll sync
+      entitiesContainer.addEventListener('scroll', handleVerticalScroll, { passive: true });
+      
+      // Horizontal scroll sync
+      entitiesContainer.addEventListener('scroll', handleHorizontalScroll, { passive: true });
+      if (headerContainer) {
+        headerContainer.addEventListener('scroll', handleHorizontalScroll, { passive: true });
+      }
 
       return () => {
-        entitiesContainer.removeEventListener('scroll', handleScroll);
+        entitiesContainer.removeEventListener('scroll', handleVerticalScroll);
+        entitiesContainer.removeEventListener('scroll', handleHorizontalScroll);
+        if (headerContainer) {
+          headerContainer.removeEventListener('scroll', handleHorizontalScroll);
+        }
         clearTimeout(scrollTimeout);
       };
     }
@@ -190,26 +213,32 @@ export const SchedulerGrid = ({
       {/* Entity Columns */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Fixed Headers */}
-        <div className="flex bg-white border-b h-16 flex-shrink-0 z-30 shadow-sm">
-          {filteredEntities.map((entity) => (
-            <div
-              key={entity.id}
-              className="min-w-[200px] flex-1 border-r border-gray-200 p-3 flex items-center gap-3"
-            >
-              <div 
-                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white"
-                style={{ backgroundColor: entity.cor }}
+        <div 
+          ref={headerScrollRef}
+          className="bg-white border-b h-16 flex-shrink-0 z-30 shadow-sm overflow-x-auto overflow-y-hidden"
+          style={{ 
+            scrollbarWidth: 'none', 
+            msOverflowStyle: 'none'
+          }}
+        >
+          <div className="flex min-w-max">
+            {filteredEntities.map((entity) => (
+              <div
+                key={entity.id}
+                className="w-[250px] border-r border-gray-200 p-3 flex items-center justify-start gap-3 flex-shrink-0"
               >
-                {entity.avatar}
-              </div>
-              <div>
-                <div className="font-semibold text-gray-900 text-sm">{entity.nome}</div>
-                <div className="text-xs text-gray-500">
-                  {entity.horarioInicio} - {entity.horarioFim}
+                <div 
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+                  style={{ backgroundColor: entity.cor }}
+                >
+                  {entity.avatar}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-gray-900 text-sm truncate">{entity.nome}</div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Scrollable Content */}
@@ -226,7 +255,7 @@ export const SchedulerGrid = ({
             {filteredEntities.map((entity) => (
             <div
               key={entity.id}
-              className="min-w-[200px] flex-1 border-r border-gray-200 relative bg-white flex-shrink-0"
+              className="w-[250px] border-r border-gray-200 relative bg-white flex-shrink-0"
             >
               {/* Time grid background */}
               {timeSlots.map((timeSlot, index) => {

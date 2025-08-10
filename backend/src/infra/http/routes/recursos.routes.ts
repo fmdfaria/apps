@@ -8,6 +8,10 @@ export async function recursosRoutes(app: FastifyInstance) {
   app.get('/recursos', { 
     preHandler: [ensureAuthenticated, ensureAuthorized('/recursos', 'GET')] 
   }, recursosController.list);
+
+  app.get('/recursos/by-date', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/recursos/by-date', 'GET')] 
+  }, recursosController.listByDate);
   
   app.put('/recursos/:id', { 
     preHandler: [ensureAuthenticated, ensureAuthorized('/recursos/:id', 'PUT')] 
