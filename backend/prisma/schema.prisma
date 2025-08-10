@@ -83,9 +83,9 @@ model Paciente {
   convenioId          String?                      @map("convenio_id") @db.Uuid
   numeroCarteirinha   String?                      @map("numero_carteirinha") @db.VarChar(50)
   dataPedidoMedico    DateTime?                    @map("data_pedido_medico") @db.Date
-  crm                 String?                      @db.VarChar(20)
-  cbo                 String?                      @db.VarChar(20)
-  cid                 String?                      @db.VarChar(20)
+  crm                 String?                      @db.VarChar(100)
+  cbo                 String?                      @db.VarChar(100)
+  cid                 String?                      @db.VarChar(255)
   userId              String?                      @map("user_id") @db.Uuid
   createdAt           DateTime?                    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime?                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
