@@ -4,6 +4,7 @@ import { Convenio } from './Convenio';
 export class Paciente {
   id!: string;
   nomeCompleto!: string;
+  nomeResponsavel?: string | null;
   email?: string | null;
   whatsapp?: string | null;
   cpf?: string | null;

@@ -7,6 +7,7 @@ import { IPacientesRepository } from '../../../domain/repositories/IPacientesRep
 interface IRequest {
   id: string;
   nomeCompleto: string;
+  nomeResponsavel?: string | null;
   tipoServico: string;
   email?: string | null;
   whatsapp?: string | null;
@@ -56,6 +57,7 @@ export class UpdatePacienteUseCase {
 
     // Atualiza o paciente com os novos dados
     paciente.nomeCompleto = data.nomeCompleto;
+    paciente.nomeResponsavel = data.nomeResponsavel;
     paciente.tipoServico = data.tipoServico;
     paciente.email = data.email;
     paciente.whatsapp = data.whatsapp;

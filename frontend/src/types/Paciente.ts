@@ -1,6 +1,7 @@
 export interface Paciente {
   id: string;
   nomeCompleto: string;
+  nomeResponsavel?: string | null;
   tipoServico: string;
   email?: string | null;
   whatsapp?: string | null;

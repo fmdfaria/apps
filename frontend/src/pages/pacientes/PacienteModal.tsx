@@ -8,6 +8,7 @@ import { useInputMask } from '@/hooks/useInputMask';
 
 interface FormPaciente {
   nomeCompleto: string;
+  nomeResponsavel: string;
   cpf: string;
   email: string;
   whatsapp: string;
@@ -51,12 +52,12 @@ export default function PacienteModal({
           </DialogHeader>
 
           <div className="mt-4 flex flex-col gap-6">
-            {/* Linha 1: Nome Completo | CPF */}
+            {/* Linha 1: Nome Completo | Nome do Responsável */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">👤</span>
-                  Nome Completo <span className="text-red-500">*</span>
+                  Nome Completo do Paciente <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -69,6 +70,38 @@ export default function PacienteModal({
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <span className="text-lg">👨‍👩‍👧</span>
+                  Nome do Responsável
+                </label>
+                <input
+                  type="text"
+                  value={form.nomeResponsavel}
+                  onChange={e => onFormChange({ nomeResponsavel: e.target.value })}
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
+                  placeholder="Nome do responsável (opcional)"
+                  disabled={formLoading}
+                />
+              </div>
+            </div>
+
+            {/* Linha 2: CPF | WhatsApp */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <span className="text-lg">📱</span>
+                  WhatsApp <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={form.whatsapp}
+                  onChange={e => onFormChange({ whatsapp: maskTelefone(e.target.value) })}
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
+                  placeholder="+55 (11) 99999-9999"
+                  disabled={formLoading}
+                />
+              </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">🆔</span>
@@ -85,40 +118,7 @@ export default function PacienteModal({
               </div>
             </div>
 
-            {/* Linha 2: WhatsApp | E-mail */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <span className="text-lg">📱</span>
-                  WhatsApp <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={form.whatsapp}
-                  onChange={e => onFormChange({ whatsapp: maskTelefone(e.target.value) })}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
-                  placeholder="+55 (11) 99999-9999"
-                  disabled={formLoading}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <span className="text-lg">📧</span>
-                  E-mail
-                </label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={e => onFormChange({ email: e.target.value })}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
-                  placeholder="nome@email.com"
-                  disabled={formLoading}
-                />
-              </div>
-            </div>
-
-            {/* Linha 3: Tipo de Serviço | Data de Nascimento */}
+            {/* Linha 3: E-mail | Tipo de Serviço */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -144,7 +144,24 @@ export default function PacienteModal({
                   />
                 </div>
               </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <span className="text-lg">📧</span>
+                  E-mail
+                </label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={e => onFormChange({ email: e.target.value })}
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
+                  placeholder="nome@email.com"
+                  disabled={formLoading}
+                />
+              </div>
+            </div>
 
+            {/* Linha 4: Data de Nascimento */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">🎂</span>
@@ -158,6 +175,7 @@ export default function PacienteModal({
                   disabled={formLoading}
                 />
               </div>
+              <div></div>
             </div>
 
             {/* Footer */}

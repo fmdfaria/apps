@@ -78,6 +78,7 @@ export const PacientesPage = () => {
   const [editando, setEditando] = useState<Paciente | null>(null);
   const [form, setForm] = useState({
     nomeCompleto: '',
+    nomeResponsavel: '',
     cpf: '',
     email: '',
     whatsapp: '',
@@ -468,7 +469,7 @@ export const PacientesPage = () => {
   // Funções dos modais existentes
   const abrirModalNovo = () => {
     setEditando(null);
-    setForm({ nomeCompleto: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '' });
+    setForm({ nomeCompleto: '', nomeResponsavel: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '' });
     setFormError('');
     setShowModal(true);
   };
@@ -477,6 +478,7 @@ export const PacientesPage = () => {
     setEditando(p);
     setForm({
       nomeCompleto: p.nomeCompleto || '',
+      nomeResponsavel: p.nomeResponsavel || '',
       cpf: p.cpf || '',
       email: p.email || '',
       whatsapp: maskTelefone(p.whatsapp || ''),
@@ -490,7 +492,7 @@ export const PacientesPage = () => {
   const fecharModal = () => {
     setShowModal(false);
     setEditando(null);
-    setForm({ nomeCompleto: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '' });
+    setForm({ nomeCompleto: '', nomeResponsavel: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '' });
     setFormError('');
   };
 
@@ -895,6 +897,7 @@ export const PacientesPage = () => {
           const whatsappNumeros = form.whatsapp.replace(/\D/g, '');
           const pacientePayload: any = {
             nomeCompleto: form.nomeCompleto,
+            nomeResponsavel: form.nomeResponsavel.trim() || null,
             cpf: form.cpf.trim() || null,
             email: form.email.trim() || null,
             whatsapp: whatsappNumeros,

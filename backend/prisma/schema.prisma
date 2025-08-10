@@ -74,6 +74,7 @@ model Profissional {
 model Paciente {
   id                  String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nomeCompleto        String                       @map("nome_completo") @db.VarChar(150)
+  nomeResponsavel     String?                      @map("nome_responsavel") @db.VarChar(150)
   email               String?                      @unique @db.VarChar(100)
   whatsapp            String                       @db.VarChar(20)
   cpf                 String?                      @unique @db.VarChar(14)

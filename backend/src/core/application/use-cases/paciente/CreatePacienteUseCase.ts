@@ -6,6 +6,7 @@ import { IPacientesRepository } from '../../../domain/repositories/IPacientesRep
 
 interface IRequest {
   nomeCompleto: string;
+  nomeResponsavel?: string | null;
   tipoServico: string;
   email?: string | null;
   whatsapp?: string | null;
