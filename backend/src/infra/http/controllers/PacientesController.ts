@@ -8,9 +8,10 @@ import { DeletePacienteUseCase } from '../../../core/application/use-cases/pacie
 
 const bodySchema = z.object({
   nomeCompleto: z.string().min(3),
+  nomeResponsavel: z.string().optional().nullable(),
   tipoServico: z.string(),
   email: z.string().email().optional().nullable(),
-  whatsapp: z.string().optional().nullable(),
+  whatsapp: z.string(),
   cpf: z.string().optional().nullable(),
   dataNascimento: z.coerce.date().optional().nullable(),
   convenioId: z.string().uuid().optional().nullable(),
@@ -39,6 +40,9 @@ export class PacientesController {
         if (error.meta.target.includes('cpf')) {
           return reply.status(409).send({ message: 'Já existe um paciente com este CPF.' });
         }
+        if (error.meta.target.includes('nome_completo')) {
+          return reply.status(409).send({ message: 'Já existe um paciente com este nome completo.' });
+        }
       }
       throw error;
     }
@@ -51,12 +55,28 @@ export class PacientesController {
   }
 
   async update(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-    const updateParamsSchema = z.object({ id: z.string().uuid() });
-    const { id } = updateParamsSchema.parse(request.params);
-    const data = bodySchema.parse(request.body);
-    const useCase = container.resolve(UpdatePacienteUseCase);
-    const paciente = await useCase.execute({ id, ...data });
-    return reply.status(200).send(paciente);
+    try {
+      const updateParamsSchema = z.object({ id: z.string().uuid() });
+      const { id } = updateParamsSchema.parse(request.params);
+      const data = bodySchema.parse(request.body);
+      const useCase = container.resolve(UpdatePacienteUseCase);
+      const paciente = await useCase.execute({ id, ...data });
+      return reply.status(200).send(paciente);
+    } catch (error: any) {
+      // Prisma unique constraint error
+      if (error.code === 'P2002' && error.meta && error.meta.target) {
+        if (error.meta.target.includes('email')) {
+          return reply.status(409).send({ message: 'Já existe um paciente com este e-mail.' });
+        }
+        if (error.meta.target.includes('cpf')) {
+          return reply.status(409).send({ message: 'Já existe um paciente com este CPF.' });
+        }
+        if (error.meta.target.includes('nome_completo')) {
+          return reply.status(409).send({ message: 'Já existe um paciente com este nome completo.' });
+        }
+      }
+      throw error;
+    }
   }
 
   async delete(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
