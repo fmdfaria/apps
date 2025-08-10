@@ -56,4 +56,5 @@ export interface AgendamentoFormContext {
   carregarDados: () => Promise<void>;
   carregarDadosDoProfissional: (profissionalId: string) => Promise<void>;
   carregarProfissionaisPorServico: (servicoId: string) => Promise<void>;
+  handleSubmit: (e: React.FormEvent) => Promise<void>;
 } 

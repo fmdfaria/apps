@@ -19,6 +19,12 @@ interface UseAgendamentoFormProps {
   preenchimentoInicial?: {
     profissionalId?: string;
     dataHoraInicio?: string;
+    pacienteId?: string;
+    servicoId?: string;
+    convenioId?: string;
+    recursoId?: string;
+    tipoAtendimento?: 'presencial' | 'online';
+    tipoFluxo?: TipoFluxo;
   };
   onSuccess: () => void;
   onClose: () => void;
@@ -204,23 +210,37 @@ export const useAgendamentoForm = ({
   // Effect para pré-preenchimento quando o modal abrir
   useEffect(() => {
     if (isOpen && preenchimentoInicial) {
-      // Se tem profissional preenchido, vai para fluxo por profissional
-      if (preenchimentoInicial.profissionalId) {
-        setTipoFluxo('por-profissional');
-        setFormData(prev => ({
-          ...prev,
-          profissionalId: preenchimentoInicial.profissionalId || ''
-        }));
-      }
+      // Determinar tipo de fluxo baseado nos dados disponíveis
+      const tipoFluxo = preenchimentoInicial.tipoFluxo || 
+                       (preenchimentoInicial.profissionalId ? 'por-profissional' : 'por-data');
+      
+      setTipoFluxo(tipoFluxo);
 
-      // Se tem data/hora preenchida
+      // Preencher dados do formulário
+      setFormData(prev => ({
+        ...prev,
+        profissionalId: preenchimentoInicial.profissionalId || prev.profissionalId,
+        pacienteId: preenchimentoInicial.pacienteId || prev.pacienteId,
+        servicoId: preenchimentoInicial.servicoId || prev.servicoId,
+        convenioId: preenchimentoInicial.convenioId || prev.convenioId,
+        recursoId: preenchimentoInicial.recursoId || prev.recursoId,
+        tipoAtendimento: preenchimentoInicial.tipoAtendimento || prev.tipoAtendimento
+      }));
+
+      // Preencher data e hora se disponíveis
       if (preenchimentoInicial.dataHoraInicio) {
         const [data, hora] = preenchimentoInicial.dataHoraInicio.split('T');
         setDataAgendamento(data);
+        
         // Encontrar o horário mais próximo nas opções disponíveis
         const horaFormatada = hora.substring(0, 5); // Pegar apenas HH:MM
         const horarioEncontrado = OPCOES_HORARIOS.find(opcao => opcao.id === horaFormatada);
-        setHoraAgendamento(horarioEncontrado ? horarioEncontrado.id : '');
+        if (horarioEncontrado) {
+          setHoraAgendamento(horarioEncontrado.id);
+        } else {
+          // Se o horário exato não existir nas opções, usar mesmo assim
+          setHoraAgendamento(horaFormatada);
+        }
       }
     }
   }, [isOpen, preenchimentoInicial]);
@@ -297,6 +317,7 @@ export const useAgendamentoForm = ({
     resetForm,
     carregarDados,
     carregarDadosDoProfissional,
-    carregarProfissionaisPorServico
+    carregarProfissionaisPorServico,
+    handleSubmit
   };
 }; 

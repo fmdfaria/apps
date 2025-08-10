@@ -13,6 +13,7 @@ interface FluxoSelecaoProps {
   onFluxoSelecionado?: (fluxo: TipoFluxo) => void;
   context?: AgendamentoFormContext;
   onSubmit?: (e: React.FormEvent) => Promise<void>;
+  titulo?: string;
 }
 
 export const FluxoSelecao: React.FC<FluxoSelecaoProps> = ({
@@ -20,7 +21,8 @@ export const FluxoSelecao: React.FC<FluxoSelecaoProps> = ({
   onClose,
   onFluxoSelecionado,
   context,
-  onSubmit
+  onSubmit,
+  titulo
 }) => {
   const [tipoFluxoSelecionado, setTipoFluxoSelecionado] = useState<TipoFluxo | null>(null);
 
@@ -52,7 +54,7 @@ export const FluxoSelecao: React.FC<FluxoSelecaoProps> = ({
           <DialogHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 -mx-6 -mt-6 px-6 pt-6 pb-4 border-b border-gray-200">
             <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
               <span className="text-2xl">📅</span>
-              Novo Agendamento
+              {titulo || 'Novo Agendamento'}
             </DialogTitle>
             <p className="text-sm text-gray-600 mt-2">
               Escolha como deseja criar o agendamento:
@@ -126,7 +128,7 @@ export const FluxoSelecao: React.FC<FluxoSelecaoProps> = ({
               <div className="flex-1">
                 <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
                   <span className="text-2xl">📅</span>
-                  Novo Agendamento - {tipoFluxoSelecionado === 'por-profissional' ? 'Por Profissional' : 'Por Data'}
+                  {titulo || 'Novo Agendamento'} - {tipoFluxoSelecionado === 'por-profissional' ? 'Por Profissional' : 'Por Data'}
                   {context.loadingState.loadingData && (
                     <div className="ml-auto flex items-center gap-2 text-sm text-gray-500">
                       <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>

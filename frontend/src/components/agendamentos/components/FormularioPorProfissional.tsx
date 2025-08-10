@@ -5,8 +5,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar, Clock, User, Users, Stethoscope, CreditCard, MapPin, Smartphone } from 'lucide-react';
 import { OPCOES_HORARIOS } from '../utils/agendamento-constants';
 import { useVerificacaoAgendamento } from '@/hooks/useVerificacaoAgendamento';
-import { getAgendamentoFormData } from '@/services/agendamentos';
 import { getRecursosByDate, type RecursoComAgendamentos } from '@/services/recursos';
+import { useOcupacaoProfissionais } from '../hooks/useOcupacaoProfissionais';
 import type { AgendamentoFormContext } from '../types/agendamento-form';
 import type { TipoAtendimento } from '@/types/Agendamento';
 
@@ -20,8 +20,8 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
   const { profissionais, pacientes, convenios, servicos, recursos, conveniosDoProfissional, servicosDoProfissional } = dataState;
   const { loadingData } = loadingState;
 
-  // Estado para armazenar ocupações semanais dos profissionais
-  const [ocupacoesSemana, setOcupacoesSemana] = useState<{ [profissionalId: string]: { ocupados: number, total: number, percentual: number } }>({});
+  // Hook centralizado para ocupações dos profissionais
+  const { ocupacoesSemana, carregandoOcupacoes, buscarOcupacoes } = useOcupacaoProfissionais();
 
   // Estado para armazenar verificação de disponibilidade dos recursos
   const [recursosVerificados, setRecursosVerificados] = useState<{ [recursoId: string]: { disponivel: boolean, ocupadoPor?: string } }>({});
@@ -43,36 +43,12 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
     }
   }, [formData.profissionalId, dataAgendamento, verificarHorarios]);
 
-  // Função para buscar dados unificados incluindo ocupações semanais
-  const buscarDadosUnificados = async (data: string, profissionalId?: string): Promise<{ ocupados: number, total: number, percentual: number }[]> => {
-    try {
-      const formData = await getAgendamentoFormData({ data, profissionalId });
-      
-      // Converter ocupações para o formato esperado
-      const ocupacoesMap = formData.ocupacoesSemana.reduce((acc, ocupacao) => {
-        acc[ocupacao.profissionalId] = {
-          ocupados: ocupacao.ocupados,
-          total: ocupacao.total,
-          percentual: ocupacao.percentual
-        };
-        return acc;
-      }, {} as { [profissionalId: string]: { ocupados: number, total: number, percentual: number } });
-      
-      setOcupacoesSemana(ocupacoesMap);
-      return formData.ocupacoesSemana;
-
-    } catch (error) {
-      console.error('Erro ao buscar dados unificados:', error);
-      return [];
-    }
-  };
-
-  // Buscar ocupações quando data for selecionada
+  // Buscar ocupações quando profissional for selecionado (sempre usa período fixo: hoje + 7 dias)
   useEffect(() => {
-    if (dataAgendamento) {
-      buscarDadosUnificados(dataAgendamento, formData.profissionalId);
+    if (formData.profissionalId) {
+      buscarOcupacoes(formData.profissionalId);
     }
-  }, [dataAgendamento, formData.profissionalId]);
+  }, [formData.profissionalId, buscarOcupacoes]);
 
   // Função para verificar disponibilidade dos recursos usando a nova API
   const verificarDisponibilidadeRecursos = async () => {

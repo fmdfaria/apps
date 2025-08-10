@@ -4,16 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { CalendarHeader } from '@/components/calendar/CalendarHeader';
 import { SchedulerGrid } from '@/components/calendar/SchedulerGrid';
 import { 
-  FluxoSelecao, 
-  FormularioPorProfissional, 
-  FormularioPorData, 
-  DetalhesAgendamentoModal,
-  useAgendamentoForm,
-  type TipoFluxo 
+  AgendamentoModal,
+  DetalhesAgendamentoModal
 } from '@/components/agendamentos';
 import { 
   Calendar as CalendarIcon, 
@@ -23,10 +18,9 @@ import {
   ChevronDown,
   ChevronUp,
   X,
-  Building2,
-  ArrowLeft
+  Building2
 } from 'lucide-react';
-import { getAgendamentos, createAgendamento } from '@/services/agendamentos';
+import { getAgendamentos } from '@/services/agendamentos';
 import { getProfissionais } from '@/services/profissionais';
 import { getConvenios } from '@/services/convenios';
 import { getRecursos } from '@/services/recursos';
@@ -76,15 +70,10 @@ export const CalendarioPage = () => {
   const [loading, setLoading] = useState(true);
 
   // Estados para modais de agendamento  
-  const [showFluxoSelecao, setShowFluxoSelecao] = useState(false);
-  const [showFormulario, setShowFormulario] = useState(false);
-  const [tipoFluxoSelecionado, setTipoFluxoSelecionado] = useState<TipoFluxo | null>(null);
+  const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
+  const [preenchimentoInicialModal, setPreenchimentoInicialModal] = useState<any>(undefined);
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
-  const [preenchimentoInicial, setPreenchimentoInicial] = useState<{
-    profissionalId?: string;
-    dataHoraInicio?: string;
-  } | undefined>(undefined);
   
   // Filtro lateral colapsível
   const [filtroLateralAberto, setFiltroLateralAberto] = useState(false);
@@ -100,86 +89,32 @@ export const CalendarioPage = () => {
   // Estado para filtro de funcionários ativos
   const [filtrarFuncionariosAtivos, setFiltrarFuncionariosAtivos] = useState(false);
 
-  // Funções de controle do formulário
-  const handleFecharTodosModais = () => {
-    setShowFluxoSelecao(false);
-    setShowFormulario(false);
-    setTipoFluxoSelecionado(null);
-    setPreenchimentoInicial(undefined);
+  // Funções de controle do modal unificado
+  const handleFecharAgendamentoModal = () => {
+    setShowAgendamentoModal(false);
+    setPreenchimentoInicialModal(undefined);
   };
 
-  // Hook do formulário de agendamento
-  const agendamentoFormContext = useAgendamentoForm({
-    isOpen: showFluxoSelecao || showFormulario,
-    preenchimentoInicial,
-    onSuccess: () => {
-      carregarDados();
-      handleFecharTodosModais();
-    },
-    onClose: handleFecharTodosModais
-  });
+  const handleSuccessAgendamento = () => {
+    carregarDados();
+    handleFecharAgendamentoModal();
+  };
 
   const handleAbrirNovoAgendamento = () => {
-    setShowFluxoSelecao(true);
+    setShowAgendamentoModal(true);
+    setPreenchimentoInicialModal(undefined);
   };
 
-  const handleFluxoSelecionado = (fluxo: TipoFluxo) => {
-    setTipoFluxoSelecionado(fluxo);
-    agendamentoFormContext.updateTipoFluxo(fluxo);
-    setShowFluxoSelecao(false);
-    setShowFormulario(true);
-  };
-
-  const handleVoltarParaFluxo = () => {
-    setShowFormulario(false);
-    setTipoFluxoSelecionado(null);
-    setShowFluxoSelecao(true);
-  };
-
-  function handleAbrirFormularioDireto(dados?: { profissionalId?: string; dataHoraInicio?: string }) {
-    setPreenchimentoInicial(dados);
-    // Para duplo clique, ir direto para formulário por profissional
-    setTipoFluxoSelecionado('por-profissional');
-    agendamentoFormContext.updateTipoFluxo('por-profissional');
-    setShowFormulario(true);
+  // Função para abrir modal com preenchimento direto (ex: duplo clique no grid)
+  function handleAbrirFormularioDireto(dados?: { 
+    profissionalId?: string; 
+    dataHoraInicio?: string;
+    tipoFluxo?: 'por-profissional' | 'por-data';
+  }) {
+    setPreenchimentoInicialModal(dados);
+    setShowAgendamentoModal(true);
   }
 
-  const handleSubmitFormulario = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const { state } = agendamentoFormContext;
-    
-    // Validações
-    if (!state.formData.pacienteId || !state.formData.profissionalId || !state.formData.servicoId || 
-        !state.formData.convenioId || !state.formData.recursoId || !state.dataAgendamento || !state.horaAgendamento) {
-      toast('Preencha todos os campos obrigatórios', { type: 'error' });
-      return;
-    }
-
-    // Combinar data e hora
-    const dataHoraCombinada = `${state.dataAgendamento}T${state.horaAgendamento}`;
-    
-    try {
-      const dadosParaEnvio = {
-        ...state.formData,
-        dataHoraInicio: dataHoraCombinada,
-        recorrencia: state.temRecorrencia ? {
-          tipo: state.recorrencia.tipo,
-          ...(state.recorrencia.repeticoes && { repeticoes: state.recorrencia.repeticoes }),
-          ...(state.recorrencia.ate && { ate: state.recorrencia.ate })
-        } : undefined
-      };
-
-      await createAgendamento(dadosParaEnvio);
-      toast('Agendamento criado com sucesso!', { type: 'success' });
-      agendamentoFormContext.resetForm();
-      carregarDados();
-      handleFecharTodosModais();
-    } catch (error) {
-      console.error('Erro ao criar agendamento:', error);
-      toast('Erro ao criar agendamento', { type: 'error' });
-    }
-  };
 
   // Carregamento de dados
   useEffect(() => {
@@ -923,11 +858,11 @@ export const CalendarioPage = () => {
       </div>
 
       {/* Modal Unificado de Agendamento */}
-      <FluxoSelecao
-        isOpen={showFluxoSelecao || showFormulario}
-        onClose={handleFecharTodosModais}
-        context={agendamentoFormContext}
-        onSubmit={handleSubmitFormulario}
+      <AgendamentoModal
+        isOpen={showAgendamentoModal}
+        onClose={handleFecharAgendamentoModal}
+        onSuccess={handleSuccessAgendamento}
+        preenchimentoInicial={preenchimentoInicialModal}
       />
 
       <DetalhesAgendamentoModal

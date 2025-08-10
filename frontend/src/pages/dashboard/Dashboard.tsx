@@ -6,34 +6,48 @@ import { Button } from '@/components/ui/button';
 import { 
   Users, UserCheck, Calendar, Building, TrendingUp, Clock, 
   Activity, DollarSign, AlertCircle, CheckCircle, 
-  ArrowUpRight, ArrowDownRight, Plus, Eye, BarChart3
+  ArrowUpRight, ArrowDownRight, Plus, Eye, BarChart3, PieChart
 } from 'lucide-react';
 import { getModuleTheme } from '@/types/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
+import { getDashboardStats, type DashboardData } from '@/services/dashboard';
 
 export const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const defaultTheme = getModuleTheme('default');
-  const agendamentosTheme = getModuleTheme('agendamentos');
-  const pacientesTheme = getModuleTheme('pacientes');
-  const profissionaisTheme = getModuleTheme('profissionais');
-  const servicosTheme = getModuleTheme('servicos');
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
+  // Carregar dados do dashboard
   useEffect(() => {
-    // Simular carregamento inicial
-    const timer = setTimeout(() => setLoading(false), 1000);
-    return () => clearTimeout(timer);
+    const carregarDados = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getDashboardStats();
+        setDashboardData(data);
+      } catch (err) {
+        console.error('Erro ao carregar dashboard:', err);
+        setError('Erro ao carregar dados do dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    carregarDados();
   }, []);
 
-  const stats = [
+  // Criar stats com dados reais ou padrão
+  const stats = dashboardData ? [
     { 
       title: 'Pacientes Cadastrados', 
-      value: '1,284', 
-      change: '+12%', 
-      trend: 'up',
+      value: dashboardData.stats.totalPacientes.toLocaleString('pt-BR'), 
+      change: dashboardData.stats.pacientesAtivos > 0 ? 
+        `${Math.round((dashboardData.stats.pacientesAtivos / dashboardData.stats.totalPacientes) * 100)}% ativos` : 
+        'Sem dados', 
+      trend: 'up' as const,
       icon: Users, 
       color: 'text-rose-600',
       bgColor: 'bg-rose-50',
@@ -41,9 +55,9 @@ export const Dashboard = () => {
     },
     { 
       title: 'Profissionais Ativos', 
-      value: '24', 
-      change: '+2', 
-      trend: 'up',
+      value: `${dashboardData.stats.profissionaisAtivos}/${dashboardData.stats.totalProfissionais}`, 
+      change: `${Math.round((dashboardData.stats.profissionaisAtivos / Math.max(dashboardData.stats.totalProfissionais, 1)) * 100)}%`, 
+      trend: 'up' as const,
       icon: UserCheck, 
       color: 'text-green-600',
       bgColor: 'bg-green-50',
@@ -51,19 +65,60 @@ export const Dashboard = () => {
     },
     { 
       title: 'Agendamentos Hoje', 
-      value: '47', 
-      change: '+15%', 
-      trend: 'up',
+      value: dashboardData.stats.agendamentosHoje.toString(), 
+      change: `${dashboardData.stats.agendamentosProximosSete} em 7 dias`, 
+      trend: 'up' as const,
       icon: Calendar, 
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
       module: 'agendamentos'
     },
     { 
-      title: 'Receita Mensal', 
-      value: 'R$ 89.4K', 
-      change: '+8.2%', 
-      trend: 'up',
+      title: 'Receita Estimada', 
+      value: `R$ ${(dashboardData.stats.receitaMensal / 1000).toFixed(1)}K`, 
+      change: 'Próximos 7 dias', 
+      trend: 'up' as const,
+      icon: DollarSign, 
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-50',
+      module: 'servicos'
+    },
+  ] : [
+    { 
+      title: 'Pacientes Cadastrados', 
+      value: '-', 
+      change: 'Carregando...', 
+      trend: 'up' as const,
+      icon: Users, 
+      color: 'text-rose-600',
+      bgColor: 'bg-rose-50',
+      module: 'pacientes'
+    },
+    { 
+      title: 'Profissionais Ativos', 
+      value: '-', 
+      change: 'Carregando...', 
+      trend: 'up' as const,
+      icon: UserCheck, 
+      color: 'text-green-600',
+      bgColor: 'bg-green-50',
+      module: 'profissionais'
+    },
+    { 
+      title: 'Agendamentos Hoje', 
+      value: '-', 
+      change: 'Carregando...', 
+      trend: 'up' as const,
+      icon: Calendar, 
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+      module: 'agendamentos'
+    },
+    { 
+      title: 'Receita Estimada', 
+      value: '-', 
+      change: 'Carregando...', 
+      trend: 'up' as const,
       icon: DollarSign, 
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-50',
@@ -71,92 +126,46 @@ export const Dashboard = () => {
     },
   ];
 
-  const quickStats = [
-    { label: 'Taxa de Ocupação', value: '87%', progress: 87, color: 'blue' },
-    { label: 'Satisfação dos Pacientes', value: '4.8/5', progress: 96, color: 'green' },
-    { label: 'Agenda Preenchida', value: '73%', progress: 73, color: 'purple' },
-    { label: 'Profissionais Disponíveis', value: '18/24', progress: 75, color: 'orange' }
-  ];
-
-  const recentActivities = [
+  const quickStats = dashboardData ? [
     { 
-      action: 'Novo paciente cadastrado', 
-      patient: 'Maria Silva Santos', 
-      time: '2 min atrás',
-      type: 'patient',
-      status: 'success'
+      label: 'Taxa de Ocupação', 
+      value: `${dashboardData.stats.taxaOcupacao}%`, 
+      progress: dashboardData.stats.taxaOcupacao, 
+      color: 'blue' 
     },
     { 
-      action: 'Agendamento confirmado', 
-      patient: 'João Pedro Santos', 
-      time: '5 min atrás',
-      type: 'appointment',
-      status: 'success'
+      label: 'Satisfação dos Pacientes', 
+      value: `${(dashboardData.stats.satisfacaoPacientes / 20).toFixed(1)}/5`, 
+      progress: dashboardData.stats.satisfacaoPacientes, 
+      color: 'green' 
     },
     { 
-      action: 'Consulta cancelada', 
-      patient: 'Ana Costa Lima', 
-      time: '8 min atrás',
-      type: 'appointment',
-      status: 'warning'
+      label: 'Agenda Preenchida', 
+      value: `${dashboardData.stats.agendaPreenchida}%`, 
+      progress: dashboardData.stats.agendaPreenchida, 
+      color: 'purple' 
     },
     { 
-      action: 'Profissional atualizado', 
-      patient: 'Dr. Carlos Lima', 
-      time: '12 min atrás',
-      type: 'professional',
-      status: 'info'
-    },
-    { 
-      action: 'Pagamento recebido', 
-      patient: 'Clínica ABC', 
-      time: '15 min atrás',
-      type: 'payment',
-      status: 'success'
-    },
-    { 
-      action: 'Convênio renovado', 
-      patient: 'Unimed Regional', 
-      time: '1 hora atrás',
-      type: 'convenio',
-      status: 'success'
-    },
-  ];
-
-  const upcomingAppointments = [
-    { 
-      time: '09:00', 
-      patient: 'Maria Silva', 
-      professional: 'Dr. João Santos',
-      service: 'Consulta Geral',
-      status: 'confirmed'
-    },
-    { 
-      time: '10:30', 
-      patient: 'Pedro Lima', 
-      professional: 'Dra. Ana Costa',
-      service: 'Cardiologia',
-      status: 'pending'
-    },
-    { 
-      time: '14:00', 
-      patient: 'Carlos Souza', 
-      professional: 'Dr. Luis Silva',
-      service: 'Ortopedia',
-      status: 'confirmed'
-    },
-    { 
-      time: '15:30', 
-      patient: 'Julia Santos', 
-      professional: 'Dra. Maria Lima',
-      service: 'Pediatria',
-      status: 'pending'
+      label: 'Profissionais Disponíveis', 
+      value: `${dashboardData.stats.profissionaisAtivos}/${dashboardData.stats.totalProfissionais}`, 
+      progress: dashboardData.stats.profissionaisDisponiveis, 
+      color: 'orange' 
     }
+  ] : [
+    { label: 'Taxa de Ocupação', value: '-', progress: 0, color: 'blue' },
+    { label: 'Satisfação dos Pacientes', value: '-', progress: 0, color: 'green' },
+    { label: 'Agenda Preenchida', value: '-', progress: 0, color: 'purple' },
+    { label: 'Profissionais Disponíveis', value: '-', progress: 0, color: 'orange' }
   ];
+
+  const recentActivities = dashboardData?.recentActivities || [];
+
+  const upcomingAppointments = dashboardData?.upcomingAppointments || [];
 
   const quickActions = [
     { label: 'Novo Agendamento', icon: Plus, action: () => navigate('agendamentos'), color: 'blue' },
     { label: 'Ver Calendário', icon: Eye, action: () => navigate('calendario'), color: 'green' },
+    { label: 'Dashboard Ocupação', icon: PieChart, action: () => navigate('/dashboard/ocupacao'), color: 'indigo' },
     { label: 'Relatórios', icon: BarChart3, action: () => {}, color: 'purple' },
     { label: 'Configurações', icon: Activity, action: () => {}, color: 'orange' }
   ];
@@ -193,6 +202,29 @@ export const Dashboard = () => {
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="h-96 bg-gray-200 rounded-lg"></div>
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex">
+            <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 mr-3" />
+            <div>
+              <h3 className="text-sm font-medium text-red-800">Erro ao carregar dashboard</h3>
+              <p className="text-sm text-red-700 mt-1">{error}</p>
+              <Button 
+                onClick={() => window.location.reload()} 
+                className="mt-3 bg-red-600 hover:bg-red-700"
+                size="sm"
+              >
+                Tentar novamente
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -291,22 +323,29 @@ export const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4 max-h-80 overflow-y-auto">
-              {recentActivities.map((activity, index) => (
-                <div key={index} className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className={`w-2 h-2 rounded-full mt-2 ${getStatusBadge(activity.status)}`}></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                    <p className="text-sm text-gray-600 truncate">{activity.patient}</p>
-                    <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+              {recentActivities.length > 0 ? (
+                recentActivities.map((activity, index) => (
+                  <div key={activity.id || index} className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className={`w-2 h-2 rounded-full mt-2 ${getStatusBadge(activity.status)}`}></div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900">{activity.action}</p>
+                      <p className="text-sm text-gray-600 truncate">{activity.patient}</p>
+                      <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+                    </div>
+                    <Badge 
+                      variant="outline" 
+                      className={`text-xs ${getStatusBadge(activity.status)}`}
+                    >
+                      {activity.status}
+                    </Badge>
                   </div>
-                  <Badge 
-                    variant="outline" 
-                    className={`text-xs ${getStatusBadge(activity.status)}`}
-                  >
-                    {activity.status}
-                  </Badge>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Activity className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">Nenhuma atividade recente</p>
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
@@ -321,40 +360,49 @@ export const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4 max-h-80 overflow-y-auto">
-              {upcomingAppointments.map((appointment, index) => (
-                <div key={index} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="text-center">
-                    <div className="text-sm font-bold text-gray-900">{appointment.time}</div>
+              {upcomingAppointments.length > 0 ? (
+                upcomingAppointments.map((appointment, index) => (
+                  <div key={appointment.id || index} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className="text-center">
+                      <div className="text-sm font-bold text-gray-900">{appointment.time}</div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{appointment.patient}</p>
+                      <p className="text-xs text-gray-600 truncate">{appointment.professional}</p>
+                      <p className="text-xs text-gray-500">{appointment.service}</p>
+                    </div>
+                    <Badge 
+                      variant="outline" 
+                      className={`text-xs ${getAppointmentBadge(appointment.status)}`}
+                    >
+                      {appointment.status}
+                    </Badge>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{appointment.patient}</p>
-                    <p className="text-xs text-gray-600 truncate">{appointment.professional}</p>
-                    <p className="text-xs text-gray-500">{appointment.service}</p>
-                  </div>
-                  <Badge 
-                    variant="outline" 
-                    className={`text-xs ${getAppointmentBadge(appointment.status)}`}
-                  >
-                    {appointment.status}
-                  </Badge>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Clock className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">Nenhum agendamento próximo</p>
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="border-l-4 border-l-blue-500">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Agendamentos Esta Semana</p>
-                <p className="text-2xl font-bold text-gray-900">156</p>
-                <p className="text-sm text-green-600 flex items-center mt-2">
-                  <ArrowUpRight className="w-4 h-4 mr-1" />
-                  +12% vs semana anterior
+                <p className="text-sm font-medium text-gray-600">Agendamentos Próximos 7 Dias</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {dashboardData?.stats.agendamentosProximosSete || '-'}
+                </p>
+                <p className="text-sm text-blue-600 flex items-center mt-2">
+                  <Calendar className="w-4 h-4 mr-1" />
+                  {dashboardData?.stats.agendamentosHoje || 0} agendamentos hoje
                 </p>
               </div>
               <Calendar className="w-12 h-12 text-blue-500 opacity-60" />
@@ -366,11 +414,13 @@ export const Dashboard = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Novos Pacientes</p>
-                <p className="text-2xl font-bold text-gray-900">23</p>
+                <p className="text-sm font-medium text-gray-600">Total de Pacientes</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {dashboardData?.stats.totalPacientes.toLocaleString('pt-BR') || '-'}
+                </p>
                 <p className="text-sm text-green-600 flex items-center mt-2">
                   <ArrowUpRight className="w-4 h-4 mr-1" />
-                  +8% vs mês anterior
+                  {dashboardData?.stats.pacientesAtivos || 0} pacientes ativos
                 </p>
               </div>
               <Users className="w-12 h-12 text-green-500 opacity-60" />
@@ -383,13 +433,36 @@ export const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Receita Estimada</p>
-                <p className="text-2xl font-bold text-gray-900">R$ 12.4K</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  R$ {dashboardData ? (dashboardData.stats.receitaMensal / 1000).toFixed(1) + 'K' : '-'}
+                </p>
                 <p className="text-sm text-green-600 flex items-center mt-2">
-                  <ArrowUpRight className="w-4 h-4 mr-1" />
-                  +15% vs meta mensal
+                  <DollarSign className="w-4 h-4 mr-1" />
+                  Próximos 7 dias
                 </p>
               </div>
               <DollarSign className="w-12 h-12 text-purple-500 opacity-60" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="border-l-4 border-l-indigo-500 hover:shadow-lg transition-all duration-200 hover:scale-105 cursor-pointer"
+          onClick={() => navigate('/dashboard/ocupacao')}
+        >
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Ocupação Média</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {dashboardData?.stats.mediaOcupacaoProfissionais || 0}%
+                </p>
+                <p className="text-sm text-indigo-600 flex items-center mt-2">
+                  <Eye className="w-4 h-4 mr-1" />
+                  Ver dashboard completo
+                </p>
+              </div>
+              <PieChart className="w-12 h-12 text-indigo-500 opacity-60" />
             </div>
           </CardContent>
         </Card>

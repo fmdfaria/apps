@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { 
@@ -21,25 +20,19 @@ import {
   LayoutGrid,
   List,
   CreditCard,
-  TrendingUp,
   Activity,
   X,
   Filter,
   FilterX,
   Eye,
   Edit,
-  Trash2,
-  ArrowLeft
+  Trash2
 } from 'lucide-react';
 import type { Agendamento, StatusAgendamento } from '@/types/Agendamento';
-import { getAgendamentos, deleteAgendamento, createAgendamento } from '@/services/agendamentos';
+import { getAgendamentos, deleteAgendamento } from '@/services/agendamentos';
 import { 
-  FluxoSelecao, 
-  FormularioPorProfissional, 
-  FormularioPorData, 
-  DetalhesAgendamentoModal,
-  useAgendamentoForm,
-  type TipoFluxo 
+  AgendamentoModal,
+  DetalhesAgendamentoModal
 } from '@/components/agendamentos';
 import { toast } from 'sonner';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
@@ -62,9 +55,7 @@ export const AgendamentosPage = () => {
   const [canUpdate, setCanUpdate] = useState(true);
   const [canDelete, setCanDelete] = useState(true);
   // Estados para modais de agendamento
-  const [showFluxoSelecao, setShowFluxoSelecao] = useState(false);
-  const [showFormulario, setShowFormulario] = useState(false);
-  const [tipoFluxoSelecionado, setTipoFluxoSelecionado] = useState<TipoFluxo | null>(null);
+  const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
   
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
@@ -88,94 +79,21 @@ export const AgendamentosPage = () => {
   const [agendamentoExcluindo, setAgendamentoExcluindo] = useState<Agendamento | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Hook do formulário de agendamento
-  const agendamentoFormContext = useAgendamentoForm({
-    isOpen: showFormulario,
-    preenchimentoInicial: undefined,
-    onSuccess: () => {
-      carregarAgendamentos();
-      setShowFluxoSelecao(false);
-      setShowFormulario(false);
-      setTipoFluxoSelecionado(null);
-    },
-    onClose: () => {
-      setShowFluxoSelecao(false);
-      setShowFormulario(false);
-      setTipoFluxoSelecionado(null);
-    }
-  });
 
-  // Funções de controle do fluxo de agendamento
-  const handleFecharTodosModais = () => {
-    setShowFluxoSelecao(false);
-    setShowFormulario(false);
-    setTipoFluxoSelecionado(null);
-    agendamentoFormContext.resetForm();
+  // Funções de controle do modal unificado
+  const handleFecharAgendamentoModal = () => {
+    setShowAgendamentoModal(false);
+  };
+
+  const handleSuccessAgendamento = () => {
+    carregarAgendamentos();
+    setShowAgendamentoModal(false);
   };
 
   const handleAbrirNovoAgendamento = () => {
-    setShowFluxoSelecao(true);
+    setShowAgendamentoModal(true);
   };
 
-  const handleFluxoSelecionado = (fluxo: TipoFluxo) => {
-    setTipoFluxoSelecionado(fluxo);
-    agendamentoFormContext.updateTipoFluxo(fluxo);
-    setShowFluxoSelecao(false);
-    setShowFormulario(true);
-  };
-
-  const handleVoltarParaFluxo = () => {
-    setShowFormulario(false);
-    setTipoFluxoSelecionado(null);
-    agendamentoFormContext.resetForm();
-    setShowFluxoSelecao(true);
-  };
-
-  const handleSubmitFormulario = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const { state } = agendamentoFormContext;
-    
-    // Validações
-    if (!state.formData.pacienteId || !state.formData.profissionalId || !state.formData.servicoId || 
-        !state.formData.convenioId || !state.formData.recursoId || !state.dataAgendamento || !state.horaAgendamento) {
-      toast.error('Preencha todos os campos obrigatórios');
-      return;
-    }
-
-    // Combinar data e hora
-    const dataHoraCombinada = `${state.dataAgendamento}T${state.horaAgendamento}`;
-    
-    // Validação adicional: verificar se a data/hora não é no passado
-    const dataHoraSelecionada = new Date(dataHoraCombinada);
-    const agora = new Date();
-    
-    if (dataHoraSelecionada <= agora) {
-      toast.error('A data e hora do agendamento deve ser no futuro');
-      return;
-    }
-
-    try {
-      const dadosParaEnvio = {
-        ...state.formData,
-        dataHoraInicio: dataHoraCombinada,
-        recorrencia: state.temRecorrencia ? {
-          tipo: state.recorrencia.tipo,
-          ...(state.recorrencia.repeticoes && { repeticoes: state.recorrencia.repeticoes }),
-          ...(state.recorrencia.ate && { ate: state.recorrencia.ate })
-        } : undefined
-      };
-
-      await createAgendamento(dadosParaEnvio);
-      toast.success('Agendamento criado com sucesso!');
-      agendamentoFormContext.resetForm();
-      carregarAgendamentos();
-      handleFecharTodosModais();
-    } catch (error) {
-      console.error('Erro ao criar agendamento:', error);
-      toast.error('Erro ao criar agendamento');
-    }
-  };
 
   useEffect(() => {
     checkPermissions();
@@ -345,15 +263,6 @@ export const AgendamentosPage = () => {
     return agendamentos.filter(a => a.status === status).length;
   };
 
-  const handleFiltroStatus = (status: StatusAgendamento | 'TODOS') => {
-    // Se clicar no mesmo status já filtrado, remove o filtro
-    if (filtroStatus === status && status !== 'TODOS') {
-      setFiltroStatus('TODOS');
-    } else {
-      setFiltroStatus(status);
-    }
-    setPaginaAtual(1);
-  };
 
   const updateFiltro = (campo: keyof typeof filtros, valor: string) => {
     setFiltros(prev => ({ ...prev, [campo]: valor }));
@@ -816,8 +725,8 @@ export const AgendamentosPage = () => {
             <div className="bg-gray-50 p-4 rounded-lg mb-4">
               <h3 className="text-sm font-semibold text-gray-800 mb-2">Informações da Rota:</h3>
               <div className="space-y-1 text-sm">
-                <p><span className="font-medium">Rota:</span> {routeInfo.path}</p>
-                <p><span className="font-medium">Método:</span> {routeInfo.method}</p>
+                <p><span className="font-medium">Nome:</span> {routeInfo.nome}</p>
+                <p><span className="font-medium">Descrição:</span> {routeInfo.descricao}</p>
                 <p><span className="font-medium">Módulo:</span> {routeInfo.modulo || 'N/A'}</p>
               </div>
             </div>
@@ -1206,98 +1115,12 @@ export const AgendamentosPage = () => {
         confirmText="Excluir Agendamento"
       />
 
-      {/* Modal de seleção de fluxo */}
-      <FluxoSelecao
-        isOpen={showFluxoSelecao}
-        onClose={handleFecharTodosModais}
-        onFluxoSelecionado={handleFluxoSelecionado}
+      {/* Modal unificado de agendamento */}
+      <AgendamentoModal
+        isOpen={showAgendamentoModal}
+        onClose={handleFecharAgendamentoModal}
+        onSuccess={handleSuccessAgendamento}
       />
-
-      {/* Modal do formulário */}
-      {showFormulario && tipoFluxoSelecionado && (
-        <Dialog open={showFormulario} onOpenChange={handleFecharTodosModais}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 -mx-6 -mt-6 px-6 pt-6 pb-4 border-b border-gray-200">
-              <div className="flex items-center gap-3">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={handleVoltarParaFluxo}
-                  className="p-2 hover:bg-blue-100"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
-                <div className="flex-1">
-                  <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
-                    <span className="text-2xl">📅</span>
-                    Novo Agendamento - {tipoFluxoSelecionado === 'por-profissional' ? 'Por Profissional' : 'Por Data'}
-                    {agendamentoFormContext.loadingState.loadingData && (
-                      <div className="ml-auto flex items-center gap-2 text-sm text-gray-500">
-                        <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                        Carregando dados...
-                      </div>
-                    )}
-                  </DialogTitle>
-                </div>
-              </div>
-            </DialogHeader>
-
-            <form onSubmit={handleSubmitFormulario}>
-              <div className="mt-4 space-y-6">
-                {tipoFluxoSelecionado === 'por-profissional' ? (
-                  <FormularioPorProfissional context={agendamentoFormContext} />
-                ) : (
-                  <FormularioPorData context={agendamentoFormContext} />
-                )}
-              </div>
-
-              <DialogFooter className="mt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleVoltarParaFluxo}
-                  disabled={agendamentoFormContext.loadingState.loading || agendamentoFormContext.loadingState.loadingData}
-                  className="border-2 border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 font-semibold px-6"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Voltar
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleFecharTodosModais}
-                  disabled={agendamentoFormContext.loadingState.loading || agendamentoFormContext.loadingState.loadingData}
-                  className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={agendamentoFormContext.loadingState.loading || agendamentoFormContext.loadingState.loadingData}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl font-semibold px-8"
-                >
-                  {agendamentoFormContext.loadingState.loading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Criando...
-                    </>
-                  ) : agendamentoFormContext.loadingState.loadingData ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Carregando...
-                    </>
-                  ) : (
-                    <>
-                      <span className="mr-2">✅</span>
-                      Criar Agendamento
-                    </>
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      )}
 
       <DetalhesAgendamentoModal
         isOpen={showDetalhesAgendamento}
