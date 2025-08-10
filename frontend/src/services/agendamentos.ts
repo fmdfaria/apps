@@ -1,5 +1,26 @@
 import api from './api';
 import type { Agendamento, StatusAgendamento, TipoAtendimento, RecorrenciaAgendamento } from '@/types/Agendamento';
+import type { Paciente } from '@/types/Paciente';
+import type { Profissional } from '@/types/Profissional';
+import type { Convenio } from '@/types/Convenio';
+import type { Servico } from '@/types/Servico';
+import type { Recurso } from '@/types/Recurso';
+
+export interface AgendamentoFormData {
+  pacientes: Paciente[];
+  profissionais: Profissional[];
+  convenios: Convenio[];
+  servicos: Servico[];
+  recursos: Recurso[];
+  disponibilidades: any[];
+  agendamentos: Agendamento[];
+  ocupacoesSemana: Array<{
+    profissionalId: string;
+    ocupados: number;
+    total: number;
+    percentual: number;
+  }>;
+}
 
 // Função para gerar datas dos próximos dias
 const getDateForDaysFromNow = (days: number, hour: number, minute: number = 0): string => {
@@ -424,4 +445,23 @@ export const cancelarAgendamento = async (id: string, dadosCancelamento: {
     ...dadosCancelamento,
     status: 'CANCELADO'
   });
+};
+
+export const getAgendamentoFormData = async (filtros?: {
+  data?: string; // Data no formato YYYY-MM-DD
+  profissionalId?: string;
+}): Promise<AgendamentoFormData> => {
+  try {
+    const params = new URLSearchParams();
+    if (filtros?.data) params.append('data', filtros.data);
+    if (filtros?.profissionalId) params.append('profissionalId', filtros.profissionalId);
+    
+    const url = `/agendamentos/form-data${params.toString() ? `?${params.toString()}` : ''}`;
+    const { data } = await api.get(url);
+    
+    return data;
+  } catch (error) {
+    console.error('Erro ao carregar dados do formulário da API:', error);
+    throw error;
+  }
 }; 

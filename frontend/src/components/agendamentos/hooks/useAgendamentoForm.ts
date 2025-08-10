@@ -1,14 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import type { CreateAgendamentoData } from '@/services/agendamentos';
+import type { CreateAgendamentoData, AgendamentoFormData } from '@/services/agendamentos';
 import type { TipoRecorrencia } from '@/types/Agendamento';
-import { getPacientes } from '@/services/pacientes';
-import { getProfissionais } from '@/services/profissionais';
-import { getConvenios } from '@/services/convenios';
-import { getServicos } from '@/services/servicos';
-import { getRecursos } from '@/services/recursos';
 import { getProfissionaisByServico, getServicosConveniosByProfissional, type ServicoConvenioProfissional } from '@/services/profissionais-servicos';
-import { createAgendamento } from '@/services/agendamentos';
+import { createAgendamento, getAgendamentoFormData } from '@/services/agendamentos';
 import { FORM_DATA_PADRAO, RECORRENCIA_PADRAO, OPCOES_HORARIOS } from '../utils/agendamento-constants';
 import type { 
   TipoFluxo, 
@@ -62,36 +57,14 @@ export const useAgendamentoForm = ({
   const carregarDados = useCallback(async () => {
     setLoadingData(true);
     try {
-      const [
-        pacientesData,
-        profissionaisData, 
-        conveniosData,
-        servicosData,
-        recursosData
-      ] = await Promise.all([
-        getPacientes(),
-        getProfissionais(),
-        getConvenios(),
-        getServicos(),
-        getRecursos()
-      ]);
-
-      // Ordenar dados por nome
-      setPacientes(pacientesData.sort((a, b) => 
-        a.nomeCompleto.localeCompare(b.nomeCompleto, 'pt-BR', { sensitivity: 'base' })
-      ));
-      setProfissionais(profissionaisData.sort((a, b) => 
-        a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' })
-      ));
-      setConvenios(conveniosData.sort((a, b) => 
-        a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' })
-      ));
-      setServicos(servicosData.sort((a, b) => 
-        a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' })
-      ));
-      setRecursos(recursosData.sort((a, b) => 
-        a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' })
-      ));
+      const formData = await getAgendamentoFormData();
+      
+      // Os dados já vêm ordenados da API
+      setPacientes(formData.pacientes);
+      setProfissionais(formData.profissionais);
+      setConvenios(formData.convenios);
+      setServicos(formData.servicos);
+      setRecursos(formData.recursos);
 
     } catch (error) {
       console.error('Erro ao carregar dados:', error);

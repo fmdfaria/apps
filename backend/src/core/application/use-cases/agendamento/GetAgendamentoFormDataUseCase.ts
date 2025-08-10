@@ -1,0 +1,177 @@
+import { injectable, inject } from 'tsyringe';
+import { IPacientesRepository } from '../../../domain/repositories/IPacientesRepository';
+import { IProfissionaisRepository } from '../../../domain/repositories/IProfissionaisRepository';
+import { IConveniosRepository } from '../../../domain/repositories/IConveniosRepository';
+import { IServicosRepository } from '../../../domain/repositories/IServicosRepository';
+import { IRecursosRepository } from '../../../domain/repositories/IRecursosRepository';
+import { IDisponibilidadesProfissionaisRepository } from '../../../domain/repositories/IDisponibilidadesProfissionaisRepository';
+import { IAgendamentosRepository } from '../../../domain/repositories/IAgendamentosRepository';
+
+interface IRequest {
+  data?: string; // Data no formato YYYY-MM-DD (opcional)
+  profissionalId?: string; // ID do profissional (opcional)
+}
+
+interface IOcupacaoSemanal {
+  profissionalId: string;
+  ocupados: number;
+  total: number;
+  percentual: number;
+}
+
+interface IAgendamentoFormDataResponse {
+  pacientes: any[];
+  profissionais: any[];
+  convenios: any[];
+  servicos: any[];
+  recursos: any[];
+  disponibilidades: any[];
+  agendamentos: any[];
+  ocupacoesSemana: IOcupacaoSemanal[];
+}
+
+@injectable()
+export class GetAgendamentoFormDataUseCase {
+  constructor(
+    @inject('PacientesRepository')
+    private pacientesRepository: IPacientesRepository,
+    @inject('ProfissionaisRepository')
+    private profissionaisRepository: IProfissionaisRepository,
+    @inject('ConveniosRepository')
+    private conveniosRepository: IConveniosRepository,
+    @inject('ServicosRepository')
+    private servicosRepository: IServicosRepository,
+    @inject('RecursosRepository')
+    private recursosRepository: IRecursosRepository,
+    @inject('DisponibilidadesProfissionaisRepository')
+    private disponibilidadesRepository: IDisponibilidadesProfissionaisRepository,
+    @inject('AgendamentosRepository')
+    private agendamentosRepository: IAgendamentosRepository
+  ) {}
+
+  async execute({ data, profissionalId }: IRequest): Promise<IAgendamentoFormDataResponse> {
+    // Buscar todos os dados base (sempre necessários)
+    const [pacientes, profissionais, convenios, servicos, recursos] = await Promise.all([
+      this.pacientesRepository.findAll(),
+      this.profissionaisRepository.findAll(),
+      this.conveniosRepository.findAll(),
+      this.servicosRepository.findAll(),
+      this.recursosRepository.findAll()
+    ]);
+
+    let disponibilidades: any[] = [];
+    let agendamentos: any[] = [];
+    let ocupacoesSemana: IOcupacaoSemanal[] = [];
+
+    // Se data foi fornecida, buscar dados específicos da data
+    if (data) {
+      const dataInicio = new Date(`${data}T00:00:00.000Z`);
+      const dataFim = new Date(`${data}T23:59:59.999Z`);
+
+      // Buscar agendamentos da data
+      agendamentos = await this.agendamentosRepository.findAll({
+        dataHoraInicio: dataInicio
+      });
+
+      // Buscar disponibilidades (todos os profissionais)
+      disponibilidades = await this.disponibilidadesRepository.findAll();
+
+      // Calcular ocupação semanal para todos os profissionais
+      ocupacoesSemana = await this.calcularOcupacoesSemana(profissionais, data);
+    }
+
+    // Se profissionalId foi fornecido, filtrar dados específicos
+    if (profissionalId) {
+      // Filtrar dados relacionados ao profissional específico
+      disponibilidades = disponibilidades.filter(d => d.profissionalId === profissionalId);
+      agendamentos = agendamentos.filter(a => a.profissionalId === profissionalId);
+    }
+
+    return {
+      pacientes: pacientes.sort((a, b) => a.nomeCompleto.localeCompare(b.nomeCompleto, 'pt-BR')),
+      profissionais: profissionais.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+      convenios: convenios.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+      servicos: servicos.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+      recursos: recursos.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+      disponibilidades,
+      agendamentos,
+      ocupacoesSemana
+    };
+  }
+
+  private async calcularOcupacoesSemana(profissionais: any[], data: string): Promise<IOcupacaoSemanal[]> {
+    const dataObj = new Date(`${data}T12:00:00.000Z`);
+    
+    // Calcular primeiro e último dia da semana (segunda a domingo)
+    const inicioDaSemana = new Date(dataObj);
+    const diaSemana = inicioDaSemana.getDay();
+    const diasParaSegunda = diaSemana === 0 ? -6 : 1 - diaSemana;
+    inicioDaSemana.setDate(inicioDaSemana.getDate() + diasParaSegunda);
+    inicioDaSemana.setHours(0, 0, 0, 0);
+
+    const fimDaSemana = new Date(inicioDaSemana);
+    fimDaSemana.setDate(fimDaSemana.getDate() + 6);
+    fimDaSemana.setHours(23, 59, 59, 999);
+
+    // Buscar disponibilidades e agendamentos da semana
+    const [disponibilidades, agendamentos] = await Promise.all([
+      this.disponibilidadesRepository.findAll(),
+      this.agendamentosRepository.findAll()
+    ]);
+
+    const ocupacoes: IOcupacaoSemanal[] = [];
+
+    for (const profissional of profissionais) {
+      // Filtrar disponibilidades do profissional
+      const disponibilidadesProfissional = disponibilidades.filter(d => d.profissionalId === profissional.id);
+      
+      // Calcular total de slots disponíveis na semana
+      let totalSlotsDisponiveis = 0;
+      
+      for (let dia = new Date(inicioDaSemana); dia <= fimDaSemana; dia.setDate(dia.getDate() + 1)) {
+        const diaSemanaNum = dia.getDay();
+        
+        const disponibilidadesDoDia = disponibilidadesProfissional.filter(d => {
+          // Data específica tem prioridade
+          if (d.dataEspecifica) {
+            const dataDisp = new Date(d.dataEspecifica);
+            return dataDisp.getDate() === dia.getDate() && 
+                   dataDisp.getMonth() === dia.getMonth() && 
+                   dataDisp.getFullYear() === dia.getFullYear();
+          }
+          return d.diaSemana === diaSemanaNum;
+        });
+
+        // Somar slots disponíveis (apenas presencial e online)
+        disponibilidadesDoDia.forEach(d => {
+          if (d.tipo === 'presencial' || d.tipo === 'online') {
+            const horaInicio = d.horaInicio.getHours() * 60 + d.horaInicio.getMinutes();
+            const horaFim = d.horaFim.getHours() * 60 + d.horaFim.getMinutes();
+            const slotsNoPeriodo = (horaFim - horaInicio) / 30; // Slots de 30 min
+            totalSlotsDisponiveis += slotsNoPeriodo;
+          }
+        });
+      }
+
+      // Filtrar agendamentos do profissional na semana
+      const agendamentosDaSemana = agendamentos.filter(agendamento => {
+        if (agendamento.profissionalId !== profissional.id) return false;
+        
+        const dataAgendamento = new Date(agendamento.dataHoraInicio);
+        return dataAgendamento >= inicioDaSemana && dataAgendamento <= fimDaSemana;
+      });
+
+      const slotsOcupados = agendamentosDaSemana.length;
+      const percentual = totalSlotsDisponiveis === 0 ? 0 : Math.round((slotsOcupados / totalSlotsDisponiveis) * 100);
+      
+      ocupacoes.push({
+        profissionalId: profissional.id,
+        ocupados: slotsOcupados,
+        total: totalSlotsDisponiveis,
+        percentual
+      });
+    }
+
+    return ocupacoes;
+  }
+}

@@ -5,8 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar, Clock, User, Users, Stethoscope, CreditCard, MapPin, Smartphone } from 'lucide-react';
 import { OPCOES_HORARIOS } from '../utils/agendamento-constants';
 import { useVerificacaoAgendamento } from '@/hooks/useVerificacaoAgendamento';
-import { getAgendamentos } from '@/services/agendamentos';
-import { getAllDisponibilidades } from '@/services/disponibilidades';
+import { getAgendamentoFormData } from '@/services/agendamentos';
 import { getRecursosByDate, type RecursoComAgendamentos } from '@/services/recursos';
 import type { AgendamentoFormContext } from '../types/agendamento-form';
 import type { TipoAtendimento } from '@/types/Agendamento';
@@ -50,136 +49,36 @@ export const FormularioPorData: React.FC<FormularioPorDataProps> = ({ context })
     }
   }, [dataAgendamento, horaAgendamento, profissionais, verificarProfissionais]);
 
-  // Função para calcular ocupação semanal de um profissional
-  const calcularOcupacaoSemanal = async (profissionalId: string, semanaData: Date): Promise<{ ocupados: number, total: number, percentual: number }> => {
+  // Função para buscar dados unificados incluindo ocupações semanais
+  const buscarDadosUnificados = async (data: string): Promise<{ ocupados: number, total: number, percentual: number }[]> => {
     try {
-      // Calcular primeiro e último dia da semana (segunda a domingo)
-      const inicioDaSemana = new Date(semanaData);
-      const diaSemana = inicioDaSemana.getDay();
-      const diasParaSegunda = diaSemana === 0 ? -6 : 1 - diaSemana; // Se domingo, volta 6 dias
-      inicioDaSemana.setDate(inicioDaSemana.getDate() + diasParaSegunda);
-      inicioDaSemana.setHours(0, 0, 0, 0);
-
-      const fimDaSemana = new Date(inicioDaSemana);
-      fimDaSemana.setDate(fimDaSemana.getDate() + 6);
-      fimDaSemana.setHours(23, 59, 59, 999);
-
-      // Buscar disponibilidades e agendamentos
-      const [disponibilidades, agendamentos] = await Promise.all([
-        getAllDisponibilidades(),
-        getAgendamentos()
-      ]);
-
-      // Filtrar disponibilidades do profissional
-      const disponibilidadesProfissional = disponibilidades.filter(d => d.profissionalId === profissionalId);
+      const formData = await getAgendamentoFormData({ data });
       
-      console.log(`[DEBUG] Profissional ${profissionalId}:`, {
-        totalDisponibilidades: disponibilidades.length,
-        disponibilidadesProfissional: disponibilidadesProfissional.length,
-        inicioDaSemana: inicioDaSemana.toISOString(),
-        fimDaSemana: fimDaSemana.toISOString()
-      });
+      // Converter ocupações para o formato esperado
+      const ocupacoesMap = formData.ocupacoesSemana.reduce((acc, ocupacao) => {
+        acc[ocupacao.profissionalId] = {
+          ocupados: ocupacao.ocupados,
+          total: ocupacao.total,
+          percentual: ocupacao.percentual
+        };
+        return acc;
+      }, {} as { [profissionalId: string]: { ocupados: number, total: number, percentual: number } });
       
-      // Calcular total de slots disponíveis na semana (em slots de 30 min)
-      let totalSlotsDisponiveis = 0;
-      
-      for (let dia = new Date(inicioDaSemana); dia <= fimDaSemana; dia.setDate(dia.getDate() + 1)) {
-        const diaSemanaNum = dia.getDay();
-        
-        // Verificar disponibilidades para este dia
-        const disponibilidadesDoDia = disponibilidadesProfissional.filter(d => {
-          // Data específica tem prioridade
-          if (d.dataEspecifica) {
-            const dataDisp = new Date(d.dataEspecifica);
-            return dataDisp.getDate() === dia.getDate() && 
-                   dataDisp.getMonth() === dia.getMonth() && 
-                   dataDisp.getFullYear() === dia.getFullYear();
-          }
-          // Senão, usar dia da semana
-          return d.diaSemana === diaSemanaNum;
-        });
-
-        console.log(`[DEBUG] Dia ${dia.toDateString()} (${diaSemanaNum}):`, {
-          disponibilidadesDoDia: disponibilidadesDoDia.length,
-          disponibilidades: disponibilidadesDoDia.map(d => ({
-            tipo: d.tipo,
-            dataEspecifica: d.dataEspecifica,
-            diaSemana: d.diaSemana,
-            horaInicio: d.horaInicio,
-            horaFim: d.horaFim
-          }))
-        });
-
-        // Somar slots disponíveis (apenas presencial e online)
-        disponibilidadesDoDia.forEach(d => {
-          if (d.tipo === 'presencial' || d.tipo === 'online') {
-            const horaInicio = d.horaInicio.getHours() * 60 + d.horaInicio.getMinutes();
-            const horaFim = d.horaFim.getHours() * 60 + d.horaFim.getMinutes();
-            const slotsNoPeriodo = (horaFim - horaInicio) / 30; // Slots de 30 min
-            console.log(`[DEBUG] Slot disponível (${d.tipo}):`, { horaInicio, horaFim, slotsNoPeriodo });
-            totalSlotsDisponiveis += slotsNoPeriodo;
-          } else {
-            console.log(`[DEBUG] Slot ignorado (${d.tipo}):`, d);
-          }
-        });
-      }
-
-      // Filtrar agendamentos do profissional na semana
-      const agendamentosDaSemana = agendamentos.filter(agendamento => {
-        if (agendamento.profissionalId !== profissionalId) return false;
-        
-        const dataAgendamento = new Date(agendamento.dataHoraInicio);
-        return dataAgendamento >= inicioDaSemana && dataAgendamento <= fimDaSemana;
-      });
-
-      // Calcular slots ocupados (assumindo 30 min por agendamento como padrão)
-      const slotsOcupados = agendamentosDaSemana.length; // Simplificado por agora
-
-      // Calcular percentual
-      const percentual = totalSlotsDisponiveis === 0 ? 0 : Math.round((slotsOcupados / totalSlotsDisponiveis) * 100);
-      
-      console.log(`[DEBUG] Resultado final:`, {
-        profissionalId,
-        totalSlotsDisponiveis,
-        slotsOcupados,
-        agendamentosDaSemana: agendamentosDaSemana.length,
-        percentual
-      });
-      
-      return {
-        ocupados: slotsOcupados,
-        total: totalSlotsDisponiveis,
-        percentual
-      };
+      setOcupacoesSemana(ocupacoesMap);
+      return formData.ocupacoesSemana;
 
     } catch (error) {
-      console.error('Erro ao calcular ocupação semanal:', error);
-      return { ocupados: 0, total: 0, percentual: 0 };
+      console.error('Erro ao buscar dados unificados:', error);
+      return [];
     }
   };
 
-  // Calcular ocupações quando data for selecionada
+  // Buscar ocupações quando data for selecionada
   useEffect(() => {
-    if (dataAgendamento && profissionais.length > 0) {
-      const [ano, mes, dia] = dataAgendamento.split('-').map(Number);
-      const dataObj = new Date(ano, mes - 1, dia);
-      
-      // Calcular ocupação para todos os profissionais
-      Promise.all(
-        profissionais.map(async (prof) => {
-          const ocupacao = await calcularOcupacaoSemanal(prof.id, dataObj);
-          return { id: prof.id, ocupacao };
-        })
-      ).then(resultados => {
-        const ocupacoesMap = resultados.reduce((acc, { id, ocupacao }) => {
-          acc[id] = ocupacao;
-          return acc;
-        }, {} as { [id: string]: { ocupados: number, total: number, percentual: number } });
-        
-        setOcupacoesSemana(ocupacoesMap);
-      });
+    if (dataAgendamento) {
+      buscarDadosUnificados(dataAgendamento);
     }
-  }, [dataAgendamento, profissionais]);
+  }, [dataAgendamento]);
 
   // Função para verificar disponibilidade dos recursos usando a nova API
   const verificarDisponibilidadeRecursos = async () => {

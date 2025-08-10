@@ -5,6 +5,7 @@ import { CreateAgendamentoUseCase } from '../../../core/application/use-cases/ag
 import { ListAgendamentosUseCase } from '../../../core/application/use-cases/agendamento/ListAgendamentosUseCase';
 import { UpdateAgendamentoUseCase } from '../../../core/application/use-cases/agendamento/UpdateAgendamentoUseCase';
 import { DeleteAgendamentoUseCase } from '../../../core/application/use-cases/agendamento/DeleteAgendamentoUseCase';
+import { GetAgendamentoFormDataUseCase } from '../../../core/application/use-cases/agendamento/GetAgendamentoFormDataUseCase';
 
 const recorrenciaSchema = z.object({
   tipo: z.enum(['semanal', 'quinzenal', 'mensal']),
@@ -46,6 +47,21 @@ export class AgendamentosController {
     const useCase = container.resolve(ListAgendamentosUseCase);
     const agendamentos = await useCase.execute(filters);
     return reply.status(200).send(agendamentos);
+  }
+
+  async getFormData(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const querySchema = z.object({
+      data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data deve estar no formato YYYY-MM-DD').optional(),
+      profissionalId: z.string().uuid().optional(),
+    });
+
+    const { data, profissionalId } = querySchema.parse(request.query);
+
+    const getFormDataUseCase = container.resolve(GetAgendamentoFormDataUseCase);
+
+    const formData = await getFormDataUseCase.execute({ data, profissionalId });
+
+    return reply.status(200).send(formData);
   }
 
   async update(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
