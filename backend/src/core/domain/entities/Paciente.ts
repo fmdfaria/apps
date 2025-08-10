@@ -4,12 +4,12 @@ import { Convenio } from './Convenio';
 export class Paciente {
   id!: string;
   nomeCompleto!: string;
+  whatsapp!: string;
+  tipoServico!: string;
   nomeResponsavel?: string | null;
   email?: string | null;
-  whatsapp?: string | null;
   cpf?: string | null;
   dataNascimento?: Date | null;
-  tipoServico!: string;
   convenioId?: string | null;
   convenio?: Convenio | null;
   numeroCarteirinha?: string | null;
@@ -17,7 +17,6 @@ export class Paciente {
   crm?: string | null;
   cbo?: string | null;
   cid?: string | null;
-  pedidoMedicoArquivo?: string | null;
   userId?: string | null;
   createdAt!: Date;
   updatedAt!: Date;

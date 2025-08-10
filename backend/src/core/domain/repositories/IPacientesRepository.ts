@@ -2,9 +2,10 @@ import { Paciente } from '../entities/Paciente';
 
 export interface ICreatePacienteDTO {
   nomeCompleto: string;
+  whatsapp: string;
   tipoServico: string;
+  nomeResponsavel?: string | null;
   email?: string | null;
-  whatsapp?: string | null;
   cpf?: string | null;
   dataNascimento?: Date | null;
   convenioId?: string | null;
@@ -13,7 +14,6 @@ export interface ICreatePacienteDTO {
   crm?: string | null;
   cbo?: string | null;
   cid?: string | null;
-  pedidoMedicoArquivo?: string | null;
   userId?: string | null;
 }
 

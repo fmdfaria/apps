@@ -1,10 +1,10 @@
 export interface Paciente {
   id: string;
   nomeCompleto: string;
-  nomeResponsavel?: string | null;
+  whatsapp: string;
   tipoServico: string;
+  nomeResponsavel?: string | null;
   email?: string | null;
-  whatsapp?: string | null;
   cpf?: string | null;
   dataNascimento?: string | null;
   convenioId?: string | null;
@@ -13,6 +13,5 @@ export interface Paciente {
   crm?: string | null;
   cbo?: string | null;
   cid?: string | null;
-  pedidoMedicoArquivo?: string | null;
   userId?: string | null;
 } 

@@ -26,7 +26,22 @@ export class PrismaPacientesRepository implements IPacientesRepository {
 
   async create(data: ICreatePacienteDTO): Promise<Paciente> {
     const paciente = await this.prisma.paciente.create({
-      data,
+      data: {
+        nomeCompleto: data.nomeCompleto,
+        whatsapp: data.whatsapp!,
+        tipoServico: data.tipoServico,
+        nomeResponsavel: data.nomeResponsavel || undefined,
+        email: data.email || undefined,
+        cpf: data.cpf || undefined,
+        dataNascimento: data.dataNascimento || undefined,
+        convenioId: data.convenioId || undefined,
+        numeroCarteirinha: data.numeroCarteirinha || undefined,
+        dataPedidoMedico: data.dataPedidoMedico || undefined,
+        crm: data.crm || undefined,
+        cbo: data.cbo || undefined,
+        cid: data.cid || undefined,
+        userId: data.userId || undefined,
+      },
       include: pacienteInclude,
     });
     return paciente as Paciente;
@@ -65,7 +80,22 @@ export class PrismaPacientesRepository implements IPacientesRepository {
   async save(data: PacienteParaSalvar): Promise<Paciente> {
     const paciente = await this.prisma.paciente.update({
       where: { id: data.id },
-      data: data,
+      data: {
+        nomeCompleto: data.nomeCompleto,
+        whatsapp: data.whatsapp!,
+        tipoServico: data.tipoServico,
+        nomeResponsavel: data.nomeResponsavel || undefined,
+        email: data.email || undefined,
+        cpf: data.cpf || undefined,
+        dataNascimento: data.dataNascimento || undefined,
+        convenioId: data.convenioId || undefined,
+        numeroCarteirinha: data.numeroCarteirinha || undefined,
+        dataPedidoMedico: data.dataPedidoMedico || undefined,
+        crm: data.crm || undefined,
+        cbo: data.cbo || undefined,
+        cid: data.cid || undefined,
+        userId: data.userId || undefined,
+      },
       include: pacienteInclude,
     });
     return paciente as Paciente;

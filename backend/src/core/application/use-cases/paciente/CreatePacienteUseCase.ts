@@ -6,10 +6,10 @@ import { IPacientesRepository } from '../../../domain/repositories/IPacientesRep
 
 interface IRequest {
   nomeCompleto: string;
-  nomeResponsavel?: string | null;
+  whatsapp: string;
   tipoServico: string;
+  nomeResponsavel?: string | null;
   email?: string | null;
-  whatsapp?: string | null;
   cpf?: string | null;
   dataNascimento?: Date | null;
   convenioId?: string | null;
@@ -18,7 +18,6 @@ interface IRequest {
   crm?: string | null;
   cbo?: string | null;
   cid?: string | null;
-  pedidoMedicoArquivo?: string | null;
   userId?: string | null;
 }
 
