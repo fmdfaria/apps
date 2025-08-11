@@ -18,7 +18,8 @@ import {
   ChevronDown,
   ChevronUp,
   X,
-  Building2
+  Building2,
+  Monitor
 } from 'lucide-react';
 import { getAgendamentos } from '@/services/agendamentos';
 import { getProfissionais } from '@/services/profissionais';
@@ -86,8 +87,9 @@ export const CalendarioPage = () => {
   const [filtroProfissionaisAberto, setFiltroProfissionaisAberto] = useState(false);
   const [filtroRecursosAberto, setFiltroRecursosAberto] = useState(false);
   
-  // Estado para filtro de funcionários ativos
+  // Estados para filtro de funcionários ativos
   const [filtrarFuncionariosAtivos, setFiltrarFuncionariosAtivos] = useState(false);
+  const [filtrarFuncionariosOnline, setFiltrarFuncionariosOnline] = useState(false);
 
   // Funções de controle do modal unificado
   const handleFecharAgendamentoModal = () => {
@@ -109,9 +111,15 @@ export const CalendarioPage = () => {
   function handleAbrirFormularioDireto(dados?: { 
     profissionalId?: string; 
     dataHoraInicio?: string;
+    recursoId?: string;
     tipoFluxo?: 'por-profissional' | 'por-data';
   }) {
-    setPreenchimentoInicialModal(dados);
+    // Sempre usar fluxo "Por Profissional" quando vem do calendário
+    const dadosComFluxo = {
+      ...dados,
+      tipoFluxo: 'por-profissional' as const
+    };
+    setPreenchimentoInicialModal(dadosComFluxo);
     setShowAgendamentoModal(true);
   }
 
@@ -286,13 +294,73 @@ export const CalendarioPage = () => {
     return temDataEspecifica || temHorarioSemanal;
   };
 
+  // Função para verificar se um profissional tem disponibilidade presencial
+  const profissionalTemDisponibilidadePresencial = (profissionalId: string, data: Date): boolean => {
+    const diaSemana = data.getDay();
+    const disponibilidadesProfissional = disponibilidades.filter(d => d.profissionalId === profissionalId);
+    
+    // Verificar dataEspecifica presencial
+    const temDataEspecificaPresencial = disponibilidadesProfissional.some(d => {
+      if (!d.dataEspecifica || d.tipo !== 'presencial') return false;
+      
+      const dataDisponibilidade = new Date(d.dataEspecifica);
+      const dataParametro = new Date(data);
+      
+      return dataDisponibilidade.getFullYear() === dataParametro.getFullYear() &&
+             dataDisponibilidade.getMonth() === dataParametro.getMonth() &&
+             dataDisponibilidade.getDate() === dataParametro.getDate();
+    });
+    
+    // Verificar horário semanal presencial
+    const temHorarioSemanalPresencial = disponibilidadesProfissional.some(d => 
+      d.diaSemana !== null && d.diaSemana === diaSemana && !d.dataEspecifica && d.tipo === 'presencial'
+    );
+    
+    return temDataEspecificaPresencial || temHorarioSemanalPresencial;
+  };
+
+  // Função para verificar se um profissional tem disponibilidade online
+  const profissionalTemDisponibilidadeOnline = (profissionalId: string, data: Date): boolean => {
+    const diaSemana = data.getDay();
+    const disponibilidadesProfissional = disponibilidades.filter(d => d.profissionalId === profissionalId);
+    
+    // Verificar dataEspecifica online
+    const temDataEspecificaOnline = disponibilidadesProfissional.some(d => {
+      if (!d.dataEspecifica || d.tipo !== 'online') return false;
+      
+      const dataDisponibilidade = new Date(d.dataEspecifica);
+      const dataParametro = new Date(data);
+      
+      return dataDisponibilidade.getFullYear() === dataParametro.getFullYear() &&
+             dataDisponibilidade.getMonth() === dataParametro.getMonth() &&
+             dataDisponibilidade.getDate() === dataParametro.getDate();
+    });
+    
+    // Verificar horário semanal online
+    const temHorarioSemanalOnline = disponibilidadesProfissional.some(d => 
+      d.diaSemana !== null && d.diaSemana === diaSemana && !d.dataEspecifica && d.tipo === 'online'
+    );
+    
+    return temDataEspecificaOnline || temHorarioSemanalOnline;
+  };
+
   // Converter profissionais para o formato do calendário
   const calendarProfissionais: CalendarProfissional[] = profissionais
     .filter(prof => {
-      // Se o filtro de funcionários ativos está ativo, só mostrar profissionais com disponibilidade
-      if (filtrarFuncionariosAtivos) {
-        return profissionalTemDisponibilidade(prof.id, currentDate);
+      // Se ambos os filtros estão ativos, mostrar profissionais que atendem ambos os critérios
+      if (filtrarFuncionariosAtivos && filtrarFuncionariosOnline) {
+        return profissionalTemDisponibilidadePresencial(prof.id, currentDate) && 
+               profissionalTemDisponibilidadeOnline(prof.id, currentDate);
       }
+      // Se apenas filtro de ativos presencial está ativo
+      if (filtrarFuncionariosAtivos) {
+        return profissionalTemDisponibilidadePresencial(prof.id, currentDate);
+      }
+      // Se apenas filtro de ativos online está ativo
+      if (filtrarFuncionariosOnline) {
+        return profissionalTemDisponibilidadeOnline(prof.id, currentDate);
+      }
+      // Se nenhum filtro está ativo, mostrar todos
       return true;
     })
     .map((prof, index) => {
@@ -767,25 +835,45 @@ export const CalendarioPage = () => {
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  {/* Botão Ativos - apenas para visualização de profissionais */}
+                  {/* Botões Ativos - apenas para visualização de profissionais */}
                   {gridViewType === 'profissionais' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={filtrarFuncionariosAtivos 
-                        ? "h-9 px-3 bg-green-600 hover:bg-green-700 text-white" 
-                        : "h-9 px-3 border-green-600 text-green-600 hover:bg-green-600 hover:text-white"
-                      }
-                      onClick={() => setFiltrarFuncionariosAtivos(!filtrarFuncionariosAtivos)}
-                    >
-                      <Users className="w-4 h-4 mr-1" />
-                      Ativos
-                      {filtrarFuncionariosAtivos && (
-                        <span className="ml-2 bg-green-200 text-green-800 px-2 py-1 rounded-full text-xs font-semibold">
-                          {calendarProfissionais.length}
-                        </span>
-                      )}
-                    </Button>
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={filtrarFuncionariosAtivos 
+                          ? "h-9 px-3 bg-green-600 hover:bg-green-700 text-white" 
+                          : "h-9 px-3 border-green-600 text-green-600 hover:bg-green-600 hover:text-white"
+                        }
+                        onClick={() => setFiltrarFuncionariosAtivos(!filtrarFuncionariosAtivos)}
+                      >
+                        <Users className="w-4 h-4 mr-1" />
+                        Ativos
+                        {filtrarFuncionariosAtivos && (
+                          <span className="ml-1 bg-green-200 text-green-800 px-1.5 py-0.5 rounded-full text-xs font-semibold">
+                            {profissionais.filter(p => profissionalTemDisponibilidadePresencial(p.id, currentDate)).length}
+                          </span>
+                        )}
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={filtrarFuncionariosOnline 
+                          ? "h-9 px-3 bg-blue-600 hover:bg-blue-700 text-white" 
+                          : "h-9 px-3 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white"
+                        }
+                        onClick={() => setFiltrarFuncionariosOnline(!filtrarFuncionariosOnline)}
+                      >
+                        <Monitor className="w-4 h-4 mr-1" />
+                        Ativos Online
+                        {filtrarFuncionariosOnline && (
+                          <span className="ml-1 bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded-full text-xs font-semibold">
+                            {profissionais.filter(p => profissionalTemDisponibilidadeOnline(p.id, currentDate)).length}
+                          </span>
+                        )}
+                      </Button>
+                    </>
                   )}
                   
                   <Button 
@@ -813,6 +901,7 @@ export const CalendarioPage = () => {
                   insurance: 'all',
                   resource: recursosSelecionados.length > 0 ? recursosSelecionados.join(',') : 'all'
                 }}
+                availabilities={disponibilidades}
                 verificarDisponibilidade={verificarDisponibilidade}
                 verificarStatusDisponibilidade={verificarStatusDisponibilidade}
                 onAppointmentClick={(appointmentId) => {
@@ -845,11 +934,15 @@ export const CalendarioPage = () => {
                   
                   const dataHoraLocal = `${ano}-${mes}-${dia}T${horaFormatada}:${minutoFormatado}`;
                   
-                  // Para profissionais, usar como profissionalId, para recursos, deixar vazio
-                  handleAbrirFormularioDireto({
+                  // Sempre usar fluxo "Por Profissional" - se clicou em recurso, deixa profissional em branco para seleção
+                  const dadosFormulario = {
+                    dataHoraInicio: dataHoraLocal,
                     profissionalId: gridViewType === 'profissionais' ? entityId : undefined,
-                    dataHoraInicio: dataHoraLocal
-                  });
+                    // Se clicou em recurso, pode passar como informação adicional (opcional)
+                    recursoId: gridViewType === 'recursos' ? entityId : undefined
+                  };
+                  
+                  handleAbrirFormularioDireto(dadosFormulario);
                 }}
               />
             </CardContent>

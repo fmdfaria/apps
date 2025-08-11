@@ -70,12 +70,12 @@ const obterTextoTipo = (tipo: 'presencial' | 'online' | 'folga') => {
   }
 };
 
-// Gerar opções de horário para início (07:00 até 20:00)
+// Gerar opções de horário para início (05:00 até 22:00)
 const gerarOpcoesHorarioInicio = () => {
   const opcoes = [];
-  for (let hora = 7; hora <= 20; hora++) {
+  for (let hora = 5; hora <= 22; hora++) {
     for (let minuto = 0; minuto < 60; minuto += 30) {
-      if (hora === 20 && minuto > 0) break; // Para às 20:00
+      if (hora === 22 && minuto > 0) break; // Para às 22:00
       const horarioFormatado = `${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
       opcoes.push({
         id: horarioFormatado,
@@ -86,12 +86,12 @@ const gerarOpcoesHorarioInicio = () => {
   return opcoes;
 };
 
-// Gerar opções de horário para fim (07:30 até 20:30)
+// Gerar opções de horário para fim (05:30 até 22:30)
 const gerarOpcoesHorarioFim = () => {
   const opcoes = [];
-  for (let hora = 7; hora <= 20; hora++) {
+  for (let hora = 5; hora <= 22; hora++) {
     for (let minuto = 0; minuto < 60; minuto += 30) {
-      if (hora === 7 && minuto === 0) continue; // Começa às 07:30
+      if (hora === 5 && minuto === 0) continue; // Começa às 05:30
       const horarioFormatado = `${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
       opcoes.push({
         id: horarioFormatado,
@@ -441,10 +441,9 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
                         setRecursoSelecionado(null);
                       }
                     }}
-                    placeholder="Recurso (opcional)"
+                    placeholder="Recurso"
                     headerText="Recursos disponíveis"
                     dotColor="purple"
-                    disabled={!canModify}
                   />
                 </div>
                 <div className="flex justify-center">
@@ -514,10 +513,9 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
                           setRecursoSelecionado(null);
                         }
                       }}
-                      placeholder="Recurso (opcional)"
+                      placeholder="Recurso"
                       headerText="Recursos disponíveis"
                       dotColor="purple"
-                      disabled={!canModify}
                     />
                   </div>
                 </div>

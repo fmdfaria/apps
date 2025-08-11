@@ -38,6 +38,16 @@ interface SchedulerGridProps {
   onDoubleClick?: (entityId: string, horario: string) => void;
   verificarDisponibilidade?: (profissionalId: string, data: Date, horario: string) => boolean;
   verificarStatusDisponibilidade?: (profissionalId: string, data: Date, horario: string) => 'presencial' | 'online' | 'folga' | 'nao_configurado';
+  availabilities?: Array<{
+    id: string;
+    profissionalId: string;
+    recursoId?: string | null;
+    horaInicio: Date;
+    horaFim: Date;
+    tipo: 'presencial' | 'online' | 'folga';
+    diaSemana: number | null;
+    dataEspecifica: Date | null;
+  }>;
 }
 
 export const SchedulerGrid = ({
@@ -49,28 +59,123 @@ export const SchedulerGrid = ({
   onAppointmentClick,
   onDoubleClick,
   verificarDisponibilidade,
-  verificarStatusDisponibilidade
+  verificarStatusDisponibilidade,
+  availabilities = []
 }: SchedulerGridProps) => {
   const [draggedAppointment, setDraggedAppointment] = useState<string | null>(null);
   const timeColumnRef = useRef<HTMLDivElement>(null);
   const entitiesColumnsContainerRef = useRef<HTMLDivElement>(null);
   const headerScrollRef = useRef<HTMLDivElement>(null);
 
-  // Generate time slots (7:00 to 20:00 in 30-minute intervals)
-  const timeSlots = [];
-  for (let hour = 7; hour <= 20; hour++) {
-    timeSlots.push(`${hour.toString().padStart(2, '0')}:00`);
-    if (hour < 20) {
-      timeSlots.push(`${hour.toString().padStart(2, '0')}:30`);
-    }
-  }
-
-  // Filter entities based on selection and sort alphabetically
+  // Filter entities first to know which ones to consider for time slots
   const filterIds = viewType === 'profissionais' ? filters.professionals : (filters.resources || []);
   const filteredEntities = (filterIds.length > 0
     ? profissionais.filter(p => filterIds.includes(p.id))
     : profissionais)
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }));
+
+  // Filter appointments for the filtered entities
+  const relevantAgendamentos = agendamentos.filter(appointment => {
+    if (viewType === 'profissionais' && filterIds.length > 0) {
+      return filterIds.includes(appointment.profissionalId);
+    }
+    if (viewType === 'recursos' && filters.resources && filters.resources.length > 0) {
+      return filters.resources.includes(appointment.recursoId);
+    }
+    // If no filters, include all appointments for the current entities
+    if (viewType === 'profissionais') {
+      return filteredEntities.some(e => e.id === appointment.profissionalId);
+    } else {
+      return filteredEntities.some(e => e.id === appointment.recursoId);
+    }
+  });
+
+  // Calculate dynamic time range based on availabilities and appointments
+  const calculateDynamicTimeSlots = () => {
+    let minHour = 24; // Start with max possible
+    let maxHour = 0;   // Start with min possible
+
+    // Consider appointments first
+    relevantAgendamentos.forEach(appointment => {
+      const startHour = parseInt(appointment.horarioInicio.split(':')[0]);
+      const endHour = parseInt(appointment.horarioFim.split(':')[0]);
+      const endMinute = parseInt(appointment.horarioFim.split(':')[1]);
+      
+      minHour = Math.min(minHour, startHour);
+      maxHour = Math.max(maxHour, endMinute > 0 ? endHour + 1 : endHour);
+    });
+
+    // Consider availabilities directly for better performance
+    if (availabilities.length > 0 && viewType === 'profissionais') {
+      // Filter availabilities for current date and selected entities
+      const relevantAvailabilities = availabilities.filter(availability => {
+        // Check if availability is for a filtered entity
+        const entityMatch = filterIds.length === 0 || filterIds.includes(availability.profissionalId);
+        if (!entityMatch) return false;
+
+        // Check if availability applies to current date
+        if (availability.dataEspecifica) {
+          // Specific date availability
+          const availDate = new Date(availability.dataEspecifica);
+          return availDate.getFullYear() === currentDate.getFullYear() &&
+                 availDate.getMonth() === currentDate.getMonth() &&
+                 availDate.getDate() === currentDate.getDate();
+        } else if (availability.diaSemana !== null) {
+          // Weekly recurring availability
+          return availability.diaSemana === currentDate.getDay();
+        }
+        return false;
+      });
+
+      // Extract time ranges from relevant availabilities
+      relevantAvailabilities.forEach(availability => {
+        const startHour = availability.horaInicio.getHours();
+        const endHour = availability.horaFim.getHours();
+        const endMinute = availability.horaFim.getMinutes();
+        
+        minHour = Math.min(minHour, startHour);
+        maxHour = Math.max(maxHour, endMinute > 0 ? endHour + 1 : endHour);
+      });
+    } 
+    // Fallback to verificarStatusDisponibilidade if availabilities not provided
+    else if (verificarStatusDisponibilidade && viewType === 'profissionais') {
+      filteredEntities.forEach(entity => {
+        // Check each hour from 5:00 to 22:00 for availability
+        for (let hour = 5; hour <= 22; hour++) {
+          for (let minute = 0; minute < 60; minute += 30) {
+            const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+            const status = verificarStatusDisponibilidade(entity.id, currentDate, timeStr);
+            
+            if (status === 'presencial' || status === 'online' || status === 'folga') {
+              minHour = Math.min(minHour, hour);
+              maxHour = Math.max(maxHour, hour + 1);
+            }
+          }
+        }
+      });
+    }
+
+    // If no data found, use default range
+    if (minHour === 24) minHour = 8;
+    if (maxHour === 0) maxHour = 18;
+
+    // Ensure we have at least 8 hours visible and round to reasonable boundaries
+    minHour = Math.max(5, Math.min(minHour, 20)); // Don't start later than 20:00
+    maxHour = Math.min(23, Math.max(maxHour, minHour + 8)); // At least 8 hours, don't end later than 23:00
+
+    // Generate time slots for the calculated range
+    const slots = [];
+    for (let hour = minHour; hour <= maxHour; hour++) {
+      slots.push(`${hour.toString().padStart(2, '0')}:00`);
+      if (hour < maxHour) {
+        slots.push(`${hour.toString().padStart(2, '0')}:30`);
+      }
+    }
+
+    return { slots, minHour, maxHour };
+  };
+
+  const { slots: timeSlots, minHour, maxHour } = calculateDynamicTimeSlots();
 
   // Filter appointments
   const filteredAgendamentos = agendamentos.filter(appointment => {
@@ -148,7 +253,7 @@ export const SchedulerGrid = ({
   const getAppointmentPosition = (horarioInicio: string, horarioFim: string) => {
     const startMinutes = parseInt(horarioInicio.split(':')[0]) * 60 + parseInt(horarioInicio.split(':')[1]);
     const endMinutes = parseInt(horarioFim.split(':')[0]) * 60 + parseInt(horarioFim.split(':')[1]);
-    const baseMinutes = 7 * 60; // 7:00 AM base
+    const baseMinutes = minHour * 60; // Use dynamic minHour as base
 
     const top = ((startMinutes - baseMinutes) / 30) * 60; // 60px per 30-minute slot
     const height = ((endMinutes - startMinutes) / 30) * 60;
@@ -278,14 +383,14 @@ export const SchedulerGrid = ({
                 if (viewType === 'profissionais' && verificarStatusDisponibilidade) {
                   switch (statusDisponibilidade) {
                     case 'presencial':
-                      statusClasses = "cursor-pointer hover:bg-blue-50/30 bg-blue-50/20 border-l-2 border-blue-300";
+                      statusClasses = "cursor-pointer hover:bg-green-50/30 bg-green-50/20 border-l-2 border-green-300";
                       statusTitle = "Disponível para atendimento presencial - Duplo clique para agendar";
-                      statusIcon = <User className="w-3 h-3 text-blue-500 opacity-60" />;
+                      statusIcon = <User className="w-3 h-3 text-green-500 opacity-60" />;
                       break;
                     case 'online':
-                      statusClasses = "cursor-pointer hover:bg-green-50/30 bg-green-50/20 border-l-2 border-green-300";
+                      statusClasses = "cursor-pointer hover:bg-blue-50/30 bg-blue-50/20 border-l-2 border-blue-300";
                       statusTitle = "Disponível para atendimento online - Duplo clique para agendar";
-                      statusIcon = <Monitor className="w-3 h-3 text-green-500 opacity-60" />;
+                      statusIcon = <Monitor className="w-3 h-3 text-blue-500 opacity-60" />;
                       break;
                     case 'folga':
                       statusClasses = "cursor-not-allowed bg-red-50/50 hover:bg-red-100/50 border-l-2 border-red-300";
@@ -293,7 +398,7 @@ export const SchedulerGrid = ({
                       statusIcon = <Coffee className="w-3 h-3 text-red-400 opacity-60" />;
                       break;
                     case 'nao_configurado':
-                      statusClasses = "cursor-not-allowed bg-gray-100/50 hover:bg-gray-200/50";
+                      statusClasses = "cursor-not-allowed bg-gray-100/50 hover:bg-gray-200/50 border-l-2 border-gray-300";
                       statusTitle = "Horário não configurado";
                       statusIcon = <X className="w-3 h-3 text-gray-400 opacity-50" />;
                       break;

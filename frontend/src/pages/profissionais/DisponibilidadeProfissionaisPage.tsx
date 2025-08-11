@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { TimeSelectDropdown } from '@/components/ui/time-select-dropdown';
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import { AppToast } from '@/services/toast';
-import { Calendar as CalendarIcon, Clock, User, Save, RotateCcw, Info, CalendarDays, Trash2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, Save, Info, CalendarDays, Trash2 } from 'lucide-react';
 import DiaHorarioCard from '@/components/profissionais/DiaHorarioCard';
 import { getProfissionais } from '@/services/profissionais';
 import { getRecursos } from '@/services/recursos';
@@ -24,12 +24,12 @@ import { parseDataLocal, formatarDataLocal } from '@/lib/utils';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 
-// Gerar opções de horário para início (07:00 até 20:00)
+// Gerar opções de horário para início (05:00 até 22:00)
 const gerarOpcoesHorarioInicio = () => {
   const opcoes = [];
-  for (let hora = 7; hora <= 20; hora++) {
+  for (let hora = 5; hora <= 22; hora++) {
     for (let minuto = 0; minuto < 60; minuto += 30) {
-      if (hora === 20 && minuto > 0) break; // Para às 20:00
+      if (hora === 22 && minuto > 0) break; // Para às 22:00
       const horarioFormatado = `${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
       opcoes.push({
         id: horarioFormatado,
@@ -40,12 +40,12 @@ const gerarOpcoesHorarioInicio = () => {
   return opcoes;
 };
 
-// Gerar opções de horário para fim (07:30 até 20:30)
+// Gerar opções de horário para fim (05:30 até 22:30)
 const gerarOpcoesHorarioFim = () => {
   const opcoes = [];
-  for (let hora = 7; hora <= 20; hora++) {
+  for (let hora = 5; hora <= 22; hora++) {
     for (let minuto = 0; minuto < 60; minuto += 30) {
-      if (hora === 7 && minuto === 0) continue; // Começa às 07:30
+      if (hora === 5 && minuto === 0) continue; // Começa às 05:30
       const horarioFormatado = `${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
       opcoes.push({
         id: horarioFormatado,
@@ -114,25 +114,23 @@ export default function DisponibilidadeProfissionaisPage() {
   
   // Estados para data específica
   const [dataEspecifica, setDataEspecifica] = useState('');
-  const [horaInicioEspecifica, setHoraInicioEspecifica] = useState('07:00');
-  const [horaFimEspecifica, setHoraFimEspecifica] = useState('20:30');
+  const [horaInicioEspecifica, setHoraInicioEspecifica] = useState('05:00');
+  const [horaFimEspecifica, setHoraFimEspecifica] = useState('22:30');
   const [observacaoEspecifica, setObservacaoEspecifica] = useState('');
   const [disponibilidadesEspecificas, setDisponibilidadesEspecificas] = useState<any[]>([]);
   
   // Estados para os dropdowns de horário na data específica
   const [horarioInicioEspecificoSelecionado, setHorarioInicioEspecificoSelecionado] = useState<{id: string, nome: string} | null>(
-    OPCOES_HORARIO_INICIO.find(op => op.nome === '07:00') || null
+    OPCOES_HORARIO_INICIO.find(op => op.nome === '05:00') || null
   );
   const [horarioFimEspecificoSelecionado, setHorarioFimEspecificoSelecionado] = useState<{id: string, nome: string} | null>(
-    OPCOES_HORARIO_FIM.find(op => op.nome === '20:30') || null
+    OPCOES_HORARIO_FIM.find(op => op.nome === '22:30') || null
   );
   
   // Estados para modal de confirmação de exclusão
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [disponibilidadeParaExcluir, setDisponibilidadeParaExcluir] = useState<any>(null);
   
-  // Estados para modal de confirmação de reset
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
   
   // Estados para modal de confirmação de limpar horários
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -258,14 +256,14 @@ export default function DisponibilidadeProfissionaisPage() {
     
     // Limpar formulário de data específica
     setDataEspecifica('');
-    setHoraInicioEspecifica('07:00');
-    setHoraFimEspecifica('20:30');
+    setHoraInicioEspecifica('05:00');
+    setHoraFimEspecifica('22:30');
     setObservacaoEspecifica('');
     setRecursoSelecionado(null);
     
     // Resetar dropdowns de horário para valores padrão
-    setHorarioInicioEspecificoSelecionado(OPCOES_HORARIO_INICIO.find(op => op.nome === '07:00') || null);
-    setHorarioFimEspecificoSelecionado(OPCOES_HORARIO_FIM.find(op => op.nome === '20:30') || null);
+    setHorarioInicioEspecificoSelecionado(OPCOES_HORARIO_INICIO.find(op => op.nome === '05:00') || null);
+    setHorarioFimEspecificoSelecionado(OPCOES_HORARIO_FIM.find(op => op.nome === '22:30') || null);
   };
 
   const limparDadosComAba = () => {
@@ -331,21 +329,6 @@ export default function DisponibilidadeProfissionaisPage() {
     );
   };
 
-  const handleResetarHorarios = () => {
-    setShowResetConfirm(true);
-  };
-
-  const confirmarResetarHorarios = () => {
-    const horariosReset = criarHorarioSemanaPadrao();
-    setHorariosSemana(horariosReset);
-    // Importante: Atualizar também os horários originais para que a comparação seja feita corretamente
-    // Isso evita que o sistema tente excluir horários que não existem mais
-    setHorariosOriginais(criarHorarioSemanaPadrao());
-    setShowResetConfirm(false);
-    AppToast.success('Horários resetados na tela', {
-      description: "Padrão aplicado: Seg-Sex (07:00-12:00 presencial, 12:00-13:00 folga, 13:00-18:00 presencial). Ajuste se necessário e clique em 'Salvar Horários' para aplicar."
-    });
-  };
 
   const handleLimparHorarios = () => {
     setShowClearConfirm(true);
@@ -387,13 +370,13 @@ export default function DisponibilidadeProfissionaisPage() {
           setHoraFimEspecifica(opcoesValidas[0].nome);
         } else {
           setHorarioFimEspecificoSelecionado(null);
-          setHoraFimEspecifica('17:00');
+          setHoraFimEspecifica('22:30');
         }
       }
     } else {
-      setHoraInicioEspecifica('08:00');
+      setHoraInicioEspecifica('05:00');
       setHorarioFimEspecificoSelecionado(null);
-      setHoraFimEspecifica('17:00');
+      setHoraFimEspecifica('22:30');
     }
   };
 
@@ -404,7 +387,7 @@ export default function DisponibilidadeProfissionaisPage() {
     if (novoHorario) {
       setHoraFimEspecifica(novoHorario.nome);
     } else {
-      setHoraFimEspecifica('17:00');
+      setHoraFimEspecifica('22:30');
     }
   };
 
@@ -458,14 +441,14 @@ export default function DisponibilidadeProfissionaisPage() {
 
       // Limpar formulário
       setDataEspecifica('');
-      setHoraInicioEspecifica('08:00');
-      setHoraFimEspecifica('17:00');
+      setHoraInicioEspecifica('05:00');
+      setHoraFimEspecifica('22:30');
       setObservacaoEspecifica('');
       setRecursoSelecionado(null);
       
       // Resetar dropdowns para valores padrão
-      setHorarioInicioEspecificoSelecionado(OPCOES_HORARIO_INICIO.find(op => op.nome === '08:00') || null);
-      setHorarioFimEspecificoSelecionado(OPCOES_HORARIO_FIM.find(op => op.nome === '17:00') || null);
+      setHorarioInicioEspecificoSelecionado(OPCOES_HORARIO_INICIO.find(op => op.nome === '05:00') || null);
+      setHorarioFimEspecificoSelecionado(OPCOES_HORARIO_FIM.find(op => op.nome === '22:30') || null);
 
       AppToast.created('Disponibilidade específica', 'Disponibilidade específica adicionada com sucesso!');
       await carregarDisponibilidades();
@@ -1107,109 +1090,53 @@ export default function DisponibilidadeProfissionaisPage() {
       {/* FOOTER FIXO */}
       {profissionalSelecionado && abaSelecionada === 'semanal' && (
         <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-4 flex-shrink-0 shadow-sm">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-2">
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 sm:gap-2">
+            <div className="flex flex-wrap items-center gap-2 justify-end">
               {(canCreate || canUpdate || canDelete) ? (
-                <Button
-                  variant="outline"
-                  onClick={handleResetarHorarios}
-                  className="flex items-center gap-2"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  Resetar Horários
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleLimparHorarios}
+                    className="flex items-center gap-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Limpar Horários
+                  </Button>
+                  <Button
+                    onClick={handleSalvar}
+                    disabled={salvando || loading || carregandoDisponibilidades}
+                    className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    {salvando ? 'Salvando...' : 'Salvar Horários'}
+                  </Button>
+                </>
               ) : (
-                <Button
-                  variant="outline"
-                  disabled={true}
-                  className="flex items-center gap-2 opacity-50 cursor-not-allowed"
-                  title="Você não tem permissão para modificar horários"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  Resetar Horários
-                </Button>
-              )}
-              
-              {(canCreate || canUpdate || canDelete) ? (
-                <Button
-                  variant="outline"
-                  onClick={handleLimparHorarios}
-                  className="flex items-center gap-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Limpar Horários
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  disabled={true}
-                  className="flex items-center gap-2 border-gray-300 text-gray-400 opacity-50 cursor-not-allowed"
-                  title="Você não tem permissão para modificar horários"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Limpar Horários
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    disabled={true}
+                    className="flex items-center gap-2 border-gray-300 text-gray-400 opacity-50 cursor-not-allowed"
+                    title="Você não tem permissão para modificar horários"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Limpar Horários
+                  </Button>
+                  <Button
+                    disabled={true}
+                    className="bg-gray-400 cursor-not-allowed flex items-center gap-2"
+                    title="Você não tem permissão para modificar horários"
+                  >
+                    <Save className="w-4 h-4" />
+                    Salvar Horários
+                  </Button>
+                </>
               )}
             </div>
-
-            {(canCreate || canUpdate || canDelete) ? (
-              <Button
-                onClick={handleSalvar}
-                disabled={salvando || loading || carregandoDisponibilidades}
-                className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                {salvando ? 'Salvando...' : 'Salvar Horários'}
-              </Button>
-            ) : (
-              <Button
-                disabled={true}
-                className="bg-gray-400 cursor-not-allowed flex items-center gap-2"
-                title="Você não tem permissão para modificar horários"
-              >
-                <Save className="w-4 h-4" />
-                Salvar Horários
-              </Button>
-            )}
           </div>
         </div>
       )}
 
-      {/* Modal de confirmação para reset de horários */}
-      <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar reset dos horários</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja resetar todos os horários para o padrão?
-              <br /><br />
-              <strong>Padrão aplicado:</strong>
-              <ul className="mt-2 space-y-1 text-sm">
-                <li>• <strong>Segunda a Sexta:</strong></li>
-                <li className="ml-4">- 07:00 às 12:00 (Presencial)</li>
-                <li className="ml-4">- 12:00 às 13:00 (Folga - Almoço)</li>
-                <li className="ml-4">- 13:00 às 18:00 (Presencial)</li>
-                <li>• <strong>Sábado e Domingo:</strong> Sem horários configurados</li>
-              </ul>
-              <br />
-              <span className="text-blue-600 font-medium">
-                Esta ação irá resetar os horários na tela. Você poderá ajustar conforme necessário e depois clicar em "Salvar Horários" para aplicar as mudanças.
-              </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowResetConfirm(false)}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmarResetarHorarios}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Confirmar Reset
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Modal de confirmação para limpar horários */}
       <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
