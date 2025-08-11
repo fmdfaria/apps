@@ -162,4 +162,37 @@ export class PrismaDisponibilidadesProfissionaisRepository implements IDisponibi
     const count = await this.prisma.disponibilidadeProfissional.count({ where });
     return count > 0;
   }
+
+  async findResourceConflict({ recursoId, diaSemana, dataEspecifica, horaInicio, horaFim, excludeId }: {
+    recursoId: string;
+    diaSemana?: number | null;
+    dataEspecifica?: Date | null;
+    horaInicio: Date;
+    horaFim: Date;
+    excludeId?: string;
+  }): Promise<DisponibilidadeProfissional | null> {
+    const where: any = {
+      recursoId,
+      AND: [
+        excludeId ? { id: { not: excludeId } } : {},
+        diaSemana !== undefined ? { diaSemana } : {},
+        dataEspecifica !== undefined ? { dataEspecifica } : {},
+        {
+          OR: [
+            {
+              horaInicio: { lt: horaFim },
+              horaFim: { gt: horaInicio },
+            },
+          ],
+        },
+      ],
+    };
+    
+    const disponibilidade = await this.prisma.disponibilidadeProfissional.findFirst({
+      where,
+      include: includeData,
+    });
+    
+    return disponibilidade ? toDomain(disponibilidade) : null;
+  }
 } 

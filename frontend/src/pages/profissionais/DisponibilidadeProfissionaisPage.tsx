@@ -477,10 +477,17 @@ export default function DisponibilidadeProfissionaisPage() {
         // Erro de permissão será tratado pelo interceptor
         return;
       } else if (err?.response?.status === 409) {
-        const errorMessage = err?.response?.data?.message || 'Conflito de horários';
-        AppToast.error('Conflito de horários', {
-          description: `${errorMessage}. Verifique se não há conflito com horários semanais ou outras datas específicas já configuradas.`
-        });
+        const errorMessage = err?.response?.data?.message || 'Conflito de horários detectado';
+        // Verificar se é conflito de recurso específico ou conflito geral
+        if (errorMessage.includes('já está utilizando')) {
+          AppToast.error('Conflito de Recurso', {
+            description: errorMessage
+          });
+        } else {
+          AppToast.error('Conflito de Horários', {
+            description: `${errorMessage}. Verifique se não há conflito com horários semanais ou outras datas específicas já configuradas.`
+          });
+        }
       } else {
         AppToast.error('Erro ao adicionar disponibilidade', {
           description: err?.response?.data?.message || 'Erro ao adicionar disponibilidade'
@@ -622,11 +629,16 @@ export default function DisponibilidadeProfissionaisPage() {
       if (err?.response?.status === 403) {
         // Erro de permissão será tratado pelo interceptor
         return;
+      } else if (err?.response?.status === 409) {
+        const errorMessage = err?.response?.data?.message || 'Conflito de horários detectado';
+        AppToast.error('Conflito de Recurso', {
+          description: errorMessage
+        });
+      } else {
+        AppToast.error('Erro ao salvar horários', {
+          description: err?.response?.data?.message || 'Erro ao salvar horários'
+        });
       }
-      
-      AppToast.error('Erro ao salvar horários', {
-        description: err?.response?.data?.message || 'Erro ao salvar horários'
-      });
     } finally {
       setSalvando(false);
     }
@@ -834,8 +846,8 @@ export default function DisponibilidadeProfissionaisPage() {
                   </div>
                 ) : (
                   <>
-                {/* Grid de horários semanais */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
+                {/* Grid de horários semanais - ajustado para responsividade */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-6 mb-6">
                   {horariosSemana.map(horario => (
                     <DiaHorarioCard
                       key={horario.diaSemana}

@@ -29,16 +29,47 @@ export class UpdateDisponibilidadeProfissionalUseCase {
       }
     }
 
-    const overlapping = await this.disponibilidadesRepository.existsOverlapping({
+    const mergedData = {
       profissionalId: data.profissionalId || disponibilidade.profissionalId,
-      diaSemana: data.diaSemana ?? disponibilidade.diaSemana,
-      dataEspecifica: data.dataEspecifica ?? disponibilidade.dataEspecifica,
+      recursoId: data.recursoId !== undefined ? data.recursoId : disponibilidade.recursoId,
+      diaSemana: data.diaSemana !== undefined ? data.diaSemana : disponibilidade.diaSemana,
+      dataEspecifica: data.dataEspecifica !== undefined ? data.dataEspecifica : disponibilidade.dataEspecifica,
       horaInicio: data.horaInicio ?? disponibilidade.horaInicio,
       horaFim: data.horaFim ?? disponibilidade.horaFim,
+    };
+
+    // Validação 1: Verificar sobreposição para o mesmo profissional
+    const overlapping = await this.disponibilidadesRepository.existsOverlapping({
+      profissionalId: mergedData.profissionalId,
+      diaSemana: mergedData.diaSemana,
+      dataEspecifica: mergedData.dataEspecifica,
+      horaInicio: mergedData.horaInicio,
+      horaFim: mergedData.horaFim,
       excludeId: id,
     });
     if (overlapping) {
       throw new AppError('Já existe uma disponibilidade sobreposta para este profissional.', 409);
+    }
+
+    // Validação 2: Verificar conflito de recurso (apenas para disponibilidades semanais com recurso)
+    if (mergedData.recursoId && mergedData.diaSemana !== null && mergedData.diaSemana !== undefined && !mergedData.dataEspecifica) {
+      const resourceConflict = await this.disponibilidadesRepository.findResourceConflict({
+        recursoId: mergedData.recursoId,
+        diaSemana: mergedData.diaSemana,
+        dataEspecifica: mergedData.dataEspecifica,
+        horaInicio: mergedData.horaInicio,
+        horaFim: mergedData.horaFim,
+        excludeId: id,
+      });
+      
+      if (resourceConflict && resourceConflict.profissional) {
+        const nomeProfissional = resourceConflict.profissional.nome;
+        const nomeRecurso = resourceConflict.recurso?.nome || 'o recurso';
+        throw new AppError(
+          `Conflito de horário detectado! O profissional "${nomeProfissional}" já está utilizando ${nomeRecurso} neste horário.`, 
+          409
+        );
+      }
     }
 
     const updated = await this.disponibilidadesRepository.update(id, data);

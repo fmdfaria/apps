@@ -27,4 +27,12 @@ export interface IDisponibilidadesProfissionaisRepository {
     horaFim: Date;
     excludeId?: string;
   }): Promise<boolean>;
+  findResourceConflict(params: {
+    recursoId: string;
+    diaSemana?: number | null;
+    dataEspecifica?: Date | null;
+    horaInicio: Date;
+    horaFim: Date;
+    excludeId?: string;
+  }): Promise<DisponibilidadeProfissional | null>;
 } 

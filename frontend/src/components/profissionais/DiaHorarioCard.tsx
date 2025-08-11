@@ -396,14 +396,14 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
           ))}
 
           {/* Formulário para adicionar novo intervalo */}
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-3">
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 overflow-hidden">
             <div className="flex items-center gap-2 mb-3">
               <Plus className="w-4 h-4 text-gray-400" />
               <Label className="text-sm text-gray-600">Adicionar intervalo</Label>
             </div>
             
             {/* Layout responsivo */}
-            <div className="space-y-3">
+            <div className="space-y-3 w-full min-w-0">
               {/* Em telas pequenas: layout vertical */}
               <div className="sm:hidden space-y-3">
                 <div>
@@ -473,9 +473,9 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
               </div>
               
               {/* Em telas médias e grandes: layout de duas linhas com botão único */}
-              <div className="hidden sm:flex gap-2">
+              <div className="hidden sm:flex gap-2 items-stretch">
                 {/* Campos em duas linhas */}
-                <div className="flex-1 space-y-2">
+                <div className="flex-1 space-y-2 min-w-0">
                   {/* Primeira linha: Início até Fim */}
                   <div className="flex items-center gap-2">
                     <div className="flex-1 min-w-0">
@@ -522,13 +522,13 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
                   </div>
                 </div>
                 
-                {/* Botão único que se estende verticalmente */}
+                {/* Botão único que se estende verticalmente - responsivo */}
                 <div className="flex items-center">
                   {canModify ? (
                     <Button
                       size="sm"
                       onClick={handleAdicionarIntervalo}
-                      className="h-[72px] w-10 p-0 bg-blue-600 hover:bg-blue-700 flex-shrink-0"
+                      className="h-[72px] w-12 sm:w-12 md:w-14 lg:w-12 xl:w-14 min-w-[48px] p-0 bg-blue-600 hover:bg-blue-700 flex-shrink-0 flex items-center justify-center transition-all duration-200"
                       title="Adicionar intervalo"
                     >
                       <Plus className="w-5 h-5" />
@@ -537,7 +537,7 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
                     <Button
                       size="sm"
                       disabled={true}
-                      className="h-[72px] w-10 p-0 bg-gray-400 cursor-not-allowed flex-shrink-0"
+                      className="h-[72px] w-12 sm:w-12 md:w-14 lg:w-12 xl:w-14 min-w-[48px] p-0 bg-gray-400 cursor-not-allowed flex-shrink-0 flex items-center justify-center"
                       title="Você não tem permissão para adicionar intervalos"
                     >
                       <Plus className="w-5 h-5" />
