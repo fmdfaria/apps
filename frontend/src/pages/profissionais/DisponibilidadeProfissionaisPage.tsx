@@ -698,115 +698,114 @@ export default function DisponibilidadeProfissionaisPage() {
   }
 
   return (
-    <div className="h-full p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-          <CalendarIcon className="w-8 h-8 text-blue-600" />
-          Disponibilidades Profissionais
-        </h1>
-        <p className="text-gray-600 mt-2">
-          Configure horários de trabalho e folgas dos profissionais
-        </p>
-      </div>
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* HEADER FIXO */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0 shadow-sm">
+        {/* Título */}
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <CalendarIcon className="w-7 h-7 text-blue-600" />
+            Disponibilidades Profissionais
+          </h1>
+        </div>
 
-      {/* Configurações principais */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          {/* Layout de 3 colunas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Coluna 1: Profissional */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <User className="w-4 h-4" />
-                Profissional
-              </div>
-              <SingleSelectDropdown
-                options={profissionais.map(p => ({ id: p.id, nome: p.nome }))}
-                selected={profissionalSelecionado ? { id: profissionalSelecionado.id, nome: profissionalSelecionado.nome } : null}
-                onChange={handleSelecionarProfissional}
-                placeholder={loading ? "Carregando profissionais..." : "Selecione um profissional..."}
-                headerText="Profissionais disponíveis"
-                dotColor="green"
-              />
+        {/* Informações principais - Layout em grid responsivo */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+          {/* Profissional */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <User className="w-4 h-4" />
+              Profissional
             </div>
+            <SingleSelectDropdown
+              options={profissionais.map(p => ({ id: p.id, nome: p.nome }))}
+              selected={profissionalSelecionado ? { id: profissionalSelecionado.id, nome: profissionalSelecionado.nome } : null}
+              onChange={handleSelecionarProfissional}
+              placeholder={loading ? "Carregando..." : "Selecione..."}
+              headerText="Profissionais disponíveis"
+              dotColor="green"
+            />
+          </div>
 
-            {/* Coluna 2: Tipo de Horário */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <Clock className="w-4 h-4" />
-                Tipo de Horário
-              </div>
-              <Tabs value={tipoEdicao} onValueChange={(value: any) => setTipoEdicao(value)}>
-                <TabsList className="grid w-full grid-cols-3 h-12">
-                  <TabsTrigger 
-                    value="presencial" 
-                    className="data-[state=active]:bg-green-100 data-[state=active]:text-green-700 data-[state=active]:border-green-300 text-xs px-2 transition-all duration-200"
-                  >
-                    👥 Presencial
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="online" 
-                    className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700 data-[state=active]:border-blue-300 text-xs px-2 transition-all duration-200"
-                  >
-                    💻 Online
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="folga" 
-                    className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700 data-[state=active]:border-red-300 text-xs px-2 transition-all duration-200"
-                  >
-                    🚫 Folga
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+          {/* Tipo de Horário */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <Clock className="w-4 h-4" />
+              Tipo de Horário
             </div>
+            <Tabs value={tipoEdicao} onValueChange={(value: any) => setTipoEdicao(value)}>
+              <TabsList className="grid w-full grid-cols-3 h-10">
+                <TabsTrigger 
+                  value="presencial" 
+                  className="data-[state=active]:bg-green-100 data-[state=active]:text-green-700 data-[state=active]:border-green-300 text-xs px-1 transition-all duration-200"
+                >
+                  👥 Presencial
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="online" 
+                  className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700 data-[state=active]:border-blue-300 text-xs px-1 transition-all duration-200"
+                >
+                  💻 Online
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="folga" 
+                  className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700 data-[state=active]:border-red-300 text-xs px-1 transition-all duration-200"
+                >
+                  🚫 Folga
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
-            {/* Coluna 3: Dias Ativos (Disponíveis/Folgas) */}
-            <div className="space-y-3 md:col-span-2 lg:col-span-1">
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <CalendarDays className="w-4 h-4" />
-                Dias Ativos
-              </div>
-              {profissionalSelecionado ? (
-                <div className="h-12 p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center">
-                  <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
-                    <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                      <Clock className="w-3 h-3 text-gray-500" />
-                      <span className="text-sm text-gray-600 font-medium whitespace-nowrap">
-                        {resumo.diasAtivos} dias ativos
-                      </span>
-                    </div>
-                    <div className="h-4 w-px bg-gray-300 hidden sm:block"></div>
-                    <div className="flex items-center gap-1 flex-shrink-0 overflow-hidden">
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs px-1 py-1 whitespace-nowrap">
-                        {resumo.intervalosPresencial} presencial
-                      </Badge>
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs px-1 py-1 whitespace-nowrap">
-                        {resumo.intervalosOnline} online
-                      </Badge>
-                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs px-1 py-1 whitespace-nowrap">
-                        {resumo.intervalosFolga} folgas
-                      </Badge>
-                    </div>
+          {/* Dias Ativos */}
+          <div className="space-y-2 sm:col-span-2 lg:col-span-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <CalendarDays className="w-4 h-4" />
+              Dias Ativos
+            </div>
+            {profissionalSelecionado ? (
+              <div className="h-10 px-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center">
+                <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
+                  <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                    <Clock className="w-3 h-3 text-gray-500" />
+                    <span className="text-sm text-gray-600 font-medium whitespace-nowrap">
+                      {resumo.diasAtivos} dias ativos
+                    </span>
+                  </div>
+                  <div className="h-4 w-px bg-gray-300 hidden sm:block"></div>
+                  <div className="flex items-center gap-1 flex-shrink-0 overflow-hidden">
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs px-1 py-0.5 whitespace-nowrap">
+                      {resumo.intervalosPresencial} presencial
+                    </Badge>
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs px-1 py-0.5 whitespace-nowrap">
+                      {resumo.intervalosOnline} online
+                    </Badge>
+                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs px-1 py-0.5 whitespace-nowrap">
+                      {resumo.intervalosFolga} folgas
+                    </Badge>
                   </div>
                 </div>
-              ) : (
-                <div className="h-12 p-3 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
-                  <span className="text-sm text-gray-500">Selecione um profissional</span>
-                </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="h-10 px-3 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                <span className="text-sm text-gray-500">Selecione um profissional</span>
+              </div>
+            )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Abas de configuração */}
-      {profissionalSelecionado && (
-        <Card className="mb-6">
-          <CardContent className="p-0">
-            <Tabs value={abaSelecionada} onValueChange={(value) => {
-              setAbaSelecionada(value as 'semanal' | 'data-especifica');
-            }}>
+      {/* CONTEÚDO COM SCROLL */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full overflow-y-auto px-6 py-4">
+
+          {/* Abas de configuração */}
+          {profissionalSelecionado && (
+            <Card className="mb-4">
+              <CardContent className="p-0">
+                <Tabs value={abaSelecionada} onValueChange={(value) => {
+                  setAbaSelecionada(value as 'semanal' | 'data-especifica');
+                }}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger 
                   value="semanal" 
@@ -836,338 +835,344 @@ export default function DisponibilidadeProfissionaisPage() {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="semanal" className="p-6">
-                {carregandoDisponibilidades ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="text-center">
-                      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                      <p className="text-gray-600">Carregando disponibilidades...</p>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                {/* Grid de horários semanais - ajustado para responsividade */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-6 mb-6">
-                  {horariosSemana.map(horario => (
-                    <DiaHorarioCard
-                      key={horario.diaSemana}
-                      horario={horario}
-                      tipoEdicao={tipoEdicao}
-                      onChange={handleAlterarHorario}
-                      canModify={canCreate || canUpdate || canDelete}
-                      recursos={recursos}
-                    />
-                  ))}
-                </div>
-
-                {/* Ações para horários semanais */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {(canCreate || canUpdate || canDelete) ? (
-                      <Button
-                        variant="outline"
-                        onClick={handleResetarHorarios}
-                        className="flex items-center gap-2"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                        Resetar Horários
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        disabled={true}
-                        className="flex items-center gap-2 opacity-50 cursor-not-allowed"
-                        title="Você não tem permissão para modificar horários"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                        Resetar Horários
-                      </Button>
-                    )}
-                    
-                    {(canCreate || canUpdate || canDelete) ? (
-                      <Button
-                        variant="outline"
-                        onClick={handleLimparHorarios}
-                        className="flex items-center gap-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Limpar Horários
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        disabled={true}
-                        className="flex items-center gap-2 border-gray-300 text-gray-400 opacity-50 cursor-not-allowed"
-                        title="Você não tem permissão para modificar horários"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Limpar Horários
-                      </Button>
-                    )}
-                  </div>
-
-                  {(canCreate || canUpdate || canDelete) ? (
-                    <Button
-                      onClick={handleSalvar}
-                      disabled={salvando || loading || carregandoDisponibilidades}
-                      className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      {salvando ? 'Salvando...' : 'Salvar Horários'}
-                    </Button>
-                  ) : (
-                    <Button
-                      disabled={true}
-                      className="bg-gray-400 cursor-not-allowed flex items-center gap-2"
-                      title="Você não tem permissão para modificar horários"
-                    >
-                      <Save className="w-4 h-4" />
-                      Salvar Horários
-                    </Button>
-                  )}
-                </div>
-                  </>
-                )}
-              </TabsContent>
-
-              <TabsContent value="data-especifica" className="p-6">
-                {carregandoDisponibilidades ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="text-center">
-                      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                      <p className="text-gray-600">Carregando disponibilidades...</p>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                {/* Informação sobre data específica */}
-                <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-start gap-3">
-                    <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-medium text-blue-900 mb-1">Configurar Data Específica</h4>
-                      <p className="text-sm text-blue-700">
-                        Use esta aba para configurar disponibilidades ou folgas em datas específicas (feriados, férias, plantões especiais, etc.).
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Formulário para data específica */}
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <div>
-                      <Label htmlFor="dataEspecifica">Data *</Label>
-                      <Input
-                        id="dataEspecifica"
-                        type="date"
-                        value={dataEspecifica}
-                        onChange={(e) => setDataEspecifica(e.target.value)}
-                        min={new Date().toISOString().split('T')[0]}
-                        className="w-full"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="horaInicio">Hora Início *</Label>
-                      <TimeSelectDropdown
-                        options={OPCOES_HORARIO_INICIO}
-                        selected={horarioInicioEspecificoSelecionado}
-                        onChange={handleHorarioInicioEspecificoChange}
-                        placeholder="Horário de início"
-                        headerText="Horário de início"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="horaFim">Hora Fim *</Label>
-                      <TimeSelectDropdown
-                        options={filtrarOpcoesHorarioFim(horarioInicioEspecificoSelecionado?.nome || null)}
-                        selected={horarioFimEspecificoSelecionado}
-                        onChange={handleHorarioFimEspecificoChange}
-                        placeholder="Horário de fim"
-                        headerText="Horário de fim"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="recurso">Recurso</Label>
-                      <SingleSelectDropdown
-                        options={recursos.map(r => ({ id: r.id, nome: r.nome }))}
-                        selected={recursoSelecionado ? { id: recursoSelecionado.id, nome: recursoSelecionado.nome } : null}
-                        onChange={(selected) => {
-                          if (selected) {
-                            const recursoCompleto = recursos.find(r => r.id === selected.id);
-                            setRecursoSelecionado(recursoCompleto || null);
-                          } else {
-                            setRecursoSelecionado(null);
-                          }
-                        }}
-                        placeholder="Selecione um recurso..."
-                        headerText="Recursos disponíveis"
-                        dotColor="blue"
-                      />
-                    </div>
-                    <div>
-                      <Label className="invisible">Ação</Label>
-                      {canCreate ? (
-                        <Button
-                          onClick={handleAdicionarDataEspecifica}
-                          disabled={salvando || !dataEspecifica || !horarioInicioEspecificoSelecionado || !horarioFimEspecificoSelecionado}
-                          className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-                        >
-                          {salvando ? 'Adicionando...' : '+ Adicionar'}
-                        </Button>
-                      ) : (
-                        <Button
-                          disabled={true}
-                          className="w-full bg-gray-400 cursor-not-allowed"
-                          title="Você não tem permissão para criar disponibilidades"
-                        >
-                          + Adicionar
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="observacao">Observação</Label>
-                    <Input
-                      id="observacao"
-                      placeholder="Ex: Plantão especial, Feriado, Férias..."
-                      value={observacaoEspecifica}
-                      onChange={(e) => setObservacaoEspecifica(e.target.value)}
-                      className="w-full"
-                    />
-                  </div>
-
-                  {/* Lista de disponibilidades específicas */}
-                  {disponibilidadesEspecificas.length > 0 && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-medium text-gray-900">Disponibilidades Configuradas</h3>
-                        <Badge variant="outline" className="text-blue-600 border-blue-200">
-                          {disponibilidadesEspecificas.length} configuração{disponibilidadesEspecificas.length !== 1 ? 'ões' : ''}
-                        </Badge>
+                  <TabsContent value="semanal" className="p-6">
+                    {carregandoDisponibilidades ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="text-center">
+                          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                          <p className="text-gray-600">Carregando disponibilidades...</p>
+                        </div>
                       </div>
-                      <div className="grid gap-3">
-                        {disponibilidadesEspecificas
-                          .sort((a, b) => {
-                            // Corrigir ordenação considerando fuso horário
-                            const dataLocalA = parseDataLocal(a.dataEspecifica!);
-                            const dataLocalB = parseDataLocal(b.dataEspecifica!);
-                            return dataLocalA.getTime() - dataLocalB.getTime();
-                          })
-                          .map((disp) => {
-                            // Formatar data corrigindo problema de fuso horário
-                            const dataFormatada = formatarDataLocal(disp.dataEspecifica!, {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            });
+                    ) : (
+                      <>
+                        {/* Grid de horários semanais - ajustado para responsividade */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-6 mb-6">
+                          {horariosSemana.map(horario => (
+                            <DiaHorarioCard
+                              key={horario.diaSemana}
+                              horario={horario}
+                              tipoEdicao={tipoEdicao}
+                              onChange={handleAlterarHorario}
+                              canModify={canCreate || canUpdate || canDelete}
+                              recursos={recursos}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </TabsContent>
 
-                            return (
-                              <div
-                                key={disp.id}
-                                className={`p-4 rounded-lg border transition-all duration-200 hover:shadow-md hover:scale-[1.01] group ${
-                                  disp.tipo === 'presencial'
-                                    ? 'border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-300'
-                                    : disp.tipo === 'online'
-                                    ? 'border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300'
-                                    : 'border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300'
-                                }`}
-                              >
-                                                            <div className="flex items-center justify-between gap-4">
-                              <div className="flex items-center gap-3 flex-1">
-                                <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                                  disp.tipo === 'presencial' ? 'bg-green-500' : disp.tipo === 'online' ? 'bg-blue-500' : 'bg-red-500'
-                                }`} />
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                    <span className="font-medium text-gray-900 capitalize">
-                                      {dataFormatada}
-                                    </span>
-                                    <Badge 
-                                      variant="outline" 
-                                      className={`text-xs flex-shrink-0 ${
-                                        disp.tipo === 'presencial' 
-                                          ? 'border-green-300 text-green-700 bg-green-100' 
-                                          : disp.tipo === 'online'
-                                          ? 'border-blue-300 text-blue-700 bg-blue-100'
-                                          : 'border-red-300 text-red-700 bg-red-100'
-                                      }`}
-                                    >
-                                      {disp.tipo === 'presencial' ? '👥 Presencial' : disp.tipo === 'online' ? '💻 Online' : '🚫 Folga'}
-                                    </Badge>
-                                  </div>
-                                  <div className="text-sm text-gray-600 flex items-center gap-1">
-                                    <Clock className="w-3 h-3 flex-shrink-0" />
-                                    <span>
-                                      {new Date(disp.horaInicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - {' '}
-                                      {new Date(disp.horaFim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                  </div>
-                                  {disp.observacao && (
-                                    <div className="text-sm text-gray-500 mt-1 italic">
-                                      📝 {disp.observacao}
-                                    </div>
-                                  )}
-                                </div>
+                  <TabsContent value="data-especifica" className="p-6">
+                    {carregandoDisponibilidades ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="text-center">
+                          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                          <p className="text-gray-600">Carregando disponibilidades...</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Informação sobre data específica */}
+                        <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-start gap-3">
+                            <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <h4 className="font-medium text-blue-900 mb-1">Configurar Data Específica</h4>
+                              <p className="text-sm text-blue-700">
+                                Use esta aba para configurar disponibilidades ou folgas em datas específicas (feriados, férias, plantões especiais, etc.).
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Formulário para data específica */}
+                        <div className="space-y-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                            <div>
+                              <Label htmlFor="dataEspecifica">Data *</Label>
+                              <Input
+                                id="dataEspecifica"
+                                type="date"
+                                value={dataEspecifica}
+                                onChange={(e) => setDataEspecifica(e.target.value)}
+                                min={new Date().toISOString().split('T')[0]}
+                                className="w-full"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="horaInicio">Hora Início *</Label>
+                              <TimeSelectDropdown
+                                options={OPCOES_HORARIO_INICIO}
+                                selected={horarioInicioEspecificoSelecionado}
+                                onChange={handleHorarioInicioEspecificoChange}
+                                placeholder="Horário de início"
+                                headerText="Horário de início"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="horaFim">Hora Fim *</Label>
+                              <TimeSelectDropdown
+                                options={filtrarOpcoesHorarioFim(horarioInicioEspecificoSelecionado?.nome || null)}
+                                selected={horarioFimEspecificoSelecionado}
+                                onChange={handleHorarioFimEspecificoChange}
+                                placeholder="Horário de fim"
+                                headerText="Horário de fim"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="recurso">Recurso</Label>
+                              <SingleSelectDropdown
+                                options={recursos.map(r => ({ id: r.id, nome: r.nome }))}
+                                selected={recursoSelecionado ? { id: recursoSelecionado.id, nome: recursoSelecionado.nome } : null}
+                                onChange={(selected) => {
+                                  if (selected) {
+                                    const recursoCompleto = recursos.find(r => r.id === selected.id);
+                                    setRecursoSelecionado(recursoCompleto || null);
+                                  } else {
+                                    setRecursoSelecionado(null);
+                                  }
+                                }}
+                                placeholder="Selecione um recurso..."
+                                headerText="Recursos disponíveis"
+                                dotColor="blue"
+                              />
+                            </div>
+                            <div>
+                              <Label className="invisible">Ação</Label>
+                              {canCreate ? (
+                                <Button
+                                  onClick={handleAdicionarDataEspecifica}
+                                  disabled={salvando || !dataEspecifica || !horarioInicioEspecificoSelecionado || !horarioFimEspecificoSelecionado}
+                                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                  {salvando ? 'Adicionando...' : '+ Adicionar'}
+                                </Button>
+                              ) : (
+                                <Button
+                                  disabled={true}
+                                  className="w-full bg-gray-400 cursor-not-allowed"
+                                  title="Você não tem permissão para criar disponibilidades"
+                                >
+                                  + Adicionar
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label htmlFor="observacao">Observação</Label>
+                            <Input
+                              id="observacao"
+                              placeholder="Ex: Plantão especial, Feriado, Férias..."
+                              value={observacaoEspecifica}
+                              onChange={(e) => setObservacaoEspecifica(e.target.value)}
+                              className="w-full"
+                            />
+                          </div>
+
+                          {/* Lista de disponibilidades específicas */}
+                          {disponibilidadesEspecificas.length > 0 && (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-medium text-gray-900">Disponibilidades Configuradas</h3>
+                                <Badge variant="outline" className="text-blue-600 border-blue-200">
+                                  {disponibilidadesEspecificas.length} configuração{disponibilidadesEspecificas.length !== 1 ? 'ões' : ''}
+                                </Badge>
                               </div>
-                              <div className="flex-shrink-0">
-                                {canDelete ? (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleAbrirConfirmacaoExclusao(disp)}
-                                    className="text-red-600 border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 hover:shadow-lg transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:bg-transparent disabled:hover:text-red-600 disabled:hover:border-red-200 disabled:hover:shadow-none group-hover:shadow-md"
-                                    disabled={salvando}
-                                  >
-                                    <Trash2 className="w-3 h-3 mr-1" />
-                                    Remover
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={true}
-                                    className="text-gray-400 border-gray-200 cursor-not-allowed opacity-50"
-                                    title="Você não tem permissão para excluir disponibilidades"
-                                  >
-                                    <Trash2 className="w-3 h-3 mr-1" />
-                                    Remover
-                                  </Button>
-                                )}
+                              <div className="grid gap-3 max-h-96 overflow-y-auto pr-2">
+                                {disponibilidadesEspecificas
+                                  .sort((a, b) => {
+                                    // Corrigir ordenação considerando fuso horário
+                                    const dataLocalA = parseDataLocal(a.dataEspecifica!);
+                                    const dataLocalB = parseDataLocal(b.dataEspecifica!);
+                                    return dataLocalA.getTime() - dataLocalB.getTime();
+                                  })
+                                  .map((disp) => {
+                                    // Formatar data corrigindo problema de fuso horário
+                                    const dataFormatada = formatarDataLocal(disp.dataEspecifica!, {
+                                      weekday: 'long',
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric'
+                                    });
+
+                                    return (
+                                      <div
+                                        key={disp.id}
+                                        className={`p-4 rounded-lg border transition-all duration-200 hover:shadow-md hover:scale-[1.01] group ${
+                                          disp.tipo === 'presencial'
+                                            ? 'border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-300'
+                                            : disp.tipo === 'online'
+                                            ? 'border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300'
+                                            : 'border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300'
+                                        }`}
+                                      >
+                                        <div className="flex items-center justify-between gap-4">
+                                          <div className="flex items-center gap-3 flex-1">
+                                            <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                                              disp.tipo === 'presencial' ? 'bg-green-500' : disp.tipo === 'online' ? 'bg-blue-500' : 'bg-red-500'
+                                            }`} />
+                                            <div className="flex-1 min-w-0">
+                                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                <span className="font-medium text-gray-900 capitalize">
+                                                  {dataFormatada}
+                                                </span>
+                                                <Badge 
+                                                  variant="outline" 
+                                                  className={`text-xs flex-shrink-0 ${
+                                                    disp.tipo === 'presencial' 
+                                                      ? 'border-green-300 text-green-700 bg-green-100' 
+                                                      : disp.tipo === 'online'
+                                                      ? 'border-blue-300 text-blue-700 bg-blue-100'
+                                                      : 'border-red-300 text-red-700 bg-red-100'
+                                                  }`}
+                                                >
+                                                  {disp.tipo === 'presencial' ? '👥 Presencial' : disp.tipo === 'online' ? '💻 Online' : '🚫 Folga'}
+                                                </Badge>
+                                              </div>
+                                              <div className="text-sm text-gray-600 flex items-center gap-1">
+                                                <Clock className="w-3 h-3 flex-shrink-0" />
+                                                <span>
+                                                  {new Date(disp.horaInicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - {' '}
+                                                  {new Date(disp.horaFim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                              </div>
+                                              {disp.observacao && (
+                                                <div className="text-sm text-gray-500 mt-1 italic">
+                                                  📝 {disp.observacao}
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <div className="flex-shrink-0">
+                                            {canDelete ? (
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleAbrirConfirmacaoExclusao(disp)}
+                                                className="text-red-600 border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 hover:shadow-lg transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:bg-transparent disabled:hover:text-red-600 disabled:hover:border-red-200 disabled:hover:shadow-none group-hover:shadow-md"
+                                                disabled={salvando}
+                                              >
+                                                <Trash2 className="w-3 h-3 mr-1" />
+                                                Remover
+                                              </Button>
+                                            ) : (
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                disabled={true}
+                                                className="text-gray-400 border-gray-200 cursor-not-allowed opacity-50"
+                                                title="Você não tem permissão para excluir disponibilidades"
+                                              >
+                                                <Trash2 className="w-3 h-3 mr-1" />
+                                                Remover
+                                              </Button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
                               </div>
                             </div>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  )}
+                          )}
 
-                  {disponibilidadesEspecificas.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <CalendarDays className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                      <p>Nenhuma data específica configurada ainda.</p>
-                      <p className="text-sm mt-1">Use o formulário acima para adicionar disponibilidades em datas específicas.</p>
-                    </div>
-                  )}
-                </div>
-                  </>
-                )}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-      )}
+                          {disponibilidadesEspecificas.length === 0 && (
+                            <div className="text-center py-8 text-gray-500">
+                              <CalendarDays className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                              <p>Nenhuma data específica configurada ainda.</p>
+                              <p className="text-sm mt-1">Use o formulário acima para adicionar disponibilidades em datas específicas.</p>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          )}
 
-      {!profissionalSelecionado && (
-        <Alert className="mb-6">
-          <Info className="w-4 h-4" />
-          <AlertDescription>
-            Selecione um profissional para configurar seus horários de trabalho
-          </AlertDescription>
-        </Alert>
+          {!profissionalSelecionado && (
+            <Alert className="mb-4">
+              <Info className="w-4 h-4" />
+              <AlertDescription>
+                Selecione um profissional para configurar seus horários de trabalho
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      </div>
+
+      {/* FOOTER FIXO */}
+      {profissionalSelecionado && abaSelecionada === 'semanal' && (
+        <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-4 flex-shrink-0 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {(canCreate || canUpdate || canDelete) ? (
+                <Button
+                  variant="outline"
+                  onClick={handleResetarHorarios}
+                  className="flex items-center gap-2"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Resetar Horários
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  disabled={true}
+                  className="flex items-center gap-2 opacity-50 cursor-not-allowed"
+                  title="Você não tem permissão para modificar horários"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Resetar Horários
+                </Button>
+              )}
+              
+              {(canCreate || canUpdate || canDelete) ? (
+                <Button
+                  variant="outline"
+                  onClick={handleLimparHorarios}
+                  className="flex items-center gap-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Limpar Horários
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  disabled={true}
+                  className="flex items-center gap-2 border-gray-300 text-gray-400 opacity-50 cursor-not-allowed"
+                  title="Você não tem permissão para modificar horários"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Limpar Horários
+                </Button>
+              )}
+            </div>
+
+            {(canCreate || canUpdate || canDelete) ? (
+              <Button
+                onClick={handleSalvar}
+                disabled={salvando || loading || carregandoDisponibilidades}
+                className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                {salvando ? 'Salvando...' : 'Salvar Horários'}
+              </Button>
+            ) : (
+              <Button
+                disabled={true}
+                className="bg-gray-400 cursor-not-allowed flex items-center gap-2"
+                title="Você não tem permissão para modificar horários"
+              >
+                <Save className="w-4 h-4" />
+                Salvar Horários
+              </Button>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Modal de confirmação para reset de horários */}
@@ -1283,6 +1288,7 @@ export default function DisponibilidadeProfissionaisPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
     </div>
   );
 } 
