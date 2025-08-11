@@ -9,6 +9,7 @@ import { DeleteDisponibilidadeProfissionalUseCase } from '../../../core/applicat
 
 const disponibilidadeBodySchema = z.object({
   profissionalId: z.string().uuid(),
+  recursoId: z.string().uuid().nullable().optional(),
   diaSemana: z.number().int().min(0).max(6).nullable().optional(),
   dataEspecifica: z.coerce.date().nullable().optional(),
   horaInicio: z.coerce.date(),
