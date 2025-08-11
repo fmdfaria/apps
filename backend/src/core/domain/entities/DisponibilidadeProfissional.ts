@@ -1,9 +1,11 @@
 import { randomUUID } from 'crypto';
 import { Profissional } from './Profissional';
+import { Recurso } from './Recurso';
 
 export class DisponibilidadeProfissional {
   id!: string;
   profissionalId!: string;
+  recursoId?: string | null;
   diaSemana?: number | null;
   dataEspecifica?: Date | null;
   horaInicio!: Date;
@@ -13,11 +15,12 @@ export class DisponibilidadeProfissional {
   createdAt!: Date;
   updatedAt!: Date;
 
-  // Relacionamento
+  // Relacionamentos
   profissional?: Profissional;
+  recurso?: Recurso | null;
 
   constructor(
-    props: Omit<DisponibilidadeProfissional, 'id' | 'createdAt' | 'updatedAt' | 'profissional'>,
+    props: Omit<DisponibilidadeProfissional, 'id' | 'createdAt' | 'updatedAt' | 'profissional' | 'recurso'>,
     id?: string
   ) {
     Object.assign(this, props);

@@ -42,10 +42,15 @@ import { useInputMask } from '@/hooks/useInputMask';
 import { getAnexos } from '@/services/anexos';
 import type { Anexo } from '@/types/Anexo';
 
-// Função para formatar WhatsApp
+// Função para formatar WhatsApp (suporta 8 e 9 dígitos)
 const formatWhatsApp = (whatsapp: string) => {
   if (!whatsapp) return '';
   const numbers = whatsapp.replace(/\D/g, '');
+  // Para números com 8 dígitos (12 total com DDI e DDD)
+  if (numbers.length === 12) {
+    return `+${numbers.slice(0, 2)} (${numbers.slice(2, 4)}) ${numbers.slice(4, 8)}-${numbers.slice(8)}`;
+  }
+  // Para números com 9 dígitos (13 total com DDI e DDD) 
   if (numbers.length === 13) {
     return `+${numbers.slice(0, 2)} (${numbers.slice(2, 4)}) ${numbers.slice(4, 9)}-${numbers.slice(9)}`;
   }
@@ -116,7 +121,28 @@ export const PacientesPage = () => {
   const [excluindo, setExcluindo] = useState<Paciente | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const maskTelefone = useInputMask('+99 (99) 99999-9999');
+  // Máscara customizada para WhatsApp que suporta 8 e 9 dígitos
+  const maskTelefone = (value: string) => {
+    if (!value) return '';
+    const numbers = value.replace(/\D/g, '');
+    
+    // Limita a 13 dígitos (55 + DD + 9 dígitos)
+    const limitedNumbers = numbers.slice(0, 13);
+    
+    if (limitedNumbers.length <= 2) {
+      return `+${limitedNumbers}`;
+    } else if (limitedNumbers.length <= 4) {
+      return `+${limitedNumbers.slice(0, 2)} (${limitedNumbers.slice(2)}`;
+    } else if (limitedNumbers.length <= 8) {
+      return `+${limitedNumbers.slice(0, 2)} (${limitedNumbers.slice(2, 4)}) ${limitedNumbers.slice(4)}`;
+    } else if (limitedNumbers.length <= 12) {
+      // Para números de 8 dígitos
+      return `+${limitedNumbers.slice(0, 2)} (${limitedNumbers.slice(2, 4)}) ${limitedNumbers.slice(4, 8)}-${limitedNumbers.slice(8)}`;
+    } else {
+      // Para números de 9 dígitos
+      return `+${limitedNumbers.slice(0, 2)} (${limitedNumbers.slice(2, 4)}) ${limitedNumbers.slice(4, 9)}-${limitedNumbers.slice(9)}`;
+    }
+  };
 
   // Hooks responsivos
   const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'pacientes-view' });
@@ -140,28 +166,6 @@ export const PacientesPage = () => {
           <span className="text-sm font-medium">{item.nomeCompleto}</span>
         </div>
       )
-    },
-    {
-      key: 'cpf',
-      header: '📄 CPF',
-      essential: true,
-      filterable: {
-        type: 'text',
-        placeholder: 'CPF do paciente...',
-        label: 'CPF'
-      },
-      render: (item) => <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded text-gray-700">{formatCPF(item.cpf || '')}</span>
-    },
-    {
-      key: 'email',
-      header: '📧 Email',
-      essential: true,
-      filterable: {
-        type: 'text',
-        placeholder: 'Email do paciente...',
-        label: 'Email'
-      },
-      render: (item) => <span className="text-sm text-rose-600">{item.email || '-'}</span>
     },
     {
       key: 'whatsapp',
@@ -211,6 +215,34 @@ export const PacientesPage = () => {
         >
           {item.tipoServico || 'Particular'}
         </Badge>
+      )
+    },
+    {
+      key: 'convenio',
+      header: '🏥 Convênio',
+      essential: false,
+      filterable: {
+        type: 'text',
+        placeholder: 'Nome do convênio...',
+        label: 'Convênio'
+      },
+      render: (item) => {
+        const convenio = convenios.find(c => c.id === item.convenioId);
+        return (
+          <span className="text-sm">
+            {convenio?.nome || '-'}
+          </span>
+        );
+      }
+    },
+    {
+      key: 'numeroCarteirinha',
+      header: '🆔 Nº Carteirinha',
+      essential: false,
+      render: (item) => (
+        <span className="text-sm font-mono bg-blue-100 px-2 py-1 rounded text-blue-700">
+          {item.numeroCarteirinha || '-'}
+        </span>
       )
     },
     {
@@ -345,19 +377,18 @@ export const PacientesPage = () => {
       
       const buscaNormalizada = normalizarBusca(busca);
       const nome = normalizarBusca(p.nomeCompleto);
-      const email = normalizarBusca(p.email || '');
+      const nomeResponsavel = normalizarBusca(p.nomeResponsavel || '');
       const buscaNumeros = busca.replace(/\D/g, '');
       
       let match = false;
       
       if (buscaNormalizada.length > 0) {
-        match = nome.includes(buscaNormalizada) || email.includes(buscaNormalizada);
+        match = nome.includes(buscaNormalizada) || nomeResponsavel.includes(buscaNormalizada);
       }
       
       if (buscaNumeros.length > 0) {
-        const cpf = (p.cpf || '').replace(/\D/g, '');
         const whatsapp = normalizarTelefone(p.whatsapp || '');
-        match = match || cpf.includes(buscaNumeros) || whatsapp.includes(buscaNumeros);
+        match = match || whatsapp.includes(buscaNumeros);
       }
       
       return match;
@@ -582,17 +613,13 @@ export const PacientesPage = () => {
       </CardHeader>
       <CardContent className="pt-0 px-3 pb-3">
         <div className="space-y-2 mb-3">
-          <CardDescription className="line-clamp-1 text-xs">
-            📧 <span className="text-rose-600">{paciente.email || 'Não informado'}</span>
-          </CardDescription>
-          
           <div className="grid grid-cols-1 gap-2 text-xs">
-            <div className="flex items-center gap-1">
-              <span>📄</span>
-              <span className="font-mono bg-gray-100 px-1 py-0.5 rounded text-gray-700">
-                {formatCPF(paciente.cpf || '')}
-              </span>
-            </div>
+            {paciente.nomeResponsavel && (
+              <div className="flex items-center gap-1">
+                <span>👤</span>
+                <span className="text-gray-600">{paciente.nomeResponsavel}</span>
+              </div>
+            )}
             
             {paciente.whatsapp && (
               <div className="flex items-center gap-1">
@@ -607,6 +634,25 @@ export const PacientesPage = () => {
               <span>🎂</span>
               <span>{paciente.dataNascimento ? new Date(paciente.dataNascimento).toLocaleDateString('pt-BR') : 'Não informado'}</span>
             </div>
+            
+            {(() => {
+              const convenio = convenios.find(c => c.id === paciente.convenioId);
+              return convenio ? (
+                <div className="flex items-center gap-1">
+                  <span>🏥</span>
+                  <span className="text-blue-600 font-medium">{convenio.nome}</span>
+                </div>
+              ) : null;
+            })()}
+            
+            {paciente.numeroCarteirinha && (
+              <div className="flex items-center gap-1">
+                <span>🆔</span>
+                <span className="font-mono bg-blue-100 px-1 py-0.5 rounded text-blue-700">
+                  {paciente.numeroCarteirinha}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
@@ -713,7 +759,7 @@ export const PacientesPage = () => {
       {/* Header da página */}
       <PageHeader title="Pacientes" module="pacientes" icon="👥">
         <SearchBar
-          placeholder="Buscar por nome, CPF, email ou WhatsApp..."
+          placeholder="Buscar por nome ou WhatsApp..."
           value={busca}
           onChange={setBusca}
           module="pacientes"
@@ -867,11 +913,12 @@ export const PacientesPage = () => {
             return;
           }
           
-          // Validar formato do WhatsApp apenas se estiver preenchido
-          const telefoneValido = /^\+55 \(\d{2}\) \d{5}-\d{4}$/.test(form.whatsapp.trim());
-          if (!telefoneValido) {
+          // Validar formato do WhatsApp (8 ou 9 dígitos)
+          const telefone8Digitos = /^\+55 \(\d{2}\) \d{4}-\d{4}$/.test(form.whatsapp.trim());
+          const telefone9Digitos = /^\+55 \(\d{2}\) \d{5}-\d{4}$/.test(form.whatsapp.trim());
+          if (!telefone8Digitos && !telefone9Digitos) {
             AppToast.error('Erro de Validação', {
-              description: 'WhatsApp inválido. Exemplo: +55 (12) 99999-9999'
+              description: 'WhatsApp inválido. Exemplo: +55 (12) 9999-9999 ou +55 (12) 99999-9999'
             });
             return;
           }

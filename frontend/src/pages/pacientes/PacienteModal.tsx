@@ -37,7 +37,28 @@ export default function PacienteModal({
   onSubmit,
   onFormChange
 }: PacienteModalProps) {
-  const maskTelefone = useInputMask('+99 (99) 99999-9999');
+  // Máscara customizada para WhatsApp que suporta 8 e 9 dígitos
+  const maskTelefone = (value: string) => {
+    if (!value) return '';
+    const numbers = value.replace(/\D/g, '');
+    
+    // Limita a 13 dígitos (55 + DD + 9 dígitos)
+    const limitedNumbers = numbers.slice(0, 13);
+    
+    if (limitedNumbers.length <= 2) {
+      return `+${limitedNumbers}`;
+    } else if (limitedNumbers.length <= 4) {
+      return `+${limitedNumbers.slice(0, 2)} (${limitedNumbers.slice(2)}`;
+    } else if (limitedNumbers.length <= 8) {
+      return `+${limitedNumbers.slice(0, 2)} (${limitedNumbers.slice(2, 4)}) ${limitedNumbers.slice(4)}`;
+    } else if (limitedNumbers.length <= 12) {
+      // Para números de 8 dígitos
+      return `+${limitedNumbers.slice(0, 2)} (${limitedNumbers.slice(2, 4)}) ${limitedNumbers.slice(4, 8)}-${limitedNumbers.slice(8)}`;
+    } else {
+      // Para números de 9 dígitos
+      return `+${limitedNumbers.slice(0, 2)} (${limitedNumbers.slice(2, 4)}) ${limitedNumbers.slice(4, 9)}-${limitedNumbers.slice(9)}`;
+    }
+  };
   const maskCPF = useInputMask('999.999.999-99');
 
   return (
@@ -98,7 +119,7 @@ export default function PacienteModal({
                   value={form.whatsapp}
                   onChange={e => onFormChange({ whatsapp: maskTelefone(e.target.value) })}
                   className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
-                  placeholder="+55 (11) 99999-9999"
+                  placeholder="+55 (11) 9999-9999 ou +55 (11) 99999-9999"
                   disabled={formLoading}
                 />
               </div>

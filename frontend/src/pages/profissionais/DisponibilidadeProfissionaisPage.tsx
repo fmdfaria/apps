@@ -14,8 +14,10 @@ import { AppToast } from '@/services/toast';
 import { Calendar as CalendarIcon, Clock, User, Save, RotateCcw, Info, CalendarDays, Trash2 } from 'lucide-react';
 import DiaHorarioCard from '@/components/profissionais/DiaHorarioCard';
 import { getProfissionais } from '@/services/profissionais';
+import { getRecursos } from '@/services/recursos';
 import { getDisponibilidadesProfissional, createDisponibilidade, updateDisponibilidade, deleteDisponibilidade } from '@/services/disponibilidades';
 import type { Profissional } from '@/types/Profissional';
+import type { Recurso } from '@/types/Recurso';
 import type { HorarioSemana, CreateDisponibilidadeDto } from '@/types/DisponibilidadeProfissional';
 import { criarHorarioSemanaPadrao, converterDisponibilidadesParaHorarios, gerarHorarioParaAPI, compararHorarios } from '@/lib/horarios-utils';
 import { parseDataLocal, formatarDataLocal } from '@/lib/utils';
@@ -94,7 +96,9 @@ const OPCOES_HORARIO_FIM = gerarOpcoesHorarioFim();
 
 export default function DisponibilidadeProfissionaisPage() {
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+  const [recursos, setRecursos] = useState<Recurso[]>([]);
   const [profissionalSelecionado, setProfissionalSelecionado] = useState<Profissional | null>(null);
+  const [recursoSelecionado, setRecursoSelecionado] = useState<Recurso | null>(null);
   const [tipoEdicao, setTipoEdicao] = useState<'presencial' | 'online' | 'folga'>('presencial');
   const [abaSelecionada, setAbaSelecionada] = useState<'semanal' | 'data-especifica'>('semanal');
   const [horariosSemana, setHorariosSemana] = useState<HorarioSemana[]>(criarHorarioSemanaPadrao());
@@ -140,6 +144,7 @@ export default function DisponibilidadeProfissionaisPage() {
   useEffect(() => {
     checkPermissions();
     carregarProfissionais();
+    carregarRecursos();
   }, []);
 
   useEffect(() => {
@@ -197,6 +202,18 @@ export default function DisponibilidadeProfissionaisPage() {
     }
   };
 
+  const carregarRecursos = async () => {
+    try {
+      const data = await getRecursos();
+      setRecursos(data.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' })));
+    } catch (err: any) {
+      console.error('Erro ao carregar recursos:', err);
+      AppToast.error('Erro ao carregar recursos', {
+        description: 'Ocorreu um problema ao carregar a lista de recursos. Tente novamente.'
+      });
+    }
+  };
+
   const carregarProfissionais = async () => {
     if (!canRead) {
       setAccessDenied(true);
@@ -244,6 +261,7 @@ export default function DisponibilidadeProfissionaisPage() {
     setHoraInicioEspecifica('07:00');
     setHoraFimEspecifica('20:30');
     setObservacaoEspecifica('');
+    setRecursoSelecionado(null);
     
     // Resetar dropdowns de horário para valores padrão
     setHorarioInicioEspecificoSelecionado(OPCOES_HORARIO_INICIO.find(op => op.nome === '07:00') || null);
@@ -425,6 +443,7 @@ export default function DisponibilidadeProfissionaisPage() {
 
       const novaDisponibilidade: CreateDisponibilidadeDto = {
         profissionalId: profissionalSelecionado.id,
+        recursoId: recursoSelecionado?.id || null,
         horaInicio: dataHoraInicio.toISOString(),
         horaFim: dataHoraFim.toISOString(),
         tipo: tipoEdicao,
@@ -442,6 +461,7 @@ export default function DisponibilidadeProfissionaisPage() {
       setHoraInicioEspecifica('08:00');
       setHoraFimEspecifica('17:00');
       setObservacaoEspecifica('');
+      setRecursoSelecionado(null);
       
       // Resetar dropdowns para valores padrão
       setHorarioInicioEspecificoSelecionado(OPCOES_HORARIO_INICIO.find(op => op.nome === '08:00') || null);
@@ -572,6 +592,7 @@ export default function DisponibilidadeProfissionaisPage() {
         for (const intervalo of novos) {
           const novaDisponibilidade: CreateDisponibilidadeDto = {
             profissionalId: profissionalSelecionado.id,
+            recursoId: intervalo.recursoId || null, // Agora permite recurso em horários semanais
             horaInicio: gerarHorarioParaAPI(dataAplicacao, intervalo.horaInicio),
             horaFim: gerarHorarioParaAPI(dataAplicacao, intervalo.horaFim),
             tipo: intervalo.tipo,
@@ -822,6 +843,7 @@ export default function DisponibilidadeProfissionaisPage() {
                       tipoEdicao={tipoEdicao}
                       onChange={handleAlterarHorario}
                       canModify={canCreate || canUpdate || canDelete}
+                      recursos={recursos}
                     />
                   ))}
                 </div>
@@ -921,7 +943,7 @@ export default function DisponibilidadeProfissionaisPage() {
 
                 {/* Formulário para data específica */}
                 <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     <div>
                       <Label htmlFor="dataEspecifica">Data *</Label>
                       <Input
@@ -954,6 +976,24 @@ export default function DisponibilidadeProfissionaisPage() {
                       />
                     </div>
                     <div>
+                      <Label htmlFor="recurso">Recurso</Label>
+                      <SingleSelectDropdown
+                        options={recursos.map(r => ({ id: r.id, nome: r.nome }))}
+                        selected={recursoSelecionado ? { id: recursoSelecionado.id, nome: recursoSelecionado.nome } : null}
+                        onChange={(selected) => {
+                          if (selected) {
+                            const recursoCompleto = recursos.find(r => r.id === selected.id);
+                            setRecursoSelecionado(recursoCompleto || null);
+                          } else {
+                            setRecursoSelecionado(null);
+                          }
+                        }}
+                        placeholder="Selecione um recurso..."
+                        headerText="Recursos disponíveis"
+                        dotColor="blue"
+                      />
+                    </div>
+                    <div>
                       <Label className="invisible">Ação</Label>
                       {canCreate ? (
                         <Button
@@ -961,7 +1001,7 @@ export default function DisponibilidadeProfissionaisPage() {
                           disabled={salvando || !dataEspecifica || !horarioInicioEspecificoSelecionado || !horarioFimEspecificoSelecionado}
                           className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                         >
-                          {salvando ? 'Adicionando...' : 'Adicionar'}
+                          {salvando ? 'Adicionando...' : '+ Adicionar'}
                         </Button>
                       ) : (
                         <Button
@@ -969,7 +1009,7 @@ export default function DisponibilidadeProfissionaisPage() {
                           className="w-full bg-gray-400 cursor-not-allowed"
                           title="Você não tem permissão para criar disponibilidades"
                         >
-                          Adicionar
+                          + Adicionar
                         </Button>
                       )}
                     </div>

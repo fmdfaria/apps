@@ -147,12 +147,13 @@ model Servico {
 }
 
 model Recurso {
-  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  nome         String        @db.VarChar(100)
-  descricao    String?
-  createdAt    DateTime?     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime?     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  agendamentos Agendamento[]
+  id                          String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome                        String                       @db.VarChar(100)
+  descricao                   String?
+  createdAt                   DateTime?                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                   DateTime?                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  agendamentos                Agendamento[]
+  disponibilidadesProfissional DisponibilidadeProfissional[]
 
   @@map("recursos")
 }
@@ -244,6 +245,7 @@ model Agendamento {
 model DisponibilidadeProfissional {
   id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   profissionalId String       @map("profissional_id") @db.Uuid
+  recursoId      String?      @map("recurso_id") @db.Uuid
   diaSemana      Int?         @map("dia_semana") @db.SmallInt
   dataEspecifica DateTime?    @map("data_especifica") @db.Date
   horaInicio     DateTime     @map("hora_inicio") @db.Time(6)
@@ -253,7 +255,9 @@ model DisponibilidadeProfissional {
   createdAt      DateTime?    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime?    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   profissional   Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  recurso        Recurso?     @relation(fields: [recursoId], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
+  @@index([recursoId], map: "idx_disponibilidades_profissionais_recurso_id")
   @@map("disponibilidades_profissionais")
 }
 

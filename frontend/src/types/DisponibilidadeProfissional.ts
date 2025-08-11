@@ -1,6 +1,7 @@
 export interface DisponibilidadeProfissional {
   id: string;
   profissionalId: string;
+  recursoId?: string | null;
   horaInicio: Date;
   horaFim: Date;
   tipo: 'presencial' | 'online' | 'folga';
@@ -13,6 +14,7 @@ export interface DisponibilidadeProfissional {
 
 export interface CreateDisponibilidadeDto {
   profissionalId: string;
+  recursoId?: string | null;
   horaInicio: string; // ISO string
   horaFim: string; // ISO string
   tipo: 'presencial' | 'online' | 'folga';
@@ -35,6 +37,7 @@ export interface IntervaloHorario {
   horaInicio: string; // "HH:mm"
   horaFim: string; // "HH:mm"
   tipo: 'presencial' | 'online' | 'folga';
+  recursoId?: string | null;
   observacao?: string;
   // Controle de estado para detectar alterações
   isNew?: boolean;

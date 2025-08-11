@@ -2,6 +2,7 @@ import { DisponibilidadeProfissional } from '../entities/DisponibilidadeProfissi
 
 export interface ICreateDisponibilidadeProfissionalDTO {
   profissionalId: string;
+  recursoId?: string | null;
   diaSemana?: number | null;
   dataEspecifica?: Date | null;
   horaInicio: Date;

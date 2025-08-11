@@ -24,17 +24,20 @@ export const criarHorarioSemanaPadrao = (): HorarioSemana[] => {
       {
         horaInicio: '07:00',
         horaFim: '12:00',
-        tipo: 'presencial'
+        tipo: 'presencial',
+        recursoId: null
       },
       {
         horaInicio: '12:00',
         horaFim: '13:00',
-        tipo: 'folga'
+        tipo: 'folga',
+        recursoId: null
       },
       {
         horaInicio: '13:00',
         horaFim: '18:00',
-        tipo: 'presencial'
+        tipo: 'presencial',
+        recursoId: null
       }
     ] : []
   }));
@@ -100,6 +103,7 @@ export const converterDisponibilidadesParaHorarios = (disponibilidades: Disponib
           horaInicio: disp.horaInicio.toTimeString().slice(0, 5),
           horaFim: disp.horaFim.toTimeString().slice(0, 5),
           tipo: disp.tipo,
+          recursoId: disp.recursoId || null,
           observacao: disp.observacao || undefined
         };
         dia.intervalos.push(marcarComoExistente(intervalo));

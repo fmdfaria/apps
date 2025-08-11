@@ -6,8 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { TimeSelectDropdown } from '@/components/ui/time-select-dropdown';
+import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import { Plus, Trash2, Clock, Monitor, Users, Home } from 'lucide-react';
 import type { HorarioSemana, IntervaloHorario } from '@/types/DisponibilidadeProfissional';
+import type { Recurso } from '@/types/Recurso';
 import { validarIntervalo, verificarSobreposicao, marcarComoNovo } from '@/lib/horarios-utils';
 
 // Função para obter cores baseada no tipo
@@ -154,25 +156,28 @@ interface Props {
   tipoEdicao: 'presencial' | 'online' | 'folga';
   onChange: (horario: HorarioSemana) => void;
   canModify?: boolean;
+  recursos?: Recurso[];
 }
 
-export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModify = true }: Props) {
+export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModify = true, recursos = [] }: Props) {
   const [novoIntervalo, setNovoIntervalo] = useState<IntervaloHorario>({
     horaInicio: '',
     horaFim: '',
-    tipo: tipoEdicao
+    tipo: tipoEdicao,
+    recursoId: null
   });
 
   const [intervaloParaExcluir, setIntervaloParaExcluir] = useState<string | null>(null);
   const [erro, setErro] = useState('');
 
-  // Estado para os dropdowns de horário
+  // Estado para os dropdowns de horário e recurso
   const [horarioInicioSelecionado, setHorarioInicioSelecionado] = useState<{id: string, nome: string} | null>(
     OPCOES_HORARIO_INICIO.find(op => op.nome === '') || null
   );
   const [horarioFimSelecionado, setHorarioFimSelecionado] = useState<{id: string, nome: string} | null>(
     OPCOES_HORARIO_FIM.find(op => op.nome === '') || null
   );
+  const [recursoSelecionado, setRecursoSelecionado] = useState<Recurso | null>(null);
 
   // Função para lidar com mudança no horário de início
   const handleHorarioInicioChange = (novoHorario: {id: string, nome: string} | null) => {
@@ -225,7 +230,8 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
     const intervaloParaValidar = {
       horaInicio: horarioInicioSelecionado.nome,
       horaFim: horarioFimSelecionado.nome,
-      tipo: tipoEdicao
+      tipo: tipoEdicao,
+      recursoId: recursoSelecionado?.id || null
     };
 
     const erro = validarIntervalo(intervaloParaValidar.horaInicio, intervaloParaValidar.horaFim);
@@ -257,6 +263,7 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
     const inicioDefault = OPCOES_HORARIO_INICIO.find(op => op.nome === '') || null;
     setHorarioInicioSelecionado(inicioDefault);
     setHorarioFimSelecionado(OPCOES_HORARIO_FIM.find(op => op.nome === '') || null);
+    setRecursoSelecionado(null);
     setErro('');
   };
 
@@ -343,6 +350,15 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
                     {obterIconePorTipo(intervalo.tipo)}
                     {obterTextoTipo(intervalo.tipo)}
                   </Badge>
+                  {/* Badge do recurso, se houver */}
+                  {intervalo.recursoId && (() => {
+                    const recurso = recursos.find(r => r.id === intervalo.recursoId);
+                    return recurso ? (
+                      <Badge variant="outline" className="text-xs bg-purple-100 text-purple-700 border-purple-200">
+                        🏢 {recurso.nome}
+                      </Badge>
+                    ) : null;
+                  })()}
                   {/* Badge NOVO posicionado após o horário */}
                   {intervalo.isNew && (
                     <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
@@ -413,6 +429,24 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
                     disabled={!canModify}
                   />
                 </div>
+                <div>
+                  <SingleSelectDropdown
+                    options={recursos.map(r => ({ id: r.id, nome: r.nome }))}
+                    selected={recursoSelecionado ? { id: recursoSelecionado.id, nome: recursoSelecionado.nome } : null}
+                    onChange={(selected) => {
+                      if (selected) {
+                        const recursoCompleto = recursos.find(r => r.id === selected.id);
+                        setRecursoSelecionado(recursoCompleto || null);
+                      } else {
+                        setRecursoSelecionado(null);
+                      }
+                    }}
+                    placeholder="Recurso (opcional)"
+                    headerText="Recursos disponíveis"
+                    dotColor="purple"
+                    disabled={!canModify}
+                  />
+                </div>
                 <div className="flex justify-center">
                   {canModify ? (
                     <Button
@@ -438,48 +472,78 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
                 </div>
               </div>
               
-              {/* Em telas médias e grandes: layout horizontal */}
-              <div className="hidden sm:flex sm:items-center gap-2">
-                <div className="flex-1 min-w-0">
-                  <TimeSelectDropdown
-                    options={OPCOES_HORARIO_INICIO}
-                    selected={horarioInicioSelecionado}
-                    onChange={canModify ? handleHorarioInicioChange : undefined}
-                    placeholder="Início"
-                    headerText="Horário de início"
-                    disabled={!canModify}
-                  />
+              {/* Em telas médias e grandes: layout de duas linhas com botão único */}
+              <div className="hidden sm:flex gap-2">
+                {/* Campos em duas linhas */}
+                <div className="flex-1 space-y-2">
+                  {/* Primeira linha: Início até Fim */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <TimeSelectDropdown
+                        options={OPCOES_HORARIO_INICIO}
+                        selected={horarioInicioSelecionado}
+                        onChange={canModify ? handleHorarioInicioChange : undefined}
+                        placeholder="Início"
+                        headerText="Horário de início"
+                        disabled={!canModify}
+                      />
+                    </div>
+                    <span className="text-sm text-gray-500 px-1 flex-shrink-0">até</span>
+                    <div className="flex-1 min-w-0">
+                      <TimeSelectDropdown
+                        options={opcoesHorarioFim}
+                        selected={horarioFimSelecionado}
+                        onChange={canModify ? handleHorarioFimChange : undefined}
+                        placeholder="Fim"
+                        headerText="Horário de fim"
+                        disabled={!canModify}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Segunda linha: Recursos */}
+                  <div>
+                    <SingleSelectDropdown
+                      options={recursos.map(r => ({ id: r.id, nome: r.nome }))}
+                      selected={recursoSelecionado ? { id: recursoSelecionado.id, nome: recursoSelecionado.nome } : null}
+                      onChange={(selected) => {
+                        if (selected) {
+                          const recursoCompleto = recursos.find(r => r.id === selected.id);
+                          setRecursoSelecionado(recursoCompleto || null);
+                        } else {
+                          setRecursoSelecionado(null);
+                        }
+                      }}
+                      placeholder="Recurso (opcional)"
+                      headerText="Recursos disponíveis"
+                      dotColor="purple"
+                      disabled={!canModify}
+                    />
+                  </div>
                 </div>
-                <span className="text-sm text-gray-500 px-1 flex-shrink-0">até</span>
-                <div className="flex-1 min-w-0">
-                  <TimeSelectDropdown
-                    options={opcoesHorarioFim}
-                    selected={horarioFimSelecionado}
-                    onChange={canModify ? handleHorarioFimChange : undefined}
-                    placeholder="Fim"
-                    headerText="Horário de fim"
-                    disabled={!canModify}
-                  />
+                
+                {/* Botão único que se estende verticalmente */}
+                <div className="flex items-center">
+                  {canModify ? (
+                    <Button
+                      size="sm"
+                      onClick={handleAdicionarIntervalo}
+                      className="h-[72px] w-10 p-0 bg-blue-600 hover:bg-blue-700 flex-shrink-0"
+                      title="Adicionar intervalo"
+                    >
+                      <Plus className="w-5 h-5" />
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      disabled={true}
+                      className="h-[72px] w-10 p-0 bg-gray-400 cursor-not-allowed flex-shrink-0"
+                      title="Você não tem permissão para adicionar intervalos"
+                    >
+                      <Plus className="w-5 h-5" />
+                    </Button>
+                  )}
                 </div>
-                {canModify ? (
-                  <Button
-                    size="sm"
-                    onClick={handleAdicionarIntervalo}
-                    className="h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700 flex-shrink-0"
-                    title="Adicionar intervalo"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    disabled={true}
-                    className="h-8 w-8 p-0 bg-gray-400 cursor-not-allowed flex-shrink-0"
-                    title="Você não tem permissão para adicionar intervalos"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                )}
               </div>
             </div>
             
