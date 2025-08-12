@@ -1,7 +1,7 @@
 # Melhorias
 
 ## Regras
-- Quando finalizar uma melhoria, coloque ✅ e data/hora de hoje (DD/MM/AAAA - HH:MM |) na frente do item que foi implementado.
+- Quando finalizar uma melhoria, coloque ✅ na frente do item que foi implementado.
 - Faça uma melhoria por vez, e aguarde eu testar manualmente antes de seguir para proxima.
 - As melhorias estão listadas como item ###.
 - O item ### é a referência da página, arquivo para ser modificado / melhorado, e abaixo tem o que precisa ser melhorado.
@@ -43,20 +43,20 @@
 - ✅ 12/01/2025 - 19:30 | Retirar os console.log e debug existentes da pagina.
 
 ### PedidosMedicosPage
-- ✅ 12/01/2025 - 19:45 | está aparecendo que tem 2 pedidos vencidos no toogle Vencidos, porém, os dados não foram carregados na tabela / card.
-- ✅ 12/01/2025 - 20:15 | Otimizar melhor a visão de CARDs: Deixando Convênio | Carteirinha na mesma linha e Data do Pedido e data de vencimento tbm.
-- ✅ 12/01/2025 - 20:15 | Adicionar uma coluna ação no final da tabela e botões 'Editar paciente', 'Gerenciar Anexo' e 'Dados do Convênio' e chamar os mesmos modais existentes na PacientesPage. Não criar novos modais, utiliza o mesmo.
-- ✅ 12/01/2025 - 20:15 | Formatar a coluna de whatsapp para ficar igual de PacientesPage.
-- ✅ 12/01/2025 - 20:25 | Corrigir erro de sintaxe JSX causado por funções duplicadas no código.
-- ✅ 12/01/2025 - 20:50 | Corrigir máscara do WhatsApp no modal Editar Paciente quando chamado da PedidosMedicosPage.
-- ✅ 12/01/2025 - 21:00 | Implementar funcionalidades para Editar, Anexo e Convenio - atualizar no banco de dados.
-- ✅ 12/01/2025 - 21:10 | Corrigir campo "Data Pedido Médico" não carregando ao abrir modal Dados do Convênio.
-- ✅ 12/01/2025 - 21:15 | Corrigir inconsistência na exibição de datas - tabela mostrava 17/02/2025 mas modal 18/02/2025, banco tem 18/02/2025.
+- ✅ está aparecendo que tem 2 pedidos vencidos no toogle Vencidos, porém, os dados não foram carregados na tabela / card.
+- ✅ Otimizar melhor a visão de CARDs: Deixando Convênio | Carteirinha na mesma linha e Data do Pedido e data de vencimento tbm.
+- ✅ Adicionar uma coluna ação no final da tabela e botões 'Editar paciente', 'Gerenciar Anexo' e 'Dados do Convênio' e chamar os mesmos modais existentes na PacientesPage. Não criar novos modais, utiliza o mesmo.
+- ✅ Formatar a coluna de whatsapp para ficar igual de PacientesPage.
+- ✅ Corrigir erro de sintaxe JSX causado por funções duplicadas no código.
+- ✅ Corrigir máscara do WhatsApp no modal Editar Paciente quando chamado da PedidosMedicosPage.
+- ✅ Implementar funcionalidades para Editar, Anexo e Convenio - atualizar no banco de dados.
+- ✅ Corrigir campo "Data Pedido Médico" não carregando ao abrir modal Dados do Convênio.
+- ✅ Corrigir inconsistência na exibição de datas - tabela mostrava 17/02/2025 mas modal 18/02/2025, banco tem 18/02/2025.
 
 ### src/services/ocupacao.ts
-- ✅ 12/01/2025 - 20:45 | Retirar os console.log
-- ✅ 12/01/2025 - 20:45 | Retirar debugs
-- ✅ 12/01/2025 - 20:45 | Está com erro na linha 119: Property 'ativo' does not exist on type 'Profissional'. Não existe coluna 'ativo' no banco de dados... então, retirar essa funcionalidade do frontend.
+- ✅ Retirar os console.log
+- ✅ Retirar debugs
+- ✅ Está com erro na linha 119: Property 'ativo' does not exist on type 'Profissional'. Não existe coluna 'ativo' no banco de dados... então, retirar essa funcionalidade do frontend.
 
 ### PacientesPage
 - No modal de anexos, permitir mais de 1 anexo (não limitar).
