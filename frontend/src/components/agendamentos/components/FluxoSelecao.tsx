@@ -24,7 +24,17 @@ export const FluxoSelecao: React.FC<FluxoSelecaoProps> = ({
   onSubmit,
   titulo
 }) => {
-  const [tipoFluxoSelecionado, setTipoFluxoSelecionado] = useState<TipoFluxo | null>(null);
+  // Inicializar com o tipoFluxo do context se já estiver definido
+  const [tipoFluxoSelecionado, setTipoFluxoSelecionado] = useState<TipoFluxo | null>(
+    context?.state.tipoFluxo || null
+  );
+
+  // Sincronizar com mudanças no context.state.tipoFluxo
+  React.useEffect(() => {
+    if (context?.state.tipoFluxo && context.state.tipoFluxo !== tipoFluxoSelecionado) {
+      setTipoFluxoSelecionado(context.state.tipoFluxo);
+    }
+  }, [context?.state.tipoFluxo, tipoFluxoSelecionado]);
 
   const handleFluxoSelecionado = (fluxo: TipoFluxo) => {
     setTipoFluxoSelecionado(fluxo);
@@ -42,10 +52,20 @@ export const FluxoSelecao: React.FC<FluxoSelecaoProps> = ({
   };
 
   const handleClose = () => {
-    setTipoFluxoSelecionado(null);
-    context?.updateTipoFluxo(null);
+    // Só resetar o fluxo se não há contexto inicial definido
+    if (!context?.state.tipoFluxo) {
+      setTipoFluxoSelecionado(null);
+      context?.updateTipoFluxo(null);
+    }
     onClose();
   };
+  
+  // Resetar fluxo quando o modal fechar completamente
+  React.useEffect(() => {
+    if (!isOpen) {
+      setTipoFluxoSelecionado(context?.state.tipoFluxo || null);
+    }
+  }, [isOpen, context?.state.tipoFluxo]);
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       {/* Tela de Seleção de Fluxo */}

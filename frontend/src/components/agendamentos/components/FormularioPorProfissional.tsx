@@ -145,12 +145,18 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                 } : null}
                 onChange={(selected) => {
                   const profissionalId = selected?.id || '';
+                  let recursoId = '';
+                  let tipoAtendimento: TipoAtendimento = 'presencial';
+                  
+                  // Por enquanto, deixar recursoId vazio para seleção manual
+                  // TODO: Implementar auto-seleção baseada nas disponibilidades do profissional
+                  
                   updateFormData({
                     profissionalId,
                     servicoId: '', // Limpar serviço quando trocar profissional
                     convenioId: '', // Limpar convênio quando trocar profissional
-                    recursoId: '', // Limpar recurso quando trocar profissional
-                    tipoAtendimento: 'presencial' as TipoAtendimento // Reset tipo de atendimento
+                    recursoId, // Auto-selecionar recurso baseado nas disponibilidades
+                    tipoAtendimento // Auto-definir tipo baseado no recurso
                   });
                 }}
                 placeholder={loadingData ? "Carregando profissionais..." : "Buscar profissional..."}
@@ -299,7 +305,27 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                     sigla: undefined
                   } : null}
                   onChange={(selected) => {
-                    updateFormData({ pacienteId: selected?.id || '' });
+                    const pacienteId = selected?.id || '';
+                    let convenioId = '';
+                    
+                    // Se selecionou um paciente, buscar seu convênio
+                    if (pacienteId) {
+                      const pacienteSelecionado = pacientes.find(p => p.id === pacienteId);
+                      if (pacienteSelecionado?.convenioId) {
+                        // Verificar se o convênio do paciente existe na lista de convênios disponíveis
+                        const conveniosDisponiveis = formData.profissionalId ? conveniosDoProfissional : convenios;
+                        const convenioExiste = conveniosDisponiveis.find(c => c.id === pacienteSelecionado.convenioId);
+                        if (convenioExiste) {
+                          convenioId = pacienteSelecionado.convenioId;
+                        }
+                      }
+                    }
+                    
+                    updateFormData({ 
+                      pacienteId,
+                      convenioId,
+                      servicoId: '' // Limpar serviço quando trocar paciente/convênio
+                    });
                   }}
                   placeholder={loadingData ? "Carregando pacientes..." : "Buscar paciente..."}
                   headerText="Pacientes disponíveis"
@@ -342,9 +368,10 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                         tipoAtendimento: 'presencial' as TipoAtendimento // Reset tipo de atendimento
                       });
                     }}
-                    placeholder={loadingData ? "Carregando convênios..." : "Buscar convênio..."}
+                    placeholder={!formData.pacienteId ? "Selecione um paciente primeiro..." : loadingData ? "Carregando convênios..." : "Buscar convênio..."}
                     headerText={formData.profissionalId ? "Convênios do profissional" : "Convênios disponíveis"}
                     formatOption={(option) => option.nome}
+                    disabled={!formData.pacienteId || loadingData}
                   />
                 </div>
               </div>
@@ -396,7 +423,7 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                 </label>
                 <div className="w-full">
                   <SingleSelectDropdown
-                    options={formData.servicoId ? recursos.map(r => {
+                    options={formData.profissionalId ? recursos.map(r => {
                       const verificacao = recursosVerificados[r.id];
                       return {
                         id: r.id,
@@ -429,7 +456,8 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                         tipoAtendimento 
                       });
                     }}
-                    placeholder={!formData.servicoId ? "Selecione um serviço primeiro..." : loadingData ? "Carregando recursos..." : "Buscar recurso..."}
+                    placeholder={!formData.profissionalId ? "Selecione um profissional primeiro..." : loadingData ? "Carregando recursos..." : "Buscar recurso..."}
+                    disabled={!formData.profissionalId || loadingData}
                     headerText="Recursos disponíveis"
                     formatOption={(option) => {
                       return option.sigla ? `${option.nome} - ${option.sigla}` : option.nome;

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { 
   Users, UserCheck, Calendar, Building, TrendingUp, Clock, 
   Activity, DollarSign, AlertCircle, CheckCircle, 
-  ArrowUpRight, ArrowDownRight, Plus, Eye, BarChart3, PieChart
+  ArrowUpRight, ArrowDownRight, Plus, Eye, BarChart3, PieChart, FileText
 } from 'lucide-react';
 import { getModuleTheme } from '@/types/theme';
 import { useAuth } from '@/hooks/useAuth';
@@ -166,8 +166,8 @@ export const Dashboard = () => {
     { label: 'Novo Agendamento', icon: Plus, action: () => navigate('agendamentos'), color: 'blue' },
     { label: 'Ver Calendário', icon: Eye, action: () => navigate('calendario'), color: 'green' },
     { label: 'Dashboard Ocupação', icon: PieChart, action: () => navigate('/dashboard/ocupacao'), color: 'indigo' },
-    { label: 'Relatórios', icon: BarChart3, action: () => {}, color: 'purple' },
-    { label: 'Configurações', icon: Activity, action: () => {}, color: 'orange' }
+    { label: 'Pedidos Médicos', icon: FileText, action: () => navigate('/dashboard/pedidos-medicos'), color: 'red' },
+    { label: 'Relatórios', icon: BarChart3, action: () => {}, color: 'purple' }
   ];
 
   const getStatusBadge = (status: string) => {

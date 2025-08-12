@@ -117,7 +117,7 @@ export const getDadosOcupacao = async (): Promise<DadosOcupacao> => {
 
     // Calcular estatísticas gerais
     const profissionaisAtivos = profissionais.filter(p => p.ativo);
-    const recursosDisponiveis = recursos.filter(r => r.ativo);
+    const recursosDisponiveis = recursos; // Todos os recursos são considerados disponíveis
 
     // Debug: verificar se Danieli está na lista de profissionais
     const danieliProfissional = profissionais.find(p => 
@@ -196,7 +196,7 @@ export const getDadosOcupacao = async (): Promise<DadosOcupacao> => {
         agendamentosHoje: agendamentosRecursoHoje.length,
         agendamentosProximos7: agendamentosRecursoProx7.length,
         percentualOcupacao,
-        disponivel: recurso.ativo
+        disponivel: true // Todos os recursos são considerados disponíveis
       };
     });
 

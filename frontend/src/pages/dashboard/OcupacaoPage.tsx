@@ -2,43 +2,29 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Users, 
   Calendar, 
   Clock, 
   TrendingUp, 
   Activity, 
-  Building, 
-  UserCheck,
-  BarChart3,
-  PieChart,
+  Building,
   Stethoscope,
-  MapPin,
-  AlertCircle,
+ 
+  Search,
+  LayoutGrid,
+  List,
   RefreshCw,
-  Eye
+  AlertCircle
 } from 'lucide-react';
 import { getDadosOcupacao, type DadosOcupacao, type OcupacaoProfissional, type OcupacaoRecurso } from '@/services/ocupacao';
 import { 
   PageContainer, 
-  PageHeader, 
-  PageContent, 
-  ViewToggle, 
-  SearchBar, 
-  FilterButton,
-  DynamicFilterPanel,
-  ResponsiveTable, 
-  ResponsiveCards, 
-  ResponsivePagination,
-  ActionButton,
-  TableColumn,
-  ResponsiveCardFooter 
+  ResponsivePagination
 } from '@/components/layout';
-// import { useViewMode } from '@/hooks/useViewMode';
-// import { useResponsiveTable } from '@/hooks/useResponsiveTable';
-// import { useTableFilters } from '@/hooks/useTableFilters';
-import { getModuleTheme } from '@/types/theme';
 
 // Tipo para definir o que está sendo visualizado
 type TipoVisualizacao = 'profissionais' | 'recursos';
@@ -56,163 +42,45 @@ function formatarOcupacao(ocupados: number, total: number): string {
   return `${ocupados}/${total}`;
 }
 
+// Função para gerar cores de avatar baseada no nome
+function getAvatarGradient(nome: string, tipo: 'profissional' | 'recurso') {
+  const gradients = {
+    profissional: [
+      'from-violet-500 to-purple-600',
+      'from-blue-500 to-indigo-600',
+      'from-emerald-500 to-teal-600',
+      'from-orange-500 to-red-600',
+      'from-pink-500 to-rose-600',
+      'from-cyan-500 to-blue-600',
+    ],
+    recurso: [
+      'from-green-500 to-emerald-600',
+      'from-teal-500 to-cyan-600',
+      'from-blue-500 to-sky-600',
+      'from-indigo-500 to-blue-600',
+      'from-purple-500 to-violet-600',
+      'from-amber-500 to-orange-600',
+    ]
+  };
+  
+  const hash = nome.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0);
+    return a & a;
+  }, 0);
+  
+  const gradientList = gradients[tipo];
+  return gradientList[Math.abs(hash) % gradientList.length];
+}
+
 export const OcupacaoPage: React.FC = () => {
-  const theme = getModuleTheme('default');
   const [dadosOcupacao, setDadosOcupacao] = useState<DadosOcupacao | null>(null);
   const [carregandoDados, setCarregandoDados] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [tipoVisualizacao, setTipoVisualizacao] = useState<TipoVisualizacao>('profissionais');
   const [busca, setBusca] = useState('');
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20;
-
-  // State para ordenação
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
-
-  // Configuração das colunas para profissionais
-  const profissionaisColumns: TableColumn<OcupacaoProfissional>[] = [
-    {
-      key: 'nome',
-      header: '👨‍⚕️ Profissional',
-      essential: true,
-      filterable: {
-        type: 'text',
-        placeholder: 'Nome do profissional...',
-        label: 'Profissional'
-      },
-      render: (item) => (
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-            <Stethoscope className="w-4 h-4 text-blue-600" />
-          </div>
-          <span className="font-medium">{item.nome}</span>
-        </div>
-      )
-    },
-    {
-      key: 'ocupacao',
-      header: '📊 Ocupação',
-      essential: true,
-      className: 'text-center',
-      render: (item) => (
-        <div className="space-y-1">
-          <div className="text-sm font-medium">
-            {formatarOcupacao(item.ocupados, item.total)}
-          </div>
-          <Progress value={item.percentual} className="h-2" />
-        </div>
-      )
-    },
-    {
-      key: 'percentual',
-      header: '📈 Percentual',
-      essential: true,
-      className: 'text-center',
-      filterable: {
-        type: 'range',
-        label: 'Percentual',
-        min: 0,
-        max: 100
-      },
-      render: (item) => {
-        const colors = getOcupacaoColor(item.percentual);
-        return (
-          <Badge className={`${colors.bg} ${colors.text}`}>
-            {item.percentual}%
-          </Badge>
-        );
-      }
-    },
-    {
-      key: 'agendamentos',
-      header: '📅 Agendamentos',
-      essential: false,
-      render: (item) => (
-        <div className="text-sm space-y-1">
-          <div>Hoje: <span className="font-medium">{item.agendamentosHoje}</span></div>
-          <div>7 dias: <span className="font-medium">{item.agendamentosProximos7}</span></div>
-        </div>
-      )
-    }
-  ];
-
-  // Configuração das colunas para recursos
-  const recursosColumns: TableColumn<OcupacaoRecurso>[] = [
-    {
-      key: 'nome',
-      header: '🏢 Recurso',
-      essential: true,
-      filterable: {
-        type: 'text',
-        placeholder: 'Nome do recurso...',
-        label: 'Recurso'
-      },
-      render: (item) => (
-        <div className="flex items-center space-x-2">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-            item.disponivel ? 'bg-green-100' : 'bg-gray-100'
-          }`}>
-            <Building className={`w-4 h-4 ${
-              item.disponivel ? 'text-green-600' : 'text-gray-400'
-            }`} />
-          </div>
-          <div>
-            <span className="font-medium">{item.nome}</span>
-            {!item.disponivel && (
-              <span className="ml-2 text-xs text-gray-500">(Inativo)</span>
-            )}
-            <div className="text-xs text-gray-600">{item.tipo}</div>
-          </div>
-        </div>
-      )
-    },
-    {
-      key: 'ocupacao',
-      header: '📊 Ocupação',
-      essential: true,
-      className: 'text-center',
-      render: (item) => (
-        <div className="space-y-1">
-          <Progress value={item.percentualOcupacao} className="h-2" />
-          <div className="text-xs text-gray-600">
-            {item.percentualOcupacao}%
-          </div>
-        </div>
-      )
-    },
-    {
-      key: 'percentual',
-      header: '📈 Percentual',
-      essential: true,
-      className: 'text-center',
-      filterable: {
-        type: 'range',
-        label: 'Percentual',
-        min: 0,
-        max: 100
-      },
-      render: (item) => {
-        const colors = getOcupacaoColor(item.percentualOcupacao);
-        return (
-          <Badge className={`${colors.bg} ${colors.text}`}>
-            {item.percentualOcupacao}%
-          </Badge>
-        );
-      }
-    },
-    {
-      key: 'agendamentos',
-      header: '📅 Agendamentos',
-      essential: false,
-      render: (item) => (
-        <div className="text-sm space-y-1">
-          <div>Hoje: <span className="font-medium">{item.agendamentosHoje}</span></div>
-          <div>7 dias: <span className="font-medium">{item.agendamentosProximos7}</span></div>
-        </div>
-      )
-    }
-  ];
+  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   // Dados computados baseados no tipo de visualização
   const dadosAtuais = useMemo(() => {
@@ -222,35 +90,21 @@ export const OcupacaoPage: React.FC = () => {
       : dadosOcupacao.ocupacoesRecursos;
   }, [dadosOcupacao, tipoVisualizacao]);
 
-  const colunasAtuais = useMemo(() => {
-    return tipoVisualizacao === 'profissionais' ? profissionaisColumns : recursosColumns;
-  }, [tipoVisualizacao]);
-
-  // Filtros baseados na busca
+  // Filtrar dados baseado apenas na busca textual
   const dadosFiltrados = useMemo(() => {
     if (!busca.trim()) return dadosAtuais;
-    
+
     const buscaLower = busca.toLowerCase();
     return dadosAtuais.filter((item: any) => 
-      item.nome.toLowerCase().includes(buscaLower) ||
-      (tipoVisualizacao === 'recursos' && 
-       (item as OcupacaoRecurso).tipo.toLowerCase().includes(buscaLower))
+      item.nome.toLowerCase().includes(buscaLower)
     );
-  }, [dadosAtuais, busca, tipoVisualizacao]);
+  }, [dadosAtuais, busca]);
 
-  // Paginação simples
+  // Paginação
   const totalPages = Math.ceil(dadosFiltrados.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentItems = dadosFiltrados.slice(startIndex, endIndex);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  // Dados finais para exibir
-  const filteredData = currentItems;
-  const visibleColumns = colunasAtuais;
 
   // Carregar dados ao montar componente
   useEffect(() => {
@@ -271,45 +125,46 @@ export const OcupacaoPage: React.FC = () => {
     }
   };
 
-  // Toggle para alternar entre profissionais e recursos
-  const toggles = [
-    { 
-      value: 'profissionais' as TipoVisualizacao, 
-      label: 'Profissionais', 
-      icon: Stethoscope,
-      count: dadosOcupacao?.ocupacoesProfissionais.length || 0
-    },
-    { 
-      value: 'recursos' as TipoVisualizacao, 
-      label: 'Recursos', 
-      icon: Building,
-      count: dadosOcupacao?.ocupacoesRecursos.length || 0
-    }
-  ];
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1);
+  };
 
   // Loading state
   if (carregandoDados) {
     return (
-      <PageContainer>
-        <div className="flex items-center justify-center min-h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Carregando dados de ocupação...</p>
-          </div>
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando dados de ocupação...</p>
         </div>
-      </PageContainer>
+      </div>
     );
   }
 
   // Error state
   if (erro) {
     return (
-      <PageContainer>
-        <PageHeader
-          title="Dashboard de Ocupação"
-          module="ocupacao"
-        />
-        <PageContent>
+      <div className="h-full flex flex-col">
+        {/* Header fixo */}
+        <div className="flex-shrink-0 pt-2 pl-6 pr-6 bg-white border-b border-gray-200">
+          <div className="flex justify-between items-center mb-6 px-6 py-4 rounded-lg">
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <span className="text-4xl">📊</span>
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Dashboard de Ocupação
+              </span>
+            </h1>
+          </div>
+        </div>
+
+        {/* Error content */}
+        <div className="flex-1 overflow-y-auto pt-2 pl-6 pr-6">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
             <div className="flex">
               <AlertCircle className="w-6 h-6 text-red-600 mt-0.5 mr-3" />
@@ -327,316 +182,343 @@ export const OcupacaoPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </PageContent>
-      </PageContainer>
-    );
-  }
-
-  // No data state
-  if (!dadosOcupacao) {
-    return (
-      <PageContainer>
-        <PageHeader
-          title="Dashboard de Ocupação"
-          module="ocupacao"
-        />
-        <PageContent>
-          <div className="text-center py-12">
-            <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">Nenhum dado de ocupação disponível</p>
-          </div>
-        </PageContent>
-      </PageContainer>
+        </div>
+      </div>
     );
   }
 
   return (
-    <PageContainer>
-      <PageHeader
-        title="Dashboard de Ocupação"
-        module="ocupacao"
-      >
-        <div className="flex flex-col sm:flex-row gap-4">
-          {/* Cards de Estatísticas Resumidas */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <div className="flex items-center space-x-2">
-                <Stethoscope className="w-4 h-4 text-blue-600" />
-                <div>
-                  <p className="text-xs text-blue-600 font-medium">Profissionais</p>
-                  <p className="text-lg font-bold text-blue-900">
-                    {dadosOcupacao.estatisticas.profissionaisAtivos}/{dadosOcupacao.estatisticas.totalProfissionais}
-                  </p>
-                </div>
-              </div>
+    <div className="h-full flex flex-col">
+      {/* Header fixo */}
+      <div className="flex-shrink-0 pt-2 pl-6 pr-6 bg-white border-b border-gray-200">
+        <div className="flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <span className="text-4xl">📊</span>
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Dashboard de Ocupação
+              </span>
+            </h1>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder={`Buscar ${tipoVisualizacao === 'profissionais' ? 'profissional' : 'recurso'}...`}
+                value={busca}
+                onChange={e => setBusca(e.target.value)}
+                className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
             </div>
-
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <div className="flex items-center space-x-2">
-                <Building className="w-4 h-4 text-green-600" />
-                <div>
-                  <p className="text-xs text-green-600 font-medium">Recursos</p>
-                  <p className="text-lg font-bold text-green-900">
-                    {dadosOcupacao.estatisticas.recursosDisponiveis}/{dadosOcupacao.estatisticas.totalRecursos}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-              <div className="flex items-center space-x-2">
-                <Calendar className="w-4 h-4 text-purple-600" />
-                <div>
-                  <p className="text-xs text-purple-600 font-medium">7 dias</p>
-                  <p className="text-lg font-bold text-purple-900">
-                    {dadosOcupacao.estatisticas.agendamentosProximosSete}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="w-4 h-4 text-orange-600" />
-                <div>
-                  <p className="text-xs text-orange-600 font-medium">Média</p>
-                  <p className="text-lg font-bold text-orange-900">
-                    {dadosOcupacao.estatisticas.mediaOcupacaoProfissionais}%
-                  </p>
-                </div>
-              </div>
+            
+            {/* Toggle de visualização */}
+            <div className="flex border rounded-lg p-1 bg-gray-100">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setVisualizacao('tabela')}
+                className={`h-7 px-3 ${visualizacao === 'tabela' ? 'bg-white shadow-sm' : ''}`}
+              >
+                <List className="w-4 h-4 mr-1" />
+                Tabela
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setVisualizacao('cards')}
+                className={`h-7 px-3 ${visualizacao === 'cards' ? 'bg-white shadow-sm' : ''}`}
+              >
+                <LayoutGrid className="w-4 h-4 mr-1" />
+                Cards
+              </Button>
             </div>
           </div>
+        </div>
 
-          {/* Botão de Atualizar */}
-          <Button
-            variant="outline"
-            onClick={carregarDadosOcupacao}
-            disabled={carregandoDados}
-            className="whitespace-nowrap"
+      </div>
+
+      {/* Conteúdo com scroll independente */}
+      <div className="flex-1 overflow-y-auto pt-2 pl-6 pr-6">
+        {/* Toggle grande para separar Profissionais | Recursos */}
+        <div className="mb-6">
+          <Tabs 
+            value={tipoVisualizacao} 
+            onValueChange={(value) => setTipoVisualizacao(value as TipoVisualizacao)}
+            className="w-full"
           >
-            <RefreshCw className={`w-4 h-4 mr-2 ${carregandoDados ? 'animate-spin' : ''}`} />
-            {carregandoDados ? 'Atualizando...' : 'Atualizar'}
-          </Button>
-        </div>
-      </PageHeader>
-
-      <PageContent>
-        {/* Controles de Navegação */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          {/* Toggle entre Profissionais e Recursos */}
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            {toggles.map((toggle) => {
-              const Icon = toggle.icon;
-              return (
-                <button
-                  key={toggle.value}
-                  onClick={() => setTipoVisualizacao(toggle.value)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    tipoVisualizacao === toggle.value
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{toggle.label}</span>
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {toggle.count}
+            <TabsList className="grid w-full grid-cols-2 h-12">
+              <TabsTrigger 
+                value="profissionais" 
+                className="flex items-center gap-2 transition-colors duration-200 text-base font-medium data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700 data-[state=active]:border-blue-300"
+              >
+                <Stethoscope className="w-5 h-5" />
+                Profissionais
+                {dadosOcupacao && (
+                  <Badge variant="secondary" className="ml-1">
+                    {dadosOcupacao.ocupacoesProfissionais.length}
                   </Badge>
-                </button>
-              );
-            })}
-          </div>
+                )}
+              </TabsTrigger>
+              <TabsTrigger 
+                value="recursos" 
+                className="flex items-center gap-2 transition-colors duration-200 text-base font-medium data-[state=active]:bg-green-100 data-[state=active]:text-green-700 data-[state=active]:border-green-300"
+              >
+                <Building className="w-5 h-5" />
+                Recursos
+                {dadosOcupacao && (
+                  <Badge variant="secondary" className="ml-1">
+                    {dadosOcupacao.ocupacoesRecursos.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Barra de Busca */}
-          <div className="flex-1 max-w-md">
-            <input
-              type="text"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder={`Buscar ${tipoVisualizacao === 'profissionais' ? 'profissional' : 'recurso'}...`}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+            <TabsContent value="profissionais" className="mt-6">
+              {renderContent()}
+            </TabsContent>
 
-          {/* View Toggle */}
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('table')}
-              className={`px-3 py-1 rounded text-sm font-medium ${
-                viewMode === 'table' 
-                  ? 'bg-white text-gray-900 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Tabela
-            </button>
-            <button
-              onClick={() => setViewMode('cards')}
-              className={`px-3 py-1 rounded text-sm font-medium ${
-                viewMode === 'cards' 
-                  ? 'bg-white text-gray-900 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Cards
-            </button>
-          </div>
+            <TabsContent value="recursos" className="mt-6">
+              {renderContent()}
+            </TabsContent>
+          </Tabs>
         </div>
+      </div>
 
-        {/* Conteúdo Principal */}
-        {viewMode === 'table' ? (
-          <div className="bg-white rounded-lg border">
-            <table className="w-full">
-              <thead className="bg-gray-50">
+      {/* Footer fixo na parte de baixo */}
+      {dadosFiltrados.length > 0 && (
+        <div className="flex-shrink-0">
+          <ResponsivePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={dadosFiltrados.length}
+            itemsPerPage={itemsPerPage}
+            module="ocupacao"
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
+        </div>
+      )}
+    </div>
+  );
+
+  function renderContent() {
+    if (!dadosOcupacao) {
+      return (
+        <div className="text-center py-12">
+          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600">Nenhum dado de ocupação disponível</p>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {visualizacao === 'tabela' ? renderTableView() : renderCardView()}
+      </>
+    );
+  }
+
+  function renderTableView() {
+    return (
+      <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                  <div className="flex items-center gap-2">
+                    {tipoVisualizacao === 'profissionais' ? (
+                      <>
+                        <span className="text-lg">👨‍⚕️</span>
+                        Profissional
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-lg">🏢</span>
+                        Recurso
+                      </>
+                    )}
+                  </div>
+                </th>
+                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-lg">📊</span>
+                    Ocupação
+                  </div>
+                </th>
+                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-lg">📈</span>
+                    Percentual
+                  </div>
+                </th>
+                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-lg">📅</span>
+                    Agendamentos
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {currentItems.length === 0 ? (
                 <tr>
-                  {visibleColumns.map((column) => (
-                    <th key={column.key} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {column.header}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredData.map((item: any) => (
-                  <tr key={item.id || item.profissionalId}>
-                    {visibleColumns.map((column) => (
-                      <td key={column.key} className="px-6 py-4 whitespace-nowrap text-sm">
-                        {column.render ? column.render(item) : item[column.key]}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {filteredData.length === 0 && (
-              <div className="text-center py-12">
-                <div className="text-gray-400 mb-2">
-                  {tipoVisualizacao === 'profissionais' ? <Stethoscope className="w-12 h-12 mx-auto" /> : <Building className="w-12 h-12 mx-auto" />}
-                </div>
-                <p className="text-gray-600">{`Nenhum ${tipoVisualizacao === 'profissionais' ? 'profissional' : 'recurso'} encontrado`}</p>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredData.map((item: any) => (
-              <Card key={item.id || item.profissionalId} className="h-full">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between text-base">
-                    <div className="flex items-center space-x-2">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        tipoVisualizacao === 'profissionais' 
-                          ? 'bg-blue-100' 
-                          : item.disponivel ? 'bg-green-100' : 'bg-gray-100'
-                      }`}>
+                  <td colSpan={4} className="py-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                         {tipoVisualizacao === 'profissionais' ? (
-                          <Stethoscope className="w-4 h-4 text-blue-600" />
+                          <Stethoscope className="w-8 h-8 text-gray-400" />
                         ) : (
-                          <Building className={`w-4 h-4 ${
-                            item.disponivel ? 'text-green-600' : 'text-gray-400'
-                          }`} />
+                          <Building className="w-8 h-8 text-gray-400" />
                         )}
                       </div>
-                      <span className="truncate">{item.nome}</span>
-                    </div>
-                  </CardTitle>
-                  {tipoVisualizacao === 'recursos' && (
-                    <CardDescription>
-                      {item.tipo}
-                      {!item.disponivel && (
-                        <span className="text-gray-500"> (Inativo)</span>
-                      )}
-                    </CardDescription>
-                  )}
-                </CardHeader>
-                
-                <CardContent className="space-y-3">
-                  {/* Ocupação */}
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Ocupação</span>
-                      <span className="font-medium">
-                        {tipoVisualizacao === 'profissionais' 
-                          ? `${item.ocupados}/${item.total}`
-                          : `${item.percentualOcupacao}%`
+                      <p className="text-gray-500 font-medium">
+                        {busca 
+                          ? 'Nenhum resultado encontrado' 
+                          : `Nenhum ${tipoVisualizacao === 'profissionais' ? 'profissional' : 'recurso'} encontrado`
                         }
-                      </span>
+                      </p>
                     </div>
-                    <Progress 
-                      value={tipoVisualizacao === 'profissionais' ? item.percentual : item.percentualOcupacao} 
-                      className="h-2" 
-                    />
-                  </div>
+                  </td>
+                </tr>
+              ) : (
+                currentItems.map((item: any) => (
+                  <tr key={item.id || item.profissionalId} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200">
+                    <td className="px-6 py-2">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-8 h-8 bg-gradient-to-r ${getAvatarGradient(
+                          item.nome, 
+                          tipoVisualizacao === 'profissionais' ? 'profissional' : 'recurso'
+                        )} rounded-full flex items-center justify-center text-white text-sm font-bold`}>
+                          {item.nome.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-900">{item.nome}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-2 text-center">
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium">
+                          {tipoVisualizacao === 'profissionais' 
+                            ? formatarOcupacao(item.ocupados, item.total)
+                            : `${item.percentualOcupacao}%`
+                          }
+                        </div>
+                        <Progress 
+                          value={tipoVisualizacao === 'profissionais' ? item.percentual : item.percentualOcupacao} 
+                          className="h-2 w-24 mx-auto" 
+                        />
+                      </div>
+                    </td>
+                    <td className="px-6 py-2 text-center">
+                      <Badge className={`${getOcupacaoColor(
+                        tipoVisualizacao === 'profissionais' ? item.percentual : item.percentualOcupacao
+                      ).bg} ${getOcupacaoColor(
+                        tipoVisualizacao === 'profissionais' ? item.percentual : item.percentualOcupacao
+                      ).text}`}>
+                        {tipoVisualizacao === 'profissionais' ? item.percentual : item.percentualOcupacao}%
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-2 text-center">
+                      <div className="text-sm">
+                        Hoje: <span className="font-medium">{item.agendamentosHoje}</span> | 7 dias: <span className="font-medium">{item.agendamentosProximos7}</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
 
-                  {/* Percentual Badge */}
-                  <div className="flex justify-center">
-                    <Badge className={getOcupacaoColor(
-                      tipoVisualizacao === 'profissionais' ? item.percentual : item.percentualOcupacao
-                    ).bg + ' ' + getOcupacaoColor(
-                      tipoVisualizacao === 'profissionais' ? item.percentual : item.percentualOcupacao
-                    ).text}>
-                      {tipoVisualizacao === 'profissionais' ? item.percentual : item.percentualOcupacao}%
-                    </Badge>
-                  </div>
-
-                  {/* Agendamentos */}
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="text-center p-2 bg-gray-50 rounded">
-                      <div className="font-medium text-gray-900">{item.agendamentosHoje}</div>
-                      <div className="text-xs text-gray-600">Hoje</div>
-                    </div>
-                    <div className="text-center p-2 bg-gray-50 rounded">
-                      <div className="font-medium text-gray-900">{item.agendamentosProximos7}</div>
-                      <div className="text-xs text-gray-600">7 dias</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {filteredData.length === 0 && (
-              <div className="col-span-full text-center py-12">
-                <div className="text-gray-400 mb-2">
-                  {tipoVisualizacao === 'profissionais' ? <Stethoscope className="w-12 h-12 mx-auto" /> : <Building className="w-12 h-12 mx-auto" />}
-                </div>
-                <p className="text-gray-600">{`Nenhum ${tipoVisualizacao === 'profissionais' ? 'profissional' : 'recurso'} encontrado`}</p>
+  function renderCardView() {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {currentItems.length === 0 ? (
+          <div className="col-span-full text-center py-12">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                {tipoVisualizacao === 'profissionais' ? (
+                  <Stethoscope className="w-8 h-8 text-gray-400" />
+                ) : (
+                  <Building className="w-8 h-8 text-gray-400" />
+                )}
               </div>
-            )}
+              <p className="text-gray-500 font-medium">
+                {busca 
+                  ? 'Nenhum resultado encontrado' 
+                  : `Nenhum ${tipoVisualizacao === 'profissionais' ? 'profissional' : 'recurso'} encontrado`
+                }
+              </p>
+            </div>
           </div>
-        )}
+        ) : (
+          currentItems.map((item: any) => (
+            <Card key={item.id || item.profissionalId} className="h-full hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center justify-between text-base">
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-8 h-8 bg-gradient-to-r ${getAvatarGradient(
+                      item.nome, 
+                      tipoVisualizacao === 'profissionais' ? 'profissional' : 'recurso'
+                    )} rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}>
+                      {item.nome.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="truncate">{item.nome}</span>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              
+              <CardContent className="space-y-3">
+                {/* Ocupação */}
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Ocupação</span>
+                    <span className="font-medium">
+                      {tipoVisualizacao === 'profissionais' 
+                        ? `${item.ocupados}/${item.total}`
+                        : `${item.percentualOcupacao}%`
+                      }
+                    </span>
+                  </div>
+                  <Progress 
+                    value={tipoVisualizacao === 'profissionais' ? item.percentual : item.percentualOcupacao} 
+                    className="h-2" 
+                  />
+                </div>
 
-        {/* Paginação */}
-        {totalPages > 1 && (
-          <div className="flex justify-center mt-6 space-x-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-            >
-              Anterior
-            </Button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <Button
-                key={page}
-                variant={currentPage === page ? "default" : "outline"}
-                size="sm"
-                onClick={() => handlePageChange(page)}
-              >
-                {page}
-              </Button>
-            ))}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-            >
-              Próxima
-            </Button>
-          </div>
+                {/* Percentual Badge */}
+                <div className="flex justify-center">
+                  <Badge className={`${getOcupacaoColor(
+                    tipoVisualizacao === 'profissionais' ? item.percentual : item.percentualOcupacao
+                  ).bg} ${getOcupacaoColor(
+                    tipoVisualizacao === 'profissionais' ? item.percentual : item.percentualOcupacao
+                  ).text}`}>
+                    {tipoVisualizacao === 'profissionais' ? item.percentual : item.percentualOcupacao}%
+                  </Badge>
+                </div>
+
+                {/* Agendamentos */}
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="text-center p-2 bg-gray-50 rounded">
+                    <div className="font-medium text-gray-900">{item.agendamentosHoje}</div>
+                    <div className="text-xs text-gray-600">Hoje</div>
+                  </div>
+                  <div className="text-center p-2 bg-gray-50 rounded">
+                    <div className="font-medium text-gray-900">{item.agendamentosProximos7}</div>
+                    <div className="text-xs text-gray-600">7 dias</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
         )}
-      </PageContent>
-    </PageContainer>
-  );
+      </div>
+    );
+  }
 };

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, User, Calendar, Clock, FileText, CreditCard } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { liberarAgendamento } from '@/services/agendamentos';
-import { toast } from 'sonner';
+import { AppToast } from '@/services/toast';
 
 interface LiberarAgendamentoModalProps {
   isOpen: boolean;
@@ -46,20 +46,22 @@ export const LiberarAgendamentoModal: React.FC<LiberarAgendamentoModalProps> = (
     
     // Validações
     if (!formData.codLiberacao || !formData.statusCodLiberacao) {
-      toast.error('Preencha todos os campos obrigatórios');
+      AppToast.validation('Campos obrigatórios', 'Preencha todos os campos obrigatórios para continuar.');
       return;
     }
 
     setLoading(true);
     try {
       await liberarAgendamento(agendamento.id, formData);
-      toast.success('Agendamento liberado com sucesso!');
+      AppToast.updated('Agendamento', 'O agendamento foi liberado com sucesso!');
       resetForm();
       onSuccess();
       onClose();
     } catch (error) {
       console.error('Erro ao liberar agendamento:', error);
-      toast.error('Erro ao liberar agendamento');
+      AppToast.error('Erro ao liberar agendamento', {
+        description: 'Não foi possível liberar o agendamento. Tente novamente.'
+      });
     } finally {
       setLoading(false);
     }

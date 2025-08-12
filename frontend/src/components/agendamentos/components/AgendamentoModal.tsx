@@ -1,6 +1,7 @@
 import React from 'react';
 import { FluxoSelecao } from './FluxoSelecao';
 import { useAgendamentoForm } from '../hooks/useAgendamentoForm';
+import ConfirmationDialog from '@/components/ui/confirmation-dialog';
 import type { TipoFluxo } from '../types/agendamento-form';
 
 interface AgendamentoModalProps {
@@ -68,12 +69,44 @@ export const AgendamentoModal: React.FC<AgendamentoModalProps> = ({
   };
 
   return (
-    <FluxoSelecao
-      isOpen={isOpen}
-      onClose={onClose}
-      context={agendamentoContext}
-      onSubmit={handleSubmit}
-      titulo={titulo}
-    />
+    <>
+      <FluxoSelecao
+        isOpen={isOpen}
+        onClose={onClose}
+        context={agendamentoContext}
+        onSubmit={handleSubmit}
+        titulo={titulo}
+      />
+
+      {/* Modal moderno de confirmação de recursos */}
+      <ConfirmationDialog
+        open={agendamentoContext.showResourceConfirmation}
+        onClose={agendamentoContext.handleResourceCancel}
+        type="alert"
+        title="Recurso Inconsistente Detectado"
+        description="O recurso selecionado não está configurado nas disponibilidades do profissional para este horário específico."
+        details={agendamentoContext.resourceConfirmationData ? [
+          `Recurso: ${agendamentoContext.resourceConfirmationData.recursoNome}`,
+          `Profissional: ${agendamentoContext.resourceConfirmationData.profissionalNome}`,
+          `Isso pode indicar um conflito de agenda ou configuração incompleta.`
+        ] : []}
+        actions={[
+          {
+            label: "Continuar Mesmo Assim",
+            onClick: agendamentoContext.handleResourceConfirmation,
+            className: "bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white shadow-lg hover:shadow-xl font-semibold px-6 transition-all duration-200"
+          },
+          {
+            label: "Escolher Outro Recurso",
+            variant: "outline",
+            onClick: agendamentoContext.handleResourceCancel,
+            className: "border-2 border-gray-300 text-gray-700 hover:border-orange-400 hover:bg-orange-50 hover:text-orange-700 font-semibold px-6 transition-all duration-200"
+          }
+        ]}
+        defaultActions={false}
+        showCloseButton={true}
+        maxWidth="lg"
+      />
+    </>
   );
 };

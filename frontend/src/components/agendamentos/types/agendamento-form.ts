@@ -34,6 +34,7 @@ export interface AgendamentoDataState {
   recursos: Recurso[];
   conveniosDoProfissional: Convenio[];
   servicosDoProfissional: Servico[];
+  disponibilidades: any[];
 }
 
 export interface AgendamentoLoadingState {
@@ -57,4 +58,13 @@ export interface AgendamentoFormContext {
   carregarDadosDoProfissional: (profissionalId: string) => Promise<void>;
   carregarProfissionaisPorServico: (servicoId: string) => Promise<void>;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
+  // Estados e funções do modal de confirmação de recursos
+  showResourceConfirmation: boolean;
+  resourceConfirmationData: {
+    recursoNome: string;
+    profissionalNome: string;
+    dadosParaEnvio: any;
+  } | null;
+  handleResourceConfirmation: () => Promise<void>;
+  handleResourceCancel: () => void;
 } 

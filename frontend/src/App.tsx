@@ -14,6 +14,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { Dashboard } from '@/pages/dashboard/Dashboard';
 import { OcupacaoPage } from '@/pages/dashboard/OcupacaoPage';
+import { PedidosMedicosPage } from '@/pages/dashboard/PedidosMedicosPage';
 import { ProfissionaisPage } from '@/pages/profissionais/ProfissionaisPage';
 import DisponibilidadeProfissionaisPage from '@/pages/profissionais/DisponibilidadeProfissionaisPage';
 import { PacientesPage } from '@/pages/pacientes/PacientesPage';
@@ -60,6 +61,7 @@ export default function App() {
             <Route element={<Index />}> {/* Layout compartilhado com Sidebar */}
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="dashboard/ocupacao" element={<OcupacaoPage />} />
+            <Route path="dashboard/pedidos-medicos" element={<PedidosMedicosPage />} />
             <Route path="profissionais" element={<ProfissionaisPage />} />
             <Route path="profissionais/disponibilidade" element={<DisponibilidadeProfissionaisPage />} />
             <Route path="pacientes" element={<PacientesPage />} />

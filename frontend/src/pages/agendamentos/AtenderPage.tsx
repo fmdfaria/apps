@@ -176,7 +176,30 @@ export const AtenderPage = () => {
       
       return true;
     })
-    .sort((a, b) => a.dataHoraInicio.localeCompare(b.dataHoraInicio));
+    .sort((a, b) => {
+      // Ordenação personalizada: Data > Hora > Paciente
+      
+      // 1. Extrair data e hora de cada agendamento
+      const [dataA, horaA] = a.dataHoraInicio.split('T');
+      const [dataB, horaB] = b.dataHoraInicio.split('T');
+      
+      // 2. Comparar primeiro por data
+      const comparacaoData = dataA.localeCompare(dataB);
+      if (comparacaoData !== 0) {
+        return comparacaoData;
+      }
+      
+      // 3. Se datas iguais, comparar por hora
+      const comparacaoHora = horaA.localeCompare(horaB);
+      if (comparacaoHora !== 0) {
+        return comparacaoHora;
+      }
+      
+      // 4. Se data e hora iguais, comparar por nome do paciente
+      return (a.pacienteNome || '').localeCompare(b.pacienteNome || '', 'pt-BR', { 
+        sensitivity: 'base' 
+      });
+    });
 
   const totalPaginas = Math.ceil(agendamentosFiltrados.length / itensPorPagina);
   const agendamentosPaginados = agendamentosFiltrados.slice(
@@ -521,8 +544,8 @@ export const AtenderPage = () => {
             <div className="bg-gray-50 p-4 rounded-lg mb-4">
               <h3 className="text-sm font-semibold text-gray-800 mb-2">Informações da Rota:</h3>
               <div className="space-y-1 text-sm">
-                <p><span className="font-medium">Rota:</span> {routeInfo.path}</p>
-                <p><span className="font-medium">Método:</span> {routeInfo.method}</p>
+                <p><span className="font-medium">Nome:</span> {routeInfo.nome}</p>
+                <p><span className="font-medium">Descrição:</span> {routeInfo.descricao}</p>
                 <p><span className="font-medium">Módulo:</span> {routeInfo.modulo || 'N/A'}</p>
               </div>
             </div>

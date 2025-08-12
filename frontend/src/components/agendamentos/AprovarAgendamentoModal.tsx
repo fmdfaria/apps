@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ClipboardCheck, XCircle, User, Calendar, Clock, FileText, CreditCard, CheckCircle2, Stethoscope } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { aprovarAgendamento, cancelarAgendamento } from '@/services/agendamentos';
-import { toast } from 'sonner';
+import { AppToast } from '@/services/toast';
 
 interface AprovarAgendamentoModalProps {
   isOpen: boolean;
@@ -46,12 +46,12 @@ export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = (
     
     // Validações
     if (!formData.aprovadoPor) {
-      toast.error('Informe quem está realizando a avaliação');
+      AppToast.validation('Campo obrigatório', 'Informe quem está realizando a avaliação.');
       return;
     }
 
     if (acao === 'REPROVAR' && !formData.motivoCancelamento) {
-      toast.error('O motivo da reprovação é obrigatório');
+      AppToast.validation('Motivo obrigatório', 'O motivo da reprovação é obrigatório.');
       return;
     }
 
@@ -64,14 +64,14 @@ export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = (
           dataAprovacao,
           aprovadoPor: formData.aprovadoPor
         });
-        toast.success('Agendamento aprovado com sucesso!');
+        AppToast.updated('Agendamento', 'O agendamento foi aprovado com sucesso!');
       } else {
         await cancelarAgendamento(agendamento.id, {
           dataAprovacao,
           aprovadoPor: formData.aprovadoPor,
           motivoCancelamento: formData.motivoCancelamento
         });
-        toast.success('Agendamento reprovado com sucesso!');
+        AppToast.updated('Agendamento', 'O agendamento foi reprovado.');
       }
       
       resetForm();
@@ -79,7 +79,9 @@ export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = (
       onClose();
     } catch (error) {
       console.error('Erro ao processar agendamento:', error);
-      toast.error(`Erro ao ${acao === 'APROVAR' ? 'aprovar' : 'reprovar'} agendamento`);
+      AppToast.error(`Erro ao ${acao === 'APROVAR' ? 'aprovar' : 'reprovar'} agendamento`, {
+        description: `Não foi possível ${acao === 'APROVAR' ? 'aprovar' : 'reprovar'} o agendamento. Tente novamente.`
+      });
     } finally {
       setLoading(false);
     }

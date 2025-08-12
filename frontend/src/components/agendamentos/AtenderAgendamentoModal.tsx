@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Stethoscope, User, Calendar, Clock, FileText, CreditCard, CheckCircle2 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { atenderAgendamento } from '@/services/agendamentos';
-import { toast } from 'sonner';
+import { AppToast } from '@/services/toast';
 
 interface AtenderAgendamentoModalProps {
   isOpen: boolean;
@@ -44,20 +44,22 @@ export const AtenderAgendamentoModal: React.FC<AtenderAgendamentoModalProps> = (
     
     // Validações
     if (!formData.dataAtendimento) {
-      toast.error('A data de atendimento é obrigatória');
+      AppToast.validation('Data obrigatória', 'A data de atendimento é obrigatória.');
       return;
     }
 
     setLoading(true);
     try {
       await atenderAgendamento(agendamento.id, formData);
-      toast.success('Atendimento registrado com sucesso!');
+      AppToast.updated('Agendamento', 'O atendimento foi registrado com sucesso!');
       resetForm();
       onSuccess();
       onClose();
     } catch (error) {
       console.error('Erro ao registrar atendimento:', error);
-      toast.error('Erro ao registrar atendimento');
+      AppToast.error('Erro ao registrar atendimento', {
+        description: 'Não foi possível registrar o atendimento. Tente novamente.'
+      });
     } finally {
       setLoading(false);
     }

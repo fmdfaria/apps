@@ -31,7 +31,7 @@ import type { Profissional } from '@/types/Profissional';
 import type { Convenio } from '@/types/Convenio';
 import type { Recurso } from '@/types/Recurso';
 import type { DisponibilidadeProfissional } from '@/types/DisponibilidadeProfissional';
-import { toast } from 'sonner';
+import { AppToast } from '@/services/toast';
 
 interface CalendarProfissional {
   id: string;
@@ -197,7 +197,7 @@ export const CalendarioPage = () => {
   // Função para verificar o status de disponibilidade de um horário para um profissional
   // Considera tanto horários semanais (diaSemana) quanto datas específicas (dataEspecifica)
   // REGRA: dataEspecifica e diaSemana são ACUMULATIVOS - dataEspecifica complementa diaSemana
-  const verificarStatusDisponibilidade = (profissionalId: string, data: Date, horario: string): 'disponivel' | 'folga' | 'nao_configurado' => {
+  const verificarStatusDisponibilidade = (profissionalId: string, data: Date, horario: string): 'presencial' | 'online' | 'folga' | 'nao_configurado' => {
     const diaSemana = data.getDay(); // 0 = domingo, 1 = segunda, etc.
     const [hora, minuto] = horario.split(':').map(Number);
     const horarioMinutos = hora * 60 + minuto;
@@ -264,7 +264,7 @@ export const CalendarioPage = () => {
   // Função para verificar se um horário está disponível para um profissional (mantida para compatibilidade)
   const verificarDisponibilidade = (profissionalId: string, data: Date, horario: string): boolean => {
     const status = verificarStatusDisponibilidade(profissionalId, data, horario);
-    return status === 'disponivel';
+    return status === 'presencial' || status === 'online';
   };
 
   // Função para verificar se um profissional tem disponibilidade configurada para uma data específica
@@ -901,7 +901,16 @@ export const CalendarioPage = () => {
                   insurance: 'all',
                   resource: recursosSelecionados.length > 0 ? recursosSelecionados.join(',') : 'all'
                 }}
-                availabilities={disponibilidades}
+                availabilities={disponibilidades.map(disp => ({
+                  id: disp.id,
+                  profissionalId: disp.profissionalId,
+                  recursoId: disp.recursoId,
+                  horaInicio: new Date(disp.horaInicio),
+                  horaFim: new Date(disp.horaFim),
+                  tipo: disp.tipo,
+                  diaSemana: disp.diaSemana,
+                  dataEspecifica: disp.dataEspecifica ? new Date(disp.dataEspecifica) : null
+                }))}
                 verificarDisponibilidade={verificarDisponibilidade}
                 verificarStatusDisponibilidade={verificarStatusDisponibilidade}
                 onAppointmentClick={(appointmentId) => {

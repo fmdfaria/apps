@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Users, UserCheck, Briefcase, Building, Building2, LayoutDashboard, LogOut, ChevronLeft, ChevronRight, Clock, DollarSign, CheckCircle, Stethoscope, ClipboardCheck, User, Landmark, Settings, Shield } from 'lucide-react';
+import { Calendar, Users, UserCheck, Briefcase, Building, Building2, LayoutDashboard, LogOut, ChevronLeft, ChevronRight, Clock, DollarSign, CheckCircle, Stethoscope, ClipboardCheck, User, Landmark, Settings, Shield, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useRef } from 'react';
@@ -10,6 +10,7 @@ import { useMenuPermissions } from '@/hooks/useMenuPermissions';
 // Mapeamento de páginas para módulos de tema
 const pageToModuleMap: Record<string, string> = {
   'dashboard': 'default',
+  'dashboard/pedidos-medicos': 'default',
   'calendario': 'agendamentos',
   'agendamentos': 'agendamentos',
   'agendamentos/liberacao': 'agendamentos',
@@ -174,6 +175,7 @@ interface SidebarProps {
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'dashboard/pedidos-medicos', label: 'Pedidos Médicos', icon: FileText },
   { id: 'calendario', label: 'Calendário', icon: Calendar },
   { id: 'agendamentos', label: 'Agendamentos', icon: Calendar },
   { id: 'agendamentos/liberacao', label: 'Liberação', icon: CheckCircle },
