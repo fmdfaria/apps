@@ -275,9 +275,9 @@ export interface UpdateAgendamentoData {
   // Etapa 3 - Atender
   dataAtendimento?: string;
   observacoesAtendimento?: string;
-  compareceu?: boolean;
-  assinaturaPaciente?: boolean;
-  assinaturaProfissional?: boolean;
+  compareceu?: boolean | null;
+  assinaturaPaciente?: boolean | null;
+  assinaturaProfissional?: boolean | null;
   
   // Etapa 4 - Aprovar
   dataAprovacao?: string;
@@ -494,14 +494,14 @@ export const getAgendamentoFormData = async (filtros?: {
 };
 
 // Funções específicas para os novos campos
-export const updateCompareceu = async (id: string, compareceu: boolean): Promise<Agendamento> => {
+export const updateCompareceu = async (id: string, compareceu: boolean | null): Promise<Agendamento> => {
   return updateAgendamento(id, { compareceu });
 };
 
-export const updateAssinaturaPaciente = async (id: string, assinaturaPaciente: boolean): Promise<Agendamento> => {
+export const updateAssinaturaPaciente = async (id: string, assinaturaPaciente: boolean | null): Promise<Agendamento> => {
   return updateAgendamento(id, { assinaturaPaciente });
 };
 
-export const updateAssinaturaProfissional = async (id: string, assinaturaProfissional: boolean): Promise<Agendamento> => {
+export const updateAssinaturaProfissional = async (id: string, assinaturaProfissional: boolean | null): Promise<Agendamento> => {
   return updateAgendamento(id, { assinaturaProfissional });
 }; 

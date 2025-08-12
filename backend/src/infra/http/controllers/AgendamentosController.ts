@@ -25,9 +25,9 @@ const agendamentoBodySchema = z.object({
   statusCodLiberacao: z.string().optional().nullable(),
   dataCodLiberacao: z.coerce.date().optional().nullable(),
   status: z.string().optional(),
-  compareceu: z.boolean().optional(),
-  assinaturaPaciente: z.boolean().optional(),
-  assinaturaProfissional: z.boolean().optional(),
+  compareceu: z.boolean().optional().nullable(),
+  assinaturaPaciente: z.boolean().optional().nullable(),
+  assinaturaProfissional: z.boolean().optional().nullable(),
   recorrencia: recorrenciaSchema.optional(),
 });
 

@@ -351,7 +351,7 @@ export const AtenderPage = () => {
     setAgendamentoParaAtualizar(null);
   };
 
-  const handleConfirmCompareceu = async (compareceu: boolean) => {
+  const handleConfirmCompareceu = async (compareceu: boolean | null) => {
     if (!agendamentoParaAtualizar) return;
 
     setIsLoadingUpdate(true);
@@ -372,7 +372,7 @@ export const AtenderPage = () => {
     }
   };
 
-  const handleConfirmAssinaturaPaciente = async (assinou: boolean) => {
+  const handleConfirmAssinaturaPaciente = async (assinou: boolean | null) => {
     if (!agendamentoParaAtualizar) return;
 
     setIsLoadingUpdate(true);
@@ -393,7 +393,7 @@ export const AtenderPage = () => {
     }
   };
 
-  const handleConfirmAssinaturaProfissional = async (assinou: boolean) => {
+  const handleConfirmAssinaturaProfissional = async (assinou: boolean | null) => {
     if (!agendamentoParaAtualizar) return;
 
     setIsLoadingUpdate(true);
