@@ -4,14 +4,17 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
-  Users, UserCheck, Calendar, Building, TrendingUp, Clock, 
-  Activity, DollarSign, AlertCircle, CheckCircle, 
-  ArrowUpRight, ArrowDownRight, Plus, Eye, BarChart3, PieChart, FileText
+  Users, UserCheck, Calendar, TrendingUp, Clock, 
+  DollarSign, AlertCircle, 
+  ArrowUpRight, ArrowDownRight, CalendarX, AlertTriangle
 } from 'lucide-react';
 import { getModuleTheme } from '@/types/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { getDashboardStats, type DashboardData } from '@/services/dashboard';
+import { getDadosOcupacao, type DadosOcupacao } from '@/services/ocupacao';
+import { getPacientes } from '@/services/pacientes';
+import { getAgendamentos } from '@/services/agendamentos';
 
 export const Dashboard = () => {
   const { user } = useAuth();
@@ -19,6 +22,9 @@ export const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ocupacaoData, setOcupacaoData] = useState<DadosOcupacao | null>(null);
+  const [pedidosStats, setPedidosStats] = useState({ total: 0, vencendo: 0, vencidos: 0, vigentes: 0 });
+  const [agendaStats, setAgendaStats] = useState({ hoje: 0, proximos7: 0 });
 
   // Carregar dados do dashboard
   useEffect(() => {
@@ -26,8 +32,56 @@ export const Dashboard = () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await getDashboardStats();
+        const [data, ocupacao, pacientes, agendamentos] = await Promise.all([
+          getDashboardStats(),
+          getDadosOcupacao(),
+          getPacientes(),
+          getAgendamentos()
+        ]);
         setDashboardData(data);
+        setOcupacaoData(ocupacao);
+        // Calcular stats de Pedidos Médicos (vencendo em 30 dias e vencidos)
+        const pedidosValidos = pacientes.filter((p: any) => p.dataPedidoMedico);
+        let total = 0, vencendo = 0, vencidos = 0, vigentes = 0;
+        const hoje = new Date();
+        for (const p of pedidosValidos) {
+          let dateToProcess = p.dataPedidoMedico as string;
+          if (/^\d{4}-\d{2}-\d{2}$/.test(dateToProcess)) {
+            dateToProcess = dateToProcess + 'T00:00:00Z';
+          }
+          const dataPedido = new Date(dateToProcess);
+          if (isNaN(dataPedido.getTime())) continue;
+          const dataVencimento = new Date(dataPedido);
+          dataVencimento.setUTCMonth(dataVencimento.getUTCMonth() + 6);
+          const diasParaVencer = Math.ceil((dataVencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+          total += 1;
+          if (diasParaVencer < 0) vencidos += 1;
+          else if (diasParaVencer <= 30) vencendo += 1;
+          else vigentes += 1;
+        }
+        setPedidosStats({ total, vencendo, vencidos, vigentes });
+
+        // Calcular agendamentos reais (hoje e próximos 7 dias)
+        const inicioHoje = new Date();
+        inicioHoje.setHours(0, 0, 0, 0);
+        const fimHoje = new Date(inicioHoje);
+        fimHoje.setDate(fimHoje.getDate() + 1);
+        const seteDias = new Date(inicioHoje);
+        seteDias.setDate(seteDias.getDate() + 7);
+
+        const isBetween = (d: Date, start: Date, end: Date) => d >= start && d < end;
+
+        const hojeCount = agendamentos.filter((a: any) => {
+          const d = new Date(a.dataHoraInicio);
+          return isBetween(d, inicioHoje, fimHoje);
+        }).length;
+
+        const proximos7Count = agendamentos.filter((a: any) => {
+          const d = new Date(a.dataHoraInicio);
+          return isBetween(d, inicioHoje, seteDias);
+        }).length;
+
+        setAgendaStats({ hoje: hojeCount, proximos7: proximos7Count });
       } catch (err) {
         console.error('Erro ao carregar dashboard:', err);
         setError('Erro ao carregar dados do dashboard');
@@ -54,9 +108,9 @@ export const Dashboard = () => {
       module: 'pacientes'
     },
     { 
-      title: 'Profissionais Ativos', 
-      value: `${dashboardData.stats.profissionaisAtivos}/${dashboardData.stats.totalProfissionais}`, 
-      change: `${Math.round((dashboardData.stats.profissionaisAtivos / Math.max(dashboardData.stats.totalProfissionais, 1)) * 100)}%`, 
+      title: 'Profissionais', 
+      value: `${dashboardData.stats.totalProfissionais}`, 
+      change: 'Total', 
       trend: 'up' as const,
       icon: UserCheck, 
       color: 'text-green-600',
@@ -65,8 +119,8 @@ export const Dashboard = () => {
     },
     { 
       title: 'Agendamentos Hoje', 
-      value: dashboardData.stats.agendamentosHoje.toString(), 
-      change: `${dashboardData.stats.agendamentosProximosSete} em 7 dias`, 
+      value: agendaStats.hoje.toString(), 
+      change: `${agendaStats.proximos7} em 7 dias`, 
       trend: 'up' as const,
       icon: Calendar, 
       color: 'text-blue-600',
@@ -95,7 +149,7 @@ export const Dashboard = () => {
       module: 'pacientes'
     },
     { 
-      title: 'Profissionais Ativos', 
+      title: 'Profissionais', 
       value: '-', 
       change: 'Carregando...', 
       trend: 'up' as const,
@@ -126,49 +180,24 @@ export const Dashboard = () => {
     },
   ];
 
-  const quickStats = dashboardData ? [
-    { 
-      label: 'Taxa de Ocupação', 
-      value: `${dashboardData.stats.taxaOcupacao}%`, 
-      progress: dashboardData.stats.taxaOcupacao, 
-      color: 'blue' 
-    },
-    { 
-      label: 'Satisfação dos Pacientes', 
-      value: `${(dashboardData.stats.satisfacaoPacientes / 20).toFixed(1)}/5`, 
-      progress: dashboardData.stats.satisfacaoPacientes, 
-      color: 'green' 
-    },
-    { 
-      label: 'Agenda Preenchida', 
-      value: `${dashboardData.stats.agendaPreenchida}%`, 
-      progress: dashboardData.stats.agendaPreenchida, 
-      color: 'purple' 
-    },
-    { 
-      label: 'Profissionais Disponíveis', 
-      value: `${dashboardData.stats.profissionaisAtivos}/${dashboardData.stats.totalProfissionais}`, 
-      progress: dashboardData.stats.profissionaisDisponiveis, 
-      color: 'orange' 
+  // Agregados de ocupação para o card simplificado
+  const ocupacaoAggregates = (() => {
+    if (!ocupacaoData || !ocupacaoData.ocupacoesProfissionais?.length) {
+      return { ocupados: 0, total: 0, percentual: 0, hoje: 0, seteDias: 0 };
     }
-  ] : [
-    { label: 'Taxa de Ocupação', value: '-', progress: 0, color: 'blue' },
-    { label: 'Satisfação dos Pacientes', value: '-', progress: 0, color: 'green' },
-    { label: 'Agenda Preenchida', value: '-', progress: 0, color: 'purple' },
-    { label: 'Profissionais Disponíveis', value: '-', progress: 0, color: 'orange' }
-  ];
+    const ocupados = ocupacaoData.ocupacoesProfissionais.reduce((acc, p) => acc + (p.ocupados || 0), 0);
+    const total = ocupacaoData.ocupacoesProfissionais.reduce((acc, p) => acc + (p.total || 0), 0);
+    const percentual = total > 0 ? Math.round((ocupados / total) * 100) : 0;
+    const hoje = ocupacaoData.ocupacoesProfissionais.reduce((acc, p) => acc + (p.agendamentosHoje || 0), 0);
+    const seteDias = ocupacaoData.estatisticas?.agendamentosProximosSete || 0;
+    return { ocupados, total, percentual, hoje, seteDias };
+  })();
 
-  const recentActivities = dashboardData?.recentActivities || [];
+  // Card de Atividades Recentes foi substituído por Pedidos Médicos (vencendo/vencidos)
 
   const upcomingAppointments = dashboardData?.upcomingAppointments || [];
 
-  const quickActions = [
-    { label: 'Novo Agendamento', icon: Plus, action: () => navigate('agendamentos'), color: 'blue' },
-    { label: 'Ver Calendário', icon: Eye, action: () => navigate('calendario'), color: 'green' },
-    { label: 'Dashboard Ocupação', icon: PieChart, action: () => navigate('/dashboard/ocupacao'), color: 'indigo' },
-    { label: 'Pedidos Médicos', icon: FileText, action: () => navigate('/dashboard/pedidos-medicos'), color: 'red' },
-    { label: 'Relatórios', icon: BarChart3, action: () => {}, color: 'purple' }
-  ];
+  // Ações rápidas removidas conforme solicitação
 
   const getStatusBadge = (status: string) => {
     const variants = {
@@ -240,23 +269,7 @@ export const Dashboard = () => {
           </h1>
           <p className="text-gray-600 mt-1">Aqui está o que está acontecendo na sua clínica hoje</p>
         </div>
-        <div className="flex gap-2 mt-4 sm:mt-0">
-          {quickActions.map((action, index) => {
-            const Icon = action.icon;
-            return (
-              <Button
-                key={index}
-                variant="outline"
-                size="sm"
-                onClick={action.action}
-                className="flex items-center gap-2 hover:scale-105 transition-transform"
-              >
-                <Icon className="w-4 h-4" />
-                <span className="hidden sm:block">{action.label}</span>
-              </Button>
-            );
-          })}
-        </div>
+        {/* Botões do header removidos */}
       </div>
 
       {/* Stats Cards */}
@@ -265,7 +278,19 @@ export const Dashboard = () => {
           const Icon = stat.icon;
           const TrendIcon = stat.trend === 'up' ? ArrowUpRight : ArrowDownRight;
           return (
-            <Card key={index} className="hover:shadow-lg transition-all duration-200 hover:scale-105 cursor-pointer">
+            <Card
+              key={index}
+              className="hover:shadow-lg transition-all duration-200 hover:scale-105 cursor-pointer"
+              onClick={
+                stat.module === 'pacientes'
+                  ? () => navigate('/pacientes')
+                  : stat.module === 'profissionais'
+                  ? () => navigate('/profissionais')
+                  : stat.module === 'agendamentos'
+                  ? () => navigate('/agendamentos')
+                  : undefined
+              }
+            >
               <CardContent className="p-4 md:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className={`p-2 rounded-lg ${stat.bgColor}`}>
@@ -289,63 +314,68 @@ export const Dashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick Stats */}
-        <Card className="lg:col-span-1">
+        {/* Ocupação (dados simplificados da OcupacaoPage) */}
+        <Card 
+          className="lg:col-span-1 hover:shadow-lg transition-all duration-200 hover:scale-105 cursor-pointer"
+          onClick={() => navigate('/dashboard/ocupacao')}
+        >
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="w-5 h-5" />
-              Métricas Rápidas
+              Ocupação
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {quickStats.map((metric, index) => (
-              <div key={index} className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-700">{metric.label}</span>
-                  <span className="text-sm font-bold text-gray-900">{metric.value}</span>
+          <CardContent className="space-y-5">
+            <div className="space-y-2">
+              <div className="flex justify-between items-end">
+                <div className="text-sm text-gray-600">Ocupação Total (7 dias)</div>
+                <div className="text-sm font-bold text-gray-900">
+                  {ocupacaoAggregates.ocupados}/{ocupacaoAggregates.total} ({ocupacaoAggregates.percentual}%)
                 </div>
-                <Progress 
-                  value={metric.progress} 
-                  className="h-2" 
-                />
               </div>
-            ))}
+              <Progress value={ocupacaoAggregates.percentual} className="h-2" />
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="text-center p-2 bg-gray-50 rounded">
+                <div className="font-medium text-gray-900">{ocupacaoAggregates.hoje}</div>
+                <div className="text-xs text-gray-600">Agendamentos hoje</div>
+              </div>
+              <div className="text-center p-2 bg-gray-50 rounded">
+                <div className="font-medium text-gray-900">{ocupacaoAggregates.seteDias}</div>
+                <div className="text-xs text-gray-600">Agendamentos (7 dias)</div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Recent Activities */}
-        <Card className="lg:col-span-1">
+        {/* Pedidos Médicos (dados simplificados) */}
+        <Card 
+          className="lg:col-span-1 hover:shadow-lg transition-all duration-200 hover:scale-105 cursor-pointer"
+          onClick={() => navigate('/dashboard/pedidos-medicos')}
+        >
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Activity className="w-5 h-5" />
-              Atividades Recentes
+              <Calendar className="w-5 h-5" />
+              Pedidos Médicos
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4 max-h-80 overflow-y-auto">
-              {recentActivities.length > 0 ? (
-                recentActivities.map((activity, index) => (
-                  <div key={activity.id || index} className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className={`w-2 h-2 rounded-full mt-2 ${getStatusBadge(activity.status)}`}></div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                      <p className="text-sm text-gray-600 truncate">{activity.patient}</p>
-                      <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
-                    </div>
-                    <Badge 
-                      variant="outline" 
-                      className={`text-xs ${getStatusBadge(activity.status)}`}
-                    >
-                      {activity.status}
-                    </Badge>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <Activity className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">Nenhuma atividade recente</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-3 bg-yellow-50 border border-yellow-200 rounded">
+                <div className="flex items-center justify-center gap-2 text-yellow-700 text-sm font-medium">
+                  <AlertTriangle className="w-4 h-4" /> Vencendo (30 dias)
                 </div>
-              )}
+                <div className="text-2xl font-bold text-gray-900 mt-1">{pedidosStats.vencendo}</div>
+              </div>
+              <div className="text-center p-3 bg-red-50 border border-red-200 rounded">
+                <div className="flex items-center justify-center gap-2 text-red-700 text-sm font-medium">
+                  <CalendarX className="w-4 h-4" /> Vencidos
+                </div>
+                <div className="text-2xl font-bold text-gray-900 mt-1">{pedidosStats.vencidos}</div>
+              </div>
+            </div>
+            <div className="mt-4 text-xs text-gray-600 text-center">
+              Total: <span className="font-semibold text-gray-900">{pedidosStats.total}</span> — Vigentes: <span className="font-semibold text-gray-900">{pedidosStats.vigentes}</span>
             </div>
           </CardContent>
         </Card>
@@ -442,27 +472,6 @@ export const Dashboard = () => {
                 </p>
               </div>
               <DollarSign className="w-12 h-12 text-purple-500 opacity-60" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card 
-          className="border-l-4 border-l-indigo-500 hover:shadow-lg transition-all duration-200 hover:scale-105 cursor-pointer"
-          onClick={() => navigate('/dashboard/ocupacao')}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Ocupação Média</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {dashboardData?.stats.mediaOcupacaoProfissionais || 0}%
-                </p>
-                <p className="text-sm text-indigo-600 flex items-center mt-2">
-                  <Eye className="w-4 h-4 mr-1" />
-                  Ver dashboard completo
-                </p>
-              </div>
-              <PieChart className="w-12 h-12 text-indigo-500 opacity-60" />
             </div>
           </CardContent>
         </Card>

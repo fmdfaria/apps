@@ -40,7 +40,7 @@
 - ✅ depois que alterar tudo, deletar o toast que não vamos utilizar mais... manter somente AppToast.
 
 ### LiberarPage
-- ✅ 12/01/2025 - 19:30 | Retirar os console.log e debug existentes da pagina.
+- ✅ Retirar os console.log e debug existentes da pagina.
 
 ### PedidosMedicosPage
 - ✅ está aparecendo que tem 2 pedidos vencidos no toogle Vencidos, porém, os dados não foram carregados na tabela / card.
@@ -64,20 +64,41 @@
 - Quando for excluir um anexo
 
 ### Dashboard
-- Retirar os botões do header da pagina Novo Agendamento, Ver Calendário, Dashboard Ocupação, Pedidos Médicos, Relatórios.
-- Trocar o CARD atual 'Métricas Rápidas' pelos dados simplificados da pagina OcupaçãoPage, colocar um icone 'olho' para quando clicar direcionar para pagina 'OcupacaoPage'. Adicionar os dados de ocupação (somar todos profissionais)e o percentual considerando todos profissionais tbm, adicionar tbm a qtd de agendamento.
-- Trocar o CARD atual 'Atividades Recentes' pelos dados simplificados da pagina PedidosMedicosPage, colocar os valores no card e adicionar tbm o icone 'olho' para direcionar para pagina 'PedidosMedicosPage'.
-- No CARD Profissionais Ativos: renomear para Profissionais e mostrar somente a qtd existente de profissionais. retirar a opção de ativos e sua funcionalidade.
-- no CARD Agendamento Hoje: buscar dados reais dos agendamentos.
-- Deletar o CARD Ocupação Média.
+- ✅ Retirar os botões do header da pagina Novo Agendamento, Ver Calendário, Dashboard Ocupação, Pedidos Médicos, Relatórios.
+- ✅ Trocar o CARD atual 'Métricas Rápidas' pelos dados simplificados da pagina OcupaçãoPage, colocar um icone 'olho' para quando clicar direcionar para pagina 'OcupacaoPage'. Adicionar os dados de ocupação (somar todos profissionais)e o percentual considerando todos profissionais tbm, adicionar tbm a qtd de agendamento.
+- ✅ Trocar o CARD atual 'Atividades Recentes' pelos dados simplificados da pagina PedidosMedicosPage, colocar os valores no card e adicionar tbm o icone 'olho' para direcionar para pagina 'PedidosMedicosPage'.
+- ✅  No CARD Profissionais Ativos: renomear para Profissionais e mostrar somente a qtd existente de profissionais. retirar a opção de ativos e sua funcionalidade, pois não existe no banco de dados isso.
+- ✅ no CARD Agendamento Hoje: buscar dados reais dos agendamentos.
+- ✅ Deletar o CARD Ocupação Média.
 
-### DetalhesAgendamentoModal
-- Simplificar e modernizar o modal, utilize o modal FormularioPorProfissional como modelo para verificar os componentes utilizados. Retirar a parte de 'informação do Sistema'
+### AgendamentosPage
+- Cada profissional logado, só pode visualizar os agendamentos dele.
+
+### AtenderPage
+- Funcionalidade para dizer de o paciente compareceu ou não atendimento. (compareceu / não compareceu - SIM / NÃO).
+--Ajustar backend para incluir nova coluna.
+--Criar um nova coluna na tabela com essa informação
+- Funcionalidade para dizer se o profissional e pacientes assinaram a guia.
+-- (SIM / NÃO) individualmente..
+-Obrigatório Evoluir paciente para seguir para proximas fase (aprovaratendimento)
+- Botão Finalizar atendimento só pode estar habilitado se o profissional responder as duas perguntas.
+
+### AtenderPage
+- ✅ Criar um novo modal, moderno com o nome 'EvolucaoPacientesModal' e salvar em /src/pages/pacientes/ , que siga o padrão existente para os demais da aplicação utilizar o CriarProfissionalModal.tsx como referência de estilo.
+--✅ Esse novo modal vai precisar ter os campos: Paciente, Data e Hora (do agendamento), Data Evolução, Objetivo da Sessão, Descrição da Evolução.
+--✅ se necessário veja o arquivo schema.prisma para entender a estrutura do backend.
+--✅ Esse modal será responsável por criar e editar os dados da tabela 'evolucoes_pacientes' do banco de dados.
+--✅ utilizar as rotas para api:
+---✅ app.post('/evolucoes', controller.create);
+---✅ app.get('/evolucoes', controller.list);
+---✅ app.put('/evolucoes/:id', controller.update);
+---✅ app.delete('/evolucoes/:id', controller.delete);
 
 ### Agendamentos
 - Criar funcionalidade para editar Agendamentos, vincular ao botão 'Editar Agendamento'.
 --Essa funcionalidade deve permitir edicao de agendamentos futuros (não permitir edição de agendamentos passados).
 --Considerar edição das recorrencias ou somente um agendamento.
+--Manter a consistência da estilização do Novo Agendamento por exemplo.
 
 - Adicionar um novo botão 'Cancelar' entre os botões editar e excluir.
 --criar uma funcionalidade para esse botão para alterar o status do agendamento para 'CANCELADO', utilizar a rota da api PUT /agendamentos/:id passando status:"CANCELADO".

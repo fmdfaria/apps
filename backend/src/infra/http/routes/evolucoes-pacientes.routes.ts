@@ -6,6 +6,7 @@ export async function evolucoesPacientesRoutes(app: FastifyInstance) {
 
   app.post('/evolucoes', controller.create);
   app.get('/evolucoes', controller.list);
+  app.get('/evolucoes/agendamento/:agendamentoId', controller.getByAgendamento);
   app.put('/evolucoes/:id', controller.update);
   app.delete('/evolucoes/:id', controller.delete);
 } 

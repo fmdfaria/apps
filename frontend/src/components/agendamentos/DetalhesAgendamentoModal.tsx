@@ -6,7 +6,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import {
   Calendar,
@@ -20,7 +19,6 @@ import {
   XCircle,
   AlertCircle,
   Repeat,
-  MessageSquare,
   ThumbsUp,
   Key
 } from 'lucide-react';
@@ -131,246 +129,191 @@ export const DetalhesAgendamentoModal: React.FC<DetalhesAgendamentoModalProps> =
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Informações Principais */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <User className="w-5 h-5" />
-                Informações Principais
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">Paciente:</span>
-                    <span className="font-medium">{agendamento.pacienteNome}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">Profissional:</span>
-                    <span className="font-medium">{agendamento.profissionalNome}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">Serviço:</span>
-                    <span className="font-medium">{agendamento.servicoNome}</span>
-                  </div>
+          {/* 1. Informações Principais */}
+          <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
+            <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
+              <span className="text-xl">👤</span>
+              Informações Principais
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm text-gray-600">Paciente:</span>
+                  <span className="font-medium">{agendamento.pacienteNome}</span>
                 </div>
-                
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">Convênio:</span>
-                    <span className="font-medium">{agendamento.convenioNome}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">Recurso:</span>
-                    <span className="font-medium">{agendamento.recursoNome || 'Não informado'}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Tipo:</span>
-                    <Badge variant="outline" className="text-xs">
-                      {getTipoAtendimentoIcon(agendamento.tipoAtendimento)} {agendamento.tipoAtendimento}
-                    </Badge>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm text-gray-600">Profissional:</span>
+                  <span className="font-medium">{agendamento.profissionalNome}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm text-gray-600">Serviço:</span>
+                  <span className="font-medium">{agendamento.servicoNome}</span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm text-gray-600">Convênio:</span>
+                  <span className="font-medium">{agendamento.convenioNome}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm text-gray-600">Recurso:</span>
+                  <span className="font-medium">{agendamento.recursoNome || 'Não informado'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Tipo:</span>
+                  <Badge variant="outline" className="text-xs">
+                    {getTipoAtendimentoIcon(agendamento.tipoAtendimento)} {agendamento.tipoAtendimento}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </div>
 
-          {/* Data e Horário */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Calendar className="w-5 h-5" />
-                Data e Horário
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">Data:</span>
-                    <span className="font-medium">{dataInicio}</span>
-                  </div>
-                  
+          {/* 2. Data e Horário */}
+          <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
+            <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
+              <span className="text-xl">📅</span>
+              Data e Horário
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm text-gray-600">Data:</span>
+                  <span className="font-medium">{dataInicio}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm text-gray-600">Horário de Início:</span>
+                  <span className="font-medium">{horaInicio}</span>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {dataFim && (
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">Horário de Início:</span>
-                    <span className="font-medium">{horaInicio}</span>
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  {dataFim && (
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">Horário de Fim:</span>
-                      <span className="font-medium">{dataFim.hora}</span>
-                    </div>
-                  )}
-                  
-                  {agendamento.recorrencia && (
-                    <div className="flex items-center gap-2">
-                      <Repeat className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">Recorrência:</span>
-                      <Badge variant="outline" className="text-xs">
-                        {formatarRecorrencia(agendamento.recorrencia)}
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Status e Workflow */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <CheckCircle className="w-5 h-5" />
-                Status e Workflow
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-sm text-gray-600">Status Atual:</span>
-                <Badge className={`${getStatusColor(agendamento.status)} flex items-center gap-1`}>
-                  {getStatusIcon(agendamento.status)}
-                  {agendamento.status}
-                </Badge>
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Liberação */}
-                {(agendamento.codLiberacao || agendamento.statusCodLiberacao || agendamento.dataCodLiberacao) && (
-                  <div className="space-y-2">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <Key className="w-4 h-4" />
-                      Liberação
-                    </h4>
-                    {agendamento.codLiberacao && (
-                      <div className="text-sm">
-                        <span className="text-gray-600">Código: </span>
-                        <span className="font-mono bg-gray-100 px-2 py-1 rounded">
-                          {agendamento.codLiberacao}
-                        </span>
-                      </div>
-                    )}
-                    {agendamento.statusCodLiberacao && (
-                      <div className="text-sm">
-                        <span className="text-gray-600">Status: </span>
-                        <span>{agendamento.statusCodLiberacao}</span>
-                      </div>
-                    )}
-                    {agendamento.dataCodLiberacao && (
-                      <div className="text-sm">
-                        <span className="text-gray-600">Data: </span>
-                        <span>{formatarDataHoraCompleta(agendamento.dataCodLiberacao)}</span>
-                      </div>
-                    )}
+                    <span className="text-sm text-gray-600">Horário de Fim:</span>
+                    <span className="font-medium">{dataFim.hora}</span>
                   </div>
                 )}
-
-                {/* Atendimento */}
-                {(agendamento.dataAtendimento || agendamento.observacoesAtendimento) && (
-                  <div className="space-y-2">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <Users className="w-4 h-4" />
-                      Atendimento
-                    </h4>
-                    {agendamento.dataAtendimento && (
-                      <div className="text-sm">
-                        <span className="text-gray-600">Data: </span>
-                        <span>{formatarDataHoraCompleta(agendamento.dataAtendimento)}</span>
-                      </div>
-                    )}
-                    {agendamento.observacoesAtendimento && (
-                      <div className="text-sm">
-                        <span className="text-gray-600">Observações: </span>
-                        <p className="mt-1 p-2 bg-gray-50 rounded text-sm">
-                          {agendamento.observacoesAtendimento}
-                        </p>
-                      </div>
-                    )}
+                {agendamento.recorrencia && (
+                  <div className="flex items-center gap-2">
+                    <Repeat className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">Recorrência:</span>
+                    <Badge variant="outline" className="text-xs">
+                      {formatarRecorrencia(agendamento.recorrencia)}
+                    </Badge>
                   </div>
                 )}
               </div>
+            </div>
+          </div>
 
-              {/* Aprovação */}
-              {(agendamento.dataAprovacao || agendamento.aprovadoPor || agendamento.motivoCancelamento) && (
-                <>
-                  <Separator />
-                  <div className="space-y-2">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <ThumbsUp className="w-4 h-4" />
-                      Aprovação
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {agendamento.dataAprovacao && (
-                        <div className="text-sm">
-                          <span className="text-gray-600">Data de Aprovação: </span>
-                          <span>{formatarDataHoraCompleta(agendamento.dataAprovacao)}</span>
-                        </div>
-                      )}
-                      {agendamento.aprovadoPor && (
-                        <div className="text-sm">
-                          <span className="text-gray-600">Aprovado por: </span>
-                          <span>{agendamento.aprovadoPor}</span>
-                        </div>
-                      )}
+          {/* 3. Status e Workflow */}
+          <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
+              <span className="text-xl">✅</span>
+              Status e Workflow
+            </h3>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-sm text-gray-600">Status Atual:</span>
+              <Badge className={`${getStatusColor(agendamento.status)} flex items-center gap-1`}>
+                {getStatusIcon(agendamento.status)}
+                {agendamento.status}
+              </Badge>
+            </div>
+
+            <Separator />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              {(agendamento.codLiberacao || agendamento.statusCodLiberacao || agendamento.dataCodLiberacao) && (
+                <div className="space-y-2">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <Key className="w-4 h-4" />
+                    Liberação
+                  </h4>
+                  {agendamento.codLiberacao && (
+                    <div className="text-sm">
+                      <span className="text-gray-600">Código: </span>
+                      <span className="font-mono bg-gray-100 px-2 py-1 rounded">{agendamento.codLiberacao}</span>
                     </div>
-                    {agendamento.motivoCancelamento && (
-                      <div className="text-sm">
-                        <span className="text-gray-600">Motivo do Cancelamento: </span>
-                        <p className="mt-1 p-2 bg-red-50 border border-red-200 rounded text-sm">
-                          {agendamento.motivoCancelamento}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </>
+                  )}
+                  {agendamento.statusCodLiberacao && (
+                    <div className="text-sm">
+                      <span className="text-gray-600">Status: </span>
+                      <span>{agendamento.statusCodLiberacao}</span>
+                    </div>
+                  )}
+                  {agendamento.dataCodLiberacao && (
+                    <div className="text-sm">
+                      <span className="text-gray-600">Data: </span>
+                      <span>{formatarDataHoraCompleta(agendamento.dataCodLiberacao)}</span>
+                    </div>
+                  )}
+                </div>
               )}
-            </CardContent>
-          </Card>
 
-          {/* Informações do Sistema */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <MessageSquare className="w-5 h-5" />
-                Informações do Sistema
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-600">ID: </span>
-                  <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs">
-                    {agendamento.id}
-                  </span>
+              {(agendamento.dataAtendimento || agendamento.observacoesAtendimento) && (
+                <div className="space-y-2">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Atendimento
+                  </h4>
+                  {agendamento.dataAtendimento && (
+                    <div className="text-sm">
+                      <span className="text-gray-600">Data: </span>
+                      <span>{formatarDataHoraCompleta(agendamento.dataAtendimento)}</span>
+                    </div>
+                  )}
+                  {agendamento.observacoesAtendimento && (
+                    <div className="text-sm">
+                      <span className="text-gray-600">Observações: </span>
+                      <p className="mt-1 p-2 bg-gray-50 rounded text-sm">{agendamento.observacoesAtendimento}</p>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <span className="text-gray-600">Criado em: </span>
-                  <span>{formatarDataHoraCompleta(agendamento.criadoEm)}</span>
+              )}
+            </div>
+
+            {(agendamento.dataAprovacao || agendamento.aprovadoPor || agendamento.motivoCancelamento) && (
+              <>
+                <Separator className="my-4" />
+                <div className="space-y-2">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <ThumbsUp className="w-4 h-4" />
+                    Aprovação
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {agendamento.dataAprovacao && (
+                      <div className="text-sm">
+                        <span className="text-gray-600">Data de Aprovação: </span>
+                        <span>{formatarDataHoraCompleta(agendamento.dataAprovacao)}</span>
+                      </div>
+                    )}
+                    {agendamento.aprovadoPor && (
+                      <div className="text-sm">
+                        <span className="text-gray-600">Aprovado por: </span>
+                        <span>{agendamento.aprovadoPor}</span>
+                      </div>
+                    )}
+                  </div>
+                  {agendamento.motivoCancelamento && (
+                    <div className="text-sm">
+                      <span className="text-gray-600">Motivo do Cancelamento: </span>
+                      <p className="mt-1 p-2 bg-red-50 border border-red-200 rounded text-sm">{agendamento.motivoCancelamento}</p>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <span className="text-gray-600">Atualizado em: </span>
-                  <span>{formatarDataHoraCompleta(agendamento.atualizadoEm)}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </>
+            )}
+          </div>
+
+          {/* Seção de informações do sistema removida conforme diretriz de simplificação */}
         </div>
       </DialogContent>
     </Dialog>

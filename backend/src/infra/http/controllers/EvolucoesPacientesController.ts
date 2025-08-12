@@ -5,6 +5,7 @@ import { CreateEvolucaoPacienteUseCase } from '../../../core/application/use-cas
 import { ListEvolucoesPacienteUseCase } from '../../../core/application/use-cases/evolucao-paciente/ListEvolucoesPacienteUseCase';
 import { UpdateEvolucaoPacienteUseCase } from '../../../core/application/use-cases/evolucao-paciente/UpdateEvolucaoPacienteUseCase';
 import { DeleteEvolucaoPacienteUseCase } from '../../../core/application/use-cases/evolucao-paciente/DeleteEvolucaoPacienteUseCase';
+import { GetEvolucaoByAgendamentoUseCase } from '../../../core/application/use-cases/evolucao-paciente/GetEvolucaoByAgendamentoUseCase';
 
 const evolucaoBodySchema = z.object({
   pacienteId: z.string().uuid(),
@@ -45,5 +46,18 @@ export class EvolucoesPacientesController {
     const useCase = container.resolve(DeleteEvolucaoPacienteUseCase);
     await useCase.execute(id);
     return reply.status(204).send();
+  }
+
+  async getByAgendamento(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const paramsSchema = z.object({ agendamentoId: z.string().uuid() });
+    const { agendamentoId } = paramsSchema.parse(request.params);
+    const useCase = container.resolve(GetEvolucaoByAgendamentoUseCase);
+    const evolucao = await useCase.execute(agendamentoId);
+    
+    if (!evolucao) {
+      return reply.status(404).send({ message: 'Evolução não encontrada para este agendamento' });
+    }
+    
+    return reply.status(200).send(evolucao);
   }
 } 

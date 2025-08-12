@@ -42,4 +42,11 @@ export class PrismaEvolucoesPacientesRepository implements IEvolucoesPacientesRe
     });
     return evolucoes.map(toDomain);
   }
+
+  async findByAgendamento(agendamentoId: string): Promise<EvolucaoPaciente | null> {
+    const evolucao = await this.prisma.evolucaoPaciente.findFirst({
+      where: { agendamentoId },
+    });
+    return evolucao ? toDomain(evolucao) : null;
+  }
 } 

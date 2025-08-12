@@ -6,6 +6,7 @@ export { AtenderAgendamentoModal } from './AtenderAgendamentoModal';
 
 // Componentes de formulário
 export { AgendamentoModal } from './components/AgendamentoModal';
+export { EditAgendamentoModal } from './components/EditAgendamentoModal';
 export { FormularioPorProfissional } from './components/FormularioPorProfissional';
 export { FormularioPorData } from './components/FormularioPorData';
 export { FluxoSelecao } from './components/FluxoSelecao';

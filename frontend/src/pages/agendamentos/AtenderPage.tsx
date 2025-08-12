@@ -24,6 +24,11 @@ import {
 import type { Agendamento } from '@/types/Agendamento';
 import { getAgendamentos } from '@/services/agendamentos';
 import { AtenderAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
+import EvolucaoPacientesModal from '@/pages/pacientes/EvolucaoPacientesModal';
+import { getPacientes } from '@/services/pacientes';
+import { getEvolucaoByAgendamento } from '@/services/evolucoes';
+import type { Paciente } from '@/types/Paciente';
+import type { EvolucaoPaciente } from '@/types/EvolucaoPaciente';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
@@ -42,6 +47,10 @@ export const AtenderPage = () => {
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<Agendamento | null>(null);
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
+  const [showEvolucaoModal, setShowEvolucaoModal] = useState(false);
+  const [pacientes, setPacientes] = useState<Paciente[]>([]);
+  const [agendamentoParaEvolucao, setAgendamentoParaEvolucao] = useState<Agendamento | null>(null);
+  const [evolucaoExistente, setEvolucaoExistente] = useState<EvolucaoPaciente | null>(null);
   const [itensPorPagina, setItensPorPagina] = useState(10);
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
@@ -60,6 +69,7 @@ export const AtenderPage = () => {
   useEffect(() => {
     checkPermissions();
     carregarAgendamentos();
+    carregarPacientes();
   }, []);
 
   useEffect(() => {
@@ -230,6 +240,33 @@ export const AtenderPage = () => {
     setShowDetalhesAgendamento(true);
   };
 
+  const handleAbrirProntuario = async (agendamento: Agendamento) => {
+    try {
+      // Buscar evolução existente para este agendamento específico
+      const evolucaoEncontrada = await getEvolucaoByAgendamento(agendamento.id);
+      
+      setAgendamentoParaEvolucao(agendamento);
+      setEvolucaoExistente(evolucaoEncontrada);
+      setShowEvolucaoModal(true);
+    } catch (error) {
+      console.error('Erro ao buscar evolução existente:', error);
+      // Em caso de erro, continua com a abertura normal (nova evolução)
+      setAgendamentoParaEvolucao(agendamento);
+      setEvolucaoExistente(null);
+      setShowEvolucaoModal(true);
+    }
+  };
+
+  const carregarPacientes = async () => {
+    try {
+      const dados = await getPacientes();
+      setPacientes(dados);
+    } catch (error) {
+      console.error('Erro ao carregar pacientes:', error);
+      AppToast.error('Erro ao carregar pacientes');
+    }
+  };
+
   const renderCardView = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {agendamentosPaginados.length === 0 ? (
@@ -304,10 +341,7 @@ export const AtenderPage = () => {
                     size="sm" 
                     variant="outline"
                     className="flex-1 h-7 text-xs border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white"
-                    onClick={() => {
-                      // TODO: Implementar modal de prontuário
-                      console.log('Abrir prontuário:', agendamento.id);
-                    }}
+                    onClick={() => handleAbrirProntuario(agendamento)}
                   >
                     Prontuário
                   </Button>
@@ -477,10 +511,7 @@ export const AtenderPage = () => {
                         variant="outline"
                         size="sm"
                         className="group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                        onClick={() => {
-                          // TODO: Implementar modal de prontuário
-                          console.log('Abrir prontuário:', agendamento.id);
-                        }}
+                        onClick={() => handleAbrirProntuario(agendamento)}
                         title="Prontuário"
                       >
                         <ClipboardList className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
@@ -878,6 +909,21 @@ export const AtenderPage = () => {
           setShowDetalhesAgendamento(false);
           setAgendamentoDetalhes(null);
         }}
+      />
+
+      <EvolucaoPacientesModal
+        open={showEvolucaoModal}
+        onClose={() => {
+          setShowEvolucaoModal(false);
+          setAgendamentoParaEvolucao(null);
+          setEvolucaoExistente(null);
+        }}
+        onSuccess={() => {
+          AppToast.success('Evolução salva com sucesso!');
+        }}
+        pacientes={pacientes}
+        evolucaoParaEditar={evolucaoExistente}
+        agendamentoInicial={agendamentoParaEvolucao}
       />
     </div>
   );

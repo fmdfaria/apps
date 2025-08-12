@@ -32,7 +32,8 @@ import type { Agendamento, StatusAgendamento } from '@/types/Agendamento';
 import { getAgendamentos, deleteAgendamento } from '@/services/agendamentos';
 import { 
   AgendamentoModal,
-  DetalhesAgendamentoModal
+  DetalhesAgendamentoModal,
+  EditAgendamentoModal
 } from '@/components/agendamentos';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import api from '@/services/api';
@@ -58,6 +59,10 @@ export const AgendamentosPage = () => {
   
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
+
+  // Estados para modal de edição
+  const [showEditAgendamento, setShowEditAgendamento] = useState(false);
+  const [agendamentoEditando, setAgendamentoEditando] = useState<string | null>(null);
   const [itensPorPagina, setItensPorPagina] = useState(12);
   const [paginaAtual, setPaginaAtual] = useState(1);
   
@@ -91,6 +96,23 @@ export const AgendamentosPage = () => {
 
   const handleAbrirNovoAgendamento = () => {
     setShowAgendamentoModal(true);
+  };
+
+  // Handlers para modal de edição
+  const handleAbrirEditarAgendamento = (agendamentoId: string) => {
+    setAgendamentoEditando(agendamentoId);
+    setShowEditAgendamento(true);
+  };
+
+  const handleFecharEditAgendamento = () => {
+    setShowEditAgendamento(false);
+    setAgendamentoEditando(null);
+  };
+
+  const handleSuccessEditAgendamento = () => {
+    carregarAgendamentos();
+    setShowEditAgendamento(false);
+    setAgendamentoEditando(null);
   };
 
 
@@ -470,10 +492,7 @@ export const AgendamentosPage = () => {
                         size="sm" 
                         variant="outline"
                         className="flex-1 h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
-                        onClick={() => {
-                          // TODO: Implementar modal de edição
-                          console.log('Editar agendamento:', agendamento.id);
-                        }}
+                        onClick={() => handleAbrirEditarAgendamento(agendamento.id)}
                         title="Editar Agendamento"
                       >
                         Editar
@@ -668,10 +687,7 @@ export const AgendamentosPage = () => {
                           variant="outline"
                           size="sm"
                           className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                          onClick={() => {
-                            // TODO: Implementar modal de edição
-                            console.log('Editar agendamento:', agendamento.id);
-                          }}
+                          onClick={() => handleAbrirEditarAgendamento(agendamento.id)}
                           title="Editar Agendamento"
                         >
                           <Edit className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
@@ -1151,6 +1167,14 @@ export const AgendamentosPage = () => {
           setShowDetalhesAgendamento(false);
           setAgendamentoDetalhes(null);
         }}
+      />
+
+      {/* Modal de edição de agendamento */}
+      <EditAgendamentoModal
+        isOpen={showEditAgendamento}
+        agendamentoId={agendamentoEditando}
+        onClose={handleFecharEditAgendamento}
+        onSuccess={handleSuccessEditAgendamento}
       />
     </div>
   );

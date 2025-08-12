@@ -285,6 +285,18 @@ export interface UpdateAgendamentoData {
   status?: StatusAgendamento;
 }
 
+export interface EditAgendamentoData {
+  // Dados básicos editáveis
+  pacienteId?: string;
+  profissionalId?: string;
+  tipoAtendimento?: TipoAtendimento;
+  recursoId?: string;
+  convenioId?: string;
+  servicoId?: string;
+  dataHoraInicio?: string;
+  recorrencia?: RecorrenciaAgendamento;
+}
+
 const transformApiAgendamento = (agendamento: any): Agendamento => {
   return {
     ...agendamento,
@@ -384,6 +396,18 @@ export const updateAgendamento = async (id: string, data: UpdateAgendamentoData)
     return transformApiAgendamento(agendamento);
   } catch (error) {
     console.error('Erro ao atualizar agendamento na API:', error);
+    throw error;
+  }
+};
+
+export const editAgendamento = async (id: string, data: EditAgendamentoData): Promise<Agendamento> => {
+  try {
+    const { data: agendamento } = await api.put(`/agendamentos/${id}`, data, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return transformApiAgendamento(agendamento);
+  } catch (error) {
+    console.error('Erro ao editar agendamento na API:', error);
     throw error;
   }
 };

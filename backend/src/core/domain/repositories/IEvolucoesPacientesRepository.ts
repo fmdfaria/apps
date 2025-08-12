@@ -16,4 +16,5 @@ export interface IEvolucoesPacientesRepository {
   delete(id: string): Promise<void>;
   findById(id: string): Promise<EvolucaoPaciente | null>;
   findAllByPaciente(pacienteId: string): Promise<EvolucaoPaciente[]>;
+  findByAgendamento(agendamentoId: string): Promise<EvolucaoPaciente | null>;
 } 
