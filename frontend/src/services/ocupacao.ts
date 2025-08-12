@@ -45,8 +45,6 @@ export interface DadosOcupacao {
 export const getDadosOcupacao = async (): Promise<DadosOcupacao> => {
   try {
     // Usar a API existente que já retorna dados completos
-    // IMPORTANTE: Passamos a data atual para que a API calcule corretamente a ocupação semanal
-    // mas os dados de ocupacoesSemana já incluem todos os agendamentos da semana
     const hoje = new Date().toISOString().split('T')[0];
     const { data: formData } = await api.get(`/agendamentos/form-data?data=${hoje}`);
     
@@ -78,18 +76,8 @@ export const getDadosOcupacao = async (): Promise<DadosOcupacao> => {
     const proximosSete = new Date(inicioHoje);
     proximosSete.setDate(proximosSete.getDate() + 7);
 
-    // PROBLEMA IDENTIFICADO: Os agendamentos retornados pela API são filtrados apenas para a data passada
-    // Precisamos buscar todos os agendamentos para calcular corretamente os agendamentos por profissional/recurso
-    // Fazer uma chamada adicional para buscar TODOS os agendamentos
+    // Buscar todos os agendamentos para calcular corretamente os agendamentos por profissional/recurso
     const { data: todosAgendamentos } = await api.get('/agendamentos');
-    
-    // Debug: Log para verificar os dados
-    console.log('🔍 DEBUG Ocupação:');
-    console.log('📅 Período hoje:', inicioHoje.toISOString(), 'até', fimHoje.toISOString());
-    console.log('📅 Período 7 dias:', inicioHoje.toISOString(), 'até', proximosSete.toISOString());
-    console.log('📊 Total agendamentos encontrados:', todosAgendamentos.length);
-    console.log('👥 Profissionais encontrados:', profissionais.length);
-    console.log('🏢 Recursos encontrados:', recursos.length);
 
     // Filtrar agendamentos do período
     const agendamentosHoje = todosAgendamentos.filter((ag: Agendamento) => {
@@ -102,28 +90,8 @@ export const getDadosOcupacao = async (): Promise<DadosOcupacao> => {
       return dataAg >= inicioHoje && dataAg < proximosSete;
     });
 
-    // Debug específico para Danieli
-    const danieliAgendamentos = todosAgendamentos.filter((ag: Agendamento) => 
-      ag.profissionalNome && ag.profissionalNome.toLowerCase().includes('danieli')
-    );
-    console.log('🎯 Agendamentos Danieli:', danieliAgendamentos.map(ag => ({
-      data: ag.dataHoraInicio,
-      profissional: ag.profissionalNome,
-      paciente: ag.pacienteNome
-    })));
-    
-    console.log('📈 Agendamentos hoje:', agendamentosHoje.length);
-    console.log('📈 Agendamentos próximos 7 dias:', agendamentosProximosSete.length);
-
-    // Calcular estatísticas gerais
-    const profissionaisAtivos = profissionais.filter(p => p.ativo);
-    const recursosDisponiveis = recursos; // Todos os recursos são considerados disponíveis
-
-    // Debug: verificar se Danieli está na lista de profissionais
-    const danieliProfissional = profissionais.find(p => 
-      p.nome && p.nome.toLowerCase().includes('danieli')
-    );
-    console.log('👩‍⚕️ Profissional Danieli encontrada:', danieliProfissional);
+    // Calcular estatísticas gerais - todos os profissionais são considerados ativos
+    const recursosDisponiveis = recursos;
 
     // Processar ocupações dos profissionais com dados enriquecidos
     const ocupacoesProfissionais: OcupacaoProfissional[] = profissionais.map(prof => {
@@ -133,44 +101,30 @@ export const getDadosOcupacao = async (): Promise<DadosOcupacao> => {
       const agendamentosProfHoje = agendamentosHoje.filter((ag: Agendamento) => ag.profissionalId === prof.id);
       const agendamentosProfProx7 = agendamentosProximosSete.filter((ag: Agendamento) => ag.profissionalId === prof.id);
 
-      // CORREÇÃO: Usar os agendamentos reais calculados no frontend em vez dos dados da API
-      // que podem estar desatualizados ou incorretos devido aos filtros de data
+      // Usar os agendamentos reais calculados no frontend
       const totalSlots = ocupacao?.total || 0;
-      const ocupadosReais = agendamentosProfProx7.length; // Usar dados reais calculados no frontend
+      const ocupadosReais = agendamentosProfProx7.length;
       const percentualReal = totalSlots > 0 ? Math.round((ocupadosReais / totalSlots) * 100) : 0;
-
-      // Debug específico para Danieli
-      if (prof.nome && prof.nome.toLowerCase().includes('danieli')) {
-        console.log('🎯 CORREÇÃO Danieli:', {
-          nome: prof.nome,
-          ocupacaoAPI: ocupacao,
-          agendamentosHoje: agendamentosProfHoje.length,
-          agendamentosProx7: agendamentosProfProx7.length,
-          totalSlots,
-          ocupadosReais,
-          percentualReal
-        });
-      }
 
       return {
         profissionalId: prof.id,
         nome: prof.nome,
-        ocupados: ocupadosReais, // ✅ Usar contagem real dos agendamentos
+        ocupados: ocupadosReais,
         total: totalSlots,
-        percentual: percentualReal, // ✅ Calcular percentual com dados reais
+        percentual: percentualReal,
         agendamentosHoje: agendamentosProfHoje.length,
         agendamentosProximos7: agendamentosProfProx7.length
       };
-    }).filter(prof => prof.total > 0); // Filtrar apenas profissionais com disponibilidade
+    }).filter(prof => prof.total > 0);
 
-    // Calcular média de ocupação usando os dados corrigidos
+    // Calcular média de ocupação
     const mediaOcupacao = ocupacoesProfissionais.length > 0 
       ? ocupacoesProfissionais.reduce((acc, prof) => acc + prof.percentual, 0) / ocupacoesProfissionais.length 
       : 0;
 
     const estatisticas: EstatisticasOcupacao = {
       totalProfissionais: profissionais.length,
-      profissionaisAtivos: profissionaisAtivos.length,
+      profissionaisAtivos: profissionais.length, // Todos os profissionais são considerados ativos
       totalRecursos: recursos.length,
       recursosDisponiveis: recursosDisponiveis.length,
       agendamentosProximosSete: agendamentosProximosSete.length,

@@ -10,7 +10,6 @@ import NotFound from '@/pages/NotFound';
 import Landing from '@/pages/Landing';
 import { useEffect } from 'react';
 import { useAuthStore } from './store/auth';
-import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { Dashboard } from '@/pages/dashboard/Dashboard';
 import { OcupacaoPage } from '@/pages/dashboard/OcupacaoPage';
@@ -90,7 +89,6 @@ export default function App() {
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
       </Routes>
-      <Toaster />
       <SonnerToaster />
     </BrowserRouter>
   );

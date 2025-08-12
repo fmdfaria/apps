@@ -30,13 +30,11 @@ import { getAgendamentos, updateAgendamento } from '@/services/agendamentos';
 
 import { LiberarAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
 import ConfirmacaoModal from '@/components/ConfirmacaoModal';
-import { useToast } from "@/hooks/use-toast";
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
 
 export const LiberarPage = () => {
-  const { toast } = useToast();
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -311,10 +309,8 @@ export const LiberarPage = () => {
     const numeroLimpo = agendamento.pacienteWhatsapp?.replace(/\D/g, '') || '';
     
     if (!numeroLimpo) {
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Número do WhatsApp não encontrado para este paciente."
+      AppToast.error("Erro", { 
+        description: "Número do WhatsApp não encontrado para este paciente." 
       });
       return;
     }
@@ -358,10 +354,8 @@ export const LiberarPage = () => {
       const webhookUrl = import.meta.env.VITE_WEBHOOK_SOLICITAR_LIBERACAO_URL;
       
       if (!webhookUrl) {
-        toast({
-          variant: "destructive",
-          title: "Erro de configuração",
-          description: "URL do webhook não configurada. Verifique o arquivo .env"
+        AppToast.error("Erro de configuração", { 
+          description: "URL do webhook não configurada. Verifique o arquivo .env" 
         });
         return;
       }
@@ -399,30 +393,23 @@ export const LiberarPage = () => {
         // Exibir o retorno do webhook no toast
         const mensagemWebhook = responseData.message || responseData.msg || responseData.description || JSON.stringify(responseData);
         
-        toast({
-          title: "Sucesso",
-          description: `Solicitação enviada para ${agendamento.pacienteNome}! Status atualizado no banco de dados. Retorno: ${mensagemWebhook}`
+        AppToast.success("Sucesso", { 
+          description: `Solicitação enviada para ${agendamento.pacienteNome}! Status atualizado no banco de dados. Retorno: ${mensagemWebhook}` 
         });
 
       } catch (dbError) {
-        console.error('Erro ao atualizar status no banco de dados:', dbError);
         
         // Mesmo com erro no banco, o webhook foi enviado com sucesso
         const mensagemWebhook = responseData.message || responseData.msg || responseData.description || JSON.stringify(responseData);
         
-        toast({
-          variant: "destructive",
-          title: "Webhook enviado, mas erro no banco",
-          description: `Solicitação enviada para ${agendamento.pacienteNome}, mas houve erro ao atualizar o status.`
+        AppToast.error("Webhook enviado, mas erro no banco", { 
+          description: `Solicitação enviada para ${agendamento.pacienteNome}, mas houve erro ao atualizar o status.` 
         });
       }
 
     } catch (error) {
-      console.error('Erro ao enviar webhook:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: `Erro ao enviar solicitação para ${agendamento.pacienteNome}. Tente novamente.`
+      AppToast.error("Erro", { 
+        description: `Erro ao enviar solicitação para ${agendamento.pacienteNome}. Tente novamente.` 
       });
     } finally {
       // Limpar o estado de processamento

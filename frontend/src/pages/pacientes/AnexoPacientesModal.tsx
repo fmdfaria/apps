@@ -4,7 +4,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { Button } from '@/components/ui/button';
 import { FileUpload } from '@/components/ui/FileUpload';
 import { File } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { AppToast } from '@/services/toast';
 import type { Paciente } from '@/types/Paciente';
 import type { Anexo } from '@/types/Anexo';
 import { uploadAnexo, getAnexos, deleteAnexo } from '@/services/anexos';
@@ -48,7 +48,6 @@ export default function AnexoPacientesModal({
   onAnexoToDeleteChange,
   onDeletingAnexoChange
 }: AnexoPacientesModalProps) {
-  const { toast } = useToast();
 
   const handleSalvarAnexo = async () => {
     if (!paciente || anexoFiles.length === 0) return;
@@ -75,20 +74,13 @@ export default function AnexoPacientesModal({
       onAnexoFilesChange([]);
       onAnexoDescricaoChange('');
 
-      toast({
-        title: 'Anexo enviado com sucesso!',
-        variant: 'success',
-      });
+      AppToast.success('Anexo enviado com sucesso!');
     } catch (err: any) {
       let msg = 'Erro ao enviar anexo.';
       if (err?.response?.data?.message) msg = err.response.data.message;
       else if (err?.response?.data?.error) msg = err.response.data.error;
       onAnexoErrorChange(msg);
-      toast({
-        title: 'Erro ao enviar anexo',
-        description: msg,
-        variant: 'destructive',
-      });
+      AppToast.error('Erro ao enviar anexo', { description: msg });
     } finally {
       onSavingChange(false);
     }
@@ -264,19 +256,12 @@ export default function AnexoPacientesModal({
                   await deleteAnexo(anexoToDelete.id);
                   onAnexosChange(anexos.filter(a => a.id !== anexoToDelete.id));
                   onAnexoToDeleteChange(null);
-                  toast({
-                    title: 'Anexo excluído com sucesso!',
-                    variant: 'success',
-                  });
+                  AppToast.success('Anexo excluído com sucesso!');
                 } catch (err: any) {
                   let msg = 'Erro ao excluir anexo.';
                   if (err?.response?.data?.message) msg = err.response.data.message;
                   else if (err?.response?.data?.error) msg = err.response.data.error;
-                  toast({
-                    title: 'Erro ao excluir anexo',
-                    description: msg,
-                    variant: 'destructive',
-                  });
+                  AppToast.error('Erro ao excluir anexo', { description: msg });
                 } finally {
                   onDeletingAnexoChange(false);
                 }
