@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { FormErrorMessage } from '@/components/form-error-message';
-import { createEvolucao, updateEvolucao } from '@/services/evolucoes';
+import { createEvolucao, updateEvolucao, deleteEvolucao } from '@/services/evolucoes';
 import { AppToast } from '@/services/toast';
 import type { EvolucaoPaciente, CreateEvolucaoPacienteData } from '@/types/EvolucaoPaciente';
 import type { Agendamento } from '@/types/Agendamento';
@@ -19,11 +19,13 @@ import {
   Save,
   X
 } from 'lucide-react';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 
 interface EvolucaoPacientesModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  onDeleted?: (agendamentoId: string) => void;
   pacientes: Paciente[];
   evolucaoParaEditar?: EvolucaoPaciente | null;
   agendamentoInicial?: Agendamento | null;
@@ -33,6 +35,7 @@ export default function EvolucaoPacientesModal({
   open, 
   onClose, 
   onSuccess, 
+  onDeleted,
   pacientes, 
   evolucaoParaEditar,
   agendamentoInicial
@@ -47,6 +50,8 @@ export default function EvolucaoPacientesModal({
   
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [pacienteNome, setPacienteNome] = useState('');
   const [profissionalNome, setProfissionalNome] = useState('');
 
@@ -129,6 +134,26 @@ export default function EvolucaoPacientesModal({
     setProfissionalNome('');
   };
 
+  const handleDelete = async () => {
+    if (!evolucaoParaEditar?.id) return;
+    try {
+      setDeleting(true);
+      await deleteEvolucao(evolucaoParaEditar.id);
+      AppToast.success('Evolução excluída com sucesso!');
+      // Notificar página para atualizar estado local (evolucoesMap -> false)
+      const agendamentoIdNotificar = evolucaoParaEditar.agendamentoId || agendamentoInicial?.id;
+      if (agendamentoIdNotificar && onDeleted) {
+        onDeleted(agendamentoIdNotificar);
+      }
+      setDeleteOpen(false);
+      fecharModal();
+    } catch (error) {
+      AppToast.error('Erro ao excluir evolução');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const validarForm = (): boolean => {
     if (!form.pacienteId) {
       setFormError('Selecione um paciente.');
@@ -184,7 +209,7 @@ export default function EvolucaoPacientesModal({
         AppToast.success('Evolução atualizada com sucesso!');
       } else {
         await createEvolucao(dadosEvolucao);
-        AppToast.success('Evolução criada com sucesso!');
+        AppToast.success('Evolução salva com sucesso!');
       }
       
       onSuccess();
@@ -202,111 +227,112 @@ export default function EvolucaoPacientesModal({
 
 
   return (
-    <Dialog open={open} onOpenChange={fecharModal}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-blue-600" />
-            {isEditing ? 'Editar Evolução do Paciente' : 'Evolução do Paciente'}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={fecharModal}>
+        <DialogContent className="max-w-2xl">
+          <form onSubmit={handleSubmit} className="flex flex-col h-full">
+          <DialogHeader>
+            <DialogTitle className="text-xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              {isEditing ? 'Editar Evolução' : 'Evolução do Paciente'}
+            </DialogTitle>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Paciente */}
-          <div className="space-y-2">
-            <Label htmlFor="paciente" className="flex items-center gap-2">
-              <User className="w-4 h-4" />
-              Paciente
-            </Label>
-            <Input
-              id="paciente"
-              type="text"
-              value={pacienteNome}
-              disabled={true}
-              className="bg-gray-50 cursor-not-allowed"
-              placeholder="Nome do paciente"
-            />
-          </div>
-
-          {/* Profissional */}
-          <div className="space-y-2">
-            <Label htmlFor="profissional" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Profissional
-            </Label>
-            <Input
-              id="profissional"
-              type="text"
-              value={profissionalNome}
-              disabled={true}
-              className="bg-gray-50 cursor-not-allowed"
-              placeholder="Nome do profissional"
-            />
-          </div>
-
-          {/* Data da Evolução */}
-          <div className="space-y-2">
-            <Label htmlFor="dataEvolucao" className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Data da Evolução *
-            </Label>
-            <Input
-              id="dataEvolucao"
-              type="date"
-              value={form.dataEvolucao}
-              onChange={(e) => {
-                setForm({ ...form, dataEvolucao: e.target.value });
-                setFormError('');
-              }}
-              disabled={formLoading}
-              max={new Date().toISOString().split('T')[0]}
-            />
-          </div>
-
-          {/* Objetivo da Sessão */}
-          <div className="space-y-2">
-            <Label htmlFor="objetivoSessao" className="flex items-center gap-2">
-              <Target className="w-4 h-4" />
-              Objetivo da Sessão *
-            </Label>
-            <Input
-              id="objetivoSessao"
-              type="text"
-              placeholder="Ex: Avaliação inicial, Fortalecimento muscular, Controle da dor..."
-              value={form.objetivoSessao}
-              onChange={(e) => {
-                setForm({ ...form, objetivoSessao: e.target.value });
-                setFormError('');
-              }}
-              disabled={formLoading}
-              maxLength={255}
-            />
-          </div>
-
-          {/* Descrição da Evolução */}
-          <div className="space-y-2">
-            <Label htmlFor="descricaoEvolucao" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Descrição da Evolução *
-            </Label>
-            <Textarea
-              id="descricaoEvolucao"
-              placeholder="Descreva detalhadamente a evolução do paciente, procedimentos realizados, observações importantes..."
-              value={form.descricaoEvolucao}
-              onChange={(e) => {
-                setForm({ ...form, descricaoEvolucao: e.target.value });
-                setFormError('');
-              }}
-              disabled={formLoading}
-              rows={4}
-              className="resize-none"
-            />
-            <div className="text-xs text-gray-500">
-              {form.descricaoEvolucao?.length || 0} caracteres
+          <div className="py-3 space-y-5">
+            {/* Linha 1: Paciente | Profissional */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">👤</span>
+                  <span className="font-semibold">Paciente</span>
+                </label>
+                <Input
+                  type="text"
+                  value={pacienteNome}
+                  disabled
+                  className="bg-gray-50 cursor-not-allowed"
+                  placeholder="Nome do paciente"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">👨‍⚕️</span>
+                  <span className="font-semibold">Profissional</span>
+                </label>
+                <Input
+                  type="text"
+                  value={profissionalNome}
+                  disabled
+                  className="bg-gray-50 cursor-not-allowed"
+                  placeholder="Nome do profissional"
+                />
+              </div>
             </div>
-          </div>
 
-          {formError && <FormErrorMessage>{formError}</FormErrorMessage>}
+            {/* Linha 2: Data da Evolução | Objetivo da Sessão */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  <span className="font-semibold">Data da Evolução</span>
+                  <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="date"
+                  value={form.dataEvolucao}
+                  onChange={(e) => {
+                    setForm({ ...form, dataEvolucao: e.target.value });
+                    setFormError('');
+                  }}
+                  disabled={formLoading}
+                  max={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <Target className="w-4 h-4" />
+                  <span className="font-semibold">Objetivo da Sessão</span>
+                  <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="text"
+                  placeholder="Ex: Avaliação inicial, Fortalecimento muscular, Controle da dor..."
+                  value={form.objetivoSessao}
+                  onChange={(e) => {
+                    setForm({ ...form, objetivoSessao: e.target.value });
+                    setFormError('');
+                  }}
+                  disabled={formLoading}
+                  maxLength={255}
+                />
+              </div>
+            </div>
+
+            {/* Linha 3: Descrição da Evolução */}
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                <span className="font-semibold">Descrição da Evolução</span>
+                <span className="text-red-500">*</span>
+              </label>
+              <Textarea
+                placeholder="Descreva a evolução, procedimentos e observações..."
+                value={form.descricaoEvolucao}
+                onChange={(e) => {
+                  setForm({ ...form, descricaoEvolucao: e.target.value });
+                  setFormError('');
+                }}
+                disabled={formLoading}
+                rows={5}
+                className="resize-none"
+              />
+              <div className="text-xs text-gray-500">
+                {form.descricaoEvolucao?.length || 0} caracteres
+              </div>
+            </div>
+
+            {formError && <FormErrorMessage>{formError}</FormErrorMessage>}
+          </div>
 
           <DialogFooter className="gap-2">
             <DialogClose asChild>
@@ -320,6 +346,18 @@ export default function EvolucaoPacientesModal({
                 Cancelar
               </Button>
             </DialogClose>
+            {isEditing && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDeleteOpen(true)}
+                disabled={formLoading}
+                className="flex items-center gap-2 border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 order-first"
+                title="Excluir evolução"
+              >
+                Excluir
+              </Button>
+            )}
             <Button 
               type="submit" 
               disabled={formLoading}
@@ -335,9 +373,21 @@ export default function EvolucaoPacientesModal({
                 : (isEditing ? 'Atualizar Evolução' : 'Salvar Evolução')
               }
             </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <ConfirmDeleteModal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={handleDelete}
+        title="Excluir Evolução"
+        entityName={pacienteNome || 'Evolução'}
+        entityType="evolução"
+        isLoading={deleting}
+        loadingText="Excluindo..."
+        confirmText="Excluir"
+      />
+    </>
   );
 }

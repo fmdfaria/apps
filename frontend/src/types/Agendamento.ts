@@ -39,6 +39,9 @@ export interface Agendamento {
   // Etapa 3 - Atender (futuro - evolução)
   dataAtendimento?: string;
   observacoesAtendimento?: string;
+  compareceu?: boolean;
+  assinaturaPaciente?: boolean;
+  assinaturaProfissional?: boolean;
   
   // Etapa 4 - Aprovar
   dataAprovacao?: string;

@@ -75,13 +75,13 @@
 - Cada profissional logado, só pode visualizar os agendamentos dele.
 
 ### AtenderPage
-- Funcionalidade para dizer de o paciente compareceu ou não atendimento. (compareceu / não compareceu - SIM / NÃO).
---Ajustar backend para incluir nova coluna.
---Criar um nova coluna na tabela com essa informação
-- Funcionalidade para dizer se o profissional e pacientes assinaram a guia.
--- (SIM / NÃO) individualmente..
--Obrigatório Evoluir paciente para seguir para proximas fase (aprovaratendimento)
-- Botão Finalizar atendimento só pode estar habilitado se o profissional responder as duas perguntas.
+-Ajustar backend para incluir novas colunas.
+-Criar 3 novas colunas na tabela com essas informações (recebe os dados)
+-Criar 3 novos botões ao lado do botão 'Prontuário' com os nomes 'Compareceu' , 'Assinatura Paciente' e 'Assinatura Profissional'
+-Criar a funcionalidade para o botão 'Compareceu' - Quando clicar, deve aparecer uma mensagem de confirmação utilizar 'ConfirmacaoModal' apresentando a mensagem 'o paciente compareceu?' com os botoes de SIM e NÃO.... quando for clicado, deve atualizar a tabela como TRUE ou FALSE na coluna nova criada com o nome 'compareceu'
+-Criar a funcionalidade para o botão 'Assinatura Paciente' - Quando clicar, deve aparecer uma mensagem de confirmação utilizar 'ConfirmacaoModal' apresentando a mensagem 'O paciente assinou a guia referente ao atendimento' com os botoes de SIM e NÃO.... quando for clicado, deve atualizar a tabela como TRUE ou FALSE na coluna nova criada com o nome 'assinatura_paciente'
+-Criar a funcionalidade para o botão 'Assinatura Profissional' - Quando clicar, deve aparecer uma mensagem de confirmação utilizar 'ConfirmacaoModal' apresentando a mensagem 'Você (profissional) assinou a guia referente ao atendimento' com os botoes de SIM e NÃO.... quando for clicado, deve atualizar a tabela como TRUE ou FALSE na coluna nova criada com o nome 'assinatura_profissional'
+
 
 ### AtenderPage
 - ✅ Criar um novo modal, moderno com o nome 'EvolucaoPacientesModal' e salvar em /src/pages/pacientes/ , que siga o padrão existente para os demais da aplicação utilizar o CriarProfissionalModal.tsx como referência de estilo.

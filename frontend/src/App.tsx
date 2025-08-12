@@ -36,6 +36,7 @@ import RolesPage from './pages/admin/RolesPage';
 import RoutesPage from './pages/admin/RoutesPage';
 import UserRolesPage from './pages/admin/UserRolesPage';
 import PermissionsPage from './pages/admin/PermissionsPage';
+import EvolucaoPacientesPage from '@/pages/pacientes/EvolucaoPacientesPage';
 
 export default function App() {
   const initializeAuth = useAuthStore((s) => s.initializeAuth);
@@ -65,6 +66,7 @@ export default function App() {
             <Route path="profissionais/disponibilidade" element={<DisponibilidadeProfissionaisPage />} />
             <Route path="pacientes" element={<PacientesPage />} />
             <Route path="pacientes/precos-particulares" element={<PrecosParticularPage />} />
+            <Route path="pacientes/evolucoes/:id" element={<EvolucaoPacientesPage />} />
             <Route path="servicos" element={<ServicosPage />} />
             <Route path="servicos/precos-profissionais" element={<PrecosServicoProfissionalPage />} />
             <Route path="convenios" element={<ConveniosPage />} />

@@ -19,11 +19,15 @@ import {
   X,
   Eye,
   ClipboardList,
-  CheckSquare
+  CheckSquare,
+  UserCheck,
+  PenTool,
+  UserCheck2
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
-import { getAgendamentos } from '@/services/agendamentos';
+import { getAgendamentos, updateCompareceu, updateAssinaturaPaciente, updateAssinaturaProfissional } from '@/services/agendamentos';
 import { AtenderAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
+import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import EvolucaoPacientesModal from '@/pages/pacientes/EvolucaoPacientesModal';
 import { getPacientes } from '@/services/pacientes';
 import { getEvolucaoByAgendamento, getStatusEvolucoesPorAgendamentos } from '@/services/evolucoes';
@@ -55,6 +59,13 @@ export const AtenderPage = () => {
   const [itensPorPagina, setItensPorPagina] = useState(10);
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+
+  // Estados para os modais de confirmação
+  const [showCompareceuModal, setShowCompareceuModal] = useState(false);
+  const [showAssinaturaPacienteModal, setShowAssinaturaPacienteModal] = useState(false);
+  const [showAssinaturaProfissionalModal, setShowAssinaturaProfissionalModal] = useState(false);
+  const [agendamentoParaAtualizar, setAgendamentoParaAtualizar] = useState<Agendamento | null>(null);
+  const [isLoadingUpdate, setIsLoadingUpdate] = useState(false);
 
   // Filtros avançados por coluna
   const [filtros, setFiltros] = useState({
@@ -254,18 +265,24 @@ export const AtenderPage = () => {
   };
 
   const handleAbrirProntuario = async (agendamento: Agendamento) => {
-    try {
-      // Buscar evolução existente para este agendamento específico
-      const evolucaoEncontrada = await getEvolucaoByAgendamento(agendamento.id);
-      
-      setAgendamentoParaEvolucao(agendamento);
-      setEvolucaoExistente(evolucaoEncontrada);
-      setShowEvolucaoModal(true);
-    } catch (error) {
-      console.error('Erro ao buscar evolução existente:', error);
-      // Em caso de erro, continua com a abertura normal (nova evolução)
-      setAgendamentoParaEvolucao(agendamento);
+    setAgendamentoParaEvolucao(agendamento);
+    const temEvolucao = evolucoesMap.get(agendamento.id) === true;
+    
+    if (!temEvolucao) {
+      // Já sabemos pelo batch que não existe evolução → abrir em modo criação sem chamar API
       setEvolucaoExistente(null);
+      setShowEvolucaoModal(true);
+      return;
+    }
+
+    try {
+      // Somente busca detalhes se o batch indicou que existe evolução
+      const evolucaoEncontrada = await getEvolucaoByAgendamento(agendamento.id);
+      setEvolucaoExistente(evolucaoEncontrada);
+    } catch (_err) {
+      // Evitar logs no console; abre como criação se houver qualquer problema
+      setEvolucaoExistente(null);
+    } finally {
       setShowEvolucaoModal(true);
     }
   };
@@ -299,6 +316,101 @@ export const AtenderPage = () => {
       const fallbackMap = new Map<string, boolean>();
       agendamentos.forEach(a => fallbackMap.set(a.id, false));
       setEvolucoesMap(fallbackMap);
+    }
+  };
+
+  // Handlers para os novos campos
+  const handleCompareceu = (agendamento: Agendamento) => {
+    setAgendamentoParaAtualizar(agendamento);
+    setShowCompareceuModal(true);
+  };
+
+  const handleAssinaturaPaciente = (agendamento: Agendamento) => {
+    setAgendamentoParaAtualizar(agendamento);
+    setShowAssinaturaPacienteModal(true);
+  };
+
+  const handleAssinaturaProfissional = (agendamento: Agendamento) => {
+    setAgendamentoParaAtualizar(agendamento);
+    setShowAssinaturaProfissionalModal(true);
+  };
+
+  // Handlers para cancelar (apenas fechar modal sem salvar)
+  const handleCancelCompareceu = () => {
+    setShowCompareceuModal(false);
+    setAgendamentoParaAtualizar(null);
+  };
+
+  const handleCancelAssinaturaPaciente = () => {
+    setShowAssinaturaPacienteModal(false);
+    setAgendamentoParaAtualizar(null);
+  };
+
+  const handleCancelAssinaturaProfissional = () => {
+    setShowAssinaturaProfissionalModal(false);
+    setAgendamentoParaAtualizar(null);
+  };
+
+  const handleConfirmCompareceu = async (compareceu: boolean) => {
+    if (!agendamentoParaAtualizar) return;
+
+    setIsLoadingUpdate(true);
+    try {
+      await updateCompareceu(agendamentoParaAtualizar.id, compareceu);
+      AppToast.success(compareceu ? 'Comparecimento confirmado!' : 'Comparecimento marcado como NÃO', {
+        description: `Status de comparecimento atualizado com sucesso.`
+      });
+      carregarAgendamentos(); // Recarregar a lista
+    } catch (error) {
+      AppToast.error('Erro ao atualizar comparecimento', {
+        description: 'Ocorreu um erro ao salvar as alterações. Tente novamente.'
+      });
+    } finally {
+      setIsLoadingUpdate(false);
+      setShowCompareceuModal(false);
+      setAgendamentoParaAtualizar(null);
+    }
+  };
+
+  const handleConfirmAssinaturaPaciente = async (assinou: boolean) => {
+    if (!agendamentoParaAtualizar) return;
+
+    setIsLoadingUpdate(true);
+    try {
+      await updateAssinaturaPaciente(agendamentoParaAtualizar.id, assinou);
+      AppToast.success(assinou ? 'Assinatura do paciente confirmada!' : 'Assinatura do paciente marcada como NÃO', {
+        description: `Status da assinatura atualizado com sucesso.`
+      });
+      carregarAgendamentos(); // Recarregar a lista
+    } catch (error) {
+      AppToast.error('Erro ao atualizar assinatura do paciente', {
+        description: 'Ocorreu um erro ao salvar as alterações. Tente novamente.'
+      });
+    } finally {
+      setIsLoadingUpdate(false);
+      setShowAssinaturaPacienteModal(false);
+      setAgendamentoParaAtualizar(null);
+    }
+  };
+
+  const handleConfirmAssinaturaProfissional = async (assinou: boolean) => {
+    if (!agendamentoParaAtualizar) return;
+
+    setIsLoadingUpdate(true);
+    try {
+      await updateAssinaturaProfissional(agendamentoParaAtualizar.id, assinou);
+      AppToast.success(assinou ? 'Sua assinatura confirmada!' : 'Sua assinatura marcada como NÃO', {
+        description: `Status da assinatura atualizado com sucesso.`
+      });
+      carregarAgendamentos(); // Recarregar a lista
+    } catch (error) {
+      AppToast.error('Erro ao atualizar assinatura profissional', {
+        description: 'Ocorreu um erro ao salvar as alterações. Tente novamente.'
+      });
+    } finally {
+      setIsLoadingUpdate(false);
+      setShowAssinaturaProfissionalModal(false);
+      setAgendamentoParaAtualizar(null);
     }
   };
 
@@ -363,28 +475,61 @@ export const AtenderPage = () => {
                   )}
                 </div>
                 
-                <div className="flex gap-1">
-                  <Button 
-                    size="sm" 
-                    variant="default"
-                    className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
-                    onClick={() => handleVerDetalhes(agendamento)}
-                  >
-                    Visualizar
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    className="flex-1 h-7 text-xs border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white"
-                    onClick={() => handleAbrirProntuario(agendamento)}
-                  >
-                    Prontuário
-                  </Button>
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-1">
+                    <Button 
+                      size="sm" 
+                      variant="default"
+                      className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                      onClick={() => handleVerDetalhes(agendamento)}
+                    >
+                      Visualizar
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="flex-1 h-7 text-xs border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white"
+                      onClick={() => handleAbrirProntuario(agendamento)}
+                    >
+                      Prontuário
+                    </Button>
+                  </div>
+                  
+                  <div className="flex gap-1">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="flex-1 h-7 text-xs border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white"
+                      onClick={() => handleCompareceu(agendamento)}
+                      title="Marcar comparecimento"
+                    >
+                      Compareceu
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="flex-1 h-7 text-xs border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white"
+                      onClick={() => handleAssinaturaPaciente(agendamento)}
+                      title="Assinatura do paciente"
+                    >
+                      Assn. Paciente
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="flex-1 h-7 text-xs border-indigo-300 text-indigo-600 hover:bg-indigo-600 hover:text-white"
+                      onClick={() => handleAssinaturaProfissional(agendamento)}
+                      title="Sua assinatura"
+                    >
+                      Assn. Prof.
+                    </Button>
+                  </div>
+
                   {canAtender ? (
                     <Button 
                       size="sm" 
                       variant="outline"
-                      className="flex-1 h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
+                      className="w-full h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
                       onClick={() => handleAtender(agendamento)}
                       title="Finalizar Atendimento"
                     >
@@ -394,7 +539,7 @@ export const AtenderPage = () => {
                     <Button 
                       size="sm" 
                       disabled={true}
-                      className="flex-1 h-7 text-xs border-gray-300 text-gray-400 cursor-not-allowed"
+                      className="w-full h-7 text-xs border-gray-300 text-gray-400 cursor-not-allowed"
                       title="Você não tem permissão para finalizar atendimentos"
                     >
                       Finalizar Atendimento
@@ -469,6 +614,24 @@ export const AtenderPage = () => {
               </TableHead>
               <TableHead className="py-3 text-sm font-semibold text-gray-700">
                 <div className="flex items-center gap-2">
+                  <span className="text-lg">✅</span>
+                  Compareceu?
+                </div>
+              </TableHead>
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">✍️</span>
+                  Paciente Assinou?
+                </div>
+              </TableHead>
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">👨‍⚕️</span>
+                  Profissional Assinou?
+                </div>
+              </TableHead>
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
                   <span className="text-lg">⚙️</span>
                   Ações
                 </div>
@@ -478,7 +641,7 @@ export const AtenderPage = () => {
         <TableBody>
           {agendamentosPaginados.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={10} className="py-12 text-center">
+              <TableCell colSpan={13} className="py-12 text-center">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                     <span className="text-3xl">🩺</span>
@@ -546,8 +709,41 @@ export const AtenderPage = () => {
                       {evolucoesMap.get(agendamento.id) ? 'SIM' : 'NÃO'}
                     </span>
                   </TableCell>
+                  <TableCell className="py-2">
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      agendamento.compareceu === true
+                        ? 'bg-green-100 text-green-800' 
+                        : agendamento.compareceu === false
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {agendamento.compareceu === true ? 'SIM' : agendamento.compareceu === false ? 'NÃO' : 'PENDENTE'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      agendamento.assinaturaPaciente === true
+                        ? 'bg-green-100 text-green-800' 
+                        : agendamento.assinaturaPaciente === false
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {agendamento.assinaturaPaciente === true ? 'SIM' : agendamento.assinaturaPaciente === false ? 'NÃO' : 'PENDENTE'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      agendamento.assinaturaProfissional === true
+                        ? 'bg-green-100 text-green-800' 
+                        : agendamento.assinaturaProfissional === false
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {agendamento.assinaturaProfissional === true ? 'SIM' : agendamento.assinaturaProfissional === false ? 'NÃO' : 'PENDENTE'}
+                    </span>
+                  </TableCell>
                   <TableCell className="text-right py-2">
-                    <div className="flex justify-end gap-1.5">
+                    <div className="flex justify-end gap-1">
                       <Button
                         variant="default"
                         size="sm"
@@ -565,6 +761,33 @@ export const AtenderPage = () => {
                         title="Prontuário"
                       >
                         <ClipboardList className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleCompareceu(agendamento)}
+                        title="Marcar comparecimento"
+                      >
+                        <UserCheck className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleAssinaturaPaciente(agendamento)}
+                        title="Assinatura do paciente"
+                      >
+                        <PenTool className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-indigo-300 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 focus:ring-4 focus:ring-indigo-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleAssinaturaProfissional(agendamento)}
+                        title="Sua assinatura"
+                      >
+                        <UserCheck2 className="w-4 h-4 text-indigo-600 group-hover:text-white transition-colors" />
                       </Button>
                       {canAtender ? (
                         <Button
@@ -969,7 +1192,6 @@ export const AtenderPage = () => {
           setEvolucaoExistente(null);
         }}
         onSuccess={() => {
-          AppToast.success('Evolução salva com sucesso!');
           // Atualizar o mapa de evoluções para refletir a mudança
           if (agendamentoParaEvolucao) {
             setEvolucoesMap(prev => {
@@ -979,9 +1201,62 @@ export const AtenderPage = () => {
             });
           }
         }}
+        onDeleted={(agendamentoId) => {
+          setEvolucoesMap(prev => {
+            const novoMap = new Map(prev);
+            novoMap.set(agendamentoId, false);
+            return novoMap;
+          });
+        }}
         pacientes={pacientes}
         evolucaoParaEditar={evolucaoExistente}
         agendamentoInicial={agendamentoParaEvolucao}
+      />
+
+      {/* Modais de confirmação para os novos campos */}
+      <ConfirmacaoModal
+        open={showCompareceuModal}
+        onClose={handleCancelCompareceu}
+        onCancel={() => handleConfirmCompareceu(false)}
+        onConfirm={() => handleConfirmCompareceu(true)}
+        title="Confirmação de Comparecimento"
+        description="O paciente compareceu?"
+        confirmText="SIM"
+        cancelText="NÃO"
+        isLoading={isLoadingUpdate}
+        loadingText="Salvando..."
+        variant="default"
+        icon={<UserCheck className="w-6 h-6" />}
+      />
+
+      <ConfirmacaoModal
+        open={showAssinaturaPacienteModal}
+        onClose={handleCancelAssinaturaPaciente}
+        onCancel={() => handleConfirmAssinaturaPaciente(false)}
+        onConfirm={() => handleConfirmAssinaturaPaciente(true)}
+        title="Assinatura do Paciente"
+        description="O paciente assinou a guia referente ao atendimento?"
+        confirmText="SIM"
+        cancelText="NÃO"
+        isLoading={isLoadingUpdate}
+        loadingText="Salvando..."
+        variant="default"
+        icon={<PenTool className="w-6 h-6" />}
+      />
+
+      <ConfirmacaoModal
+        open={showAssinaturaProfissionalModal}
+        onClose={handleCancelAssinaturaProfissional}
+        onCancel={() => handleConfirmAssinaturaProfissional(false)}
+        onConfirm={() => handleConfirmAssinaturaProfissional(true)}
+        title="Assinatura do Profissional"
+        description="Você (profissional) assinou a guia referente ao atendimento?"
+        confirmText="SIM"
+        cancelText="NÃO"
+        isLoading={isLoadingUpdate}
+        loadingText="Salvando..."
+        variant="default"
+        icon={<UserCheck2 className="w-6 h-6" />}
       />
     </div>
   );

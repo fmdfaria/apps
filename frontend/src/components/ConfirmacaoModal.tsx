@@ -14,6 +14,7 @@ interface ConfirmacaoModalProps {
   open: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  onCancel?: () => void; // Handler opcional para o botão cancelar
   title: string;
   description: string;
   confirmText?: string;
@@ -28,6 +29,7 @@ export default function ConfirmacaoModal({
   open,
   onClose,
   onConfirm,
+  onCancel,
   title,
   description,
   confirmText = 'Confirmar',
@@ -91,7 +93,7 @@ export default function ConfirmacaoModal({
         <DialogFooter className="flex gap-3 mt-6">
           <Button
             variant="outline"
-            onClick={onClose}
+            onClick={onCancel || onClose}
             disabled={isLoading}
             className="flex-1 border-2 border-gray-300 text-gray-700 hover:border-orange-400 hover:bg-orange-50 hover:text-orange-700 transition-all duration-200"
           >

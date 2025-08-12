@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Paperclip, Building2, Phone } from 'lucide-react';
+import { Plus, Edit, Trash2, Paperclip, Building2, Phone, History } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AppToast } from '@/services/toast';
@@ -68,6 +69,7 @@ const formatCPF = (cpf: string) => {
 };
 
 export const PacientesPage = () => {
+  const navigate = useNavigate();
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
@@ -290,6 +292,14 @@ export const PacientesPage = () => {
                   <Building2 className="w-4 h-4" />
                 </Button>
               )}
+              <ActionButton
+                variant="view"
+                module="pacientes"
+                onClick={() => navigate(`/pacientes/evolucoes/${item.id}`)}
+                title="Evolução do paciente"
+              >
+                <History className="w-4 h-4" />
+              </ActionButton>
             </>
           ) : (
             <TooltipProvider>
@@ -666,6 +676,15 @@ export const PacientesPage = () => {
           title="Editar dados do paciente"
         >
           <Edit className="w-4 h-4" />
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white"
+          onClick={() => navigate(`/pacientes/evolucoes/${paciente.id}`)}
+          title="Evolução do paciente"
+        >
+          <History className="w-4 h-4" />
         </Button>
         <Button 
           variant="outline" 
