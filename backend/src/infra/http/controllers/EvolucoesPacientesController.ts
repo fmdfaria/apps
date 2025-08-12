@@ -6,6 +6,7 @@ import { ListEvolucoesPacienteUseCase } from '../../../core/application/use-case
 import { UpdateEvolucaoPacienteUseCase } from '../../../core/application/use-cases/evolucao-paciente/UpdateEvolucaoPacienteUseCase';
 import { DeleteEvolucaoPacienteUseCase } from '../../../core/application/use-cases/evolucao-paciente/DeleteEvolucaoPacienteUseCase';
 import { GetEvolucaoByAgendamentoUseCase } from '../../../core/application/use-cases/evolucao-paciente/GetEvolucaoByAgendamentoUseCase';
+import { GetStatusEvolucoesPorAgendamentosUseCase } from '../../../core/application/use-cases/evolucao-paciente/GetStatusEvolucoesPorAgendamentosUseCase';
 
 const evolucaoBodySchema = z.object({
   pacienteId: z.string().uuid(),
@@ -59,5 +60,17 @@ export class EvolucoesPacientesController {
     }
     
     return reply.status(200).send(evolucao);
+  }
+
+  async getStatusPorAgendamentos(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const bodySchema = z.object({
+      agendamentoIds: z.array(z.string().uuid()).min(1).max(100) // Limite de 100 para performance
+    });
+    const { agendamentoIds } = bodySchema.parse(request.body);
+    
+    const useCase = container.resolve(GetStatusEvolucoesPorAgendamentosUseCase);
+    const status = await useCase.execute(agendamentoIds);
+    
+    return reply.status(200).send(status);
   }
 } 

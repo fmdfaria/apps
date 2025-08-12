@@ -17,4 +17,5 @@ export interface IEvolucoesPacientesRepository {
   findById(id: string): Promise<EvolucaoPaciente | null>;
   findAllByPaciente(pacienteId: string): Promise<EvolucaoPaciente[]>;
   findByAgendamento(agendamentoId: string): Promise<EvolucaoPaciente | null>;
+  getStatusByAgendamentos(agendamentoIds: string[]): Promise<Array<{ agendamentoId: string; temEvolucao: boolean }>>;
 } 

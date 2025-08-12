@@ -49,4 +49,26 @@ export class PrismaEvolucoesPacientesRepository implements IEvolucoesPacientesRe
     });
     return evolucao ? toDomain(evolucao) : null;
   }
+
+  async getStatusByAgendamentos(agendamentoIds: string[]): Promise<Array<{ agendamentoId: string; temEvolucao: boolean }>> {
+    if (agendamentoIds.length === 0) return [];
+
+    const evolucoes = await this.prisma.evolucaoPaciente.findMany({
+      where: {
+        agendamentoId: { in: agendamentoIds }
+      },
+      select: {
+        agendamentoId: true
+      }
+    });
+
+    // Criar set dos agendamentos que têm evolução
+    const agendamentosComEvolucao = new Set(evolucoes.map(e => e.agendamentoId).filter(Boolean));
+
+    // Retornar status para todos os agendamentos solicitados
+    return agendamentoIds.map(agendamentoId => ({
+      agendamentoId,
+      temEvolucao: agendamentosComEvolucao.has(agendamentoId)
+    }));
+  }
 } 

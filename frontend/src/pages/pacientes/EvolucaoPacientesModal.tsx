@@ -68,10 +68,35 @@ export default function EvolucaoPacientesModal({
   // Preencher form quando for edição
   useEffect(() => {
     if (open && evolucaoParaEditar) {
+      // Converter data para formato YYYY-MM-DD que o input date espera
+      // Tratando timezone UTC corretamente
+      const formatarDataParaInput = (data: string | Date) => {
+        if (!data) return '';
+        
+        // Se for string, criar Date e tratar como UTC
+        let dataObj: Date;
+        if (typeof data === 'string') {
+          // Se não terminar com 'Z', é provável que seja data local
+          if (data.includes('T') && !data.endsWith('Z')) {
+            dataObj = new Date(data + 'Z'); // Forçar UTC
+          } else {
+            dataObj = new Date(data);
+          }
+        } else {
+          dataObj = new Date(data);
+        }
+        
+        // Usar UTC methods para evitar problemas de timezone
+        const ano = dataObj.getUTCFullYear();
+        const mes = String(dataObj.getUTCMonth() + 1).padStart(2, '0');
+        const dia = String(dataObj.getUTCDate()).padStart(2, '0');
+        return `${ano}-${mes}-${dia}`;
+      };
+
       setForm({
         pacienteId: evolucaoParaEditar.pacienteId,
         agendamentoId: evolucaoParaEditar.agendamentoId,
-        dataEvolucao: evolucaoParaEditar.dataEvolucao,
+        dataEvolucao: formatarDataParaInput(evolucaoParaEditar.dataEvolucao),
         objetivoSessao: evolucaoParaEditar.objetivoSessao || '',
         descricaoEvolucao: evolucaoParaEditar.descricaoEvolucao || '',
       });

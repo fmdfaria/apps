@@ -96,3 +96,18 @@ export const deleteEvolucao = async (id: string): Promise<void> => {
     throw error;
   }
 };
+
+// Endpoint otimizado para verificar status de evoluções por agendamentos (batch)
+export const getStatusEvolucoesPorAgendamentos = async (
+  agendamentoIds: string[]
+): Promise<Array<{ agendamentoId: string; temEvolucao: boolean }>> => {
+  try {
+    const { data } = await api.post('/evolucoes/status-por-agendamentos', {
+      agendamentoIds
+    });
+    return data as Array<{ agendamentoId: string; temEvolucao: boolean }>;
+  } catch (error) {
+    console.error('Erro ao buscar status de evoluções por agendamentos:', error);
+    throw error;
+  }
+};

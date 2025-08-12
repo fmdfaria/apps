@@ -26,7 +26,7 @@ import { getAgendamentos } from '@/services/agendamentos';
 import { AtenderAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
 import EvolucaoPacientesModal from '@/pages/pacientes/EvolucaoPacientesModal';
 import { getPacientes } from '@/services/pacientes';
-import { getEvolucaoByAgendamento } from '@/services/evolucoes';
+import { getEvolucaoByAgendamento, getStatusEvolucoesPorAgendamentos } from '@/services/evolucoes';
 import type { Paciente } from '@/types/Paciente';
 import type { EvolucaoPaciente } from '@/types/EvolucaoPaciente';
 import api from '@/services/api';
@@ -51,6 +51,7 @@ export const AtenderPage = () => {
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [agendamentoParaEvolucao, setAgendamentoParaEvolucao] = useState<Agendamento | null>(null);
   const [evolucaoExistente, setEvolucaoExistente] = useState<EvolucaoPaciente | null>(null);
+  const [evolucoesMap, setEvolucoesMap] = useState<Map<string, boolean>>(new Map());
   const [itensPorPagina, setItensPorPagina] = useState(10);
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
@@ -217,6 +218,18 @@ export const AtenderPage = () => {
     paginaAtual * itensPorPagina
   );
 
+  // Carregar evoluções quando os agendamentos, filtros ou paginação mudarem
+  useEffect(() => {
+    const agendamentosPagina = agendamentosFiltrados.slice(
+      (paginaAtual - 1) * itensPorPagina,
+      paginaAtual * itensPorPagina
+    );
+    
+    if (agendamentosPagina.length > 0) {
+      carregarEvolucoes(agendamentosPagina);
+    }
+  }, [agendamentos, busca, filtros, paginaAtual, itensPorPagina]);
+
   const formatarDataHora = (dataHoraISO: string) => {
     // Parse da string sem conversão de timezone
     // Formato esperado: "2025-08-04T10:00:00.000Z" 
@@ -264,6 +277,28 @@ export const AtenderPage = () => {
     } catch (error) {
       console.error('Erro ao carregar pacientes:', error);
       AppToast.error('Erro ao carregar pacientes');
+    }
+  };
+
+  const carregarEvolucoes = async (agendamentos: Agendamento[]) => {
+    try {
+      const ids = agendamentos.map(a => a.id);
+      if (ids.length === 0) {
+        setEvolucoesMap(new Map());
+        return;
+      }
+      const resultados = await getStatusEvolucoesPorAgendamentos(ids);
+      const novoMap = new Map<string, boolean>();
+      resultados.forEach(({ agendamentoId, temEvolucao }) => {
+        novoMap.set(agendamentoId, temEvolucao);
+      });
+      setEvolucoesMap(novoMap);
+    } catch (error) {
+      console.error('Erro ao carregar evoluções:', error);
+      // fallback: marca todos como false para não quebrar UI
+      const fallbackMap = new Map<string, boolean>();
+      agendamentos.forEach(a => fallbackMap.set(a.id, false));
+      setEvolucoesMap(fallbackMap);
     }
   };
 
@@ -428,6 +463,12 @@ export const AtenderPage = () => {
               </TableHead>
               <TableHead className="py-3 text-sm font-semibold text-gray-700">
                 <div className="flex items-center gap-2">
+                  <span className="text-lg">📝</span>
+                  Evolução
+                </div>
+              </TableHead>
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
                   <span className="text-lg">⚙️</span>
                   Ações
                 </div>
@@ -437,7 +478,7 @@ export const AtenderPage = () => {
         <TableBody>
           {agendamentosPaginados.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="py-12 text-center">
+              <TableCell colSpan={10} className="py-12 text-center">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                     <span className="text-3xl">🩺</span>
@@ -494,6 +535,15 @@ export const AtenderPage = () => {
                         : 'bg-gray-100 text-gray-800'
                     }`}>
                       {agendamento.status}
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      evolucoesMap.get(agendamento.id) 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {evolucoesMap.get(agendamento.id) ? 'SIM' : 'NÃO'}
                     </span>
                   </TableCell>
                   <TableCell className="text-right py-2">
@@ -920,6 +970,14 @@ export const AtenderPage = () => {
         }}
         onSuccess={() => {
           AppToast.success('Evolução salva com sucesso!');
+          // Atualizar o mapa de evoluções para refletir a mudança
+          if (agendamentoParaEvolucao) {
+            setEvolucoesMap(prev => {
+              const novoMap = new Map(prev);
+              novoMap.set(agendamentoParaEvolucao.id, true);
+              return novoMap;
+            });
+          }
         }}
         pacientes={pacientes}
         evolucaoParaEditar={evolucaoExistente}
