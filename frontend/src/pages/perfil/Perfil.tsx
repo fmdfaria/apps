@@ -24,6 +24,8 @@ import {
   Key
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
+import AlterarSenhaModal from '@/components/AlterarSenhaModal';
 import { whatsAppFromStorage } from '@/utils/whatsapp';
 import { updateUser, getUserById, getUserRoles } from '@/services/users';
 import { AppToast } from '@/services/toast';
@@ -31,9 +33,14 @@ import { cn } from '@/lib/utils';
 
 export const Perfil = () => {
   const { user, setUser } = useAuth();
+  const { hasPermission } = usePermissions();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+
+  // Verificar se o usuário pode editar seu próprio perfil
+  const canEditProfile = user?.id ? hasPermission(`/users/${user.id}`, 'PUT') : false;
   const [formData, setFormData] = useState({
     nome: user?.nome || '',
     email: user?.email || '',
@@ -119,6 +126,15 @@ export const Perfil = () => {
   const handleSave = async () => {
     if (!user) return;
 
+    // Verificar permissão antes de prosseguir
+    if (!canEditProfile) {
+      AppToast.error('Acesso negado', {
+        description: 'Você não tem permissão para editar este perfil'
+      });
+      setIsEditing(false);
+      return;
+    }
+
     // Validações básicas
     if (!formData.nome.trim()) {
       AppToast.error('Nome é obrigatório');
@@ -175,8 +191,7 @@ export const Perfil = () => {
   };
 
   const handleChangePassword = () => {
-    // TODO: Implementar navegação para tela de troca de senha
-    console.log('Navegando para troca de senha');
+    setShowPasswordModal(true);
   };
 
   // Dados mockados para estatísticas
@@ -306,13 +321,19 @@ export const Perfil = () => {
                       <Key className="w-4 h-4" />
                       Alterar Senha
                     </Button>
-                    <Button
-                      variant={isEditing ? "outline" : "default"}
-                      onClick={() => setIsEditing(!isEditing)}
+                    <div
+                      className="inline-block"
+                      title={!canEditProfile && !isEditing ? 'Acesso restrito: Você não tem permissão para editar. Entre em contato com o administrador se necessário.' : undefined}
                     >
-                      <Edit3 className="w-4 h-4 mr-2" />
-                      {isEditing ? 'Cancelar' : 'Editar'}
-                    </Button>
+                      <Button
+                        variant={isEditing ? "outline" : "default"}
+                        onClick={() => setIsEditing(!isEditing)}
+                        disabled={!canEditProfile && !isEditing}
+                      >
+                        <Edit3 className="w-4 h-4 mr-2" />
+                        {isEditing ? 'Cancelar' : 'Editar'}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardHeader>
@@ -404,11 +425,15 @@ export const Perfil = () => {
                 {/* Botões de Ação */}
                 {isEditing && (
                   <div className="flex gap-3 pt-4">
-                    <Button 
-                      onClick={handleSave} 
-                      disabled={isSaving}
+                    <div
                       className="flex-1"
+                      title={!canEditProfile ? 'Acesso restrito: Você não tem permissão para editar este perfil' : undefined}
                     >
+                      <Button 
+                        onClick={handleSave} 
+                        disabled={isSaving || !canEditProfile}
+                        className="w-full"
+                      >
                       {isSaving ? (
                         <>
                           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
@@ -420,7 +445,8 @@ export const Perfil = () => {
                           Salvar Alterações
                         </>
                       )}
-                    </Button>
+                      </Button>
+                    </div>
                     <Button 
                       variant="outline" 
                       onClick={handleCancel} 
@@ -436,6 +462,12 @@ export const Perfil = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Alterar Senha */}
+      <AlterarSenhaModal 
+        open={showPasswordModal} 
+        onClose={() => setShowPasswordModal(false)} 
+      />
     </div>
   );
 }; 

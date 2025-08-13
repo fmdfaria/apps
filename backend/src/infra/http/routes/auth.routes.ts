@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { AuthController } from '../controllers/AuthController';
-// import { ensureAuthenticated } from '../middlewares/ensureAuthenticated';
+import { ensureAuthenticated } from '../middlewares/ensureAuthenticated';
 
 const controller = new AuthController();
 
@@ -11,7 +11,7 @@ export async function authRoutes(app: FastifyInstance) {
   app.post('/refresh', async (req, res) => controller.refresh(req, res));
   app.post('/password/request-reset', async (req, res) => controller.requestPasswordReset(req, res));
   app.post('/password/reset', async (req, res) => controller.resetPassword(req, res));
-  app.post('/password/change', /*ensureAuthenticated,*/ async (req, res) => controller.changePassword(req, res));
+  app.post('/password/change', { preHandler: [ensureAuthenticated] }, async (req, res) => controller.changePassword(req, res));
   app.post('/first-login', async (req, res) => controller.firstLogin(req, res));
   app.post('/email/request-confirmation', /*ensureAuthenticated,*/ async (req, res) => controller.requestEmailConfirmation(req, res));
   app.post('/email/confirm', async (req, res) => controller.confirmEmail(req, res));

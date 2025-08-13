@@ -18,4 +18,8 @@ export async function refresh(refreshToken: string): Promise<{ accessToken: stri
 export async function firstLogin(data: FirstLoginRequest): Promise<FirstLoginResponse> {
   const res = await api.post<FirstLoginResponse>('/first-login', data);
   return res.data;
+}
+
+export async function changePassword(senhaAtual: string, novaSenha: string): Promise<void> {
+  await api.post('/password/change', { senhaAtual, novaSenha });
 } 
