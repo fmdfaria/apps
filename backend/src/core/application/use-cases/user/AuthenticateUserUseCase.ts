@@ -72,7 +72,7 @@ export class AuthenticateUserUseCase {
       user: { ...userSafe, roles: roleNames },
       accessToken,
       refreshToken: refreshTokenValue,
-      requiresPasswordChange: user.primeiroLogin, // Indica se precisa trocar senha
+      requiresPasswordChange: !user.primeiroLogin, // Indica se precisa trocar senha (false = precisa trocar)
     };
   }
 } 

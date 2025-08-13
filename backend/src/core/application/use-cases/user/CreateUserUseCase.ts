@@ -41,7 +41,7 @@ export class CreateUserUseCase {
       whatsapp,
       senha: hashedPassword,
       ativo: true,
-      primeiroLogin: true, // Marca como primeiro login
+      primeiroLogin: false, // Novo usuário precisa fazer primeiro login
       profissionalId: profissionalId ?? null,
       pacienteId: pacienteId ?? null,
     });

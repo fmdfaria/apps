@@ -9,6 +9,8 @@ import { AppToast } from '@/services/toast';
 import { getUsers, createUser, updateUser, deleteUser } from '@/services/users';
 import type { User } from '@/types/User';
 import { FormErrorMessage } from '@/components/form-error-message';
+import { WhatsAppInput } from '@/components/ui/whatsapp-input';
+import { whatsAppFromStorage } from '@/utils/whatsapp';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import { 
   PageContainer, 
@@ -34,7 +36,7 @@ import { useTableFilters } from '@/hooks/useTableFilters';
 interface FormularioUsuario {
   nome: string;
   email: string;
-  senha: string;
+  whatsapp: string;
 }
 
 
@@ -49,10 +51,11 @@ export const UsuariosPage = () => {
   const [form, setForm] = useState<FormularioUsuario>({
     nome: '',
     email: '',
-    senha: '',
+    whatsapp: '',
   });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
+  const [whatsappValid, setWhatsappValid] = useState(false);
   const [excluindo, setExcluindo] = useState<User | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -84,24 +87,15 @@ export const UsuariosPage = () => {
       render: (item) => <span className="text-sm">{item.email}</span>
     },
     {
-      key: 'roles',
-      header: '🏷️ Roles',
-      essential: true,
-      className: 'text-center',
-      render: (item) => {
-        if (!item.roles || item.roles.length === 0) {
-          return <span className="text-xs text-gray-400">Nenhum role</span>;
-        }
-        return (
-          <div className="flex flex-wrap gap-1">
-            {item.roles.map((role, index) => (
-              <span key={index} className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded">
-                {role}
-              </span>
-            ))}
-          </div>
-        );
-      }
+      key: 'whatsapp',
+      header: '📱 WhatsApp',
+      essential: false,
+      filterable: {
+        type: 'text',
+        placeholder: 'WhatsApp do usuário...',
+        label: 'WhatsApp'
+      },
+      render: (item) => <span className="text-sm">{whatsAppFromStorage(item.whatsapp)}</span>
     },
     {
       key: 'ativo',
@@ -173,7 +167,7 @@ export const UsuariosPage = () => {
     let dadosFiltrados = usuarios.filter(u =>
       u.nome.toLowerCase().includes(busca.toLowerCase()) ||
       u.email.toLowerCase().includes(busca.toLowerCase()) ||
-      (u.roles && u.roles.some(role => role.toLowerCase().includes(busca.toLowerCase())))
+      u.whatsapp.toLowerCase().includes(busca.toLowerCase())
     );
     
     // Aplicar filtros dinâmicos
@@ -222,24 +216,6 @@ export const UsuariosPage = () => {
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-lg">👤</span>
             <CardTitle className="text-sm font-medium truncate">{usuario.nome}</CardTitle>
-          </div>
-          <div className="flex flex-wrap gap-1 ml-2">
-            {usuario.roles && usuario.roles.length > 0 ? (
-              usuario.roles.slice(0, 2).map((role, index) => (
-                <Badge key={index} className="text-xs flex-shrink-0 bg-blue-100 text-blue-800">
-                  {role}
-                </Badge>
-              ))
-            ) : (
-              <Badge className="text-xs flex-shrink-0 bg-gray-100 text-gray-800">
-                Sem roles
-              </Badge>
-            )}
-            {usuario.roles && usuario.roles.length > 2 && (
-              <Badge className="text-xs flex-shrink-0 bg-gray-100 text-gray-600">
-                +{usuario.roles.length - 2}
-              </Badge>
-            )}
           </div>
         </div>
       </CardHeader>
@@ -305,9 +281,10 @@ export const UsuariosPage = () => {
     setForm({
       nome: '',
       email: '',
-      senha: '',
+      whatsapp: '',
     });
     setFormError('');
+    setWhatsappValid(false);
     setShowModal(true);
   };
 
@@ -316,9 +293,10 @@ export const UsuariosPage = () => {
     setForm({
       nome: usuario.nome,
       email: usuario.email,
-      senha: '', // Não mostramos a senha atual
+      whatsapp: usuario.whatsapp,
     });
     setFormError('');
+    setWhatsappValid(true); // Assume que WhatsApp existente é válido
     setShowModal(true);
   };
 
@@ -328,9 +306,10 @@ export const UsuariosPage = () => {
     setForm({
       nome: '',
       email: '',
-      senha: '',
+      whatsapp: '',
     });
     setFormError('');
+    setWhatsappValid(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -346,8 +325,8 @@ export const UsuariosPage = () => {
       return;
     }
     
-    if (!editando && (!form.senha.trim() || form.senha.trim().length < 6)) {
-      setFormError('A senha deve ter pelo menos 6 caracteres.');
+    if (!editando && !whatsappValid) {
+      setFormError('WhatsApp obrigatório para novos usuários.');
       return;
     }
     
@@ -370,6 +349,7 @@ export const UsuariosPage = () => {
         const payload: any = {};
         if (form.nome !== editando.nome) payload.nome = form.nome.trim();
         if (form.email !== editando.email) payload.email = form.email.trim();
+        if (form.whatsapp !== editando.whatsapp) payload.whatsapp = form.whatsapp;
         
         if (Object.keys(payload).length > 0) {
           await updateUser(editando.id, payload);
@@ -379,9 +359,9 @@ export const UsuariosPage = () => {
         await createUser({
           nome: form.nome.trim(),
           email: form.email.trim(),
-          senha: form.senha.trim()
+          whatsapp: form.whatsapp
         });
-        AppToast.created('Usuário', `O usuário "${form.nome.trim()}" foi criado com sucesso.`);
+        AppToast.created('Usuário', `O usuário "${form.nome.trim()}" foi criado com sucesso. A senha temporária foi enviada via WhatsApp.`);
       }
       fecharModal();
       fetchUsuarios();
@@ -579,22 +559,26 @@ export const UsuariosPage = () => {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">📱</span>
+                  <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent font-semibold">WhatsApp</span>
+                  <span className="text-red-500">*</span>
+                </label>
+                <WhatsAppInput
+                  value={form.whatsapp}
+                  onChange={value => setForm(f => ({ ...f, whatsapp: value }))}
+                  onValidityChange={setWhatsappValid}
+                  disabled={formLoading}
+                  error={!whatsappValid && form.whatsapp.length > 0}
+                />
+              </div>
+
               {!editando && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
-                    <span className="text-lg">🔒</span>
-                    <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent font-semibold">Senha</span>
-                    <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    type="password"
-                    value={form.senha}
-                    onChange={e => setForm(f => ({ ...f, senha: e.target.value }))}
-                    minLength={6}
-                    disabled={formLoading}
-                    className="hover:border-blue-300 focus:border-blue-500 focus:ring-blue-100"
-                    placeholder="Mínimo 6 caracteres"
-                  />
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm text-blue-700">
+                    <span className="font-medium">ℹ️ Informação:</span> Uma senha temporária será gerada automaticamente e enviada via WhatsApp para o usuário.
+                  </p>
                 </div>
               )}
 
@@ -615,7 +599,7 @@ export const UsuariosPage = () => {
               </DialogClose>
               <Button 
                 type="submit" 
-                disabled={formLoading}
+                disabled={formLoading || (!editando && !whatsappValid)}
                 className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200"
               >
                 {formLoading ? (
@@ -626,7 +610,7 @@ export const UsuariosPage = () => {
                 ) : (
                   <>
                     <span className="mr-2">🟢</span>
-                    Salvar
+                    {editando ? 'Atualizar' : 'Criar Usuário'}
                   </>
                 )}
               </Button>

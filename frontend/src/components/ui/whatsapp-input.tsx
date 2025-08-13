@@ -36,7 +36,7 @@ const WhatsAppInput = forwardRef<HTMLInputElement, WhatsAppInputProps>(
       const storageValue = whatsAppToStorage(maskedValue);
       
       // Valida o número
-      const valid = storageValue.length >= 11 ? isValidWhatsApp(storageValue) : false;
+      const valid = storageValue.length >= 10 ? isValidWhatsApp(storageValue) : false;
       
       // Chama os callbacks
       onChange?.(storageValue);
@@ -50,7 +50,7 @@ const WhatsAppInput = forwardRef<HTMLInputElement, WhatsAppInputProps>(
         type="text"
         value={displayValue}
         onChange={handleChange}
-        placeholder="+55 (11) 99999-9999"
+        placeholder="55 11 99999-9999"
         className={cn(
           className,
           error && "border-red-500 focus:border-red-500"

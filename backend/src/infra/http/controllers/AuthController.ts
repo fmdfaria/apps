@@ -17,7 +17,7 @@ export class AuthController {
     const bodySchema = z.object({
       nome: z.string().min(3),
       email: z.string().email(),
-      whatsapp: z.string().min(13).max(14).regex(/^55\d{2}9?\d{8}$/, 'Formato de WhatsApp inválido. Use: 5511999999999 ou 55119999999999'),
+      whatsapp: z.string().min(12).max(14).regex(/^55\d{2}9?\d{8,9}$/, 'Formato de WhatsApp inválido. Use: 551199999999, 5511999999999 ou 55119999999999'),
       profissionalId: z.string().uuid().optional(),
       pacienteId: z.string().uuid().optional(),
     });

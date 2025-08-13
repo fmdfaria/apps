@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import LoginForm from '@/components/auth/LoginForm';
+import { FirstLoginPage } from '@/pages/FirstLoginPage';
 import { AppToast } from '@/services/toast';
 
 export default function Login() {
-  const { login, loading, error, isAuthenticated } = useAuth();
+  const { login, logout, completeFirstLogin, loading, error, isAuthenticated, requiresPasswordChange, user } = useAuth();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const navigate = useNavigate();
@@ -31,6 +32,27 @@ export default function Login() {
       });
     }
   }, [error]);
+
+  const handleFirstLoginSuccess = (authData: any) => {
+    completeFirstLogin(authData);
+  };
+
+  const handleFirstLoginCancel = () => {
+    logout();
+    setEmail('');
+    setSenha('');
+  };
+
+  // Se requer mudança de senha, mostra tela de primeiro login
+  if (requiresPasswordChange && user?.email) {
+    return (
+      <FirstLoginPage
+        email={user.email}
+        onSuccess={handleFirstLoginSuccess}
+        onCancel={handleFirstLoginCancel}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">

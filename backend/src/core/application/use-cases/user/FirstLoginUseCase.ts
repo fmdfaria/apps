@@ -42,8 +42,8 @@ export class FirstLoginUseCase {
       throw new AppError('Credenciais inválidas.', 401);
     }
 
-    // Verifica se é realmente o primeiro login
-    if (!user.primeiroLogin) {
+    // Verifica se é realmente o primeiro login (deve ser false para permitir primeiro login)
+    if (user.primeiroLogin) {
       throw new AppError('Este usuário já realizou o primeiro login.', 400);
     }
 
@@ -64,10 +64,10 @@ export class FirstLoginUseCase {
     // Criptografa a nova senha
     const hashedNewPassword = await bcrypt.hash(novaSenha, 10);
 
-    // Atualiza a senha e marca que não é mais primeiro login
+    // Atualiza a senha e marca que já fez o primeiro login
     await this.usersRepository.update(user.id, {
       senha: hashedNewPassword,
-      primeiroLogin: false,
+      primeiroLogin: true,
     });
 
     // Gera tokens JWT para autenticação
@@ -96,7 +96,7 @@ export class FirstLoginUseCase {
         email: user.email,
         whatsapp: user.whatsapp,
         ativo: user.ativo,
-        primeiroLogin: false,
+        primeiroLogin: true,
         roles: [], // TODO: buscar roles do usuário
       },
     };

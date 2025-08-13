@@ -56,33 +56,43 @@ export function applyWhatsAppMask(value: string): string {
   // Se não tem números, retorna vazio
   if (!cleanValue) return '';
   
-  // Sempre começar com +55
-  let formatted = '+55';
-  
-  if (cleanValue.length > 2) {
-    // Adiciona parênteses no DDD
-    const areaCode = cleanValue.substring(2, 4);
-    formatted += ` (${areaCode}`;
-    
-    if (cleanValue.length > 4) {
-      formatted += ')';
-      
-      const number = cleanValue.substring(4);
-      
-      if (number.length <= 4) {
-        // Primeiros 4 dígitos
-        formatted += ` ${number}`;
-      } else if (number.length <= 8) {
-        // Formato: +55 (11) 9999-9999 (fixo)
-        formatted += ` ${number.substring(0, 4)}-${number.substring(4)}`;
-      } else {
-        // Formato: +55 (11) 99999-9999 (celular)
-        formatted += ` ${number.substring(0, 5)}-${number.substring(5, 9)}`;
-      }
-    }
+  // Se começar com 5 mas não com 55, permite continuar digitando
+  if (cleanValue.length === 1 && cleanValue === '5') {
+    return '5';
   }
   
-  return formatted;
+  // Se começar com 55, aplica a formatação
+  if (cleanValue.startsWith('55')) {
+    let formatted = '+55';
+    
+    if (cleanValue.length > 2) {
+      // Adiciona parênteses no DDD
+      const areaCode = cleanValue.substring(2, 4);
+      formatted += ` (${areaCode}`;
+      
+      if (cleanValue.length > 4) {
+        formatted += ')';
+        
+        const number = cleanValue.substring(4);
+        
+        if (number.length <= 4) {
+          // Primeiros 4 dígitos
+          formatted += ` ${number}`;
+        } else if (number.length <= 8) {
+          // Formato: +55 (11) 9999-9999 (fixo)
+          formatted += ` ${number.substring(0, 4)}-${number.substring(4)}`;
+        } else {
+          // Formato: +55 (11) 99999-9999 (celular)
+          formatted += ` ${number.substring(0, 5)}-${number.substring(5, 9)}`;
+        }
+      }
+    }
+    
+    return formatted;
+  }
+  
+  // Se não começar com 55, retorna apenas os números digitados (permite continuar)
+  return cleanValue;
 }
 
 /**
@@ -93,8 +103,8 @@ export function applyWhatsAppMask(value: string): string {
 export function isValidWhatsApp(whatsapp: string): boolean {
   const cleanNumber = cleanWhatsApp(whatsapp);
   
-  // Deve ter entre 13 e 14 dígitos e começar com 55
-  if (cleanNumber.length < 13 || cleanNumber.length > 14 || !cleanNumber.startsWith('55')) {
+  // Deve ter entre 12 e 14 dígitos e começar com 55
+  if (cleanNumber.length < 12 || cleanNumber.length > 14 || !cleanNumber.startsWith('55')) {
     return false;
   }
   
@@ -104,14 +114,23 @@ export function isValidWhatsApp(whatsapp: string): boolean {
     return false;
   }
   
-  // Para celular, deve ter 9 dígitos no número e começar com 9
+  // Para celular com 9 dígitos (5511999999999 = 14 dígitos)
   if (cleanNumber.length === 14) {
     const firstDigit = cleanNumber.charAt(4);
     return firstDigit === '9';
   }
   
-  // Para fixo, deve ter 8 dígitos
-  return cleanNumber.length === 13;
+  // Para fixo com 8 dígitos (55119999999 = 13 dígitos)
+  if (cleanNumber.length === 13) {
+    return true;
+  }
+  
+  // Para fixo com 8 dígitos (551199999999 = 12 dígitos) - formato mais antigo
+  if (cleanNumber.length === 12) {
+    return true;
+  }
+  
+  return false;
 }
 
 /**

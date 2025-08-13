@@ -7,10 +7,12 @@ export function useAuth() {
     refreshToken,
     loading,
     error,
+    requiresPasswordChange,
     login,
     logout,
     refresh,
     setUser,
+    completeFirstLogin,
   } = useAuthStore();
 
   return {
@@ -19,10 +21,12 @@ export function useAuth() {
     refreshToken,
     loading,
     error,
+    requiresPasswordChange,
     login,
     logout,
     refresh,
     setUser,
+    completeFirstLogin,
     isAuthenticated: !!accessToken,
   };
 } 

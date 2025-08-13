@@ -9,6 +9,7 @@ interface AuthState {
   refreshToken: string | null;
   loading: boolean;
   error: string | null;
+  requiresPasswordChange: boolean;
   login: (email: string, senha: string) => Promise<void>;
   logout: () => void;
   refresh: () => Promise<void>;
@@ -19,6 +20,7 @@ interface AuthState {
   checkTokenValidity: () => Promise<void>;
   startTokenWatcher: () => void;
   stopTokenWatcher: () => void;
+  completeFirstLogin: (authData: any) => void;
 }
 
 const getStoredUser = () => {
@@ -39,6 +41,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   refreshToken: localStorage.getItem('refreshToken'),
   loading: false,
   error: null,
+  requiresPasswordChange: false,
   isAuthenticated: !!localStorage.getItem('accessToken'),
 
   setUser: (user) => {
@@ -59,7 +62,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true, error: null });
     try {
       const res = await api.post('/login', { email, senha });
-      const { user, accessToken, refreshToken } = res.data;
+      const { user, accessToken, refreshToken, requiresPasswordChange } = res.data;
+      
+      // Se requer mudança de senha, não armazena os tokens ainda
+      if (requiresPasswordChange) {
+        set({ 
+          loading: false, 
+          requiresPasswordChange: true, 
+          user: { ...user, email } // Armazena email temporariamente
+        });
+        return;
+      }
       
       if (accessToken) localStorage.setItem('accessToken', accessToken);
       if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
@@ -71,7 +84,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
       }
       
-      set({ user, accessToken, refreshToken, loading: false, isAuthenticated: true });
+      set({ user, accessToken, refreshToken, loading: false, isAuthenticated: true, requiresPasswordChange: false });
       
       // Inicia o token watcher após login bem-sucedido
       useAuthStore.getState().startTokenWatcher();
@@ -234,5 +247,32 @@ export const useAuthStore = create<AuthState>((set) => ({
       tokenWatcherInterval = null;
       console.log('Token watcher parado');
     }
+  },
+
+  completeFirstLogin: (authData) => {
+    const { user, accessToken, refreshToken } = authData;
+    
+    if (accessToken) localStorage.setItem('accessToken', accessToken);
+    if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+    if (user) {
+      try {
+        localStorage.setItem('user', JSON.stringify(user));
+      } catch (jsonError) {
+        console.error('Erro ao serializar usuário:', jsonError);
+      }
+    }
+    
+    set({ 
+      user, 
+      accessToken, 
+      refreshToken, 
+      isAuthenticated: true, 
+      requiresPasswordChange: false,
+      loading: false,
+      error: null
+    });
+    
+    // Inicia o token watcher após primeiro login completo
+    useAuthStore.getState().startTokenWatcher();
   },
 })); 
