@@ -5,6 +5,7 @@ import { CreateProfissionalUseCase } from '../../../core/application/use-cases/p
 import { ListProfissionaisUseCase } from '../../../core/application/use-cases/profissional/ListProfissionaisUseCase';
 import { UpdateProfissionalUseCase } from '../../../core/application/use-cases/profissional/UpdateProfissionalUseCase';
 import { DeleteProfissionalUseCase } from '../../../core/application/use-cases/profissional/DeleteProfissionalUseCase';
+import { GetProfissionalByUserIdUseCase } from '../../../core/application/use-cases/profissional/GetProfissionalByUserIdUseCase';
 import { createClient } from '@supabase/supabase-js';
 import { IProfissionaisRepository } from '../../../core/domain/repositories/IProfissionaisRepository';
 
@@ -39,6 +40,24 @@ export class ProfissionaisController {
     const useCase = container.resolve(ListProfissionaisUseCase);
     const profissionais = await useCase.execute();
     return reply.status(200).send(profissionais);
+  }
+
+  async getMe(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    // Extrair userId do token JWT
+    const userId = request.user?.id;
+    
+    if (!userId) {
+      return reply.status(401).send({ message: 'Token inválido ou usuário não autenticado.' });
+    }
+
+    const useCase = container.resolve(GetProfissionalByUserIdUseCase);
+    const profissional = await useCase.execute(userId);
+    
+    if (!profissional) {
+      return reply.status(404).send({ message: 'Profissional não encontrado para este usuário.' });
+    }
+    
+    return reply.status(200).send(profissional);
   }
 
   async update(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {

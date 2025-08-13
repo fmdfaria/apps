@@ -36,6 +36,7 @@ export interface IProfissionaisRepository {
   findById(id: string): Promise<Profissional | null>;
   findByCpf(cpf: string): Promise<Profissional | null>;
   findByEmail(email: string): Promise<Profissional | null>;
+  findByUserId(userId: string): Promise<Profissional | null>;
   findAll(): Promise<Profissional[]>;
   delete(id: string): Promise<void>;
   listProfissionaisServicos(): Promise<ProfissionalServico[]>;

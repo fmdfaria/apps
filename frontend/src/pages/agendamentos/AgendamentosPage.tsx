@@ -32,15 +32,16 @@ import type { Agendamento, StatusAgendamento } from '@/types/Agendamento';
 import { getAgendamentos, deleteAgendamento } from '@/services/agendamentos';
 import { 
   AgendamentoModal,
-  DetalhesAgendamentoModal,
-  EditAgendamentoModal
+  DetalhesAgendamentoModal
 } from '@/components/agendamentos';
+import { EditarAgendamentoModal } from '@/components/agendamentos/components/EditarAgendamentoModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import api from '@/services/api';
-import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
+import { useAuthStore } from '@/store/auth';
 
 export const AgendamentosPage = () => {
+  const { user } = useAuthStore();
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
@@ -49,7 +50,6 @@ export const AgendamentosPage = () => {
   
   // Estados para controle de permissões RBAC
   const [accessDenied, setAccessDenied] = useState(false);
-  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [canRead, setCanRead] = useState(true);
   const [canCreate, setCanCreate] = useState(true);
   const [canUpdate, setCanUpdate] = useState(true);
@@ -60,9 +60,9 @@ export const AgendamentosPage = () => {
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
 
-  // Estados para modal de edição
-  const [showEditAgendamento, setShowEditAgendamento] = useState(false);
-  const [agendamentoEditando, setAgendamentoEditando] = useState<string | null>(null);
+  // Estados para edição de agendamento
+  const [showEditarAgendamento, setShowEditarAgendamento] = useState(false);
+  const [agendamentoEdicao, setAgendamentoEdicao] = useState<Agendamento | null>(null);
   const [itensPorPagina, setItensPorPagina] = useState(12);
   const [paginaAtual, setPaginaAtual] = useState(1);
   
@@ -98,22 +98,7 @@ export const AgendamentosPage = () => {
     setShowAgendamentoModal(true);
   };
 
-  // Handlers para modal de edição
-  const handleAbrirEditarAgendamento = (agendamentoId: string) => {
-    setAgendamentoEditando(agendamentoId);
-    setShowEditAgendamento(true);
-  };
-
-  const handleFecharEditAgendamento = () => {
-    setShowEditAgendamento(false);
-    setAgendamentoEditando(null);
-  };
-
-  const handleSuccessEditAgendamento = () => {
-    carregarAgendamentos();
-    setShowEditAgendamento(false);
-    setAgendamentoEditando(null);
-  };
+  // Handlers de edição removidos
 
 
   useEffect(() => {
@@ -181,18 +166,30 @@ export const AgendamentosPage = () => {
     setAccessDenied(false);
     setAgendamentos([]); // Limpa agendamentos para evitar mostrar dados antigos
     try {
-      const dados = await getAgendamentos();
+      let dados = await getAgendamentos();
+      
+      // Se o usuário for PROFISSIONAL, filtrar apenas os agendamentos dele
+      if (user?.roles?.includes('PROFISSIONAL')) {
+        // Buscar o profissional associado ao usuário
+        try {
+          const profissionalResponse = await api.get('/profissionais/me');
+          const profissionalId = profissionalResponse.data.id;
+          
+          // Filtrar agendamentos apenas deste profissional
+          dados = dados.filter(agendamento => agendamento.profissionalId === profissionalId);
+        } catch (profissionalError) {
+          console.error('Erro ao buscar dados do profissional:', profissionalError);
+          AppToast.error('Erro ao carregar dados do profissional', {
+            description: 'Não foi possível carregar os agendamentos do profissional.'
+          });
+          dados = []; // Se não conseguir buscar o profissional, não mostra nenhum agendamento
+        }
+      }
+      
       setAgendamentos(dados);
     } catch (e: any) {
       if (e?.response?.status === 403) {
         setAccessDenied(true);
-        // Buscar informações da rota para mensagem mais específica
-        try {
-          const info = await getRouteInfo('/agendamentos', 'GET');
-          setRouteInfo(info);
-        } catch (routeError) {
-          // Erro ao buscar informações da rota
-        }
         // Não mostra toast aqui pois o interceptor já cuida disso
       } else {
         AppToast.error('Erro ao carregar agendamentos', {
@@ -339,6 +336,17 @@ export const AgendamentosPage = () => {
   const handleVerDetalhes = (agendamento: Agendamento) => {
     setAgendamentoDetalhes(agendamento);
     setShowDetalhesAgendamento(true);
+  };
+
+  const handleEditarAgendamento = (agendamento: Agendamento) => {
+    setAgendamentoEdicao(agendamento);
+    setShowEditarAgendamento(true);
+  };
+
+  const handleSuccessEdicao = () => {
+    carregarAgendamentos();
+    setShowEditarAgendamento(false);
+    setAgendamentoEdicao(null);
   };
 
   // Funções de exclusão
@@ -491,8 +499,8 @@ export const AgendamentosPage = () => {
                       <Button 
                         size="sm" 
                         variant="outline"
-                        className="flex-1 h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
-                        onClick={() => handleAbrirEditarAgendamento(agendamento.id)}
+                        className="flex-1 h-7 text-xs border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white"
+                        onClick={() => handleEditarAgendamento(agendamento)}
                         title="Editar Agendamento"
                       >
                         Editar
@@ -686,11 +694,11 @@ export const AgendamentosPage = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                          onClick={() => handleAbrirEditarAgendamento(agendamento.id)}
+                          className="group border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                          onClick={() => handleEditarAgendamento(agendamento)}
                           title="Editar Agendamento"
                         >
-                          <Edit className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
+                          <Edit className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
                         </Button>
                       ) : (
                         <Button
@@ -759,16 +767,6 @@ export const AgendamentosPage = () => {
             Você não tem permissão para acessar esta funcionalidade.
           </p>
           
-          {routeInfo && (
-            <div className="bg-gray-50 p-4 rounded-lg mb-4">
-              <h3 className="text-sm font-semibold text-gray-800 mb-2">Informações da Rota:</h3>
-              <div className="space-y-1 text-sm">
-                <p><span className="font-medium">Nome:</span> {routeInfo.nome}</p>
-                <p><span className="font-medium">Descrição:</span> {routeInfo.descricao}</p>
-                <p><span className="font-medium">Módulo:</span> {routeInfo.modulo || 'N/A'}</p>
-              </div>
-            </div>
-          )}
           
           <p className="text-sm text-gray-500">
             Entre em contato com o administrador do sistema para solicitar as devidas permissões.
@@ -1170,11 +1168,14 @@ export const AgendamentosPage = () => {
       />
 
       {/* Modal de edição de agendamento */}
-      <EditAgendamentoModal
-        isOpen={showEditAgendamento}
-        agendamentoId={agendamentoEditando}
-        onClose={handleFecharEditAgendamento}
-        onSuccess={handleSuccessEditAgendamento}
+      <EditarAgendamentoModal
+        isOpen={showEditarAgendamento}
+        agendamento={agendamentoEdicao}
+        onClose={() => {
+          setShowEditarAgendamento(false);
+          setAgendamentoEdicao(null);
+        }}
+        onSuccess={handleSuccessEdicao}
       />
     </div>
   );

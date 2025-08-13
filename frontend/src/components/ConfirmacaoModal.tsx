@@ -16,7 +16,7 @@ interface ConfirmacaoModalProps {
   onConfirm: () => void;
   onCancel?: () => void; // Handler opcional para o botão cancelar
   title: string;
-  description: string;
+  description: string | React.ReactNode;
   confirmText?: string;
   cancelText?: string;
   isLoading?: boolean;
@@ -91,18 +91,20 @@ export default function ConfirmacaoModal({
         </DialogDescription>
 
         <DialogFooter className="flex gap-3 mt-6">
-          <Button
-            variant="outline"
-            onClick={onCancel || onClose}
-            disabled={isLoading}
-            className="flex-1 border-2 border-gray-300 text-gray-700 hover:border-orange-400 hover:bg-orange-50 hover:text-orange-700 transition-all duration-200"
-          >
-            {cancelText}
-          </Button>
+          {cancelText && (
+            <Button
+              variant="outline"
+              onClick={onCancel || onClose}
+              disabled={isLoading}
+              className="flex-1 border-2 border-gray-300 text-gray-700 hover:border-orange-400 hover:bg-orange-50 hover:text-orange-700 transition-all duration-200"
+            >
+              {cancelText}
+            </Button>
+          )}
           <Button
             onClick={onConfirm}
             disabled={isLoading}
-            className={`flex-1 text-white ${styles.confirmButton} focus:ring-2 focus:ring-offset-2`}
+            className={`${cancelText ? 'flex-1' : 'w-full'} text-white ${styles.confirmButton} focus:ring-2 focus:ring-offset-2`}
           >
             {isLoading ? (
               <>

@@ -1,7 +1,6 @@
 import axios from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
 import { AppToast } from './toast';
-import { getRouteInfo } from './routes-info';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001',
@@ -9,33 +8,20 @@ const api = axios.create({
 });
 
 // Função para tratar erros 403 com mensagens amigáveis
-async function handleForbiddenError(originalRequest: any) {
-  try {
-    // Extrai o path e método da requisição
-    const fullUrl = originalRequest.url;
-    const method = originalRequest.method?.toUpperCase() || 'GET';
-    
-    // Remove a base URL para obter apenas o path
-    const baseURL = api.defaults.baseURL || '';
-    const path = fullUrl.startsWith(baseURL) ? fullUrl.replace(baseURL, '') : fullUrl;
-    
-    // Remove query parameters para buscar a rota exata
-    const cleanPath = path.split('?')[0];
-    
-    // Busca informações da rota
-    const routeInfo = await getRouteInfo(cleanPath, method);
-    
-    if (routeInfo) {
-      // Mensagem amigável com informações da rota
-      AppToast.accessDenied(routeInfo.nome, routeInfo.descricao);
-    } else {
-      // Mensagem genérica se a rota não for encontrada
-      AppToast.accessDenied();
-    }
-  } catch (err) {
-    // Se houver erro ao buscar informações da rota, mostra mensagem genérica
-    AppToast.accessDenied();
-  }
+function handleForbiddenError(originalRequest: any) {
+  // Extrai informações básicas da requisição para logging
+  const fullUrl = originalRequest.url;
+  const method = originalRequest.method?.toUpperCase() || 'GET';
+  
+  // Remove a base URL para obter apenas o path
+  const baseURL = api.defaults.baseURL || '';
+  const path = fullUrl.startsWith(baseURL) ? fullUrl.replace(baseURL, '') : fullUrl;
+  const cleanPath = path.split('?')[0];
+  
+  console.warn(`Acesso negado para ${method} ${cleanPath}`);
+  
+  // Mensagem genérica para todos os casos de acesso negado
+  AppToast.accessDenied();
 }
 
 // Interceptador para adicionar accessToken

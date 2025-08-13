@@ -97,6 +97,14 @@ export class PrismaProfissionaisRepository implements IProfissionaisRepository {
     return profissional ? toDomain(profissional) : null;
   }
 
+  async findByUserId(userId: string): Promise<Profissional | null> {
+    const profissional = await this.prisma.profissional.findUnique({
+      where: { userId },
+      include: profissionalInclude,
+    });
+    return profissional ? toDomain(profissional) : null;
+  }
+
   async findAll(): Promise<Profissional[]> {
     const profissionais = await this.prisma.profissional.findMany({
       include: profissionalInclude,

@@ -10,6 +10,7 @@ import {
   AgendamentoModal,
   DetalhesAgendamentoModal
 } from '@/components/agendamentos';
+import { EditarAgendamentoModal } from '@/components/agendamentos/components/EditarAgendamentoModal';
 import { 
   Calendar as CalendarIcon, 
   Plus,
@@ -32,6 +33,8 @@ import type { Convenio } from '@/types/Convenio';
 import type { Recurso } from '@/types/Recurso';
 import type { DisponibilidadeProfissional } from '@/types/DisponibilidadeProfissional';
 import { AppToast } from '@/services/toast';
+import api from '@/services/api';
+import { getModuleTheme } from '@/types/theme';
 
 interface CalendarProfissional {
   id: string;
@@ -59,6 +62,9 @@ interface CalendarAgendamento {
 }
 
 export const CalendarioPage = () => {
+  // Tema do módulo
+  const theme = getModuleTheme('calendario');
+  
   // Estados básicos
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'day' | 'week'>('day');
@@ -76,6 +82,10 @@ export const CalendarioPage = () => {
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
   
+  // Estados para edição de agendamento
+  const [showEditarAgendamento, setShowEditarAgendamento] = useState(false);
+  const [agendamentoEdicao, setAgendamentoEdicao] = useState<Agendamento | null>(null);
+  
   // Filtro lateral colapsível
   const [filtroLateralAberto, setFiltroLateralAberto] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -90,6 +100,9 @@ export const CalendarioPage = () => {
   // Estados para filtro de funcionários ativos
   const [filtrarFuncionariosAtivos, setFiltrarFuncionariosAtivos] = useState(false);
   const [filtrarFuncionariosOnline, setFiltrarFuncionariosOnline] = useState(false);
+  
+  // Estados para controle de permissões
+  const [canCreate, setCanCreate] = useState(true);
 
   // Funções de controle do modal unificado
   const handleFecharAgendamentoModal = () => {
@@ -123,11 +136,51 @@ export const CalendarioPage = () => {
     setShowAgendamentoModal(true);
   }
 
+  // Handlers para edição de agendamento
+  const handleEditarAgendamento = (agendamentoId: string) => {
+    const agendamento = agendamentos.find(ag => ag.id === agendamentoId);
+    if (agendamento) {
+      setAgendamentoEdicao(agendamento);
+      setShowEditarAgendamento(true);
+    }
+  };
+
+  const handleSuccessEdicao = () => {
+    carregarDados();
+    setShowEditarAgendamento(false);
+    setAgendamentoEdicao(null);
+  };
+
+  const handleFecharEdicao = () => {
+    setShowEditarAgendamento(false);
+    setAgendamentoEdicao(null);
+  };
+
 
   // Carregamento de dados
   useEffect(() => {
+    checkPermissions();
     carregarDados();
   }, []);
+
+  const checkPermissions = async () => {
+    try {
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data;
+      
+      // Verificar permissão para criar agendamentos
+      const canCreate = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos' && route.method.toLowerCase() === 'post';
+      });
+      
+      setCanCreate(canCreate);
+      
+    } catch (error: any) {
+      // Em caso de erro, desabilita criação por segurança
+      setCanCreate(false);
+      console.error('Erro ao verificar permissões:', error);
+    }
+  };
 
   const carregarDados = async () => {
     setLoading(true);
@@ -469,26 +522,37 @@ export const CalendarioPage = () => {
   return (
     <div className="pt-2 pl-6 pr-6 h-screen flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 flex-shrink-0">
+      <div className={`bg-gradient-to-r ${theme.headerBg} border border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 flex-shrink-0 shadow-sm`}>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Calendário</h1>
-          <p className="text-gray-600">Visualização em agenda dos agendamentos</p>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <span>📅</span>
+            <span className={`bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent`}>Calendário</span>
+          </h1>
         </div>
         <div className="flex items-center gap-4">
           {/* Toggle de Visualização */}
-          <div className="flex items-center bg-gray-100 rounded-lg p-1">
+          <div className="flex items-center !h-10 border-2 border-gray-200 rounded-lg bg-gray-50 overflow-hidden" style={{ minHeight: '40px' }}>
             <Button
               variant="ghost"
+              size="default"
               onClick={() => setGridViewType('profissionais')}
-              className={`${gridViewType === 'profissionais' ? 'bg-blue-100 text-blue-700 shadow-sm' : 'hover:bg-blue-700'}`}
+              className={gridViewType === 'profissionais' 
+                ? `!h-10 !px-4 !bg-gradient-to-r ${theme.primaryButton} !text-white !shadow-lg font-semibold !border-0 !rounded-none !m-0 flex-1` 
+                : `!h-10 !px-4 !bg-transparent !text-gray-600 hover:!bg-gradient-to-r ${theme.hoverBg} ${theme.hoverTextColor} !transition-all !duration-200 !rounded-none !m-0 flex-1`
+              }
             >
               <Users className="w-4 h-4 mr-2" />
               Profissionais
             </Button>
+            <div className="w-px h-6 bg-gray-300"></div>
             <Button
               variant="ghost"
+              size="default"
               onClick={() => setGridViewType('recursos')}
-              className={`${gridViewType === 'recursos' ? 'bg-blue-100 text-blue-700 shadow-sm' : 'hover:bg-blue-700'}`}
+              className={gridViewType === 'recursos' 
+                ? `!h-10 !px-4 !bg-gradient-to-r ${theme.primaryButton} !text-white !shadow-lg font-semibold !border-0 !rounded-none !m-0 flex-1` 
+                : `!h-10 !px-4 !bg-transparent !text-gray-600 hover:!bg-gradient-to-r ${theme.hoverBg} ${theme.hoverTextColor} !transition-all !duration-200 !rounded-none !m-0 flex-1`
+              }
             >
               <Building2 className="w-4 h-4 mr-2" />
               Recursos
@@ -497,8 +561,13 @@ export const CalendarioPage = () => {
 
           
           <Button 
-            className="bg-blue-600 hover:bg-blue-700"
-            onClick={handleAbrirNovoAgendamento}
+            className={canCreate 
+              ? `!h-10 bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} shadow-lg hover:shadow-xl transition-all duration-200 font-semibold` 
+              : "!h-10 bg-gray-400 cursor-not-allowed shadow-lg disabled:opacity-50"
+            }
+            onClick={canCreate ? handleAbrirNovoAgendamento : undefined}
+            disabled={!canCreate}
+            title={!canCreate ? "Você não tem permissão para criar agendamentos" : ""}
           >
             <Plus className="w-4 h-4 mr-2" />
             Novo Agendamento
@@ -515,297 +584,241 @@ export const CalendarioPage = () => {
               <CardHeader className="pb-4 flex-shrink-0">
                 <CardTitle className="text-lg font-semibold">Filtros</CardTitle>
               </CardHeader>
-              <CardContent className="flex-1 space-y-6 overflow-y-auto">
-                {/* Mini Calendário */}
-                <div>
-                  <div 
-                    className="flex items-center justify-between mb-3 cursor-pointer hover:bg-gray-50 p-2 -m-2 rounded-md transition-colors"
-                    onClick={() => setFiltroCalendarioAberto(!filtroCalendarioAberto)}
-                  >
-                    <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                      <CalendarIcon className="w-4 h-4" />
-                      Selecionar Data
-                    </h4>
-                    {filtroCalendarioAberto ? (
-                      <ChevronUp className="w-4 h-4 text-gray-500" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-gray-500" />
+              <CardContent className="flex-1 space-y-6 overflow-y-auto max-h-full">
+
+                {/* Filtro de Profissionais - Apenas na visão de Profissionais */}
+                {gridViewType === 'profissionais' && (
+                  <div>
+                    <div 
+                      className="flex items-center justify-between mb-3 cursor-pointer hover:bg-gray-50 p-2 -m-2 rounded-md transition-colors"
+                      onClick={() => setFiltroProfissionaisAberto(!filtroProfissionaisAberto)}
+                    >
+                      <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <Users className="w-4 h-4" />
+                        Profissionais
+                        {profissionaisSelecionados.length > 0 && (
+                          <Badge variant="secondary" className="ml-2 h-5 px-2 text-xs">
+                            {profissionaisSelecionados.length}
+                          </Badge>
+                        )}
+                      </h4>
+                      <div className="flex items-center gap-1">
+                        {filtroProfissionaisAberto && (
+                          <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleSelectAllProfissionais}
+                              className="h-6 px-2 text-xs"
+                            >
+                              {profissionaisSelecionados.length === profissionais.length ? 'Desmarcar' : 'Todos'}
+                            </Button>
+                            {profissionaisSelecionados.length > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleClearProfissionais}
+                                className="h-6 px-2 text-xs text-red-600 hover:text-red-700"
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                        {filtroProfissionaisAberto ? (
+                          <ChevronUp className="w-4 h-4 text-gray-500" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-500" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Lista de profissionais com checkbox */}
+                    {filtroProfissionaisAberto && (
+                      <div className="space-y-2 h-[calc(100vh-32rem)] min-h-96 overflow-y-auto pr-2">
+                        {profissionais
+                          .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
+                          .map((profissional, index) => {
+                            const cores = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4', '#F97316', '#84CC16'];
+                            const cor = cores[index % cores.length];
+                            const isSelected = profissionaisSelecionados.includes(profissional.id);
+                            
+                            return (
+                              <div
+                                key={profissional.id}
+                                className={`flex items-center space-x-3 p-2 rounded-md cursor-pointer transition-colors ${
+                                  isSelected ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'
+                                }`}
+                                onClick={() => handleProfissionalToggle(profissional.id)}
+                              >
+                                <Checkbox
+                                  checked={isSelected}
+                                  onChange={() => handleProfissionalToggle(profissional.id)}
+                                  className="flex-shrink-0"
+                                />
+                                <div 
+                                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                                  style={{ backgroundColor: cor }}
+                                >
+                                  {profissional.nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                                </div>
+                                <span className="text-sm text-gray-700 truncate flex-1">
+                                  {profissional.nome}
+                                </span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
+
+                    {/* Resumo dos profissionais selecionados */}
+                    {profissionaisSelecionados.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex flex-wrap gap-1">
+                          {profissionaisSelecionados.slice(0, 3).map(profissionalId => {
+                            const profissional = profissionais.find(p => p.id === profissionalId);
+                            if (!profissional) return null;
+                            
+                            return (
+                              <Badge
+                                key={profissionalId}
+                                variant="secondary"
+                                className="text-xs px-2 py-1"
+                              >
+                                {profissional.nome.split(' ')[0]}
+                              </Badge>
+                            );
+                          })}
+                          {profissionaisSelecionados.length > 3 && (
+                            <Badge variant="secondary" className="text-xs px-2 py-1">
+                              +{profissionaisSelecionados.length - 3}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {profissionaisSelecionados.length} de {profissionais.length} selecionados
+                        </p>
+                      </div>
                     )}
                   </div>
-                  {filtroCalendarioAberto && (
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={(date) => {
-                        setSelectedDate(date);
-                        if (date) {
-                          setCurrentDate(date);
-                        }
-                      }}
-                      className="rounded-md border w-full"
-                      classNames={{
-                        months: "flex w-full flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-                        month: "space-y-4 w-full",
-                        caption: "flex justify-center pt-1 relative items-center",
-                        caption_label: "text-sm font-medium",
-                        nav: "space-x-1 flex items-center",
-                        nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
-                        nav_button_previous: "absolute left-1",
-                        nav_button_next: "absolute right-1",
-                        table: "w-full border-collapse space-y-1",
-                        head_row: "flex",
-                        head_cell: "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem]",
-                        row: "flex w-full mt-2",
-                        cell: "h-8 w-8 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-                        day: "h-8 w-8 p-0 font-normal aria-selected:opacity-100",
-                        day_range_end: "day-range-end",
-                        day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                        day_today: "bg-accent text-accent-foreground",
-                        day_outside: "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
-                        day_disabled: "text-muted-foreground opacity-50",
-                        day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
-                        day_hidden: "invisible",
-                      }}
-                    />
-                  )}
-                </div>
+                )}
 
-                {/* Filtro de Profissionais */}
-                <div>
-                  <div 
-                    className="flex items-center justify-between mb-3 cursor-pointer hover:bg-gray-50 p-2 -m-2 rounded-md transition-colors"
-                    onClick={() => setFiltroProfissionaisAberto(!filtroProfissionaisAberto)}
-                  >
-                    <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                      <Users className="w-4 h-4" />
-                      Profissionais
-                      {profissionaisSelecionados.length > 0 && (
-                        <Badge variant="secondary" className="ml-2 h-5 px-2 text-xs">
-                          {profissionaisSelecionados.length}
-                        </Badge>
-                      )}
-                    </h4>
-                    <div className="flex items-center gap-1">
-                      {filtroProfissionaisAberto && (
-                        <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleSelectAllProfissionais}
-                            className="h-6 px-2 text-xs"
-                          >
-                            {profissionaisSelecionados.length === profissionais.length ? 'Desmarcar' : 'Todos'}
-                          </Button>
-                          {profissionaisSelecionados.length > 0 && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={handleClearProfissionais}
-                              className="h-6 px-2 text-xs text-red-600 hover:text-red-700"
-                            >
-                              <X className="w-3 h-3" />
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                      {filtroProfissionaisAberto ? (
-                        <ChevronUp className="w-4 h-4 text-gray-500" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-gray-500" />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Lista de profissionais com checkbox */}
-                  {filtroProfissionaisAberto && (
-                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                      {profissionais
-                        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
-                        .map((profissional, index) => {
-                          const cores = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4', '#F97316', '#84CC16'];
-                          const cor = cores[index % cores.length];
-                          const isSelected = profissionaisSelecionados.includes(profissional.id);
-                          
-                          return (
-                            <div
-                              key={profissional.id}
-                              className={`flex items-center space-x-3 p-2 rounded-md cursor-pointer transition-colors ${
-                                isSelected ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'
-                              }`}
-                              onClick={() => handleProfissionalToggle(profissional.id)}
-                            >
-                              <Checkbox
-                                checked={isSelected}
-                                onChange={() => handleProfissionalToggle(profissional.id)}
-                                className="flex-shrink-0"
-                              />
-                              <div 
-                                className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                                style={{ backgroundColor: cor }}
-                              >
-                                {profissional.nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                              </div>
-                              <span className="text-sm text-gray-700 truncate flex-1">
-                                {profissional.nome}
-                              </span>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  )}
-
-                  {/* Resumo dos profissionais selecionados */}
-                  {profissionaisSelecionados.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="flex flex-wrap gap-1">
-                        {profissionaisSelecionados.slice(0, 3).map(profissionalId => {
-                          const profissional = profissionais.find(p => p.id === profissionalId);
-                          if (!profissional) return null;
-                          
-                          return (
-                            <Badge
-                              key={profissionalId}
-                              variant="secondary"
-                              className="text-xs px-2 py-1"
-                            >
-                              {profissional.nome.split(' ')[0]}
-                            </Badge>
-                          );
-                        })}
-                        {profissionaisSelecionados.length > 3 && (
-                          <Badge variant="secondary" className="text-xs px-2 py-1">
-                            +{profissionaisSelecionados.length - 3}
+                {/* Filtro de Recursos - Apenas na visão de Recursos */}
+                {gridViewType === 'recursos' && (
+                  <div>
+                    <div 
+                      className="flex items-center justify-between mb-3 cursor-pointer hover:bg-gray-50 p-2 -m-2 rounded-md transition-colors"
+                      onClick={() => setFiltroRecursosAberto(!filtroRecursosAberto)}
+                    >
+                      <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <Building2 className="w-4 h-4" />
+                        Recursos
+                        {recursosSelecionados.length > 0 && (
+                          <Badge variant="secondary" className="ml-2 h-5 px-2 text-xs">
+                            {recursosSelecionados.length}
                           </Badge>
                         )}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {profissionaisSelecionados.length} de {profissionais.length} selecionados
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Filtro de Recursos */}
-                <div>
-                  <div 
-                    className="flex items-center justify-between mb-3 cursor-pointer hover:bg-gray-50 p-2 -m-2 rounded-md transition-colors"
-                    onClick={() => setFiltroRecursosAberto(!filtroRecursosAberto)}
-                  >
-                    <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                      <Building2 className="w-4 h-4" />
-                      Recursos
-                      {recursosSelecionados.length > 0 && (
-                        <Badge variant="secondary" className="ml-2 h-5 px-2 text-xs">
-                          {recursosSelecionados.length}
-                        </Badge>
-                      )}
-                    </h4>
-                    <div className="flex items-center gap-1">
-                      {filtroRecursosAberto && (
-                        <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleSelectAllRecursos}
-                            className="h-6 px-2 text-xs"
-                          >
-                            {recursosSelecionados.length === recursos.length ? 'Desmarcar' : 'Todos'}
-                          </Button>
-                          {recursosSelecionados.length > 0 && (
+                      </h4>
+                      <div className="flex items-center gap-1">
+                        {filtroRecursosAberto && (
+                          <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={handleClearRecursos}
-                              className="h-6 px-2 text-xs text-red-600 hover:text-red-700"
+                              onClick={handleSelectAllRecursos}
+                              className="h-6 px-2 text-xs"
                             >
-                              <X className="w-3 h-3" />
+                              {recursosSelecionados.length === recursos.length ? 'Desmarcar' : 'Todos'}
                             </Button>
-                          )}
-                        </div>
-                      )}
-                      {filtroRecursosAberto ? (
-                        <ChevronUp className="w-4 h-4 text-gray-500" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-gray-500" />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Lista de recursos com checkbox */}
-                  {filtroRecursosAberto && (
-                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                      {recursos
-                        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
-                        .map((recurso, index) => {
-                          const cores = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
-                          const cor = cores[index % cores.length];
-                          const isSelected = recursosSelecionados.includes(recurso.id);
-                          
-                          return (
-                            <div
-                              key={recurso.id}
-                              className={`flex items-center space-x-3 p-2 rounded-md cursor-pointer transition-colors ${
-                                isSelected ? 'bg-green-50 border border-green-200' : 'hover:bg-gray-50'
-                              }`}
-                              onClick={() => handleRecursoToggle(recurso.id)}
-                            >
-                              <Checkbox
-                                checked={isSelected}
-                                onChange={() => handleRecursoToggle(recurso.id)}
-                                className="flex-shrink-0"
-                              />
-                              <div 
-                                className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                                style={{ backgroundColor: cor }}
+                            {recursosSelecionados.length > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleClearRecursos}
+                                className="h-6 px-2 text-xs text-red-600 hover:text-red-700"
                               >
-                                <Building2 className="w-3 h-3" />
-                              </div>
-                              <div className="flex-1">
-                                <span className="text-sm text-gray-700 block">
+                                <X className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                        {filtroRecursosAberto ? (
+                          <ChevronUp className="w-4 h-4 text-gray-500" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-500" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Lista de recursos com checkbox */}
+                    {filtroRecursosAberto && (
+                      <div className="space-y-2 h-[calc(100vh-32rem)] min-h-96 overflow-y-auto pr-2">
+                        {recursos
+                          .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
+                          .map((recurso, index) => {
+                            const cores = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
+                            const cor = cores[index % cores.length];
+                            const isSelected = recursosSelecionados.includes(recurso.id);
+                            
+                            return (
+                              <div
+                                key={recurso.id}
+                                className={`flex items-center space-x-3 p-2 rounded-md cursor-pointer transition-colors ${
+                                  isSelected ? 'bg-green-50 border border-green-200' : 'hover:bg-gray-50'
+                                }`}
+                                onClick={() => handleRecursoToggle(recurso.id)}
+                              >
+                                <Checkbox
+                                  checked={isSelected}
+                                  onChange={() => handleRecursoToggle(recurso.id)}
+                                  className="flex-shrink-0"
+                                />
+                                <div 
+                                  className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                                  style={{ backgroundColor: cor }}
+                                >
+                                  <Building2 className="w-3 h-3" />
+                                </div>
+                                <span className="text-sm text-gray-700 truncate flex-1">
                                   {recurso.nome}
                                 </span>
-                                {recurso.descricao && (
-                                  <span className="text-xs text-gray-500">
-                                    {recurso.descricao}
-                                  </span>
-                                )}
                               </div>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  )}
-
-                  {/* Resumo dos recursos selecionados */}
-                  {recursosSelecionados.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="flex flex-wrap gap-1">
-                        {recursosSelecionados.slice(0, 3).map(recursoId => {
-                          const recurso = recursos.find(r => r.id === recursoId);
-                          if (!recurso) return null;
-                          
-                          return (
-                            <Badge
-                              key={recursoId}
-                              variant="secondary"
-                              className="text-xs px-2 py-1"
-                            >
-                              {recurso.nome}
-                            </Badge>
-                          );
-                        })}
-                        {recursosSelecionados.length > 3 && (
-                          <Badge variant="secondary" className="text-xs px-2 py-1">
-                            +{recursosSelecionados.length - 3}
-                          </Badge>
-                        )}
+                            );
+                          })}
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {recursosSelecionados.length} de {recursos.length} selecionados
-                      </p>
-                    </div>
-                  )}
-                </div>
+                    )}
+
+                    {/* Resumo dos recursos selecionados */}
+                    {recursosSelecionados.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex flex-wrap gap-1">
+                          {recursosSelecionados.slice(0, 3).map(recursoId => {
+                            const recurso = recursos.find(r => r.id === recursoId);
+                            if (!recurso) return null;
+                            
+                            return (
+                              <Badge
+                                key={recursoId}
+                                variant="secondary"
+                                className="text-xs px-2 py-1"
+                              >
+                                {recurso.nome}
+                              </Badge>
+                            );
+                          })}
+                          {recursosSelecionados.length > 3 && (
+                            <Badge variant="secondary" className="text-xs px-2 py-1">
+                              +{recursosSelecionados.length - 3}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {recursosSelecionados.length} de {recursos.length} selecionados
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -821,7 +834,7 @@ export const CalendarioPage = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => setFiltroLateralAberto(!filtroLateralAberto)}
-                  className="h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700 text-white"
+                  className={`h-8 w-8 p-0 bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} text-white shadow-md`}
                 >
                   <Menu className="w-4 h-4" />
                 </Button>
@@ -842,8 +855,8 @@ export const CalendarioPage = () => {
                         variant="outline"
                         size="sm"
                         className={filtrarFuncionariosAtivos 
-                          ? "h-9 px-3 bg-green-600 hover:bg-green-700 text-white" 
-                          : "h-9 px-3 border-green-600 text-green-600 hover:bg-green-600 hover:text-white"
+                          ? "!h-10 px-3 bg-green-600 hover:bg-green-700 text-white shadow-md" 
+                          : "!h-10 px-3 border-green-600 text-green-600 hover:bg-green-600 hover:text-white transition-colors"
                         }
                         onClick={() => setFiltrarFuncionariosAtivos(!filtrarFuncionariosAtivos)}
                       >
@@ -860,8 +873,8 @@ export const CalendarioPage = () => {
                         variant="outline"
                         size="sm"
                         className={filtrarFuncionariosOnline 
-                          ? "h-9 px-3 bg-blue-600 hover:bg-blue-700 text-white" 
-                          : "h-9 px-3 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white"
+                          ? "!h-10 px-3 bg-blue-600 hover:bg-blue-700 text-white shadow-md" 
+                          : "!h-10 px-3 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors"
                         }
                         onClick={() => setFiltrarFuncionariosOnline(!filtrarFuncionariosOnline)}
                       >
@@ -879,7 +892,7 @@ export const CalendarioPage = () => {
                   <Button 
                     variant="outline"
                     size="sm"
-                    className="h-9 px-3 bg-blue-600 hover:bg-blue-700 text-white"
+                    className={`!h-10 px-3 bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} text-white shadow-md transition-all duration-200`}
                     onClick={() => setCurrentDate(new Date())}
                   >
                     <CalendarIcon className="w-4 h-4 mr-1" />
@@ -920,7 +933,16 @@ export const CalendarioPage = () => {
                     setShowDetalhesAgendamento(true);
                   }
                 }}
+                onEditClick={handleEditarAgendamento}
                 onDoubleClick={(entityId, horario) => {
+                  // Verificar permissão para criar agendamento
+                  if (!canCreate) {
+                    AppToast.error('Acesso negado', {
+                      description: 'Você não tem permissão para criar agendamentos.'
+                    });
+                    return;
+                  }
+                  
                   // Verificar se o horário está disponível antes de permitir criar agendamento
                   if (gridViewType === 'profissionais') {
                     const status = verificarStatusDisponibilidade(entityId, currentDate, horario);
@@ -974,6 +996,13 @@ export const CalendarioPage = () => {
           setShowDetalhesAgendamento(false);
           setAgendamentoDetalhes(null);
         }}
+      />
+
+      <EditarAgendamentoModal
+        isOpen={showEditarAgendamento}
+        agendamento={agendamentoEdicao}
+        onClose={handleFecharEdicao}
+        onSuccess={handleSuccessEdicao}
       />
     </div>
   );

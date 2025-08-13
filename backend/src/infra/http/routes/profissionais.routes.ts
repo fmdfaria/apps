@@ -8,6 +8,7 @@ const profissionaisController = new ProfissionaisController();
 export async function profissionaisRoutes(app: FastifyInstance) {
   app.post('/profissionais', { preHandler: [ensureAuthenticated, ensureAuthorized('/profissionais', 'POST')] }, profissionaisController.create);
   app.get('/profissionais', { preHandler: [ensureAuthenticated, ensureAuthorized('/profissionais', 'GET')] }, profissionaisController.list);
+  app.get('/profissionais/me', { preHandler: [ensureAuthenticated] }, profissionaisController.getMe);
   app.put('/profissionais/:id', { preHandler: [ensureAuthenticated, ensureAuthorized('/profissionais/:id', 'PUT')] }, profissionaisController.update);
   app.delete('/profissionais/:id', { preHandler: [ensureAuthenticated, ensureAuthorized('/profissionais/:id', 'DELETE')] }, profissionaisController.delete);
   app.get('/profissionais/:id', { preHandler: [ensureAuthenticated, ensureAuthorized('/profissionais/:id', 'GET')] }, profissionaisController.show);

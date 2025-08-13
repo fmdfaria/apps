@@ -22,7 +22,8 @@ import {
   CheckSquare,
   UserCheck,
   PenTool,
-  UserCheck2
+  UserCheck2,
+  AlertCircle
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { getAgendamentos, updateCompareceu, updateAssinaturaPaciente, updateAssinaturaProfissional } from '@/services/agendamentos';
@@ -34,16 +35,16 @@ import { getEvolucaoByAgendamento, getStatusEvolucoesPorAgendamentos } from '@/s
 import type { Paciente } from '@/types/Paciente';
 import type { EvolucaoPaciente } from '@/types/EvolucaoPaciente';
 import api from '@/services/api';
-import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
+import { useAuthStore } from '@/store/auth';
 
 export const AtenderPage = () => {
+  const { user } = useAuthStore();
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Estados para controle de permissões RBAC
   const [accessDenied, setAccessDenied] = useState(false);
-  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [canAtender, setCanAtender] = useState(true);
   const [busca, setBusca] = useState('');
   const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
@@ -66,6 +67,10 @@ export const AtenderPage = () => {
   const [showAssinaturaProfissionalModal, setShowAssinaturaProfissionalModal] = useState(false);
   const [agendamentoParaAtualizar, setAgendamentoParaAtualizar] = useState<Agendamento | null>(null);
   const [isLoadingUpdate, setIsLoadingUpdate] = useState(false);
+  
+  // Estados para modal de validação de finalização
+  const [showValidacaoFinalizacaoModal, setShowValidacaoFinalizacaoModal] = useState(false);
+  const [problemasFinalizacao, setProblemasFinalizacao] = useState<string[]>([]);
 
   // Filtros avançados por coluna
   const [filtros, setFiltros] = useState({
@@ -121,18 +126,30 @@ export const AtenderPage = () => {
     setLoading(true);
     setAgendamentos([]); // Limpa agendamentos para evitar mostrar dados antigos
     try {
-      const dados = await getAgendamentos();
+      let dados = await getAgendamentos();
+      
+      // Se o usuário for PROFISSIONAL, filtrar apenas os agendamentos dele
+      if (user?.roles?.includes('PROFISSIONAL')) {
+        // Buscar o profissional associado ao usuário
+        try {
+          const profissionalResponse = await api.get('/profissionais/me');
+          const profissionalId = profissionalResponse.data.id;
+          
+          // Filtrar agendamentos apenas deste profissional
+          dados = dados.filter(agendamento => agendamento.profissionalId === profissionalId);
+        } catch (profissionalError) {
+          console.error('Erro ao buscar dados do profissional:', profissionalError);
+          AppToast.error('Erro ao carregar dados do profissional', {
+            description: 'Não foi possível carregar os agendamentos do profissional.'
+          });
+          dados = []; // Se não conseguir buscar o profissional, não mostra nenhum agendamento
+        }
+      }
+      
       setAgendamentos(dados);
     } catch (e: any) {
       if (e?.response?.status === 403) {
         setAccessDenied(true);
-        // Buscar informações da rota para mensagem mais específica
-        try {
-          const info = await getRouteInfo('/agendamentos-atender/:id', 'PUT');
-          setRouteInfo(info);
-        } catch (routeError) {
-          // Erro ao buscar informações da rota
-        }
         // Não mostra toast aqui pois o interceptor já cuida disso
       } else {
         AppToast.error('Erro ao carregar agendamentos', {
@@ -252,11 +269,6 @@ export const AtenderPage = () => {
       data: `${dia}/${mes}/${ano}`,
       hora: `${hora}:${minuto}`
     };
-  };
-
-  const handleAtender = (agendamento: Agendamento) => {
-    setAgendamentoSelecionado(agendamento);
-    setShowAtenderAgendamento(true);
   };
 
   const handleVerDetalhes = (agendamento: Agendamento) => {
@@ -414,8 +426,54 @@ export const AtenderPage = () => {
     }
   };
 
+  // Função para validar se pode finalizar o atendimento
+  const validarFinalizacaoAtendimento = (agendamento: Agendamento): { podeFinalizarAtendimento: boolean; problemas: string[] } => {
+    const problemas: string[] = [];
+    
+    // Verificar se tem evolução
+    const temEvolucao = evolucoesMap.get(agendamento.id) === true;
+    if (!temEvolucao) {
+      problemas.push('• Evolução não foi registrada');
+    }
+    
+    // Verificar comparecimento
+    if (agendamento.compareceu === null || agendamento.compareceu === undefined) {
+      problemas.push('• Status de comparecimento não foi definido');
+    }
+    
+    // Verificar assinatura do paciente
+    if (agendamento.assinaturaPaciente !== true) {
+      problemas.push('• Paciente não assinou a guia');
+    }
+    
+    // Verificar assinatura do profissional
+    if (agendamento.assinaturaProfissional !== true) {
+      problemas.push('• Profissional não assinou a guia');
+    }
+    
+    return {
+      podeFinalizarAtendimento: problemas.length === 0,
+      problemas
+    };
+  };
+
+  // Handler modificado para o botão Finalizar Atendimento
+  const handleAtender = (agendamento: Agendamento) => {
+    const { podeFinalizarAtendimento, problemas } = validarFinalizacaoAtendimento(agendamento);
+    
+    if (podeFinalizarAtendimento) {
+      // Pode finalizar - abrir modal normal
+      setAgendamentoSelecionado(agendamento);
+      setShowAtenderAgendamento(true);
+    } else {
+      // Não pode finalizar - mostrar problemas
+      setProblemasFinalizacao(problemas);
+      setShowValidacaoFinalizacaoModal(true);
+    }
+  };
+
   const renderCardView = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
       {agendamentosPaginados.length === 0 ? (
         <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-500">
           <Stethoscope className="w-12 h-12 mb-4" />
@@ -435,116 +493,191 @@ export const AtenderPage = () => {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
-                    <Stethoscope className="w-5 h-5" />
+                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                      {agendamento.pacienteNome?.charAt(0).toUpperCase()}
+                    </div>
                     <CardTitle className="text-lg">{agendamento.pacienteNome}</CardTitle>
                   </div>
-                  <Badge className="bg-green-100 text-green-700">
+                  <Badge className={`text-xs px-3 py-1 rounded-full font-medium ${
+                    agendamento.status === 'LIBERADO' 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
                     {agendamento.status}
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-2 mb-4">
+              <CardContent className="space-y-4">
+                {/* Informações Básicas */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar className="w-4 h-4 text-gray-500" />
+                    <span className="font-mono bg-gray-100 px-2 py-1 rounded text-gray-700">{data}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Clock className="w-4 h-4 text-gray-500" />
+                    <span className="font-mono bg-blue-100 px-2 py-1 rounded text-blue-700">{hora}</span>
+                  </div>
+                </div>
+
+                {/* Detalhes do Atendimento */}
+                <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Users className="w-4 h-4" />
+                    <span className="font-medium">Profissional:</span>
                     <span>{agendamento.profissionalNome}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <CreditCard className="w-4 h-4" />
+                    <span className="font-medium">Convênio:</span>
+                    <span>{agendamento.convenioNome}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
                     <FileText className="w-4 h-4" />
+                    <span className="font-medium">Serviço:</span>
                     <span>{agendamento.servicoNome}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar className="w-4 h-4" />
-                    <span>{data}</span>
+                    <span className="text-lg">🏥</span>
+                    <span className="font-medium">Tipo:</span>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      agendamento.tipoAtendimento === 'online' 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {agendamento.tipoAtendimento}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock className="w-4 h-4" />
-                    <span>{hora}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <CreditCard className="w-4 h-4" />
-                    <span>{agendamento.convenioNome}</span>
-                  </div>
-                  {agendamento.codLiberacao && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
-                      <span className="font-mono bg-green-50 px-2 py-1 rounded text-xs">
-                        {agendamento.codLiberacao}
+                </div>
+
+                {/* Status dos Processos */}
+                <div className="bg-gray-50 p-3 rounded-lg space-y-2">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Status dos Processos</h4>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-600">Evolução:</span>
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        evolucoesMap.get(agendamento.id) 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {evolucoesMap.get(agendamento.id) ? 'SIM' : 'NÃO'}
                       </span>
                     </div>
-                  )}
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-600">Compareceu:</span>
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        agendamento.compareceu === true
+                          ? 'bg-green-100 text-green-800' 
+                          : agendamento.compareceu === false
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {agendamento.compareceu === true ? 'SIM' : agendamento.compareceu === false ? 'NÃO' : 'PENDENTE'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-600">Pac. Assinou:</span>
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        agendamento.assinaturaPaciente === true
+                          ? 'bg-green-100 text-green-800' 
+                          : agendamento.assinaturaPaciente === false
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {agendamento.assinaturaPaciente === true ? 'SIM' : agendamento.assinaturaPaciente === false ? 'NÃO' : 'PENDENTE'}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-600">Prof. Assinou:</span>
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        agendamento.assinaturaProfissional === true
+                          ? 'bg-green-100 text-green-800' 
+                          : agendamento.assinaturaProfissional === false
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {agendamento.assinaturaProfissional === true ? 'SIM' : agendamento.assinaturaProfissional === false ? 'NÃO' : 'PENDENTE'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="flex flex-col gap-2">
-                  <div className="flex gap-1">
+
+                {/* Botões de Ação */}
+                <div className="flex flex-col gap-1 pt-2 border-t">
+                  <div className="flex justify-center gap-1">
                     <Button 
                       size="sm" 
                       variant="default"
-                      className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                      className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                       onClick={() => handleVerDetalhes(agendamento)}
+                      title="Visualizar Agendamento"
                     >
-                      Visualizar
+                      <Eye className="w-4 h-4" />
                     </Button>
                     <Button 
                       size="sm" 
                       variant="outline"
-                      className="flex-1 h-7 text-xs border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white"
+                      className="group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                       onClick={() => handleAbrirProntuario(agendamento)}
+                      title="Prontuário"
                     >
-                      Prontuário
+                      <ClipboardList className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
                     </Button>
-                  </div>
-                  
-                  <div className="flex gap-1">
                     <Button 
                       size="sm" 
                       variant="outline"
-                      className="flex-1 h-7 text-xs border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white"
+                      className="group border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                       onClick={() => handleCompareceu(agendamento)}
                       title="Marcar comparecimento"
                     >
-                      Compareceu
+                      <UserCheck className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
                     </Button>
                     <Button 
                       size="sm" 
                       variant="outline"
-                      className="flex-1 h-7 text-xs border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white"
+                      className="group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                       onClick={() => handleAssinaturaPaciente(agendamento)}
                       title="Assinatura do paciente"
                     >
-                      Assn. Paciente
+                      <PenTool className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
                     </Button>
                     <Button 
                       size="sm" 
                       variant="outline"
-                      className="flex-1 h-7 text-xs border-indigo-300 text-indigo-600 hover:bg-indigo-600 hover:text-white"
+                      className="group border-2 border-indigo-300 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 focus:ring-4 focus:ring-indigo-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                       onClick={() => handleAssinaturaProfissional(agendamento)}
                       title="Sua assinatura"
                     >
-                      Assn. Prof.
+                      <UserCheck2 className="w-4 h-4 text-indigo-600 group-hover:text-white transition-colors" />
                     </Button>
+                    {canAtender ? (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleAtender(agendamento)}
+                        title="Finalizar Atendimento"
+                      >
+                        <CheckSquare className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
+                      </Button>
+                    ) : (
+                      <Button 
+                        size="sm" 
+                        disabled={true}
+                        className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                        title="Você não tem permissão para finalizar atendimentos"
+                      >
+                        <CheckSquare className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
-
-                  {canAtender ? (
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="w-full h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
-                      onClick={() => handleAtender(agendamento)}
-                      title="Finalizar Atendimento"
-                    >
-                      Finalizar Atendimento
-                    </Button>
-                  ) : (
-                    <Button 
-                      size="sm" 
-                      disabled={true}
-                      className="w-full h-7 text-xs border-gray-300 text-gray-400 cursor-not-allowed"
-                      title="Você não tem permissão para finalizar atendimentos"
-                    >
-                      Finalizar Atendimento
-                    </Button>
-                  )}
                 </div>
               </CardContent>
             </Card>
@@ -844,16 +977,6 @@ export const AtenderPage = () => {
             Você não tem permissão para acessar esta funcionalidade.
           </p>
           
-          {routeInfo && (
-            <div className="bg-gray-50 p-4 rounded-lg mb-4">
-              <h3 className="text-sm font-semibold text-gray-800 mb-2">Informações da Rota:</h3>
-              <div className="space-y-1 text-sm">
-                <p><span className="font-medium">Nome:</span> {routeInfo.nome}</p>
-                <p><span className="font-medium">Descrição:</span> {routeInfo.descricao}</p>
-                <p><span className="font-medium">Módulo:</span> {routeInfo.modulo || 'N/A'}</p>
-              </div>
-            </div>
-          )}
           
           <p className="text-sm text-gray-500">
             Entre em contato com o administrador do sistema para solicitar as devidas permissões.
@@ -1257,6 +1380,31 @@ export const AtenderPage = () => {
         loadingText="Salvando..."
         variant="default"
         icon={<UserCheck2 className="w-6 h-6" />}
+      />
+
+      {/* Modal de validação para finalização de atendimento */}
+      <ConfirmacaoModal
+        open={showValidacaoFinalizacaoModal}
+        onClose={() => setShowValidacaoFinalizacaoModal(false)}
+        onConfirm={() => setShowValidacaoFinalizacaoModal(false)}
+        title="Não é possível finalizar o atendimento"
+        description={
+          <>
+            <p className="mb-3">Para finalizar o atendimento, você precisa resolver os seguintes problemas:</p>
+            <div className="bg-orange-50 border-l-4 border-orange-400 p-3 mb-3">
+              {problemasFinalizacao.map((problema, index) => (
+                <p key={index} className="text-sm text-orange-800 mb-1 last:mb-0">
+                  {problema}
+                </p>
+              ))}
+            </div>
+            <p className="text-sm">Após resolver estes itens, você poderá finalizar o atendimento.</p>
+          </>
+        }
+        confirmText="Entendi"
+        cancelText=""
+        variant="warning"
+        icon={<AlertCircle className="w-6 h-6" />}
       />
     </div>
   );

@@ -28,6 +28,7 @@ interface AppointmentCardProps {
   onDragEnd?: () => void;
   isDragging?: boolean;
   onDetailsClick?: (appointmentId: string) => void;
+  onEditClick?: (appointmentId: string) => void;
 }
 
 export const AppointmentCard = ({
@@ -39,7 +40,8 @@ export const AppointmentCard = ({
   onDragStart,
   onDragEnd,
   isDragging,
-  onDetailsClick
+  onDetailsClick,
+  onEditClick
 }: AppointmentCardProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -87,6 +89,13 @@ export const AppointmentCard = ({
   const handleDetailsClick = () => {
     if (onDetailsClick) {
       onDetailsClick(appointment.id);
+      setIsOpen(false);
+    }
+  };
+
+  const handleEditClick = () => {
+    if (onEditClick) {
+      onEditClick(appointment.id);
       setIsOpen(false);
     }
   };
@@ -213,7 +222,13 @@ export const AppointmentCard = ({
                 Ver Detalhes
               </Button>
             )}
-            <Button variant="outline" size="sm" className="flex-1">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1"
+              onClick={handleEditClick}
+              disabled={!onEditClick}
+            >
               <Edit className="w-4 h-4 mr-2" />
               Editar
             </Button>
