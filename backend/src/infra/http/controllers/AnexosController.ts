@@ -43,6 +43,11 @@ export class AnexosController {
 
       const parsedFields = anexoMultipartSchema.parse(fields);
       const { entidadeId, modulo, categoria, descricao, criadoPor } = parsedFields;
+      
+      // Usar usuário logado se criadoPor não foi fornecido
+      // @ts-ignore
+      const userId = request.user?.id;
+      const finalCriadoPor = criadoPor || userId;
 
       const fileBuffer = await mp.toBuffer();
       const nomeArquivo = mp.filename || 'arquivo_sem_nome';
@@ -56,7 +61,7 @@ export class AnexosController {
         categoria,
         entidadeId,
         metadata: {
-          'uploaded-by': criadoPor || 'unknown',
+          'uploaded-by': finalCriadoPor || 'unknown',
           'description': descricao || ''
         }
       });
@@ -68,7 +73,7 @@ export class AnexosController {
         bucket: modulo, // Manter compatibilidade, mas usar modulo
         nomeArquivo,
         descricao,
-        criadoPor,
+        criadoPor: finalCriadoPor,
         url: uploadResult.url,
         // Novos campos para S3
         s3Key: uploadResult.s3Key,
