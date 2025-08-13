@@ -19,6 +19,7 @@ interface IResponse {
   user: Omit<User, 'senha'> & { roles?: string[] };
   accessToken: string;
   refreshToken: string;
+  requiresPasswordChange: boolean;
 }
 
 @injectable()
@@ -71,6 +72,7 @@ export class AuthenticateUserUseCase {
       user: { ...userSafe, roles: roleNames },
       accessToken,
       refreshToken: refreshTokenValue,
+      requiresPasswordChange: user.primeiroLogin, // Indica se precisa trocar senha
     };
   }
 } 

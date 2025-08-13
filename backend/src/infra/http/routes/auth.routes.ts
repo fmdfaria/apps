@@ -12,6 +12,7 @@ export async function authRoutes(app: FastifyInstance) {
   app.post('/password/request-reset', async (req, res) => controller.requestPasswordReset(req, res));
   app.post('/password/reset', async (req, res) => controller.resetPassword(req, res));
   app.post('/password/change', /*ensureAuthenticated,*/ async (req, res) => controller.changePassword(req, res));
+  app.post('/first-login', async (req, res) => controller.firstLogin(req, res));
   app.post('/email/request-confirmation', /*ensureAuthenticated,*/ async (req, res) => controller.requestEmailConfirmation(req, res));
   app.post('/email/confirm', async (req, res) => controller.confirmEmail(req, res));
 } 

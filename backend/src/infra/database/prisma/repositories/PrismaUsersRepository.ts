@@ -9,6 +9,7 @@ export class PrismaUsersRepository implements IUsersRepository {
         ...data,
         profissionalId: data.profissionalId ?? null,
         pacienteId: data.pacienteId ?? null,
+        primeiroLogin: data.primeiroLogin ?? true,
       },
     });
     return user as User;
@@ -33,6 +34,8 @@ export class PrismaUsersRepository implements IUsersRepository {
         resetTokenExpires: data.resetTokenExpires ?? undefined,
         emailConfirmationToken: data.emailConfirmationToken ?? undefined,
         emailConfirmed: data.emailConfirmed ?? undefined,
+        whatsapp: data.whatsapp ?? undefined,
+        primeiroLogin: data.primeiroLogin ?? undefined,
       },
     });
     return user as User;

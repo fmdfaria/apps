@@ -10,20 +10,21 @@ import { ResetPasswordUseCase } from '../../../core/application/use-cases/user/R
 import { ChangePasswordUseCase } from '../../../core/application/use-cases/user/ChangePasswordUseCase';
 import { RequestEmailConfirmationUseCase } from '../../../core/application/use-cases/user/RequestEmailConfirmationUseCase';
 import { ConfirmEmailUseCase } from '../../../core/application/use-cases/user/ConfirmEmailUseCase';
+import { FirstLoginUseCase } from '../../../core/application/use-cases/user/FirstLoginUseCase';
 
 export class AuthController {
   async register(request: FastifyRequest, reply: FastifyReply) {
     const bodySchema = z.object({
       nome: z.string().min(3),
       email: z.string().email(),
-      senha: z.string().min(6),
+      whatsapp: z.string().min(13).max(14).regex(/^55\d{2}9?\d{8}$/, 'Formato de WhatsApp inválido. Use: 5511999999999 ou 55119999999999'),
       profissionalId: z.string().uuid().optional(),
       pacienteId: z.string().uuid().optional(),
     });
     const data = bodySchema.parse(request.body);
     const useCase = container.resolve(CreateUserUseCase);
-    const user = await useCase.execute(data);
-    return reply.status(201).send(user);
+    const result = await useCase.execute(data);
+    return reply.status(201).send(result);
   }
 
   async login(request: FastifyRequest, reply: FastifyReply) {
@@ -95,5 +96,23 @@ export class AuthController {
     const useCase = container.resolve(ConfirmEmailUseCase);
     await useCase.execute({ token });
     return reply.status(204).send();
+  }
+
+  async firstLogin(request: FastifyRequest, reply: FastifyReply) {
+    const bodySchema = z.object({
+      email: z.string().email(),
+      senhaAtual: z.string().min(1),
+      novaSenha: z.string().min(8),
+    });
+    const { email, senhaAtual, novaSenha } = bodySchema.parse(request.body);
+    const useCase = container.resolve(FirstLoginUseCase);
+    const result = await useCase.execute({
+      email,
+      senhaAtual,
+      novaSenha,
+      ip: request.ip,
+      userAgent: request.headers['user-agent'],
+    });
+    return reply.send(result);
   }
 } 

@@ -5,7 +5,9 @@ export class User {
   nome!: string;
   email!: string;
   senha!: string;
+  whatsapp!: string;
   ativo!: boolean;
+  primeiroLogin!: boolean;
   profissionalId?: string | null;
   pacienteId?: string | null;
   criadoEm!: Date;
