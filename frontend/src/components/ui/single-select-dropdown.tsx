@@ -21,9 +21,10 @@ interface SingleSelectDropdownProps {
   getDotColor?: (option: Option) => 'green' | 'blue' | 'red' | 'yellow' | 'purple' | 'gray' | 'orange' | 'pink' | undefined;
   getDisabled?: (option: Option) => boolean;
   searchFields?: string[];
+  disabled?: boolean;
 }
 
-export function SingleSelectDropdown({ options, selected, onChange, placeholder = 'Selecione...', formatOption, headerText = 'Opções disponíveis', dotColor = 'green', getDotColor, getDisabled, searchFields = ['nome'] }: SingleSelectDropdownProps) {
+export function SingleSelectDropdown({ options, selected, onChange, placeholder = 'Selecione...', formatOption, headerText = 'Opções disponíveis', dotColor = 'green', getDotColor, getDisabled, searchFields = ['nome'], disabled = false }: SingleSelectDropdownProps) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [inputFocused, setInputFocused] = useState(false);
@@ -137,8 +138,8 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
     if (inputRef.current) inputRef.current.focus();
   }
 
-  // Popover deve abrir se input está focado ou há texto
-  const popoverOpen = open || inputFocused || input.length > 0;
+  // Popover deve abrir se input está focado ou há texto, mas não se estiver disabled
+  const popoverOpen = !disabled && (open || inputFocused || input.length > 0);
 
   // Update width when popover opens (especially for input mode)
   React.useEffect(() => {
@@ -163,9 +164,13 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
         <PopoverTrigger asChild>
           <div
             ref={triggerRef}
-            className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 flex items-center gap-3 min-h-[44px] bg-white cursor-pointer hover:border-blue-300 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-100 transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden"
-            tabIndex={0}
-            onClick={() => {
+            className={`w-full border-2 rounded-xl px-4 py-2 flex items-center gap-3 min-h-[44px] transition-all duration-200 shadow-sm overflow-hidden ${
+              disabled 
+                ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60' 
+                : 'border-gray-200 bg-white cursor-pointer hover:border-blue-300 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-100 hover:shadow-md'
+            }`}
+            tabIndex={disabled ? -1 : 0}
+            onClick={disabled ? undefined : () => {
               setOpen(true);
               if (inputRef.current) inputRef.current.focus();
               // Force width update when trigger is clicked
@@ -187,17 +192,19 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
                >
                  {formatOption ? formatOption(selected) : selected.nome}
                </span>
-               <button 
-                 type="button" 
-                 onClick={e => { 
-                   e.stopPropagation(); 
-                   handleClear(); 
-                 }} 
-                 className="flex-shrink-0 hover:bg-gray-100 rounded-full p-1 transition-colors duration-150 focus:outline-none ml-2"
-                 title={`Remover ${selected.nome}`}
-               >
-                 <span className="w-4 h-4 flex items-center justify-center text-gray-400 hover:text-gray-600 text-sm font-bold">×</span>
-               </button>
+               {!disabled && (
+                 <button 
+                   type="button" 
+                   onClick={e => { 
+                     e.stopPropagation(); 
+                     handleClear(); 
+                   }} 
+                   className="flex-shrink-0 hover:bg-gray-100 rounded-full p-1 transition-colors duration-150 focus:outline-none ml-2"
+                   title={`Remover ${selected.nome}`}
+                 >
+                   <span className="w-4 h-4 flex items-center justify-center text-gray-400 hover:text-gray-600 text-sm font-bold">×</span>
+                 </button>
+               )}
              </div>
            ) : (
              <input
@@ -226,6 +233,7 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
                placeholder={selected ? selected.nome : placeholder}
                className="flex-1 border-none outline-none bg-transparent text-gray-700 placeholder:text-gray-400 font-medium min-w-0"
                autoComplete="off"
+               disabled={disabled}
              />
            )}
            

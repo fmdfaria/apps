@@ -23,6 +23,7 @@ import { criarHorarioSemanaPadrao, converterDisponibilidadesParaHorarios, gerarH
 import { parseDataLocal, formatarDataLocal } from '@/lib/utils';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
+import { useAuth } from '@/hooks/useAuth';
 
 // Gerar opções de horário para início (05:00 até 22:00)
 const gerarOpcoesHorarioInicio = () => {
@@ -95,9 +96,11 @@ const OPCOES_HORARIO_INICIO = gerarOpcoesHorarioInicio();
 const OPCOES_HORARIO_FIM = gerarOpcoesHorarioFim();
 
 export default function DisponibilidadeProfissionaisPage() {
+  const { user } = useAuth();
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [recursos, setRecursos] = useState<Recurso[]>([]);
   const [profissionalSelecionado, setProfissionalSelecionado] = useState<Profissional | null>(null);
+  const [profissionalBloqueado, setProfissionalBloqueado] = useState(false);
   const [recursoSelecionado, setRecursoSelecionado] = useState<Recurso | null>(null);
   const [tipoEdicao, setTipoEdicao] = useState<'presencial' | 'online' | 'folga'>('presencial');
   const [abaSelecionada, setAbaSelecionada] = useState<'semanal' | 'data-especifica'>('semanal');
@@ -226,6 +229,15 @@ export default function DisponibilidadeProfissionaisPage() {
         a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' })
       );
       setProfissionais(profissionaisOrdenados);
+      
+      // Se o usuário logado for PROFISSIONAL, selecionar automaticamente e bloquear alteração
+      if (user?.roles?.includes('PROFISSIONAL') && user?.profissionalId) {
+        const profissionalLogado = profissionaisOrdenados.find(p => p.id === user.profissionalId);
+        if (profissionalLogado) {
+          setProfissionalSelecionado(profissionalLogado);
+          setProfissionalBloqueado(true);
+        }
+      }
     } catch (err: any) {
       if (err?.response?.status === 403) {
         setAccessDenied(true);
@@ -704,9 +716,10 @@ export default function DisponibilidadeProfissionaisPage() {
               options={profissionais.map(p => ({ id: p.id, nome: p.nome }))}
               selected={profissionalSelecionado ? { id: profissionalSelecionado.id, nome: profissionalSelecionado.nome } : null}
               onChange={handleSelecionarProfissional}
-              placeholder={loading ? "Carregando..." : "Selecione..."}
+              placeholder={loading ? "Carregando..." : profissionalBloqueado ? "Profissional atual" : "Selecione..."}
               headerText="Profissionais disponíveis"
               dotColor="green"
+              disabled={profissionalBloqueado}
             />
           </div>
 

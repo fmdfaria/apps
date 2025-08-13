@@ -205,7 +205,7 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const isCollapsed = isCollapsedProp !== undefined ? isCollapsedProp : internalCollapsed;
   const setIsCollapsed = setIsCollapsedProp || setInternalCollapsed;
-  const { hasPermission, hasAnyChildPermission, loading: permissionsLoading } = useMenuPermissions();
+  const { hasPermission, loading: permissionsLoading } = useMenuPermissions();
   const handleToggle = () => {
     if (setIsCollapsedProp) {
       setIsCollapsed(!isCollapsed);
