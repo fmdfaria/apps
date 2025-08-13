@@ -20,20 +20,23 @@ import {
   Activity,
   Clock,
   CheckCircle,
-  Users
+  Users,
+  Key
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { whatsAppFromStorage } from '@/utils/whatsapp';
+import { updateUser } from '@/services/users';
+import { AppToast } from '@/services/toast';
 import { cn } from '@/lib/utils';
 
 export const Perfil = () => {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     nome: user?.nome || '',
     email: user?.email || '',
-    telefone: '',
-    endereco: '',
-    bio: ''
+    whatsapp: user?.whatsapp || '',
   });
 
   if (!user) {
@@ -56,43 +59,85 @@ export const Perfil = () => {
       .join('');
   };
 
-  // Função para obter cor do badge baseado no tipo de usuário
-  const getUserTypeColor = (tipo: string) => {
-    const colors = {
-      'ADMIN': 'bg-red-500',
-      'RECEPCIONISTA': 'bg-blue-500',
-      'PROFISSIONAL': 'bg-green-500',
-      'PACIENTE': 'bg-purple-500'
-    };
-    return colors[tipo as keyof typeof colors] || 'bg-gray-500';
+  // Função para obter cor do badge baseado nas roles do usuário
+  const getUserTypeColor = (roles: string[]) => {
+    if (roles.includes('ADMIN')) return 'bg-red-500';
+    if (roles.includes('PROFISSIONAL')) return 'bg-green-500';
+    if (roles.includes('RECEPCIONISTA')) return 'bg-blue-500';
+    if (roles.includes('PACIENTE')) return 'bg-purple-500';
+    return 'bg-gray-500';
   };
 
   // Função para obter texto amigável do tipo de usuário
-  const getUserTypeLabel = (tipo: string) => {
-    const labels = {
-      'ADMIN': 'Administrador',
-      'RECEPCIONISTA': 'Recepcionista',
-      'PROFISSIONAL': 'Profissional',
-      'PACIENTE': 'Paciente'
-    };
-    return labels[tipo as keyof typeof labels] || tipo;
+  const getUserTypeLabel = (roles: string[]) => {
+    if (roles.includes('ADMIN')) return 'Administrador';
+    if (roles.includes('PROFISSIONAL')) return 'Profissional';
+    if (roles.includes('RECEPCIONISTA')) return 'Recepcionista';
+    if (roles.includes('PACIENTE')) return 'Paciente';
+    return roles.join(', ') || 'Usuário';
   };
 
-  const handleSave = () => {
-    // TODO: Implementar salvamento dos dados
-    console.log('Salvando dados:', formData);
-    setIsEditing(false);
+  const handleSave = async () => {
+    if (!user) return;
+
+    // Validações básicas
+    if (!formData.nome.trim()) {
+      AppToast.error('Nome é obrigatório');
+      return;
+    }
+
+    if (!formData.email.trim() || !formData.email.includes('@')) {
+      AppToast.error('Email inválido');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Preparar dados para atualização (apenas campos que mudaram)
+      const updateData: any = {};
+      if (formData.nome !== user.nome) updateData.nome = formData.nome.trim();
+      if (formData.email !== user.email) updateData.email = formData.email.trim();
+      if (formData.whatsapp !== user.whatsapp) updateData.whatsapp = formData.whatsapp;
+
+      // Se não há mudanças, apenas sair do modo de edição
+      if (Object.keys(updateData).length === 0) {
+        setIsEditing(false);
+        AppToast.info('Nenhuma alteração detectada');
+        return;
+      }
+
+      // Fazer a chamada para o backend
+      await updateUser(user.id, updateData);
+
+      // Atualizar o usuário no estado global
+      const updatedUser = { ...user, ...updateData };
+      setUser(updatedUser);
+
+      setIsEditing(false);
+      AppToast.success('Perfil atualizado com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao salvar perfil:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao salvar perfil';
+      AppToast.error('Erro ao salvar', {
+        description: errorMessage
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
     setFormData({
       nome: user?.nome || '',
       email: user?.email || '',
-      telefone: '',
-      endereco: '',
-      bio: ''
+      whatsapp: user?.whatsapp || '',
     });
     setIsEditing(false);
+  };
+
+  const handleChangePassword = () => {
+    // TODO: Implementar navegação para tela de troca de senha
+    console.log('Navegando para troca de senha');
   };
 
   // Dados mockados para estatísticas
@@ -125,7 +170,7 @@ export const Perfil = () => {
                       <AvatarFallback 
                         className={cn(
                           'text-white text-xl font-semibold',
-                          getUserTypeColor(user.tipo)
+                          getUserTypeColor(user.roles || [])
                         )}
                       >
                         {getInitials(user.nome)}
@@ -145,22 +190,30 @@ export const Perfil = () => {
                   <Badge 
                     className={cn(
                       'mb-3 text-white',
-                      getUserTypeColor(user.tipo)
+                      getUserTypeColor(user.roles || [])
                     )}
                   >
-                    {getUserTypeLabel(user.tipo)}
+                    {getUserTypeLabel(user.roles || [])}
                   </Badge>
 
                   {/* Email */}
-                  <div className="flex items-center text-gray-600 mb-4">
+                  <div className="flex items-center text-gray-600 mb-2">
                     <Mail className="w-4 h-4 mr-2" />
                     <span className="text-sm">{user.email}</span>
                   </div>
 
+                  {/* WhatsApp */}
+                  {user.whatsapp && (
+                    <div className="flex items-center text-gray-600 mb-4">
+                      <Phone className="w-4 h-4 mr-2" />
+                      <span className="text-sm">{whatsAppFromStorage(user.whatsapp)}</span>
+                    </div>
+                  )}
+
                   {/* Status */}
                   <div className="flex items-center">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                    <span className="text-sm text-gray-600">Ativo</span>
+                    <div className={`w-2 h-2 rounded-full mr-2 ${user.ativo ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    <span className="text-sm text-gray-600">{user.ativo ? 'Ativo' : 'Inativo'}</span>
                   </div>
                 </div>
               </CardContent>
@@ -200,13 +253,23 @@ export const Perfil = () => {
                     <Settings className="w-5 h-5" />
                     Informações Pessoais
                   </CardTitle>
-                  <Button
-                    variant={isEditing ? "outline" : "default"}
-                    onClick={() => setIsEditing(!isEditing)}
-                  >
-                    <Edit3 className="w-4 h-4 mr-2" />
-                    {isEditing ? 'Cancelar' : 'Editar'}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={handleChangePassword}
+                      className="flex items-center gap-2"
+                    >
+                      <Key className="w-4 h-4" />
+                      Alterar Senha
+                    </Button>
+                    <Button
+                      variant={isEditing ? "outline" : "default"}
+                      onClick={() => setIsEditing(!isEditing)}
+                    >
+                      <Edit3 className="w-4 h-4 mr-2" />
+                      {isEditing ? 'Cancelar' : 'Editar'}
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -242,51 +305,28 @@ export const Perfil = () => {
                     </div>
                   </div>
 
-                  {/* Telefone */}
-                  <div className="space-y-2">
-                    <Label htmlFor="telefone">Telefone</Label>
+                  {/* WhatsApp */}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="whatsapp">WhatsApp</Label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
                       <Input
-                        id="telefone"
-                        value={formData.telefone}
-                        onChange={(e) => setFormData(prev => ({ ...prev, telefone: e.target.value }))}
+                        id="whatsapp"
+                        value={formData.whatsapp ? whatsAppFromStorage(formData.whatsapp) : ''}
+                        onChange={(e) => {
+                          // TODO: Implementar formatação e validação do WhatsApp
+                          const cleanValue = e.target.value.replace(/\D/g, '');
+                          setFormData(prev => ({ ...prev, whatsapp: cleanValue }));
+                        }}
                         disabled={!isEditing}
                         className="pl-10"
-                        placeholder="(11) 99999-9999"
+                        placeholder="+55 (11) 99999-9999"
                       />
                     </div>
+                    <p className="text-xs text-gray-500">
+                      Formato: +55 (11) 99999-9999
+                    </p>
                   </div>
-
-                  {/* Endereço */}
-                  <div className="space-y-2">
-                    <Label htmlFor="endereco">Endereço</Label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                      <Input
-                        id="endereco"
-                        value={formData.endereco}
-                        onChange={(e) => setFormData(prev => ({ ...prev, endereco: e.target.value }))}
-                        disabled={!isEditing}
-                        className="pl-10"
-                        placeholder="Seu endereço"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bio */}
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Biografia</Label>
-                  <textarea
-                    id="bio"
-                    value={formData.bio}
-                    onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
-                    disabled={!isEditing}
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
-                    placeholder="Conte um pouco sobre você..."
-                  />
                 </div>
 
                 {/* Informações do Sistema */}
@@ -303,15 +343,19 @@ export const Perfil = () => {
                     </div>
                     <div>
                       <span className="text-gray-600">Tipo de Conta:</span>
-                      <span className="ml-2 text-gray-900">{getUserTypeLabel(user.tipo)}</span>
+                      <span className="ml-2 text-gray-900">{getUserTypeLabel(user.roles || [])}</span>
                     </div>
                     <div>
                       <span className="text-gray-600">Status:</span>
-                      <span className="ml-2 text-green-600">Ativo</span>
+                      <span className={`ml-2 ${user.ativo ? 'text-green-600' : 'text-red-600'}`}>
+                        {user.ativo ? 'Ativo' : 'Inativo'}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-gray-600">Última Atualização:</span>
-                      <span className="ml-2 text-gray-900">Hoje, 14:30</span>
+                      <span className="text-gray-600">Primeiro Login:</span>
+                      <span className={`ml-2 ${user.primeiroLogin ? 'text-green-600' : 'text-orange-600'}`}>
+                        {user.primeiroLogin ? 'Concluído' : 'Pendente'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -319,11 +363,29 @@ export const Perfil = () => {
                 {/* Botões de Ação */}
                 {isEditing && (
                   <div className="flex gap-3 pt-4">
-                    <Button onClick={handleSave} className="flex-1">
-                      <Save className="w-4 h-4 mr-2" />
-                      Salvar Alterações
+                    <Button 
+                      onClick={handleSave} 
+                      disabled={isSaving}
+                      className="flex-1"
+                    >
+                      {isSaving ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                          Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4 mr-2" />
+                          Salvar Alterações
+                        </>
+                      )}
                     </Button>
-                    <Button variant="outline" onClick={handleCancel} className="flex-1">
+                    <Button 
+                      variant="outline" 
+                      onClick={handleCancel} 
+                      disabled={isSaving}
+                      className="flex-1"
+                    >
                       Cancelar
                     </Button>
                   </div>

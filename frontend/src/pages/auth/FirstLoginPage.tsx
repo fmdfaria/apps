@@ -10,23 +10,24 @@ import type { FirstLoginRequest } from '@/types/User';
 
 interface FirstLoginPageProps {
   email: string;
+  senhaAtual: string; // Senha que foi digitada no login
   onSuccess: (authData: any) => void;
   onCancel: () => void;
 }
 
 export const FirstLoginPage: React.FC<FirstLoginPageProps> = ({ 
   email, 
+  senhaAtual,
   onSuccess, 
   onCancel 
 }) => {
   const [formData, setFormData] = useState<FirstLoginRequest>({
     email,
-    senhaAtual: '',
+    senhaAtual,
     novaSenha: '',
   });
   
   const [confirmSenha, setConfirmSenha] = useState('');
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -37,7 +38,7 @@ export const FirstLoginPage: React.FC<FirstLoginPageProps> = ({
   const passwordsMatch = formData.novaSenha === confirmSenha && confirmSenha.length > 0;
   
   const isPasswordValid = hasMinLength;
-  const canSubmit = isPasswordValid && passwordsMatch && formData.senhaAtual.trim().length > 0;
+  const canSubmit = isPasswordValid && passwordsMatch;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,7 +76,7 @@ export const FirstLoginPage: React.FC<FirstLoginPageProps> = ({
             Primeiro Login
           </CardTitle>
           <p className="text-sm text-gray-600 mt-2">
-            Por segurança, você deve alterar sua senha temporária na primeira vez que acessa o sistema.
+            Por segurança, você deve criar uma nova senha na primeira vez que acessa o sistema.
           </p>
         </CardHeader>
         
@@ -95,31 +96,6 @@ export const FirstLoginPage: React.FC<FirstLoginPageProps> = ({
               />
             </div>
 
-            {/* Senha atual */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <Lock className="w-4 h-4" />
-                <span>Senha Temporária</span>
-                <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <Input
-                  type={showCurrentPassword ? "text" : "password"}
-                  value={formData.senhaAtual}
-                  onChange={(e) => setFormData(prev => ({ ...prev, senhaAtual: e.target.value }))}
-                  placeholder="Digite a senha temporária recebida"
-                  className="pr-10"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
 
             {/* Nova senha */}
             <div className="space-y-2">
@@ -135,6 +111,7 @@ export const FirstLoginPage: React.FC<FirstLoginPageProps> = ({
                   onChange={(e) => setFormData(prev => ({ ...prev, novaSenha: e.target.value }))}
                   placeholder="Digite sua nova senha"
                   className="pr-10"
+                  autoComplete="new-password"
                   required
                 />
                 <button
@@ -161,6 +138,7 @@ export const FirstLoginPage: React.FC<FirstLoginPageProps> = ({
                   onChange={(e) => setConfirmSenha(e.target.value)}
                   placeholder="Confirme sua nova senha"
                   className="pr-10"
+                  autoComplete="new-password"
                   required
                 />
                 <button

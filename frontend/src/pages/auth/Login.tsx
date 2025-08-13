@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import LoginForm from '@/components/auth/LoginForm';
-import { FirstLoginPage } from '@/pages/FirstLoginPage';
+import { FirstLoginPage } from './FirstLoginPage';
 import { AppToast } from '@/services/toast';
 
 export default function Login() {
@@ -48,6 +48,7 @@ export default function Login() {
     return (
       <FirstLoginPage
         email={user.email}
+        senhaAtual={senha}
         onSuccess={handleFirstLoginSuccess}
         onCancel={handleFirstLoginCancel}
       />
