@@ -43,16 +43,5 @@ export function generateSecurePassword(length: number = 10): string {
  */
 export function isPasswordSecure(password: string): boolean {
   // Pelo menos 8 caracteres
-  if (password.length < 8) return false;
-  
-  // Pelo menos uma letra maiúscula
-  if (!/[A-Z]/.test(password)) return false;
-  
-  // Pelo menos uma letra minúscula
-  if (!/[a-z]/.test(password)) return false;
-  
-  // Pelo menos um número
-  if (!/\d/.test(password)) return false;
-  
-  return true;
+  return password.length >= 8;
 }

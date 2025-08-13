@@ -56,7 +56,7 @@ export class FirstLoginUseCase {
     // Valida se a nova senha atende aos critérios de segurança
     if (!isPasswordSecure(novaSenha)) {
       throw new AppError(
-        'A nova senha deve ter pelo menos 8 caracteres, incluindo letras maiúsculas, minúsculas e números.',
+        'A nova senha deve ter pelo menos 8 caracteres.',
         400
       );
     }

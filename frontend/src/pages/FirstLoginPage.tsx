@@ -34,12 +34,9 @@ export const FirstLoginPage: React.FC<FirstLoginPageProps> = ({
 
   // Validações da senha
   const hasMinLength = formData.novaSenha.length >= 8;
-  const hasUpperCase = /[A-Z]/.test(formData.novaSenha);
-  const hasLowerCase = /[a-z]/.test(formData.novaSenha);
-  const hasNumbers = /\d/.test(formData.novaSenha);
   const passwordsMatch = formData.novaSenha === confirmSenha && confirmSenha.length > 0;
   
-  const isPasswordValid = hasMinLength && hasUpperCase && hasLowerCase && hasNumbers;
+  const isPasswordValid = hasMinLength;
   const canSubmit = isPasswordValid && passwordsMatch && formData.senhaAtual.trim().length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -180,30 +177,18 @@ export const FirstLoginPage: React.FC<FirstLoginPageProps> = ({
             {formData.novaSenha && (
               <div className="bg-gray-50 p-3 rounded-lg space-y-2">
                 <p className="text-xs font-medium text-gray-700 mb-2">Critérios da senha:</p>
-                <div className="grid grid-cols-2 gap-1 text-xs">
+                <div className="space-y-1 text-xs">
                   <div className={`flex items-center gap-1 ${hasMinLength ? 'text-green-600' : 'text-gray-400'}`}>
                     <CheckCircle2 className="w-3 h-3" />
-                    <span>Mín. 8 caracteres</span>
+                    <span>Mínimo 8 caracteres</span>
                   </div>
-                  <div className={`flex items-center gap-1 ${hasUpperCase ? 'text-green-600' : 'text-gray-400'}`}>
-                    <CheckCircle2 className="w-3 h-3" />
-                    <span>Maiúsculas</span>
-                  </div>
-                  <div className={`flex items-center gap-1 ${hasLowerCase ? 'text-green-600' : 'text-gray-400'}`}>
-                    <CheckCircle2 className="w-3 h-3" />
-                    <span>Minúsculas</span>
-                  </div>
-                  <div className={`flex items-center gap-1 ${hasNumbers ? 'text-green-600' : 'text-gray-400'}`}>
-                    <CheckCircle2 className="w-3 h-3" />
-                    <span>Números</span>
-                  </div>
+                  {confirmSenha && (
+                    <div className={`flex items-center gap-1 text-xs ${passwordsMatch ? 'text-green-600' : 'text-red-500'}`}>
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>Senhas coincidem</span>
+                    </div>
+                  )}
                 </div>
-                {confirmSenha && (
-                  <div className={`flex items-center gap-1 text-xs ${passwordsMatch ? 'text-green-600' : 'text-red-500'}`}>
-                    <CheckCircle2 className="w-3 h-3" />
-                    <span>Senhas coincidem</span>
-                  </div>
-                )}
               </div>
             )}
 
