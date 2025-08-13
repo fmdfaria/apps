@@ -6,13 +6,15 @@ import { FirstLoginPage } from './FirstLoginPage';
 import { AppToast } from '@/services/toast';
 
 export default function Login() {
-  const { login, logout, completeFirstLogin, loading, error, isAuthenticated, requiresPasswordChange, user } = useAuth();
+  const { login, logout, completeFirstLogin, loading, error, isAuthenticated, requiresPasswordChange, user, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Limpa qualquer erro anterior antes de tentar novo login
+    clearError();
     await login(email, senha);
   };
 
@@ -28,7 +30,8 @@ export default function Login() {
   useEffect(() => {
     if (error) {
       AppToast.error('Erro ao fazer login', {
-        description: error
+        description: error,
+        duration: 8000 // 8 segundos para dar tempo de ler
       });
     }
   }, [error]);

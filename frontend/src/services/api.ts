@@ -40,11 +40,17 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Não tenta renovar se já tentou ou se a rota é /refresh
+    // Não tenta renovar se já tentou ou se a rota é de autenticação
+    const isAuthRoute = originalRequest.url.endsWith('/login') || 
+                       originalRequest.url.endsWith('/refresh') ||
+                       originalRequest.url.endsWith('/register') ||
+                       originalRequest.url.endsWith('/first-login') ||
+                       originalRequest.url.includes('/password/');
+    
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
-      !originalRequest.url.endsWith('/refresh')
+      !isAuthRoute
     ) {
       originalRequest._retry = true;
       try {

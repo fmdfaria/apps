@@ -13,6 +13,7 @@ export function useAuth() {
     refresh,
     setUser,
     completeFirstLogin,
+    clearError,
   } = useAuthStore();
 
   return {
@@ -27,6 +28,7 @@ export function useAuth() {
     refresh,
     setUser,
     completeFirstLogin,
+    clearError,
     isAuthenticated: !!accessToken,
   };
 } 

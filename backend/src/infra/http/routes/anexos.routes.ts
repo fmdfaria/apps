@@ -6,6 +6,7 @@ const controller = new AnexosController();
 export async function anexosRoutes(app: FastifyInstance) {
   app.post('/anexos', controller.create);
   app.get('/anexos', controller.list);
+  app.get('/anexos/:id/download', controller.getDownloadUrl);
   app.delete('/anexos/:id', controller.delete);
   app.put('/anexos/:id', controller.update);
 } 

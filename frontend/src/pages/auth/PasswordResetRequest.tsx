@@ -31,7 +31,7 @@ export default function PasswordResetRequest() {
   };
 
   const handleBackToLogin = () => {
-    navigate('/login');
+    navigate('/auth/login');
   };
 
   return (

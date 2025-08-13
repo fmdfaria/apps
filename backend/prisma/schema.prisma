@@ -322,16 +322,24 @@ model EvolucaoPaciente {
 }
 
 model Anexo {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  entidadeId  String    @map("entidade_id") @db.Uuid
-  bucket      String    @db.VarChar(100)
-  nomeArquivo String    @map("nome_arquivo") @db.VarChar(255)
-  descricao   String?
-  criadoPor   String?   @map("criado_por") @db.Uuid
-  url         String?
-  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entidadeId       String    @map("entidade_id") @db.Uuid
+  bucket           String    @db.VarChar(100)
+  nomeArquivo      String    @map("nome_arquivo") @db.VarChar(255)
+  descricao        String?
+  criadoPor        String?   @map("criado_por") @db.Uuid
+  url              String?
+  // Novos campos para S3
+  s3Key            String?   @map("s3_key") @db.VarChar(500)
+  tamanhoBytes     Int?      @map("tamanho_bytes")
+  mimeType         String?   @map("mime_type") @db.VarChar(100)
+  hashArquivo      String?   @map("hash_arquivo") @db.VarChar(64)
+  storageProvider  String?   @default("S3") @map("storage_provider") @db.VarChar(20)
+  createdAt        DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  @@index([s3Key], map: "idx_anexos_s3_key")
+  @@index([entidadeId], map: "idx_anexos_entidade_id")
   @@map("anexos")
 }
 

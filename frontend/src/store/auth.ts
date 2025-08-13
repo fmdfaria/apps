@@ -21,6 +21,7 @@ interface AuthState {
   startTokenWatcher: () => void;
   stopTokenWatcher: () => void;
   completeFirstLogin: (authData: any) => void;
+  clearError: () => void;
 }
 
 const getStoredUser = () => {
@@ -59,6 +60,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   login: async (email, senha) => {
+    // Para o token watcher durante o login para evitar interferências
+    useAuthStore.getState().stopTokenWatcher();
     set({ loading: true, error: null });
     try {
       const res = await api.post('/login', { email, senha });
@@ -274,5 +277,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     
     // Inicia o token watcher após primeiro login completo
     useAuthStore.getState().startTokenWatcher();
+  },
+
+  clearError: () => {
+    set({ error: null });
   },
 })); 

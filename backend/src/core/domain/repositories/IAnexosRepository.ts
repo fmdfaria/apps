@@ -7,6 +7,12 @@ export interface ICreateAnexoDTO {
   descricao?: string | null;
   criadoPor?: string | null;
   url?: string | null;
+  // Novos campos para S3
+  s3Key?: string | null;
+  tamanhoBytes?: number | null;
+  mimeType?: string | null;
+  hashArquivo?: string | null;
+  storageProvider?: string | null;
 }
 
 export interface IAnexosRepository {
@@ -14,5 +20,13 @@ export interface IAnexosRepository {
   findById(id: string): Promise<Anexo | null>;
   findAll(filters?: { entidadeId?: string }): Promise<Anexo[]>;
   delete(id: string): Promise<void>;
-  update(id: string, data: Partial<{ descricao: string | null; nomeArquivo: string; url: string }>): Promise<Anexo>;
+  update(id: string, data: Partial<{ 
+    descricao: string | null; 
+    nomeArquivo: string; 
+    url: string;
+    s3Key: string | null;
+    tamanhoBytes: number | null;
+    mimeType: string | null;
+    hashArquivo: string | null;
+  }>): Promise<Anexo>;
 } 

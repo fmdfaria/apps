@@ -5,70 +5,87 @@ import { CreateAnexoUseCase } from '../../../core/application/use-cases/anexo/Cr
 import { ListAnexosUseCase } from '../../../core/application/use-cases/anexo/ListAnexosUseCase';
 import { DeleteAnexoUseCase } from '../../../core/application/use-cases/anexo/DeleteAnexoUseCase';
 import { UpdateAnexoUseCase } from '../../../core/application/use-cases/anexo/UpdateAnexoUseCase';
-import { createClient } from '@supabase/supabase-js';
-
-const SUPABASE_API_URL = process.env.SUPABASE_API_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase = SUPABASE_API_URL && SUPABASE_SERVICE_ROLE_KEY 
-  ? createClient(SUPABASE_API_URL, SUPABASE_SERVICE_ROLE_KEY)
-  : null;
+import { S3StorageService } from '../../../shared/services/S3StorageService';
+import crypto from 'crypto';
 
 const anexoMultipartSchema = z.object({
   entidadeId: z.string().uuid(),
-  bucket: z.string(),
+  modulo: z.string(), // 'pacientes', 'profissionais', etc.
+  categoria: z.string(), // 'documentos', 'exames', etc.
   descricao: z.string().optional(),
   criadoPor: z.string().uuid().optional(),
 });
 
 export class AnexosController {
+  private s3Service: S3StorageService;
+
+  constructor() {
+    this.s3Service = new S3StorageService();
+  }
+
   async create(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-    if (!supabase) {
-      return reply.status(503).send({ message: 'Serviço de armazenamento não configurado.' });
+    try {
+      const mp = await request.file();
+
+      if (!mp) {
+        return reply.status(400).send({ message: 'Arquivo não enviado.' });
+      }
+
+      // Extrair os valores dos campos corretamente
+      const getFieldValue = (field: any) => (field && typeof field.value === 'string' ? field.value : undefined);
+      const fields = {
+        entidadeId: getFieldValue(mp.fields.entidadeId),
+        modulo: getFieldValue(mp.fields.modulo),
+        categoria: getFieldValue(mp.fields.categoria),
+        descricao: getFieldValue(mp.fields.descricao),
+        criadoPor: getFieldValue(mp.fields.criadoPor),
+      };
+
+      const parsedFields = anexoMultipartSchema.parse(fields);
+      const { entidadeId, modulo, categoria, descricao, criadoPor } = parsedFields;
+
+      const fileBuffer = await mp.toBuffer();
+      const nomeArquivo = mp.filename || 'arquivo_sem_nome';
+
+      // Upload para S3
+      const uploadResult = await this.s3Service.uploadFile({
+        buffer: fileBuffer,
+        filename: nomeArquivo,
+        mimetype: mp.mimetype || 'application/octet-stream',
+        modulo,
+        categoria,
+        entidadeId,
+        metadata: {
+          'uploaded-by': criadoPor || 'unknown',
+          'description': descricao || ''
+        }
+      });
+
+      // Salvar no banco de dados
+      const useCase = container.resolve(CreateAnexoUseCase);
+      const anexo = await useCase.execute({
+        entidadeId,
+        bucket: modulo, // Manter compatibilidade, mas usar modulo
+        nomeArquivo,
+        descricao,
+        criadoPor,
+        url: uploadResult.url,
+        // Novos campos para S3
+        s3Key: uploadResult.s3Key,
+        tamanhoBytes: uploadResult.size,
+        mimeType: uploadResult.mimetype,
+        hashArquivo: uploadResult.hash,
+        storageProvider: 'S3'
+      });
+
+      return reply.status(201).send(anexo);
+    } catch (error: any) {
+      console.error('Erro no upload:', error);
+      return reply.status(500).send({ 
+        message: 'Erro interno do servidor', 
+        error: error.message 
+      });
     }
-
-    const mp = await request.file();
-
-    if (!mp) {
-      return reply.status(400).send({ message: 'Arquivo não enviado.' });
-    }
-    // Extrair os valores dos campos corretamente
-    const getFieldValue = (field: any) => (field && typeof field.value === 'string' ? field.value : undefined);
-    const fields = {
-      entidadeId: getFieldValue(mp.fields.entidadeId),
-      bucket: getFieldValue(mp.fields.bucket),
-      descricao: getFieldValue(mp.fields.descricao),
-      criadoPor: getFieldValue(mp.fields.criadoPor),
-    };
-    const parsedFields = anexoMultipartSchema.parse(fields);
-    const { entidadeId, bucket, descricao, criadoPor } = parsedFields;
-    const fileBuffer = await mp.toBuffer();
-    const nomeArquivo = mp.filename;
-    const path = nomeArquivo; // pode customizar path se quiser subpastas
-
-    // Upload para o Supabase Storage
-    const bucketName = bucket ?? '';
-    const { data, error } = await supabase.storage.from(bucketName).upload(path, fileBuffer, {
-      upsert: true,
-      contentType: mp.mimetype,
-    });
-    if (error) {
-      return reply.status(500).send({ message: 'Erro ao fazer upload no Storage', error: error.message });
-    }
-
-    // Obter URL pública
-    const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(path);
-    const url = publicUrlData.publicUrl;
-
-    const useCase = container.resolve(CreateAnexoUseCase);
-    const anexo = await useCase.execute({
-      entidadeId,
-      bucket,
-      nomeArquivo,
-      descricao,
-      criadoPor,
-      url,
-    });
-    return reply.status(201).send(anexo);
   }
 
   async list(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
@@ -82,95 +99,152 @@ export class AnexosController {
   }
 
   async delete(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-    if (!supabase) {
-      return reply.status(503).send({ message: 'Serviço de armazenamento não configurado.' });
-    }
+    try {
+      const paramsSchema = z.object({ id: z.string().uuid() });
+      const { id } = paramsSchema.parse(request.params);
 
-    const paramsSchema = z.object({ id: z.string().uuid() });
-    const { id } = paramsSchema.parse(request.params);
-    // Buscar anexo antes de deletar
-    const listUseCase = container.resolve(ListAnexosUseCase);
-    const anexos = await listUseCase.execute({});
-    const anexo = anexos.find((a: any) => a.id === id);
-    if (!anexo) {
-      return reply.status(404).send({ message: 'Anexo não encontrado.' });
-    }
-    // Tentar remover do bucket
-    if (anexo.bucket && anexo.nomeArquivo) {
-      const bucketName = typeof anexo.bucket === 'string' ? anexo.bucket : '';
-      const nomeArquivo = typeof anexo.nomeArquivo === 'string' ? anexo.nomeArquivo : '';
-      const { error } = await supabase.storage.from(bucketName).remove([nomeArquivo]);
-      if (error) {
-        return reply.status(500).send({ message: 'Erro ao remover arquivo do bucket', error: error.message });
+      // Buscar anexo antes de deletar
+      const listUseCase = container.resolve(ListAnexosUseCase);
+      const anexos = await listUseCase.execute({});
+      const anexo = anexos.find((a: any) => a.id === id);
+      
+      if (!anexo) {
+        return reply.status(404).send({ message: 'Anexo não encontrado.' });
       }
+
+      // Remover do S3 se tiver s3Key
+      if (anexo.s3Key) {
+        await this.s3Service.deleteFile(anexo.s3Key);
+      }
+
+      // Remover do banco
+      const useCase = container.resolve(DeleteAnexoUseCase);
+      await useCase.execute(id);
+
+      return reply.status(204).send();
+    } catch (error: any) {
+      console.error('Erro ao deletar anexo:', error);
+      return reply.status(500).send({ 
+        message: 'Erro interno do servidor', 
+        error: error.message 
+      });
     }
-    // Remover do banco
-    const useCase = container.resolve(DeleteAnexoUseCase);
-    await useCase.execute(id);
-    return reply.status(204).send();
   }
 
   async update(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-    if (!supabase) {
-      return reply.status(503).send({ message: 'Serviço de armazenamento não configurado.' });
-    }
+    try {
+      const paramsSchema = z.object({ id: z.string().uuid() });
+      const { id } = paramsSchema.parse(request.params);
 
-    const paramsSchema = z.object({ id: z.string().uuid() });
-    const { id } = paramsSchema.parse(request.params);
-
-    // @ts-ignore
-    const mp = await request.file();
-    if (!mp) {
-      return reply.status(400).send({ message: 'Arquivo não enviado.' });
-    }
-    const getFieldValue = (field: any) => (field && typeof field.value === 'string' ? field.value : undefined);
-    const fields = {
-      descricao: getFieldValue(mp.fields.descricao),
-      bucket: getFieldValue(mp.fields.bucket),
-    };
-    const descricao = fields.descricao;
-    const bucket = fields.bucket;
-
-    // Buscar anexo atual
-    const useCase = container.resolve(UpdateAnexoUseCase);
-    const listUseCase = container.resolve(ListAnexosUseCase);
-    const anexos = await listUseCase.execute({});
-    const anexoAtual = anexos.find((a: any) => a.id === id);
-    if (!anexoAtual) {
-      return reply.status(404).send({ message: 'Anexo não encontrado.' });
-    }
-
-    let nomeArquivo = anexoAtual.nomeArquivo;
-    let url = anexoAtual.url;
-
-    // Se veio novo arquivo, faz upload e remove o antigo
-    if (mp && mp.filename) {
-      // Remove arquivo antigo
-      if (anexoAtual.bucket && anexoAtual.nomeArquivo) {
-        await supabase.storage.from(anexoAtual.bucket).remove([anexoAtual.nomeArquivo]);
+      const mp = await request.file();
+      if (!mp) {
+        return reply.status(400).send({ message: 'Arquivo não enviado.' });
       }
-      // Upload novo arquivo
-      const fileBuffer = await mp.toBuffer();
-      nomeArquivo = mp.filename;
-      const path = nomeArquivo;
-      const bucketName = bucket ?? '';
-      const { error } = await supabase.storage.from(bucketName).upload(path, fileBuffer, {
-        upsert: true,
-        contentType: mp.mimetype,
+
+      const getFieldValue = (field: any) => (field && typeof field.value === 'string' ? field.value : undefined);
+      const fields = {
+        descricao: getFieldValue(mp.fields.descricao),
+        modulo: getFieldValue(mp.fields.modulo),
+        categoria: getFieldValue(mp.fields.categoria),
+      };
+
+      // Buscar anexo atual
+      const listUseCase = container.resolve(ListAnexosUseCase);
+      const anexos = await listUseCase.execute({});
+      const anexoAtual = anexos.find((a: any) => a.id === id);
+      
+      if (!anexoAtual) {
+        return reply.status(404).send({ message: 'Anexo não encontrado.' });
+      }
+
+      let nomeArquivo = anexoAtual.nomeArquivo;
+      let url = anexoAtual.url;
+      let s3Key = anexoAtual.s3Key;
+      let uploadResult = null;
+
+      // Se veio novo arquivo, faz upload e remove o antigo
+      if (mp && mp.filename) {
+        // Remover arquivo antigo do S3
+        if (anexoAtual.s3Key) {
+          await this.s3Service.deleteFile(anexoAtual.s3Key);
+        }
+
+        // Upload novo arquivo
+        const fileBuffer = await mp.toBuffer();
+        nomeArquivo = mp.filename;
+
+        uploadResult = await this.s3Service.uploadFile({
+          buffer: fileBuffer,
+          filename: nomeArquivo,
+          mimetype: mp.mimetype || 'application/octet-stream',
+          modulo: fields.modulo || anexoAtual.bucket, // Fallback para compatibilidade
+          categoria: fields.categoria || 'outros',
+          entidadeId: anexoAtual.entidadeId,
+          metadata: {
+            'updated-at': new Date().toISOString(),
+            'description': fields.descricao || ''
+          }
+        });
+
+        url = uploadResult.url;
+        s3Key = uploadResult.s3Key;
+      }
+
+      const useCase = container.resolve(UpdateAnexoUseCase);
+      const updated = await useCase.execute({
+        id,
+        descricao: fields.descricao,
+        nomeArquivo,
+        url,
+        s3Key: uploadResult ? uploadResult.s3Key : undefined,
+        tamanhoBytes: uploadResult ? uploadResult.size : undefined,
+        mimeType: uploadResult ? uploadResult.mimetype : undefined,
+        hashArquivo: uploadResult ? uploadResult.hash : undefined,
       });
-      if (error) {
-        return reply.status(500).send({ message: 'Erro ao fazer upload no Storage', error: error.message });
-      }
-      const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(path);
-      url = publicUrlData.publicUrl;
-    }
 
-    const updated = await useCase.execute({
-      id,
-      descricao,
-      nomeArquivo,
-      url,
-    });
-    return reply.status(200).send(updated);
+      return reply.status(200).send(updated);
+    } catch (error: any) {
+      console.error('Erro ao atualizar anexo:', error);
+      return reply.status(500).send({ 
+        message: 'Erro interno do servidor', 
+        error: error.message 
+      });
+    }
+  }
+
+  // Novo método para gerar URL presignada para download
+  async getDownloadUrl(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      const paramsSchema = z.object({ id: z.string().uuid() });
+      const { id } = paramsSchema.parse(request.params);
+
+      // Buscar anexo
+      const listUseCase = container.resolve(ListAnexosUseCase);
+      const anexos = await listUseCase.execute({});
+      const anexo = anexos.find((a: any) => a.id === id);
+      
+      if (!anexo) {
+        return reply.status(404).send({ message: 'Anexo não encontrado.' });
+      }
+
+      if (!anexo.s3Key) {
+        return reply.status(400).send({ message: 'Anexo não possui referência S3.' });
+      }
+
+      // Gerar URL presignada para download (válida por 1 hora)
+      const downloadUrl = await this.s3Service.generatePresignedUrl({
+        s3Key: anexo.s3Key,
+        operation: 'download',
+        expiresIn: 3600 // 1 hora
+      });
+
+      return reply.send({ downloadUrl });
+    } catch (error: any) {
+      console.error('Erro ao gerar URL de download:', error);
+      return reply.status(500).send({ 
+        message: 'Erro interno do servidor', 
+        error: error.message 
+      });
+    }
   }
 } 

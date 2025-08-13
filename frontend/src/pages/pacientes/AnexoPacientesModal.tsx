@@ -65,7 +65,8 @@ export default function AnexoPacientesModal({
         file: anexoFiles[0],
         descricao: anexoDescricao,
         entidadeId: paciente.id,
-        bucket: 'pacientes',
+        modulo: 'pacientes',
+        categoria: 'documentos',
       });
 
       // Atualizar lista de anexos após upload

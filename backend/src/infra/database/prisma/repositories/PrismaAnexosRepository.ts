@@ -35,7 +35,15 @@ export class PrismaAnexosRepository implements IAnexosRepository {
     await this.prisma.anexo.delete({ where: { id } });
   }
 
-  async update(id: string, data: Partial<{ descricao: string | null; nomeArquivo: string; url: string }>): Promise<Anexo> {
+  async update(id: string, data: Partial<{ 
+    descricao: string | null; 
+    nomeArquivo: string; 
+    url: string;
+    s3Key: string | null;
+    tamanhoBytes: number | null;
+    mimeType: string | null;
+    hashArquivo: string | null;
+  }>): Promise<Anexo> {
     const anexo = await this.prisma.anexo.update({
       where: { id },
       data,
