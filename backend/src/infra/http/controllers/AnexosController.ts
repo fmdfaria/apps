@@ -20,11 +20,19 @@ export class AnexosController {
   private s3Service: S3StorageService;
 
   constructor() {
-    this.s3Service = new S3StorageService();
+    try {
+      this.s3Service = new S3StorageService();
+      console.log('S3StorageService initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize S3StorageService:', error);
+      throw error;
+    }
   }
 
   async create(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     try {
+      console.log('AnexosController.create called, s3Service:', this.s3Service ? 'initialized' : 'undefined');
+      
       const mp = await request.file();
 
       if (!mp) {
