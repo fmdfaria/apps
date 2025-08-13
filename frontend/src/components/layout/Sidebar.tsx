@@ -2,11 +2,13 @@ import React from 'react';
 import { Calendar, Users, UserCheck, Briefcase, Building, Building2, LayoutDashboard, LogOut, ChevronLeft, ChevronRight, Clock, DollarSign, CheckCircle, Stethoscope, ClipboardCheck, User, Landmark, Settings, Shield, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getModuleTheme } from '@/types/theme';
 import { useMenuPermissions } from '@/hooks/useMenuPermissions';
 import { useLogo } from '@/hooks/useLogo';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getAvatarUrl } from '@/services/avatar';
 
 // Mapeamento de páginas para módulos de tema
 const pageToModuleMap: Record<string, string> = {
@@ -208,6 +210,19 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
   const setIsCollapsed = setIsCollapsedProp || setInternalCollapsed;
   const { hasPermission, loading: permissionsLoading } = useMenuPermissions();
   const { logoUrl, loading: logoLoading } = useLogo();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl || null);
+
+  useEffect(() => {
+    setAvatarUrl(user?.avatarUrl || null);
+    let mounted = true;
+    // Busca com cache (rápido se já houver no localStorage)
+    if (user) {
+      getAvatarUrl()
+        .then((url) => { if (mounted) setAvatarUrl(url); })
+        .catch(() => {/* sem avatar ou erro, ignora */});
+    }
+    return () => { mounted = false; };
+  }, [user?.id]);
   const handleToggle = () => {
     if (setIsCollapsedProp) {
       setIsCollapsed(!isCollapsed);
@@ -270,13 +285,24 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
             <div className="flex justify-center">
               <button 
                 className={cn(
-                  'flex items-center justify-center rounded-full text-white font-semibold text-sm w-8 h-8 cursor-pointer hover:opacity-90 transition-opacity',
-                  getUserRoleColor(user.roles || [])
+                  'rounded-full cursor-pointer hover:opacity-90 transition-opacity'
                 )}
                 title={`${user.nome} - Clique para ver perfil`}
                 onClick={() => navigate('/perfil')}
               >
-                {getInitials(user.nome)}
+                <Avatar className="w-8 h-8">
+                  {(user.avatarUrl || avatarUrl) ? (
+                    <AvatarImage src={(user.avatarUrl || avatarUrl) as string} alt={user.nome} />
+                  ) : null}
+                  <AvatarFallback 
+                    className={cn(
+                      'text-white text-sm font-semibold',
+                      getUserRoleColor(user.roles || [])
+                    )}
+                  >
+                    {getInitials(user.nome)}
+                  </AvatarFallback>
+                </Avatar>
               </button>
             </div>
           ) : (
@@ -286,13 +312,24 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
               <div className="flex-shrink-0">
                 <button 
                   className={cn(
-                    'flex items-center justify-center rounded-full text-white font-semibold text-sm w-10 h-10 cursor-pointer hover:opacity-90 transition-opacity',
-                    getUserRoleColor(user.roles || [])
+                    'rounded-full cursor-pointer hover:opacity-90 transition-opacity'
                   )}
                   title="Ver perfil"
                   onClick={() => navigate('/perfil')}
                 >
-                  {getInitials(user.nome)}
+                  <Avatar className="w-10 h-10">
+                    {(user.avatarUrl || avatarUrl) ? (
+                      <AvatarImage src={(user.avatarUrl || avatarUrl) as string} alt={user.nome} />
+                    ) : null}
+                    <AvatarFallback 
+                      className={cn(
+                        'text-white text-sm font-semibold',
+                        getUserRoleColor(user.roles || [])
+                      )}
+                    >
+                      {getInitials(user.nome)}
+                    </AvatarFallback>
+                  </Avatar>
                 </button>
               </div>
               

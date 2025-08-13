@@ -23,7 +23,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import AlterarSenhaModal from '@/components/AlterarSenhaModal';
 import { whatsAppFromStorage } from '@/utils/whatsapp';
 import { updateUser, getUserById, getUserRoles } from '@/services/users';
-import { uploadAvatar } from '@/services/avatar';
+import { uploadAvatar, getAvatarUrl, setCachedAvatarUrl } from '@/services/avatar';
 import { AppToast } from '@/services/toast';
 import { cn } from '@/lib/utils';
 
@@ -50,14 +50,15 @@ export const Perfil = () => {
     
     setIsLoadingProfile(true);
     try {
-      // Buscar dados do usuário e roles em paralelo
-      const [updatedUser, userRoles] = await Promise.all([
+      // Buscar dados do usuário, roles e avatar em paralelo
+      const [updatedUser, userRoles, presignedAvatarUrlOrNull] = await Promise.all([
         getUserById(user.id),
-        getUserRoles(user.id)
+        getUserRoles(user.id),
+        getAvatarUrl().catch(() => null)
       ]);
 
       // Combinar dados do usuário com roles
-      const userWithRoles = { ...updatedUser, roles: userRoles };
+      const userWithRoles = { ...updatedUser, roles: userRoles, avatarUrl: presignedAvatarUrlOrNull || undefined };
       
       setUser(userWithRoles);
       setFormData({
@@ -216,11 +217,18 @@ export const Perfil = () => {
     try {
       const response = await uploadAvatar(file);
       
-      // Atualizar o usuário no estado global
-      if (user) {
-        const updatedUser = { ...user, avatarUrl: response.avatarUrl };
-        setUser(updatedUser);
+      // Após salvar a S3 key, buscar URL presignada para exibição
+      let presignedUrl = '';
+      try {
+        presignedUrl = await getAvatarUrl();
+      } catch (err) {
+        // Se falhar a geração, ainda assim atualiza com a chave retornada
+        presignedUrl = response.avatarUrl;
       }
+
+      // Atualizar o usuário no estado global com a URL presignada
+      if (user) setUser({ ...user, avatarUrl: presignedUrl });
+      setCachedAvatarUrl(presignedUrl);
 
       AppToast.success('Avatar atualizado com sucesso!');
     } catch (error: any) {
