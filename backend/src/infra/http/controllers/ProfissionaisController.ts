@@ -6,14 +6,15 @@ import { ListProfissionaisUseCase } from '../../../core/application/use-cases/pr
 import { UpdateProfissionalUseCase } from '../../../core/application/use-cases/profissional/UpdateProfissionalUseCase';
 import { DeleteProfissionalUseCase } from '../../../core/application/use-cases/profissional/DeleteProfissionalUseCase';
 import { GetProfissionalByUserIdUseCase } from '../../../core/application/use-cases/profissional/GetProfissionalByUserIdUseCase';
-import { createClient } from '@supabase/supabase-js';
 import { IProfissionaisRepository } from '../../../core/domain/repositories/IProfissionaisRepository';
-
-const SUPABASE_API_URL = process.env.SUPABASE_API_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(SUPABASE_API_URL, SUPABASE_SERVICE_ROLE_KEY);
+import { S3StorageService } from '../../../shared/services/S3StorageService';
 
 export class ProfissionaisController {
+  private s3Service: S3StorageService;
+
+  constructor() {
+    this.s3Service = new S3StorageService();
+  }
   async create(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const createBodySchema = z.object({
       nome: z.string(),
@@ -87,28 +88,41 @@ export class ProfissionaisController {
       for await (const part of parts) {
         if (part.type === 'file') {
           let path = part.filename;
+          const fileBuffer = await part.toBuffer();
+          
           if (part.fieldname === 'comprovante_endereco') {
-            // Remove arquivo antigo usando a URL pública salva
-            if (profissionalAtual.comprovanteEndereco) {
-              const oldPath = profissionalAtual.comprovanteEndereco.split('/').pop();
-              if (oldPath) await supabase.storage.from('profissionais').remove([oldPath]);
-            }
-            await supabase.storage.from('profissionais').upload(path, await part.toBuffer(), { upsert: true, contentType: part.mimetype });
-            comprovanteEnderecoUrl = supabase.storage.from('profissionais').getPublicUrl(path).data.publicUrl;
+            const uploadResult = await this.s3Service.uploadFile({
+              buffer: fileBuffer,
+              filename: part.filename || 'comprovante_endereco',
+              mimetype: part.mimetype || 'application/octet-stream',
+              modulo: 'profissionais',
+              categoria: 'comprovantes',
+              entidadeId: profissionalAtual.id,
+              metadata: { 'document-type': 'comprovante_endereco' }
+            });
+            comprovanteEnderecoUrl = uploadResult.url;
           } else if (part.fieldname === 'comprovante_registro') {
-            if (profissionalAtual.comprovanteRegistro) {
-              const oldPath = profissionalAtual.comprovanteRegistro.split('/').pop();
-              if (oldPath) await supabase.storage.from('profissionais').remove([oldPath]);
-            }
-            await supabase.storage.from('profissionais').upload(path, await part.toBuffer(), { upsert: true, contentType: part.mimetype });
-            comprovanteRegistroUrl = supabase.storage.from('profissionais').getPublicUrl(path).data.publicUrl;
+            const uploadResult = await this.s3Service.uploadFile({
+              buffer: fileBuffer,
+              filename: part.filename || 'comprovante_registro',
+              mimetype: part.mimetype || 'application/octet-stream',
+              modulo: 'profissionais',
+              categoria: 'comprovantes',
+              entidadeId: profissionalAtual.id,
+              metadata: { 'document-type': 'comprovante_registro' }
+            });
+            comprovanteRegistroUrl = uploadResult.url;
           } else if (part.fieldname === 'comprovante_bancario') {
-            if (profissionalAtual.comprovanteBancario) {
-              const oldPath = profissionalAtual.comprovanteBancario.split('/').pop();
-              if (oldPath) await supabase.storage.from('profissionais').remove([oldPath]);
-            }
-            await supabase.storage.from('profissionais').upload(path, await part.toBuffer(), { upsert: true, contentType: part.mimetype });
-            comprovanteBancarioUrl = supabase.storage.from('profissionais').getPublicUrl(path).data.publicUrl;
+            const uploadResult = await this.s3Service.uploadFile({
+              buffer: fileBuffer,
+              filename: part.filename || 'comprovante_bancario',
+              mimetype: part.mimetype || 'application/octet-stream',
+              modulo: 'profissionais',
+              categoria: 'comprovantes',
+              entidadeId: profissionalAtual.id,
+              metadata: { 'document-type': 'comprovante_bancario' }
+            });
+            comprovanteBancarioUrl = uploadResult.url;
           }
         } else if (part.type === 'field' && 'value' in part && typeof part.value === 'string') {
           body[part.fieldname] = part.value;
@@ -194,14 +208,8 @@ export class ProfissionaisController {
       return reply.status(404).send({ message: 'Profissional não encontrado.' });
     }
     // Remover arquivos do bucket se existirem
-    const arquivos = [
-      profissional.comprovanteEndereco,
-      profissional.comprovanteRegistro,
-      profissional.comprovanteBancario,
-    ].filter(Boolean).map(url => url!.split('/').pop()!);
-    if (arquivos.length > 0) {
-      await supabase.storage.from('profissionais').remove(arquivos);
-    }
+    // Delete S3 files - URLs não são mais keys diretas, então skip por enquanto
+    // TODO: Implementar lógica para deletar por S3 key quando disponível
     const useCase = container.resolve(DeleteProfissionalUseCase);
     await useCase.execute({ id });
     return reply.status(204).send();
@@ -248,28 +256,19 @@ export class ProfissionaisController {
           // Aceitar tanto 'comprovante_endereco' quanto 'file'
           if (part.fieldname === 'comprovante_endereco' || part.fieldname === 'file') {
             try {
-              // Remover arquivo antigo se existir
-              if (profissionalAtual.comprovanteEndereco) {
-                const oldPath = profissionalAtual.comprovanteEndereco.split('/').pop();
-                if (oldPath) {
-                  await supabase.storage.from('profissionais').remove([oldPath]);
-                }
-              }
-
-              const bucketName = 'profissionais';
               const fileBuffer = await part.toBuffer();
-              const fileName = `endereco_${id}_${Date.now()}_${part.filename}`;
               
-              const { data, error } = await supabase.storage.from(bucketName).upload(fileName, fileBuffer, { 
-                upsert: true, 
-                contentType: part.mimetype 
+              const uploadResult = await this.s3Service.uploadFile({
+                buffer: fileBuffer,
+                filename: part.filename || 'comprovante_endereco',
+                mimetype: part.mimetype || 'application/octet-stream',
+                modulo: 'profissionais',
+                categoria: 'comprovantes',
+                entidadeId: id,
+                metadata: { 'document-type': 'comprovante_endereco' }
               });
               
-              if (error) {
-                return reply.status(500).send({ message: 'Erro ao fazer upload do comprovante', error: error.message });
-              }
-              
-              comprovanteEnderecoUrl = supabase.storage.from(bucketName).getPublicUrl(fileName).data.publicUrl;
+              comprovanteEnderecoUrl = uploadResult.url;
             } catch (err) {
               return reply.status(500).send({ message: 'Erro no upload do arquivo', error: err });
             }
@@ -349,28 +348,19 @@ export class ProfissionaisController {
         if (part.type === 'file') {
           if (part.fieldname === 'comprovante_registro' || part.fieldname === 'file') {
             try {
-              // Remover arquivo antigo se existir
-              if (profissionalAtual.comprovanteRegistro) {
-                const oldPath = profissionalAtual.comprovanteRegistro.split('/').pop();
-                if (oldPath) {
-                  await supabase.storage.from('profissionais').remove([oldPath]);
-                }
-              }
-
-              const bucketName = 'profissionais';
               const fileBuffer = await part.toBuffer();
-              const fileName = `registro_${id}_${Date.now()}_${part.filename}`;
               
-              const { data, error } = await supabase.storage.from(bucketName).upload(fileName, fileBuffer, { 
-                upsert: true, 
-                contentType: part.mimetype 
+              const uploadResult = await this.s3Service.uploadFile({
+                buffer: fileBuffer,
+                filename: part.filename || 'comprovante_registro',
+                mimetype: part.mimetype || 'application/octet-stream',
+                modulo: 'profissionais',
+                categoria: 'comprovantes',
+                entidadeId: id,
+                metadata: { 'document-type': 'comprovante_registro' }
               });
               
-              if (error) {
-                return reply.status(500).send({ message: 'Erro ao fazer upload do comprovante', error: error.message });
-              }
-              
-              comprovanteRegistroUrl = supabase.storage.from(bucketName).getPublicUrl(fileName).data.publicUrl;
+              comprovanteRegistroUrl = uploadResult.url;
             } catch (err) {
               return reply.status(500).send({ message: 'Erro no upload do arquivo', error: err });
             }
@@ -447,28 +437,19 @@ export class ProfissionaisController {
         if (part.type === 'file') {
           if (part.fieldname === 'comprovante_bancario' || part.fieldname === 'file') {
             try {
-              // Remover arquivo antigo se existir
-              if (profissionalAtual.comprovanteBancario) {
-                const oldPath = profissionalAtual.comprovanteBancario.split('/').pop();
-                if (oldPath) {
-                  await supabase.storage.from('profissionais').remove([oldPath]);
-                }
-              }
-
-              const bucketName = 'profissionais';
               const fileBuffer = await part.toBuffer();
-              const fileName = `bancario_${id}_${Date.now()}_${part.filename}`;
               
-              const { data, error } = await supabase.storage.from(bucketName).upload(fileName, fileBuffer, { 
-                upsert: true, 
-                contentType: part.mimetype 
+              const uploadResult = await this.s3Service.uploadFile({
+                buffer: fileBuffer,
+                filename: part.filename || 'comprovante_bancario',
+                mimetype: part.mimetype || 'application/octet-stream',
+                modulo: 'profissionais',
+                categoria: 'comprovantes',
+                entidadeId: id,
+                metadata: { 'document-type': 'comprovante_bancario' }
               });
               
-              if (error) {
-                return reply.status(500).send({ message: 'Erro ao fazer upload do comprovante', error: error.message });
-              }
-              
-              comprovanteBancarioUrl = supabase.storage.from(bucketName).getPublicUrl(fileName).data.publicUrl;
+              comprovanteBancarioUrl = uploadResult.url;
             } catch (err) {
               return reply.status(500).send({ message: 'Erro no upload do arquivo', error: err });
             }
@@ -563,10 +544,7 @@ export class ProfissionaisController {
 
     try {
       // Remover arquivo do bucket
-      const oldPath = profissional.comprovanteEndereco.split('/').pop();
-      if (oldPath) {
-        await supabase.storage.from('profissionais').remove([oldPath]);
-      }
+      // TODO: Implementar remoção de arquivo S3 antigo quando disponível o S3 key
 
       // Atualizar no banco removendo a URL
       const useCase = container.resolve(UpdateProfissionalUseCase);
@@ -598,10 +576,7 @@ export class ProfissionaisController {
 
     try {
       // Remover arquivo do bucket
-      const oldPath = profissional.comprovanteRegistro.split('/').pop();
-      if (oldPath) {
-        await supabase.storage.from('profissionais').remove([oldPath]);
-      }
+      // TODO: Implementar remoção de arquivo S3 antigo quando disponível o S3 key
 
       // Atualizar no banco removendo a URL
       const useCase = container.resolve(UpdateProfissionalUseCase);
@@ -633,10 +608,7 @@ export class ProfissionaisController {
 
     try {
       // Remover arquivo do bucket
-      const oldPath = profissional.comprovanteBancario.split('/').pop();
-      if (oldPath) {
-        await supabase.storage.from('profissionais').remove([oldPath]);
-      }
+      // TODO: Implementar remoção de arquivo S3 antigo quando disponível o S3 key
 
       // Atualizar no banco removendo a URL
       const useCase = container.resolve(UpdateProfissionalUseCase);
