@@ -58,8 +58,15 @@ export class AuthController {
     const bodySchema = z.object({ email: z.string().email() });
     const { email } = bodySchema.parse(request.body);
     const useCase = container.resolve(RequestPasswordResetUseCase);
-    await useCase.execute({ email });
-    return reply.status(204).send();
+    const result = await useCase.execute({ email });
+    
+    if (result) {
+      // Se usuário existe, retorna os dados para o frontend enviar webhook
+      return reply.send(result);
+    } else {
+      // Mesmo que usuário não exista, retorna 204 para não revelar informação
+      return reply.status(204).send();
+    }
   }
 
   async resetPassword(request: FastifyRequest, reply: FastifyReply) {
@@ -114,5 +121,14 @@ export class AuthController {
       userAgent: request.headers['user-agent'],
     });
     return reply.send(result);
+  }
+
+  // Endpoint temporário para testar variáveis de ambiente
+  async testWebhook(request: FastifyRequest, reply: FastifyReply) {
+    const webhookUrl = process.env.WEBHOOK_PASSWORD_RESET;
+    return reply.send({
+      webhook_url: webhookUrl || 'Não configurado',
+      env_loaded: !!process.env.DATABASE_URL // Verifica se .env está carregado
+    });
   }
 } 

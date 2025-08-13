@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '@/services/api';
+import { requestPasswordReset } from '@/services/users';
 import PasswordResetRequestForm from '@/components/auth/PasswordResetRequestForm';
 
 export default function PasswordResetRequest() {
@@ -14,10 +14,16 @@ export default function PasswordResetRequest() {
     e.preventDefault();
     setError('');
     setLoading(true);
+    
+    console.log('Enviando solicitação de reset para:', email);
+    
     try {
-      await api.post('/password/request-reset', { email });
+      await requestPasswordReset(email);
+      console.log('Reset de senha processado com sucesso');
       setSuccess(true);
     } catch (err: any) {
+      console.error('Erro na solicitação:', err);
+      console.error('Resposta do erro:', err.response);
       setError(err.response?.data?.message || 'Erro ao solicitar recuperação');
     } finally {
       setLoading(false);
