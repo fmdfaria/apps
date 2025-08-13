@@ -274,4 +274,26 @@ export class AnexosController {
       });
     }
   }
+
+  // Método específico para servir o favicon da aplicação
+  async getFavicon(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      const faviconS3Key = 'app/probotec.png';
+      
+      // Gerar URL presignada para o favicon (válida por 24 horas)
+      const faviconUrl = await this.s3Service.generatePresignedUrl({
+        s3Key: faviconS3Key,
+        operation: 'download',
+        expiresIn: 24 * 3600 // 24 horas
+      });
+
+      return reply.send({ faviconUrl });
+    } catch (error: any) {
+      console.error('Erro ao gerar URL do favicon:', error);
+      return reply.status(500).send({ 
+        message: 'Erro ao carregar favicon', 
+        error: error.message 
+      });
+    }
+  }
 } 

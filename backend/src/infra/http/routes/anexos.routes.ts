@@ -13,4 +13,7 @@ export async function anexosRoutes(app: FastifyInstance) {
   
   // Rota pública para logo da aplicação
   app.get('/logo', async (request, reply) => controller.getLogo(request, reply));
+  
+  // Rota pública para favicon da aplicação
+  app.get('/favicon', async (request, reply) => controller.getFavicon(request, reply));
 } 

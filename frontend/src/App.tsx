@@ -10,6 +10,7 @@ import NotFound from '@/pages/NotFound';
 import Landing from '@/pages/Landing';
 import { useEffect } from 'react';
 import { useAuthStore } from './store/auth';
+import { useFavicon } from '@/hooks/useFavicon';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { Dashboard } from '@/pages/dashboard/Dashboard';
 import { OcupacaoPage } from '@/pages/dashboard/OcupacaoPage';
@@ -40,6 +41,9 @@ import EvolucaoPacientesPage from '@/pages/pacientes/EvolucaoPacientesPage';
 
 export default function App() {
   const initializeAuth = useAuthStore((s) => s.initializeAuth);
+  
+  // Inicializar favicon dinâmico
+  useFavicon();
 
   useEffect(() => {
     initializeAuth();
