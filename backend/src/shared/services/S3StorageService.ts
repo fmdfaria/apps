@@ -112,7 +112,7 @@ export class S3StorageService {
       const url = await this.generatePresignedUrl({
         s3Key,
         operation: 'download',
-        expiresIn: 365 * 24 * 3600 // 1 ano para URLs de download
+        expiresIn: 7 * 24 * 3600 // 7 dias (máximo permitido pelo AWS)
       });
 
       return {
