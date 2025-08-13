@@ -343,21 +343,59 @@ export class AnexosController {
         }
       });
 
-      // Atualizar o usuário no banco com a nova URL do avatar
+      // Atualizar o usuário no banco com a S3 key do avatar (não a URL)
       const userRepository = container.resolve('PrismaClient');
       await userRepository.user.update({
         where: { id: userId },
-        data: { avatarUrl: uploadResult.url }
+        data: { avatarUrl: uploadResult.s3Key } // Salvar apenas a S3 key
       });
 
       return reply.status(200).send({
         message: 'Avatar atualizado com sucesso!',
-        avatarUrl: uploadResult.url
+        avatarUrl: uploadResult.s3Key // Retornar a S3 key
       });
     } catch (error: any) {
       console.error('Erro no upload de avatar:', error);
       return reply.status(500).send({ 
         message: 'Erro interno do servidor', 
+        error: error.message 
+      });
+    }
+  }
+
+  // Método para gerar URL presignada do avatar do usuário
+  async getAvatarUrl(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      // @ts-ignore
+      const userId = request.user?.id;
+      
+      if (!userId) {
+        return reply.status(401).send({ message: 'Usuário não autenticado.' });
+      }
+
+      // Buscar a S3 key do avatar do usuário
+      const userRepository = container.resolve('PrismaClient');
+      const user = await userRepository.user.findUnique({
+        where: { id: userId },
+        select: { avatarUrl: true }
+      });
+
+      if (!user || !user.avatarUrl) {
+        return reply.status(404).send({ message: 'Avatar não encontrado.' });
+      }
+
+      // Gerar URL presignada para o avatar (válida por 1 hora)
+      const avatarUrl = await this.s3Service.generatePresignedUrl({
+        s3Key: user.avatarUrl, // avatarUrl contém a S3 key
+        operation: 'download',
+        expiresIn: 3600 // 1 hora
+      });
+
+      return reply.send({ avatarUrl });
+    } catch (error: any) {
+      console.error('Erro ao gerar URL do avatar:', error);
+      return reply.status(500).send({ 
+        message: 'Erro ao carregar avatar', 
         error: error.message 
       });
     }

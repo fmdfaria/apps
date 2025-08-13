@@ -19,4 +19,7 @@ export async function anexosRoutes(app: FastifyInstance) {
   
   // Rota para upload de avatar do usuário (protegida)
   app.post('/avatar', { preHandler: [ensureAuthenticated] }, async (request, reply) => controller.uploadAvatar(request, reply));
+  
+  // Rota para buscar URL do avatar do usuário (protegida)
+  app.get('/avatar', { preHandler: [ensureAuthenticated] }, async (request, reply) => controller.getAvatarUrl(request, reply));
 } 
