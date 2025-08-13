@@ -16,4 +16,7 @@ export async function anexosRoutes(app: FastifyInstance) {
   
   // Rota pública para favicon da aplicação
   app.get('/favicon', async (request, reply) => controller.getFavicon(request, reply));
+  
+  // Rota para upload de avatar do usuário (protegida)
+  app.post('/avatar', { preHandler: [ensureAuthenticated] }, async (request, reply) => controller.uploadAvatar(request, reply));
 } 

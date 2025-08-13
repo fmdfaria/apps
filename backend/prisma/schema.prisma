@@ -359,6 +359,7 @@ model User {
   resetTokenExpires      DateTime?      @map("reset_token_expires") @db.Timestamptz(6)
   emailConfirmationToken String?        @map("email_confirmation_token") @db.VarChar(255)
   emailConfirmed         Boolean?       @default(false) @map("email_confirmed")
+  avatarUrl              String?        @map("avatar_url") @db.VarChar(500)
   refreshTokens          RefreshToken[]
   userRoles              UserRole[]
 

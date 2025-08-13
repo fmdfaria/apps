@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { 
   User, 
@@ -23,6 +23,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import AlterarSenhaModal from '@/components/AlterarSenhaModal';
 import { whatsAppFromStorage } from '@/utils/whatsapp';
 import { updateUser, getUserById, getUserRoles } from '@/services/users';
+import { uploadAvatar } from '@/services/avatar';
 import { AppToast } from '@/services/toast';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +34,7 @@ export const Perfil = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   // Verificar se o usuário pode editar seu próprio perfil
   const canEditProfile = user?.id ? hasPermission(`/users/${user.id}`, 'PUT') : false;
@@ -189,6 +191,49 @@ export const Perfil = () => {
     setShowPasswordModal(true);
   };
 
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validações no frontend
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      AppToast.error('Tipo de arquivo inválido', { 
+        description: 'Apenas JPG, PNG e WebP são permitidos.' 
+      });
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      AppToast.error('Arquivo muito grande', { 
+        description: 'Tamanho máximo: 5MB.' 
+      });
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const response = await uploadAvatar(file);
+      
+      // Atualizar o usuário no estado global
+      if (user) {
+        const updatedUser = { ...user, avatarUrl: response.avatarUrl };
+        setUser(updatedUser);
+      }
+
+      AppToast.success('Avatar atualizado com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao fazer upload do avatar:', error);
+      AppToast.error('Erro ao atualizar avatar', {
+        description: error?.response?.data?.message || 'Tente novamente.'
+      });
+    } finally {
+      setIsUploadingAvatar(false);
+      // Limpar o input file
+      event.target.value = '';
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -209,6 +254,9 @@ export const Perfil = () => {
                   {/* Avatar */}
                   <div className="relative mb-4">
                     <Avatar className="w-24 h-24">
+                      {user.avatarUrl ? (
+                        <AvatarImage src={user.avatarUrl} alt={user.nome} />
+                      ) : null}
                       <AvatarFallback 
                         className={cn(
                           'text-white text-xl font-semibold',
@@ -218,12 +266,30 @@ export const Perfil = () => {
                         {getInitials(user.nome)}
                       </AvatarFallback>
                     </Avatar>
+                    
+                    {/* Input file oculto */}
+                    <input
+                      type="file"
+                      id="avatar-upload"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                    />
+                    
+                    {/* Botão de upload */}
                     <Button
                       size="sm"
                       variant="outline"
                       className="absolute -bottom-2 -right-2 rounded-full w-8 h-8 p-0"
+                      onClick={() => document.getElementById('avatar-upload')?.click()}
+                      disabled={isUploadingAvatar}
+                      title="Alterar avatar"
                     >
-                      <Camera className="w-3 h-3" />
+                      {isUploadingAvatar ? (
+                        <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Camera className="w-3 h-3" />
+                      )}
                     </Button>
                   </div>
 

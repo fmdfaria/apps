@@ -296,4 +296,70 @@ export class AnexosController {
       });
     }
   }
+
+  // Método específico para upload de avatar do usuário
+  async uploadAvatar(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      // @ts-ignore
+      const userId = request.user?.id;
+      
+      if (!userId) {
+        return reply.status(401).send({ message: 'Usuário não autenticado.' });
+      }
+
+      const mp = await request.file();
+      if (!mp) {
+        return reply.status(400).send({ message: 'Arquivo de avatar não enviado.' });
+      }
+
+      // Validar tipo de arquivo (apenas imagens)
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(mp.mimetype)) {
+        return reply.status(400).send({ 
+          message: 'Tipo de arquivo inválido. Apenas JPG, PNG e WebP são permitidos.' 
+        });
+      }
+
+      // Validar tamanho (máximo 5MB)
+      const fileBuffer = await mp.toBuffer();
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (fileBuffer.length > maxSize) {
+        return reply.status(400).send({ 
+          message: 'Arquivo muito grande. Tamanho máximo: 5MB.' 
+        });
+      }
+
+      // Upload para S3
+      const uploadResult = await this.s3Service.uploadFile({
+        buffer: fileBuffer,
+        filename: `avatar_${userId}_${Date.now()}.${mp.mimetype.split('/')[1]}`,
+        mimetype: mp.mimetype,
+        modulo: 'usuarios',
+        categoria: 'avatares',
+        entidadeId: userId,
+        metadata: {
+          'document-type': 'avatar',
+          'user-id': userId
+        }
+      });
+
+      // Atualizar o usuário no banco com a nova URL do avatar
+      const userRepository = container.resolve('PrismaClient');
+      await userRepository.user.update({
+        where: { id: userId },
+        data: { avatarUrl: uploadResult.url }
+      });
+
+      return reply.status(200).send({
+        message: 'Avatar atualizado com sucesso!',
+        avatarUrl: uploadResult.url
+      });
+    } catch (error: any) {
+      console.error('Erro no upload de avatar:', error);
+      return reply.status(500).send({ 
+        message: 'Erro interno do servidor', 
+        error: error.message 
+      });
+    }
+  }
 } 
