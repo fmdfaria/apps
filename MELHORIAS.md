@@ -15,8 +15,4 @@
 ### PacientesPage
 - No modal de anexos, permitir mais de 1 anexo (não limitar).
 - Apresentar os anexos em Anexos Enviados, com opção 'x' para excluir um anexo.
-- Quando for excluir um anexo
-
-
-### AgendamentosPage e AtenderPage
-- Se o usuário logar tiver ROLE = PROFISSIONAL, só pode visualizar os agendamentos vinculados para ele...
+- Quando for excluir um anexo aparecer modal de confirmação, utilizar 'ConfirmacaoModal'

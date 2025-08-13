@@ -28,6 +28,6 @@ export class ResetPasswordUseCase {
       senha: hashedPassword,
       resetToken: null,
       resetTokenExpires: null,
-    } as any);
+    });
   }
 } 

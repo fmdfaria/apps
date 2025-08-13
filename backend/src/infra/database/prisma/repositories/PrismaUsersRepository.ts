@@ -29,6 +29,10 @@ export class PrismaUsersRepository implements IUsersRepository {
         ...data,
         profissionalId: data.profissionalId ?? undefined,
         pacienteId: data.pacienteId ?? undefined,
+        resetToken: data.resetToken ?? undefined,
+        resetTokenExpires: data.resetTokenExpires ?? undefined,
+        emailConfirmationToken: data.emailConfirmationToken ?? undefined,
+        emailConfirmed: data.emailConfirmed ?? undefined,
       },
     });
     return user as User;

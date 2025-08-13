@@ -10,6 +10,10 @@ export class User {
   pacienteId?: string | null;
   criadoEm!: Date;
   atualizadoEm!: Date;
+  resetToken?: string | null;
+  resetTokenExpires?: Date | null;
+  emailConfirmationToken?: string | null;
+  emailConfirmed?: boolean;
 
   constructor(
     props: Omit<User, 'id' | 'criadoEm' | 'atualizadoEm'>,

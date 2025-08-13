@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { User } from '../types/User';
 import api from '../services/api';
+import { isTokenExpired, isTokenExpiringSoon } from '../utils/jwt';
 
 interface AuthState {
   user: User | null;
@@ -14,7 +15,10 @@ interface AuthState {
   setUser: (user: User | null) => void;
   isAuthenticated: boolean;
   setAuth: (token: string | null) => void;
-  initializeAuth: () => void;
+  initializeAuth: () => Promise<void>;
+  checkTokenValidity: () => Promise<void>;
+  startTokenWatcher: () => void;
+  stopTokenWatcher: () => void;
 }
 
 const getStoredUser = () => {
@@ -25,6 +29,9 @@ const getStoredUser = () => {
     return null;
   }
 };
+
+// Timer para verificação periódica de tokens
+let tokenWatcherInterval: NodeJS.Timeout | null = null;
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: getStoredUser(),
@@ -65,6 +72,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
       
       set({ user, accessToken, refreshToken, loading: false, isAuthenticated: true });
+      
+      // Inicia o token watcher após login bem-sucedido
+      useAuthStore.getState().startTokenWatcher();
     } catch (err: unknown) {
       const errorMessage = err instanceof Error 
         ? err.message 
@@ -81,6 +91,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (error) {
       console.error('Erro ao limpar localStorage:', error);
     }
+    
+    // Para o token watcher
+    useAuthStore.getState().stopTokenWatcher();
+    
     set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
     window.location.href = '/';
   },
@@ -94,17 +108,26 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
       
       const res = await api.post('/refresh', { refreshToken });
-      const { accessToken } = res.data;
+      const { accessToken, refreshToken: newRefreshToken } = res.data;
       
       if (accessToken) {
         try {
-      localStorage.setItem('accessToken', accessToken);
+          localStorage.setItem('accessToken', accessToken);
+          // Atualiza refresh token se fornecido
+          if (newRefreshToken) {
+            localStorage.setItem('refreshToken', newRefreshToken);
+          }
         } catch (storageError) {
-          console.error('Erro ao salvar token no localStorage:', storageError);
+          console.error('Erro ao salvar tokens no localStorage:', storageError);
         }
       }
       
-      set({ accessToken, loading: false, isAuthenticated: true });
+      set({ 
+        accessToken, 
+        refreshToken: newRefreshToken || refreshToken, // usa o novo ou mantém o atual
+        loading: false, 
+        isAuthenticated: true 
+      });
     } catch (err) {
       console.error('Erro ao renovar token:', err);
       set({ loading: false });
@@ -115,9 +138,101 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setAuth: (token) => set({ accessToken: token, isAuthenticated: !!token }),
 
-  initializeAuth: () => {
-    const token = localStorage.getItem('accessToken');
-    const user = getStoredUser();
-    set({ accessToken: token, isAuthenticated: !!token, user });
+  initializeAuth: async () => {
+    const storedAccessToken = localStorage.getItem('accessToken');
+    const storedRefreshToken = localStorage.getItem('refreshToken');
+    const storedUser = getStoredUser();
+
+    // Se não há tokens, limpa tudo e sai
+    if (!storedAccessToken && !storedRefreshToken) {
+      set({ 
+        user: null, 
+        accessToken: null, 
+        refreshToken: null, 
+        isAuthenticated: false 
+      });
+      return;
+    }
+
+    // Verifica se o refresh token está expirado
+    if (storedRefreshToken && isTokenExpired(storedRefreshToken)) {
+      console.log('Refresh token expirado, fazendo logout automático');
+      useAuthStore.getState().logout();
+      return;
+    }
+
+    // Se o access token está expirado mas temos refresh token válido, renova
+    if (storedAccessToken && isTokenExpired(storedAccessToken) && storedRefreshToken) {
+      try {
+        console.log('Access token expirado, tentando renovar...');
+        await useAuthStore.getState().refresh();
+        useAuthStore.getState().startTokenWatcher();
+        return;
+      } catch (error) {
+        console.error('Erro ao renovar token na inicialização:', error);
+        useAuthStore.getState().logout();
+        return;
+      }
+    }
+
+    // Se chegou até aqui, os tokens parecem válidos
+    set({ 
+      user: storedUser, 
+      accessToken: storedAccessToken, 
+      refreshToken: storedRefreshToken,
+      isAuthenticated: !!storedAccessToken 
+    });
+    
+    useAuthStore.getState().startTokenWatcher();
+  },
+
+  checkTokenValidity: async () => {
+    const { accessToken, refreshToken } = useAuthStore.getState();
+
+    if (!refreshToken) {
+      console.log('Sem refresh token, fazendo logout');
+      useAuthStore.getState().logout();
+      return;
+    }
+
+    // Se refresh token expirado, faz logout
+    if (isTokenExpired(refreshToken)) {
+      console.log('Refresh token expirado, fazendo logout');
+      useAuthStore.getState().logout();
+      return;
+    }
+
+    // Se access token está expirando em menos de 5 minutos, renova
+    if (accessToken && isTokenExpiringSoon(accessToken, 5)) {
+      try {
+        console.log('Access token expirando em breve, renovando...');
+        await useAuthStore.getState().refresh();
+      } catch (error) {
+        console.error('Erro ao renovar token automaticamente:', error);
+        useAuthStore.getState().logout();
+      }
+    }
+  },
+
+  startTokenWatcher: () => {
+    // Limpa qualquer timer anterior
+    if (tokenWatcherInterval) {
+      clearInterval(tokenWatcherInterval);
+    }
+
+    // Verifica a cada 5 minutos
+    tokenWatcherInterval = setInterval(() => {
+      useAuthStore.getState().checkTokenValidity();
+    }, 5 * 60 * 1000);
+
+    console.log('Token watcher iniciado');
+  },
+
+  stopTokenWatcher: () => {
+    if (tokenWatcherInterval) {
+      clearInterval(tokenWatcherInterval);
+      tokenWatcherInterval = null;
+      console.log('Token watcher parado');
+    }
   },
 })); 
