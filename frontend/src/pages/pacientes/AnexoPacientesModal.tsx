@@ -50,10 +50,14 @@ export default function AnexoPacientesModal({
 }: AnexoPacientesModalProps) {
 
   const handleSalvarAnexo = async () => {
-    if (!paciente || anexoFiles.length === 0) return;
+    if (!paciente || anexoFiles.length === 0) {
+      AppToast.error('Arquivo é obrigatório', { description: 'Selecione um arquivo para fazer o upload.' });
+      return;
+    }
     
     if (!anexoDescricao.trim()) {
       onAnexoErrorChange('Descrição é obrigatória.');
+      AppToast.error('Descrição é obrigatória', { description: 'Informe uma descrição para o anexo.' });
       return;
     }
 
@@ -189,6 +193,7 @@ export default function AnexoPacientesModal({
               </div>
             </div>
           </div>
+          
             <DialogFooter className="mt-6">
               <DialogClose asChild>
                 <Button

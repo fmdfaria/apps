@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Menu, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useLogo } from '@/hooks/useLogo';
 
 export const Header = () => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { logoUrl, loading: logoLoading } = useLogo();
 
   return (
     <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-50">
@@ -13,11 +15,19 @@ export const Header = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <img
-              src="https://probotec.com.br/wp-content/uploads/2025/05/logo-probotec-300x100-2.png"
-              alt="logo-probotec-clinica"
-              className="ml-2 h-14 w-auto object-contain"
-            />
+            {logoLoading ? (
+              <div className="ml-2 h-14 w-36 bg-gray-200 animate-pulse rounded" />
+            ) : logoUrl ? (
+              <img
+                src={logoUrl}
+                alt="logo-probotec-clinica"
+                className="ml-2 h-14 w-auto object-contain"
+              />
+            ) : (
+              <div className="ml-2 h-14 w-36 bg-gray-100 flex items-center justify-center text-gray-500 text-sm rounded">
+                Probotec Clínica
+              </div>
+            )}
           </div>
 
           {/* Desktop Navigation */}

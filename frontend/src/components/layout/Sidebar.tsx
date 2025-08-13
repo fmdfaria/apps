@@ -6,6 +6,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getModuleTheme } from '@/types/theme';
 import { useMenuPermissions } from '@/hooks/useMenuPermissions';
+import { useLogo } from '@/hooks/useLogo';
 
 // Mapeamento de páginas para módulos de tema
 const pageToModuleMap: Record<string, string> = {
@@ -206,6 +207,7 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
   const isCollapsed = isCollapsedProp !== undefined ? isCollapsedProp : internalCollapsed;
   const setIsCollapsed = setIsCollapsedProp || setInternalCollapsed;
   const { hasPermission, loading: permissionsLoading } = useMenuPermissions();
+  const { logoUrl, loading: logoLoading } = useLogo();
   const handleToggle = () => {
     if (setIsCollapsedProp) {
       setIsCollapsed(!isCollapsed);
@@ -238,11 +240,19 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
       isCollapsed ? 'w-16' : 'w-64'
     )}>
       <div className={cn('flex items-center border-b border-gray-200', isCollapsed ? 'justify-center p-2' : 'justify-between p-4')}> 
-        <img 
-          src="https://probotec.com.br/wp-content/uploads/2025/05/logo-probotec-300x100-2.png" 
-          alt="Probotec Logo" 
-          className={cn('h-10 w-auto transition-all duration-200', isCollapsed ? 'hidden' : 'block')}
-        />
+        {logoLoading ? (
+          <div className={cn('h-10 w-24 bg-gray-200 animate-pulse rounded transition-all duration-200', isCollapsed ? 'hidden' : 'block')} />
+        ) : logoUrl ? (
+          <img 
+            src={logoUrl} 
+            alt="Probotec Logo" 
+            className={cn('h-10 w-auto transition-all duration-200', isCollapsed ? 'hidden' : 'block')}
+          />
+        ) : (
+          <div className={cn('h-10 w-24 bg-gray-100 flex items-center justify-center text-gray-500 text-xs rounded transition-all duration-200', isCollapsed ? 'hidden' : 'block')}>
+            Logo
+          </div>
+        )}
         <button
           onClick={handleToggle}
           className="p-2 rounded hover:bg-blue-50 transition-colors"

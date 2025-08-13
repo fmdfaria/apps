@@ -12,7 +12,7 @@ const anexoMultipartSchema = z.object({
   entidadeId: z.string().uuid(),
   modulo: z.string(), // 'pacientes', 'profissionais', etc.
   categoria: z.string(), // 'documentos', 'exames', etc.
-  descricao: z.string().optional(),
+  descricao: z.string().min(1, 'Descrição é obrigatória'),
   criadoPor: z.string().uuid().optional(),
 });
 
@@ -248,6 +248,28 @@ export class AnexosController {
       console.error('Erro ao gerar URL de download:', error);
       return reply.status(500).send({ 
         message: 'Erro interno do servidor', 
+        error: error.message 
+      });
+    }
+  }
+
+  // Método específico para servir a logo da aplicação
+  async getLogo(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      const logoS3Key = 'app/logo-probotec-300x100.png';
+      
+      // Gerar URL presignada para a logo (válida por 24 horas)
+      const logoUrl = await this.s3Service.generatePresignedUrl({
+        s3Key: logoS3Key,
+        operation: 'download',
+        expiresIn: 24 * 3600 // 24 horas
+      });
+
+      return reply.send({ logoUrl });
+    } catch (error: any) {
+      console.error('Erro ao gerar URL da logo:', error);
+      return reply.status(500).send({ 
+        message: 'Erro ao carregar logo', 
         error: error.message 
       });
     }
