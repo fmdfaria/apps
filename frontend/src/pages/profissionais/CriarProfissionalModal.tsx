@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { FormErrorMessage } from '@/components/form-error-message';
 import { createProfissional } from '@/services/profissionais';
 import { createUser } from '@/services/users';
+import { rbacService } from '@/services/rbac';
 import { useInputMask } from '@/hooks/useInputMask';
 
 interface CriarProfissionalModalProps {
@@ -86,12 +87,23 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
       const profissional = await createProfissional(profissionalPayload);
 
       // Criar usuário vinculado ao profissional recém-criado
-      await createUser({
+      const created = await createUser({
         nome: form.nome.trim(),
         email: form.email.trim(),
         whatsapp: removeWhatsAppMask(form.whatsapp),
         profissionalId: profissional.id,
       });
+
+      // Atribuir role PROFISSIONAL ao usuário criado (best-effort)
+      try {
+        const roles = await rbacService.getRoles(true);
+        const profissionalRole = roles.find((r: any) => r.nome === 'PROFISSIONAL');
+        if (profissionalRole && created?.user?.id) {
+          await rbacService.assignRoleToUser({ userId: created.user.id, roleId: profissionalRole.id });
+        }
+      } catch (e) {
+        console.warn('Não foi possível atribuir a role PROFISSIONAL automaticamente:', e);
+      }
       onSuccess();
       fecharModal();
     } catch (err: any) {

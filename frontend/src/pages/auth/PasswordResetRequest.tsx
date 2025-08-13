@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '@/services/api';
 import PasswordResetRequestForm from '@/components/auth/PasswordResetRequestForm';
 
@@ -7,6 +8,7 @@ export default function PasswordResetRequest() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,8 +24,12 @@ export default function PasswordResetRequest() {
     }
   };
 
+  const handleBackToLogin = () => {
+    navigate('/login');
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-cyan-50 px-4">
       <PasswordResetRequestForm
         email={email}
         loading={loading}
@@ -31,6 +37,7 @@ export default function PasswordResetRequest() {
         success={success}
         onEmailChange={setEmail}
         onSubmit={handleSubmit}
+        onBackToLogin={handleBackToLogin}
       />
     </div>
   );

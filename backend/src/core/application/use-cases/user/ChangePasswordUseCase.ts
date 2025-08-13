@@ -21,10 +21,16 @@ export class ChangePasswordUseCase {
     if (!user) {
       throw new AppError('Usuário não encontrado.', 404);
     }
+
+    if (novaSenha.length < 8) {
+      throw new AppError('Nova senha deve ter no mínimo 8 caracteres.', 400);
+    }
+
     const passwordMatch = await bcrypt.compare(senhaAtual, user.senha);
     if (!passwordMatch) {
       throw new AppError('Senha atual incorreta.', 400);
     }
+
     const hashedPassword = await bcrypt.hash(novaSenha, 10);
     await this.usersRepository.update(userId, { senha: hashedPassword });
   }

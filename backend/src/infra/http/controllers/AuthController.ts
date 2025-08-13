@@ -71,7 +71,7 @@ export class AuthController {
   }
 
   async changePassword(request: FastifyRequest, reply: FastifyReply) {
-    const bodySchema = z.object({ senhaAtual: z.string().min(6), novaSenha: z.string().min(6) });
+    const bodySchema = z.object({ senhaAtual: z.string().min(6), novaSenha: z.string().min(8) });
     const { senhaAtual, novaSenha } = bodySchema.parse(request.body);
     // userId deve vir do token (middleware de autenticação)
     // @ts-ignore

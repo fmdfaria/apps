@@ -57,8 +57,8 @@ export default function AlterarSenhaModal({ open, onClose }: AlterarSenhaModalPr
       return false;
     }
 
-    if (formData.novaSenha.length < 6) {
-      AppToast.error('Nova senha deve ter no mínimo 6 caracteres');
+    if (formData.novaSenha.length < 8) {
+      AppToast.error('Nova senha deve ter no mínimo 8 caracteres');
       return false;
     }
 
@@ -149,7 +149,7 @@ export default function AlterarSenhaModal({ open, onClose }: AlterarSenhaModalPr
                 onChange={(e) => setFormData(prev => ({ ...prev, novaSenha: e.target.value }))}
                 disabled={isLoading}
                 className="pr-10"
-                placeholder="Digite a nova senha (mín. 6 caracteres)"
+                placeholder="Digite a nova senha (mín. 8 caracteres)"
               />
               <button
                 type="button"

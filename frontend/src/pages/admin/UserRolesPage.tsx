@@ -231,7 +231,9 @@ export const UserRolesPage = () => {
       (ur.role?.descricao || '').toLowerCase().includes(busca.toLowerCase())
     );
     
-    return applyFilters(dadosFiltrados);
+    const filtrados = applyFilters(dadosFiltrados);
+    // Ordenar alfabeticamente pelo nome do usuário (pt-BR, case-insensitive)
+    return filtrados.sort((a, b) => (a.user?.nome || '').localeCompare(b.user?.nome || '', 'pt-BR', { sensitivity: 'base' }));
   }, [userRoles, busca, applyFilters]);
 
   const {
@@ -481,7 +483,7 @@ export const UserRolesPage = () => {
           await rbacService.assignRoleToUser(payload);
           AppToast.updated('Atribuição', `A atribuição foi atualizada com sucesso.`);
         } else {
-          toast.info('Nenhuma alteração foi feita.');
+          AppToast.info('Nenhuma alteração foi feita.');
         }
       } else {
         const payload: AssignRoleToUserRequest = {

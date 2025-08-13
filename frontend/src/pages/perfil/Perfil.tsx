@@ -11,16 +11,11 @@ import {
   Mail, 
   Phone, 
   MapPin, 
-  Calendar, 
   Shield, 
   Settings, 
   Camera, 
   Save,
   Edit3,
-  Activity,
-  Clock,
-  CheckCircle,
-  Users,
   Key
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -194,13 +189,6 @@ export const Perfil = () => {
     setShowPasswordModal(true);
   };
 
-  // Dados mockados para estatísticas
-  const estatisticas = [
-    { label: 'Agendamentos', value: '127', icon: Calendar, color: 'text-blue-600' },
-    { label: 'Atendimentos', value: '89', icon: CheckCircle, color: 'text-green-600' },
-    { label: 'Horas Trabalhadas', value: '340h', icon: Clock, color: 'text-orange-600' },
-    { label: 'Pacientes', value: '56', icon: Users, color: 'text-purple-600' },
-  ];
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -278,29 +266,6 @@ export const Perfil = () => {
               </CardContent>
             </Card>
 
-            {/* Card de Estatísticas */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="w-5 h-5" />
-                  Estatísticas
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {estatisticas.map((stat, index) => {
-                  const Icon = stat.icon;
-                  return (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Icon className={cn('w-4 h-4', stat.color)} />
-                        <span className="text-sm text-gray-600">{stat.label}</span>
-                      </div>
-                      <span className="font-semibold text-gray-900">{stat.value}</span>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
           </div>
 
           {/* Coluna Direita - Formulário de Edição */}
