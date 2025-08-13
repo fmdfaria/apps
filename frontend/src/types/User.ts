@@ -6,6 +6,7 @@ export interface User {
   ativo: boolean;
   primeiroLogin: boolean;
   roles: string[]; // Array de roles para RBAC
+  profissionalId?: string | null;
 }
 
 export interface AuthResponse {

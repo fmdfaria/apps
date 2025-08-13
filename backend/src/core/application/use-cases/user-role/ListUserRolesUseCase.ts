@@ -15,7 +15,7 @@ export class ListUserRolesUseCase {
 
   async execute({ userId, onlyActive = false }: IRequest) {
     if (onlyActive) {
-      return await this.userRolesRepository.findActiveUserRoles(userId);
+      return await this.userRolesRepository.findActiveUserRolesWithNames(userId);
     }
 
     return await this.userRolesRepository.findByUserId(userId);

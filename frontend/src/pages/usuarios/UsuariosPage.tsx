@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Input } from '@/components/ui/input';
 import { AppToast } from '@/services/toast';
 import { getUsers, createUser, updateUser, deleteUser } from '@/services/users';
+import { getProfissionais } from '@/services/profissionais';
+import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import type { User } from '@/types/User';
 import { FormErrorMessage } from '@/components/form-error-message';
 import { WhatsAppInput } from '@/components/ui/whatsapp-input';
@@ -37,6 +39,7 @@ interface FormularioUsuario {
   nome: string;
   email: string;
   whatsapp: string;
+  profissionalId: string | null;
 }
 
 
@@ -52,6 +55,7 @@ export const UsuariosPage = () => {
     nome: '',
     email: '',
     whatsapp: '',
+    profissionalId: null,
   });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
@@ -61,6 +65,7 @@ export const UsuariosPage = () => {
 
   // Hooks responsivos
   const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'usuarios-view' });
+  const [profissionais, setProfissionais] = useState<Array<{ id: string; nome: string }>>([]);
   
   // Configuração das colunas da tabela com filtros dinâmicos
   const columns: TableColumn<User>[] = [
@@ -192,6 +197,7 @@ export const UsuariosPage = () => {
 
   useEffect(() => {
     fetchUsuarios();
+    fetchProfissionais();
   }, []);
 
   const fetchUsuarios = async () => {
@@ -205,6 +211,19 @@ export const UsuariosPage = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProfissionais = async () => {
+    try {
+      const data = await getProfissionais();
+      const options = data
+        .map((p: any) => ({ id: p.id, nome: p.nome }))
+        .sort((a: any, b: any) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }));
+      setProfissionais(options);
+    } catch (e) {
+      // Silenciar erro para não bloquear a página de usuários
+      console.error('Erro ao carregar profissionais', e);
     }
   };
 
@@ -282,6 +301,7 @@ export const UsuariosPage = () => {
       nome: '',
       email: '',
       whatsapp: '',
+      profissionalId: null,
     });
     setFormError('');
     setWhatsappValid(false);
@@ -294,6 +314,7 @@ export const UsuariosPage = () => {
       nome: usuario.nome,
       email: usuario.email,
       whatsapp: usuario.whatsapp,
+      profissionalId: usuario.profissionalId ?? null,
     });
     setFormError('');
     setWhatsappValid(true); // Assume que WhatsApp existente é válido
@@ -307,6 +328,7 @@ export const UsuariosPage = () => {
       nome: '',
       email: '',
       whatsapp: '',
+      profissionalId: null,
     });
     setFormError('');
     setWhatsappValid(false);
@@ -350,6 +372,9 @@ export const UsuariosPage = () => {
         if (form.nome !== editando.nome) payload.nome = form.nome.trim();
         if (form.email !== editando.email) payload.email = form.email.trim();
         if (form.whatsapp !== editando.whatsapp) payload.whatsapp = form.whatsapp;
+        if ((form.profissionalId ?? null) !== (editando.profissionalId ?? null)) {
+          payload.profissionalId = form.profissionalId ?? null;
+        }
         
         if (Object.keys(payload).length > 0) {
           await updateUser(editando.id, payload);
@@ -359,7 +384,8 @@ export const UsuariosPage = () => {
         await createUser({
           nome: form.nome.trim(),
           email: form.email.trim(),
-          whatsapp: form.whatsapp
+          whatsapp: form.whatsapp,
+          profissionalId: form.profissionalId ?? undefined,
         });
         AppToast.created('Usuário', `O usuário "${form.nome.trim()}" foi criado com sucesso. A senha temporária foi enviada via WhatsApp.`);
       }
@@ -571,6 +597,21 @@ export const UsuariosPage = () => {
                   onValidityChange={setWhatsappValid}
                   disabled={formLoading}
                   error={!whatsappValid && form.whatsapp.length > 0}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <span className="text-lg">🩺</span>
+                  <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent font-semibold">Profissional (opcional)</span>
+                </label>
+                <SingleSelectDropdown
+                  options={profissionais}
+                  selected={profissionais.find(p => p.id === form.profissionalId) || null}
+                  onChange={(opt) => setForm(f => ({ ...f, profissionalId: opt ? opt.id : null }))}
+                  placeholder="Selecione um profissional para vincular"
+                  headerText="Profissionais disponíveis"
+                  searchFields={["nome"]}
                 />
               </div>
 

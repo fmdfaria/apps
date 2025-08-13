@@ -224,7 +224,8 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
   };
 
   // Função para obter cor do badge baseado nas roles do usuário
-  const getUserRoleColor = (roles: string[]) => {
+  const getUserRoleColor = (roles: string[] | undefined) => {
+    if (!roles || !Array.isArray(roles)) return 'bg-gray-500';
     if (roles.includes('ADMIN')) return 'bg-red-500';
     if (roles.includes('RECEPCIONISTA')) return 'bg-blue-500';
     if (roles.includes('PROFISSIONAL')) return 'bg-green-500';
@@ -260,7 +261,7 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
               <button 
                 className={cn(
                   'flex items-center justify-center rounded-full text-white font-semibold text-sm w-8 h-8 cursor-pointer hover:opacity-90 transition-opacity',
-                  getUserRoleColor(user.roles)
+                  getUserRoleColor(user.roles || [])
                 )}
                 title={`${user.nome} - Clique para ver perfil`}
                 onClick={() => navigate('/perfil')}
@@ -276,7 +277,7 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
                 <button 
                   className={cn(
                     'flex items-center justify-center rounded-full text-white font-semibold text-sm w-10 h-10 cursor-pointer hover:opacity-90 transition-opacity',
-                    getUserRoleColor(user.roles)
+                    getUserRoleColor(user.roles || [])
                   )}
                   title="Ver perfil"
                   onClick={() => navigate('/perfil')}

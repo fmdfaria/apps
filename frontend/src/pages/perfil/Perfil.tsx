@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { whatsAppFromStorage } from '@/utils/whatsapp';
-import { updateUser } from '@/services/users';
+import { updateUser, getUserById, getUserRoles } from '@/services/users';
 import { AppToast } from '@/services/toast';
 import { cn } from '@/lib/utils';
 
@@ -33,13 +33,50 @@ export const Perfil = () => {
   const { user, setUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [formData, setFormData] = useState({
     nome: user?.nome || '',
     email: user?.email || '',
     whatsapp: user?.whatsapp || '',
   });
 
-  if (!user) {
+  // Função para carregar dados atualizados do usuário
+  const loadUserProfile = async () => {
+    if (!user?.id) return;
+    
+    setIsLoadingProfile(true);
+    try {
+      // Buscar dados do usuário e roles em paralelo
+      const [updatedUser, userRoles] = await Promise.all([
+        getUserById(user.id),
+        getUserRoles(user.id)
+      ]);
+
+      // Combinar dados do usuário com roles
+      const userWithRoles = { ...updatedUser, roles: userRoles };
+      
+      setUser(userWithRoles);
+      setFormData({
+        nome: userWithRoles.nome,
+        email: userWithRoles.email,
+        whatsapp: userWithRoles.whatsapp || '',
+      });
+    } catch (error: any) {
+      console.error('Erro ao carregar perfil do usuário:', error);
+      AppToast.error('Erro ao carregar perfil', {
+        description: 'Não foi possível carregar os dados atualizados do perfil'
+      });
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  };
+
+  // Carregar dados do usuário ao montar o componente
+  useEffect(() => {
+    loadUserProfile();
+  }, [user?.id]); // Recarregar se o ID do usuário mudar
+
+  if (!user || isLoadingProfile) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -60,7 +97,8 @@ export const Perfil = () => {
   };
 
   // Função para obter cor do badge baseado nas roles do usuário
-  const getUserTypeColor = (roles: string[]) => {
+  const getUserTypeColor = (roles: string[] | undefined) => {
+    if (!roles || !Array.isArray(roles)) return 'bg-gray-500';
     if (roles.includes('ADMIN')) return 'bg-red-500';
     if (roles.includes('PROFISSIONAL')) return 'bg-green-500';
     if (roles.includes('RECEPCIONISTA')) return 'bg-blue-500';
@@ -69,7 +107,8 @@ export const Perfil = () => {
   };
 
   // Função para obter texto amigável do tipo de usuário
-  const getUserTypeLabel = (roles: string[]) => {
+  const getUserTypeLabel = (roles: string[] | undefined) => {
+    if (!roles || !Array.isArray(roles)) return 'Usuário';
     if (roles.includes('ADMIN')) return 'Administrador';
     if (roles.includes('PROFISSIONAL')) return 'Profissional';
     if (roles.includes('RECEPCIONISTA')) return 'Recepcionista';
@@ -203,10 +242,15 @@ export const Perfil = () => {
                   </div>
 
                   {/* WhatsApp */}
-                  {user.whatsapp && (
+                  {user.whatsapp ? (
                     <div className="flex items-center text-gray-600 mb-4">
                       <Phone className="w-4 h-4 mr-2" />
                       <span className="text-sm">{whatsAppFromStorage(user.whatsapp)}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center text-gray-400 mb-4">
+                      <Phone className="w-4 h-4 mr-2" />
+                      <span className="text-sm italic">WhatsApp não informado</span>
                     </div>
                   )}
 
@@ -314,7 +358,7 @@ export const Perfil = () => {
                         id="whatsapp"
                         value={formData.whatsapp ? whatsAppFromStorage(formData.whatsapp) : ''}
                         onChange={(e) => {
-                          // TODO: Implementar formatação e validação do WhatsApp
+                          // Remove formatação e mantém apenas números
                           const cleanValue = e.target.value.replace(/\D/g, '');
                           setFormData(prev => ({ ...prev, whatsapp: cleanValue }));
                         }}
@@ -323,9 +367,6 @@ export const Perfil = () => {
                         placeholder="+55 (11) 99999-9999"
                       />
                     </div>
-                    <p className="text-xs text-gray-500">
-                      Formato: +55 (11) 99999-9999
-                    </p>
                   </div>
                 </div>
 

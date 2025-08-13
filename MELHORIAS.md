@@ -16,8 +16,3 @@
 - No modal de anexos, permitir mais de 1 anexo (não limitar).
 - Apresentar os anexos em Anexos Enviados, com opção 'x' para excluir um anexo.
 - Quando for excluir um anexo aparecer modal de confirmação, utilizar 'ConfirmacaoModal'
-
-### Sistema de criação de usuário, primeiro login e reset de senha
-- Já criei uma nova coluna 'whatsapp' na tabela users.
-- Adicionar essa coluna ao projeto backend.
-- Quando for criar um usuário deve ser obrigatorio os campos: nome, email e whatsapp (ajustar backend e frontend). A senha deve ser gerada aleatoriamente, e quando usuário for efetuar o primeiro login, deve cobrar troca de senha.

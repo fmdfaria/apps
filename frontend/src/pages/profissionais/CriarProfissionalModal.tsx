@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FormErrorMessage } from '@/components/form-error-message';
 import { createProfissional } from '@/services/profissionais';
+import { createUser } from '@/services/users';
 import { useInputMask } from '@/hooks/useInputMask';
 
 interface CriarProfissionalModalProps {
@@ -66,8 +67,8 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
       return;
     }
     const telefoneValido = /^\+55 \(\d{2}\) \d{5}-\d{4}$/.test(form.whatsapp.trim());
-    if (form.whatsapp && !telefoneValido) {
-      setFormError('WhatsApp inválido. Exemplo: +55 (11) 99999-9999');
+    if (!form.whatsapp || !telefoneValido) {
+      setFormError('WhatsApp obrigatório e deve ser válido. Exemplo: +55 (11) 99999-9999');
       return;
     }
 
@@ -82,7 +83,15 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
         whatsapp: form.whatsapp ? removeWhatsAppMask(form.whatsapp) : null,
       };
 
-      await createProfissional(profissionalPayload);
+      const profissional = await createProfissional(profissionalPayload);
+
+      // Criar usuário vinculado ao profissional recém-criado
+      await createUser({
+        nome: form.nome.trim(),
+        email: form.email.trim(),
+        whatsapp: removeWhatsAppMask(form.whatsapp),
+        profissionalId: profissional.id,
+      });
       onSuccess();
       fecharModal();
     } catch (err: any) {

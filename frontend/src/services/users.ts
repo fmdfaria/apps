@@ -8,6 +8,7 @@ export interface UpdateUserData {
   email?: string;
   whatsapp?: string;
   ativo?: boolean;
+  profissionalId?: string | null;
 }
 
 // Interface para dados do webhook
@@ -55,6 +56,34 @@ export const usersService = {
     return res.data;
   },
 
+  getUserById: async (id: string): Promise<User> => {
+    const res = await api.get<User>(`/users/${id}`);
+    return res.data;
+  },
+
+  getUserRoles: async (userId: string): Promise<string[]> => {
+    const response = await api.get(`/users/${userId}/roles?onlyActive=true`);
+    
+    // Com a modificação no backend, agora devemos receber { roleId: string; roleName: string }[]
+    if (Array.isArray(response.data)) {
+      return response.data.map((item: any) => {
+        console.log('Role item:', item); // Log temporário para debug
+        
+        // A API deve retornar { roleId, roleName }
+        if (item.roleName) return item.roleName;
+        
+        // Fallbacks para compatibilidade caso ainda use formato antigo
+        if (item.role?.nome) return item.role.nome;
+        if (item.nome) return item.nome;
+        
+        // Se nenhum nome foi encontrado, retornar um indicador
+        return `ROLE_${item.roleId?.substring(0, 8) || 'UNKNOWN'}`;
+      });
+    }
+    
+    return [];
+  },
+
   createUser: async (data: CreateUserRequest): Promise<CreateUserResponse> => {
     const res = await api.post<CreateUserResponse>('/register', data);
     
@@ -89,6 +118,14 @@ export const usersService = {
 // Exportações individuais para compatibilidade
 export async function getUsers(): Promise<User[]> {
   return usersService.getUsers();
+}
+
+export async function getUserById(id: string): Promise<User> {
+  return usersService.getUserById(id);
+}
+
+export async function getUserRoles(userId: string): Promise<string[]> {
+  return usersService.getUserRoles(userId);
 }
 
 export async function createUser(data: CreateUserRequest): Promise<CreateUserResponse> {
