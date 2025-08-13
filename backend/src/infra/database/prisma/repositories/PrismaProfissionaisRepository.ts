@@ -98,7 +98,7 @@ export class PrismaProfissionaisRepository implements IProfissionaisRepository {
   }
 
   async findByUserId(userId: string): Promise<Profissional | null> {
-    const profissional = await this.prisma.profissional.findUnique({
+    const profissional = await this.prisma.profissional.findFirst({
       where: { userId },
       include: profissionalInclude,
     });
