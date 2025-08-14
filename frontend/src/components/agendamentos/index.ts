@@ -3,6 +3,7 @@ export { AprovarAgendamentoModal } from './AprovarAgendamentoModal';
 export { LiberarAgendamentoModal } from './LiberarAgendamentoModal';
 export { DetalhesAgendamentoModal } from './DetalhesAgendamentoModal';
 export { AtenderAgendamentoModal } from './AtenderAgendamentoModal';
+export { DigitalizarGuiasModal } from './DigitalizarGuiasModal';
 
 // Componentes de formulário
 export { AgendamentoModal } from './components/AgendamentoModal';

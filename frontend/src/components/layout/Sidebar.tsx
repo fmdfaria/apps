@@ -203,7 +203,7 @@ const menuItems = [
 ];
 
 export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedProp, setIsCollapsed: setIsCollapsedProp }: SidebarProps) => {
-  const { logout, user } = useAuth();
+  const { logout, user, setUser } = useAuth();
   const navigate = useNavigate();
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const isCollapsed = isCollapsedProp !== undefined ? isCollapsedProp : internalCollapsed;
@@ -218,11 +218,23 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
     // Busca com cache (rápido se já houver no localStorage)
     if (user) {
       getAvatarUrl()
-        .then((url) => { if (mounted) setAvatarUrl(url); })
-        .catch(() => {/* sem avatar ou erro, ignora */});
+        .then((url) => { 
+          if (mounted) {
+            setAvatarUrl(url);
+            // Atualizar o usuário no contexto com a nova URL presignada
+            if (user && url !== user.avatarUrl && setUser) {
+              const updatedUser = { ...user, avatarUrl: url };
+              setUser(updatedUser);
+            }
+          }
+        })
+        .catch(() => {
+          // Se falhar, manter o avatar de iniciais
+          if (mounted) setAvatarUrl(null);
+        });
     }
     return () => { mounted = false; };
-  }, [user?.id]);
+  }, [user?.id, user?.avatarUrl]); // Adicionar user?.avatarUrl como dependência
   const handleToggle = () => {
     if (setIsCollapsedProp) {
       setIsCollapsed(!isCollapsed);

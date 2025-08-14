@@ -19,11 +19,12 @@ import {
   FilterX,
   X,
   Eye,
-  CheckSquare
+  CheckSquare,
+  Camera
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { getAgendamentos } from '@/services/agendamentos';
-import { AprovarAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
+import { AprovarAgendamentoModal, DetalhesAgendamentoModal, DigitalizarGuiasModal } from '@/components/agendamentos';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
@@ -42,6 +43,8 @@ export const AprovarPage = () => {
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<Agendamento | null>(null);
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
+  const [showDigitalizarGuias, setShowDigitalizarGuias] = useState(false);
+  const [agendamentoDigitalizacao, setAgendamentoDigitalizacao] = useState<Agendamento | null>(null);
   const [itensPorPagina, setItensPorPagina] = useState(10);
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
@@ -230,6 +233,11 @@ export const AprovarPage = () => {
     setShowDetalhesAgendamento(true);
   };
 
+  const handleDigitalizar = (agendamento: Agendamento) => {
+    setAgendamentoDigitalizacao(agendamento);
+    setShowDigitalizarGuias(true);
+  };
+
   const renderCardView = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {agendamentosPaginados.length === 0 ? (
@@ -299,20 +307,32 @@ export const AprovarPage = () => {
                   )}
                 </div>
                 
-                <div className="flex gap-1">
-                  <Button 
-                    size="sm" 
-                    variant="default"
-                    className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
-                    onClick={() => handleVerDetalhes(agendamento)}
-                  >
-                    Visualizar
-                  </Button>
+                <div className="flex flex-col gap-1">
+                  <div className="flex gap-1">
+                    <Button 
+                      size="sm" 
+                      variant="default"
+                      className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                      onClick={() => handleVerDetalhes(agendamento)}
+                    >
+                      Visualizar
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="flex-1 h-7 text-xs border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white"
+                      onClick={() => handleDigitalizar(agendamento)}
+                      title="Digitalizar Guias"
+                    >
+                      <Camera className="w-3 h-3 mr-1" />
+                      Digitalizar Guias
+                    </Button>
+                  </div>
                   {canConcluir ? (
                     <Button 
                       size="sm" 
                       variant="outline"
-                      className="flex-1 h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
+                      className="w-full h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
                       onClick={() => handleAprovar(agendamento)}
                       title="Aprovar Atendimento"
                     >
@@ -322,7 +342,7 @@ export const AprovarPage = () => {
                     <Button 
                       size="sm" 
                       disabled={true}
-                      className="flex-1 h-7 text-xs border-gray-300 text-gray-400 cursor-not-allowed"
+                      className="w-full h-7 text-xs border-gray-300 text-gray-400 cursor-not-allowed"
                       title="Você não tem permissão para aprovar atendimentos"
                     >
                       Aprovar Atendimento
@@ -469,6 +489,15 @@ export const AprovarPage = () => {
                         title="Visualizar Agendamento"
                       >
                         <Eye className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleDigitalizar(agendamento)}
+                        title="Digitalizar Guias"
+                      >
+                        <Camera className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
                       </Button>
                       {canConcluir ? (
                         <Button
@@ -863,6 +892,16 @@ export const AprovarPage = () => {
           setShowDetalhesAgendamento(false);
           setAgendamentoDetalhes(null);
         }}
+      />
+
+      <DigitalizarGuiasModal
+        isOpen={showDigitalizarGuias}
+        agendamento={agendamentoDigitalizacao}
+        onClose={() => {
+          setShowDigitalizarGuias(false);
+          setAgendamentoDigitalizacao(null);
+        }}
+        onSuccess={carregarAgendamentos}
       />
     </div>
   );

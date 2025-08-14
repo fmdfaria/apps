@@ -12,7 +12,8 @@
 - Utilize sempre o AppToast para manter o padrão de notificação.
 - Não defina nada no frontend que afete o backend, veja sempre a estrutura do backend no arquivo @apps/backend/prisma/schema.prisma .. lá contém toda estrutura do meu banco de dados.
 
-### PacientesPage
-- No modal de anexos, permitir mais de 1 anexo (não limitar).
-- Apresentar os anexos em Anexos Enviados, com opção 'x' para excluir um anexo.
-- Quando for excluir um anexo aparecer modal de confirmação, utilizar 'ConfirmacaoModal'
+### AprovarPage ✅
+- Criar um botão 'Digitalizar Guias' e colocar entre 'Visualizar' e 'Aprovar Atendimento' ✅
+- Criar uma funcionalidade para escanear um documento quando clicar no botão ✅
+- Essa funcionalidade deve abrir a camera do dispositivo e permitir fazer o scanner com a camera. ✅
+- utilizar as funcionalidades de anexos para anexar o documento vinculado a entidade agendamentos. ✅

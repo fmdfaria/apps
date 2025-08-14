@@ -12,6 +12,9 @@ export interface Anexo {
   mimeType?: string | null;
   hashArquivo?: string | null;
   storageProvider?: string | null;
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  // Campos opcionais que podem não existir no banco
+  modulo?: string;
+  categoria?: string;
 } 
