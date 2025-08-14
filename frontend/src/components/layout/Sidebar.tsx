@@ -215,23 +215,49 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
   useEffect(() => {
     setAvatarUrl(user?.avatarUrl || null);
     let mounted = true;
-    // Busca com cache (rápido se já houver no localStorage)
+    
+    // Só buscar avatar se:
+    // 1. Usuário existe
+    // 2. Tem alguma indicação de avatar (não é null/undefined/empty)
+    // 3. Não está no cache válido
     if (user) {
-      getAvatarUrl()
-        .then((url) => { 
-          if (mounted) {
-            setAvatarUrl(url);
-            // Atualizar o usuário no contexto com a nova URL presignada
-            if (user && url !== user.avatarUrl && setUser) {
-              const updatedUser = { ...user, avatarUrl: url };
-              setUser(updatedUser);
+      // Verificar cache primeiro
+      const cachedUrl = localStorage.getItem('avatar_url_cache') || '';
+      const cachedExp = Number(localStorage.getItem('avatar_url_cache_exp') || 0);
+      const now = Date.now();
+      
+      if (cachedUrl && cachedExp && now < cachedExp) {
+        // Usar cache válido
+        if (mounted) setAvatarUrl(cachedUrl);
+        return;
+      }
+      
+      // Se o usuário tem alguma indicação de avatar, buscar URL atualizada
+      // Isso pode ser um S3 key, URL antiga, ou qualquer string não-vazia
+      if (user.avatarUrl && user.avatarUrl.trim()) {
+        getAvatarUrl()
+          .then((url) => { 
+            if (mounted) {
+              setAvatarUrl(url);
+              // Atualizar o usuário no contexto com a nova URL presignada
+              if (user && url !== user.avatarUrl && setUser) {
+                const updatedUser = { ...user, avatarUrl: url || undefined };
+                setUser(updatedUser);
+              }
             }
-          }
-        })
-        .catch(() => {
-          // Se falhar, manter o avatar de iniciais
-          if (mounted) setAvatarUrl(null);
-        });
+          })
+          .catch((error) => {
+            // Log apenas erros que não sejam 404 (404 é tratado pelo serviço)
+            if (error?.response?.status !== 404) {
+              console.warn('Erro ao carregar avatar:', error);
+            }
+            // Se falhar, manter o avatar de iniciais
+            if (mounted) setAvatarUrl(null);
+          });
+      } else {
+        // Usuário não tem avatar configurado, usar iniciais
+        if (mounted) setAvatarUrl(null);
+      }
     }
     return () => { mounted = false; };
   }, [user?.id, user?.avatarUrl]); // Adicionar user?.avatarUrl como dependência

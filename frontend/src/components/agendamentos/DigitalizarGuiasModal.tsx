@@ -201,6 +201,9 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
 
   const startCamera = async () => {
     try {
+      // Tornar o container visível antes para garantir que o <video> exista no DOM
+      setIsCameraOpen(true);
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode: 'environment', // Usar câmera traseira preferencialmente
@@ -209,11 +212,17 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
         }
       });
       
+      // Guardar stream e associar ao <video> quando disponível
+      streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        streamRef.current = stream;
+        const onLoaded = () => {
+          // Tentar iniciar a reprodução assim que os metadados estiverem disponíveis
+          try { videoRef.current?.play?.(); } catch { /* noop */ }
+          videoRef.current?.removeEventListener('loadedmetadata', onLoaded);
+        };
+        videoRef.current.addEventListener('loadedmetadata', onLoaded);
       }
-      setIsCameraOpen(true);
     } catch (error) {
       console.error('Erro ao acessar câmera:', error);
       AppToast.error('Erro ao acessar câmera', {
@@ -227,6 +236,11 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
+    if (videoRef.current) {
+      // Desassociar stream para evitar tela preta persistente em alguns navegadores
+      // @ts-expect-error - srcObject não é reconhecido em alguns tipos
+      videoRef.current.srcObject = null;
+    }
     setIsCameraOpen(false);
   };
 
@@ -236,12 +250,20 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
     const canvas = document.createElement('canvas');
     const video = videoRef.current;
     
+    // Garantir que os metadados foram carregados
+    if (!video.videoWidth || !video.videoHeight) {
+      AppToast.error('Câmera ainda inicializando', {
+        description: 'Aguarde um instante e tente capturar novamente.'
+      });
+      return;
+    }
+    
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     
     const context = canvas.getContext('2d');
     if (context) {
-      context.drawImage(video, 0, 0);
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
       setCapturedImage(imageDataUrl);
       stopCamera();
@@ -250,8 +272,14 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
 
   const dataURLtoFile = (dataURL: string, filename: string): File => {
     const arr = dataURL.split(',');
-    const mime = arr[0].match(/:(.*?);/)![1];
-    const bstr = atob(arr[1]);
+    if (arr.length < 2) {
+      throw new Error('Imagem inválida ou não capturada corretamente.');
+    }
+    const header = arr[0];
+    const base64 = arr[1];
+    const mimeMatch = header.match(/data:(.*?);base64/);
+    const mime = mimeMatch?.[1] || 'image/jpeg';
+    const bstr = atob(base64);
     let n = bstr.length;
     const u8arr = new Uint8Array(n);
     while (n--) {
@@ -339,6 +367,25 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
       setUploading(false);
     }
   };
+
+  // Quando o modo câmera abre e já existe um stream, garantir ligação ao <video>
+  useEffect(() => {
+    if (isCameraOpen && streamRef.current && videoRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      const onLoaded = () => {
+        try { videoRef.current?.play?.(); } catch { /* noop */ }
+        videoRef.current?.removeEventListener('loadedmetadata', onLoaded);
+      };
+      videoRef.current.addEventListener('loadedmetadata', onLoaded);
+    }
+  }, [isCameraOpen]);
+
+  // Cleanup ao desmontar o componente
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
 
   const handleClose = () => {
     stopCamera();
@@ -486,6 +533,7 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
                               ref={videoRef}
                               autoPlay
                               playsInline
+                              muted
                               className="w-full rounded-lg border-2 border-purple-300"
                               style={{ maxHeight: '300px' }}
                             />

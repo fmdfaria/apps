@@ -92,9 +92,27 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Inicia o token watcher após login bem-sucedido
       useAuthStore.getState().startTokenWatcher();
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error 
-        ? err.message 
-        : (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Erro ao fazer login';
+      console.error('Erro no login:', err);
+      
+      let errorMessage = 'Erro ao fazer login';
+      
+      // Tentar extrair mensagem de erro do axios response
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { data?: { message?: string } } };
+        if (axiosError.response?.data?.message) {
+          errorMessage = axiosError.response.data.message;
+        }
+      }
+      // Se for um erro padrão do JavaScript
+      else if (err instanceof Error) {
+        // Se a mensagem contém "Request failed", é erro genérico do axios
+        if (err.message.includes('Request failed')) {
+          errorMessage = 'Usuário ou senha inválidos.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
       set({ error: errorMessage, loading: false });
     }
   },

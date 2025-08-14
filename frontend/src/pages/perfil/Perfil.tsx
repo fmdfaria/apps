@@ -50,12 +50,28 @@ export const Perfil = () => {
     
     setIsLoadingProfile(true);
     try {
-      // Buscar dados do usuário, roles e avatar em paralelo
-      const [updatedUser, userRoles, presignedAvatarUrlOrNull] = await Promise.all([
+      // Buscar dados do usuário e roles
+      const [updatedUser, userRoles] = await Promise.all([
         getUserById(user.id),
-        getUserRoles(user.id),
-        getAvatarUrl().catch(() => null)
+        getUserRoles(user.id)
       ]);
+      
+      // Buscar avatar apenas se o usuário tem um configurado
+      let presignedAvatarUrlOrNull = null;
+      if (updatedUser.avatarUrl && updatedUser.avatarUrl.trim()) {
+        try {
+          presignedAvatarUrlOrNull = await getAvatarUrl();
+        } catch (error) {
+          // Log apenas erros que não sejam 404
+          if (error && typeof error === 'object' && 'response' in error) {
+            const axiosError = error as { response?: { status?: number } };
+            if (axiosError.response?.status !== 404) {
+              console.warn('Erro ao carregar avatar no perfil:', error);
+            }
+          }
+          presignedAvatarUrlOrNull = null;
+        }
+      }
 
       // Combinar dados do usuário com roles
       const userWithRoles = { ...updatedUser, roles: userRoles, avatarUrl: presignedAvatarUrlOrNull || undefined };
@@ -220,9 +236,17 @@ export const Perfil = () => {
       // Após salvar a S3 key, buscar URL presignada para exibição
       let presignedUrl = '';
       try {
-        presignedUrl = await getAvatarUrl();
+        const avatarUrl = await getAvatarUrl();
+        presignedUrl = avatarUrl || response.avatarUrl;
       } catch (err) {
-        // Se falhar a geração, ainda assim atualiza com a chave retornada
+        // Log apenas erros que não sejam 404
+        if (err && typeof err === 'object' && 'response' in err) {
+          const axiosError = err as { response?: { status?: number } };
+          if (axiosError.response?.status !== 404) {
+            console.warn('Erro ao buscar URL do avatar após upload:', err);
+          }
+        }
+        // Se falhar a geração, usar a chave retornada pelo upload
         presignedUrl = response.avatarUrl;
       }
 
