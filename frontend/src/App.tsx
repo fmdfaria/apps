@@ -41,6 +41,7 @@ import EvolucaoPacientesPage from '@/pages/pacientes/EvolucaoPacientesPage';
 import { TestDocumentScanner } from '@/components/TestDocumentScanner';
 import { SimpleDocumentScanner } from '@/components/SimpleDocumentScanner';
 import { TestPDFOrientation } from '@/components/TestPDFOrientation';
+import { TestDigitalizarGuias } from '@/components/TestDigitalizarGuias';
 
 export default function App() {
   const initializeAuth = useAuthStore((s) => s.initializeAuth);
@@ -95,6 +96,7 @@ export default function App() {
             <Route path="test/scanner" element={<TestDocumentScanner />} />
             <Route path="test/simple-camera" element={<SimpleDocumentScanner />} />
             <Route path="test/pdf-orientation" element={<TestPDFOrientation />} />
+            <Route path="test/digitalizar-guias" element={<TestDigitalizarGuias />} />
           </Route>
         </Route>
 

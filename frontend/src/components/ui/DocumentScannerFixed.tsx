@@ -306,7 +306,7 @@ export const DocumentScannerFixed: React.FC<DocumentScannerFixedProps> = ({
     
     corners.forEach((corner, index) => {
       const distance = Math.sqrt((x - corner.x) ** 2 + (y - corner.y) ** 2);
-      if (distance < minDistance && distance < 30) { // 30px de tolerância
+      if (distance < minDistance && distance < 40) { // 40px de tolerância (aumentado para pontos maiores)
         minDistance = distance;
         closestIndex = index;
       }
@@ -381,21 +381,21 @@ export const DocumentScannerFixed: React.FC<DocumentScannerFixedProps> = ({
     
     // Desenhar pontos de controle
     corners.forEach((corner, index) => {
-      // Círculo externo (vermelho)
+      // Círculo externo (vermelho) - aumentado de 15 para 20
       ctx.fillStyle = '#ff0000';
       ctx.beginPath();
-      ctx.arc(corner.x, corner.y, 15, 0, 2 * Math.PI);
+      ctx.arc(corner.x, corner.y, 20, 0, 2 * Math.PI);
       ctx.fill();
       
-      // Círculo interno (branco)
+      // Círculo interno (branco) - aumentado de 8 para 12
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(corner.x, corner.y, 8, 0, 2 * Math.PI);
+      ctx.arc(corner.x, corner.y, 12, 0, 2 * Math.PI);
       ctx.fill();
       
-      // Número do ponto
+      // Número do ponto - aumentado de 12px para 16px
       ctx.fillStyle = '#000000';
-      ctx.font = 'bold 12px Arial';
+      ctx.font = 'bold 16px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText((index + 1).toString(), corner.x, corner.y);

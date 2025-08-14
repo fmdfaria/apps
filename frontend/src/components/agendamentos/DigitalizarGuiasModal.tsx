@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Camera, Upload, Download, X, Check } from 'lucide-react';
-import { FullScreenCamera } from '@/components/ui/FullScreenCamera';
+import { DocumentScannerFixed } from '@/components/ui/DocumentScannerFixed';
 import { ImageCropper } from '@/components/ui/ImageCropper';
 import { AppToast } from '@/services/toast';
 import type { Agendamento } from '@/types/Agendamento';
@@ -26,8 +26,10 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
   onSuccess
 }) => {
   const { user } = useAuthStore();
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [showDocumentScanner, setShowDocumentScanner] = useState(false);
+  const [modalExpanded, setModalExpanded] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedPdf, setCapturedPdf] = useState<{blob: Blob, fileName: string} | null>(null);
   const [descricao, setDescricao] = useState('');
   const [nomeArquivo, setNomeArquivo] = useState('');
   const [nomeArquivoBase, setNomeArquivoBase] = useState('');
@@ -38,12 +40,8 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
   const [deletingAnexo, setDeletingAnexo] = useState(false);
   const [modoDigitalizacao, setModoDigitalizacao] = useState(false);
   const [userNamesCache, setUserNamesCache] = useState<Record<string, string>>({});
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showCameraFull, setShowCameraFull] = useState(false);
   const [showCropper, setShowCropper] = useState(false);
-  const [modalExpanded, setModalExpanded] = useState(false);
 
   // Função para buscar o nome do usuário pelo ID
   const fetchUserName = async (userId: string): Promise<string> => {
@@ -185,95 +183,52 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
   };
 
   // Função para gerar o nome completo do arquivo
-  const gerarNomeCompleto = (textoBase: string, usarPadrao: boolean) => {
+  const gerarNomeCompleto = (textoBase: string, usarPadrao: boolean, isPdf: boolean = false) => {
     if (!textoBase.trim()) return '';
     // Remover caracteres especiais e espaços, manter apenas letras, números e underscore
     const textoLimpo = textoBase.trim().replace(/[^a-zA-Z0-9_]/g, '_');
-    return usarPadrao ? `${textoLimpo}_RA_doc1.jpg` : `${textoLimpo}.jpg`;
+    const extensao = isPdf ? '.pdf' : '.jpg';
+    return usarPadrao ? `${textoLimpo}_RA_doc1${extensao}` : `${textoLimpo}${extensao}`;
   };
 
   // Função para atualizar o nome do arquivo
   const handleNomeArquivoChange = (valor: string) => {
     setNomeArquivoBase(valor);
-    setNomeArquivo(gerarNomeCompleto(valor, usarPadraoRA));
+    const isPdf = !!capturedPdf; // Se há PDF capturado, usar extensão .pdf
+    setNomeArquivo(gerarNomeCompleto(valor, usarPadraoRA, isPdf));
   };
 
   // Função para atualizar quando o checkbox muda
   const handleUsarPadraoRAChange = (checked: boolean) => {
     setUsarPadraoRA(checked);
-    setNomeArquivo(gerarNomeCompleto(nomeArquivoBase, checked));
+    const isPdf = !!capturedPdf; // Se há PDF capturado, usar extensão .pdf
+    setNomeArquivo(gerarNomeCompleto(nomeArquivoBase, checked, isPdf));
   };
 
-  const startCamera = async () => {
-    // Expandir o modal e abrir a câmera integrada
+  // Função para lidar com o PDF gerado pelo DocumentScanner
+  const handleDocumentScannerPDF = (pdfBlob: Blob, fileName: string) => {
+    setCapturedPdf({ blob: pdfBlob, fileName });
+    setShowDocumentScanner(false);
+    setModalExpanded(false); // Retorna ao modal normal após captura
+    
+    // Atualizar o nome do arquivo baseado no padrão atual
+    if (nomeArquivoBase.trim()) {
+      setNomeArquivo(gerarNomeCompleto(nomeArquivoBase, usarPadraoRA, true));
+    }
+    
+    console.log('PDF recebido do scanner:', fileName, pdfBlob.size, 'bytes');
+  };
+
+  // Função para abrir o scanner de documentos
+  const openDocumentScanner = () => {
     setModalExpanded(true);
-    setIsCameraOpen(true);
-    
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        },
-        audio: false
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        // @ts-expect-error - srcObject não existe em alguns tipos
-        videoRef.current.srcObject = stream;
-        const onLoaded = () => {
-          try { videoRef.current?.play?.(); } catch {}
-          videoRef.current?.removeEventListener('loadedmetadata', onLoaded);
-        };
-        videoRef.current.addEventListener('loadedmetadata', onLoaded);
-      }
-    } catch (err) {
-      console.error('Erro ao iniciar câmera:', err);
-      setModalExpanded(false);
-      setIsCameraOpen(false);
-    }
+    setShowDocumentScanner(true);
   };
 
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      // Desassociar stream para evitar tela preta persistente em alguns navegadores
-      // @ts-expect-error - srcObject não é reconhecido em alguns tipos
-      videoRef.current.srcObject = null;
-    }
-    setIsCameraOpen(false);
+  // Função para fechar o scanner e retornar ao modal normal
+  const handleScannerClose = () => {
+    setShowDocumentScanner(false);
     setModalExpanded(false);
-  };
-
-  const capturePhoto = () => {
-    if (!videoRef.current) return;
-
-    const canvas = document.createElement('canvas');
-    const video = videoRef.current;
-    
-    // Garantir que os metadados foram carregados
-    if (!video.videoWidth || !video.videoHeight) {
-      AppToast.error('Câmera ainda inicializando', {
-        description: 'Aguarde um instante e tente capturar novamente.'
-      });
-      return;
-    }
-    
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    
-    const context = canvas.getContext('2d');
-    if (context) {
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-      setCapturedImage(imageDataUrl);
-      stopCamera();
-      setShowCropper(true);
-    }
   };
 
   const dataURLtoFile = (dataURL: string, filename: string): File => {
@@ -306,9 +261,17 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
   };
 
   const handleSave = async () => {
-    if (!capturedImage || !agendamento) {
-      AppToast.error('Imagem é obrigatória', {
-        description: 'Capture uma foto ou selecione um arquivo para continuar.'
+    // Verificar se temos imagem OU PDF
+    if (!capturedImage && !capturedPdf) {
+      AppToast.error('Documento é obrigatório', {
+        description: 'Capture um documento ou selecione um arquivo para continuar.'
+      });
+      return;
+    }
+
+    if (!agendamento) {
+      AppToast.error('Erro no agendamento', {
+        description: 'Informações do agendamento não encontradas.'
       });
       return;
     }
@@ -320,7 +283,8 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
       return;
     }
 
-    if (!nomeArquivoBase.trim()) {
+    // Nome é obrigatório tanto para imagens quanto para PDFs
+    if ((capturedImage || capturedPdf) && !nomeArquivoBase.trim()) {
       AppToast.error('Nome do arquivo é obrigatório', {
         description: 'Informe um nome para o arquivo.'
       });
@@ -330,18 +294,28 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
     setUploading(true);
 
     try {
-      const file = dataURLtoFile(
-        capturedImage,
-        nomeArquivo // Já vem formatado da função gerarNomeCompleto
-      );
+      let file: File;
+
+      if (capturedPdf) {
+        // Usar PDF gerado pelo DocumentScanner com nome personalizado
+        const pdfFileName = nomeArquivo || capturedPdf.fileName;
+        file = new File([capturedPdf.blob], pdfFileName, { type: 'application/pdf' });
+        console.log('Enviando PDF:', pdfFileName);
+      } else if (capturedImage) {
+        // Usar imagem (funcionalidade antiga)
+        file = dataURLtoFile(capturedImage, nomeArquivo);
+        console.log('Enviando imagem:', nomeArquivo);
+      } else {
+        throw new Error('Nenhum arquivo para upload');
+      }
 
       await uploadAnexo({
         file,
         descricao: descricao.trim(),
         entidadeId: agendamento.id,
-        modulo: 'agendamentos', // Backend pode ignorar se não usar
-        categoria: 'guias', // Backend pode ignorar se não usar
-        criadoPor: user?.id || 'sistema' // Usar ID do usuário ao invés do nome
+        modulo: 'agendamentos',
+        categoria: 'guias',
+        criadoPor: user?.id || 'sistema'
       });
 
       // Resetar estados e fechar modal primeiro
@@ -355,7 +329,7 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
         AppToast.success('Documento digitalizado com sucesso!', {
           description: 'O documento foi anexado ao agendamento.'
         });
-      }, 100); // Pequeno delay para garantir que o modal feche primeiro
+      }, 100);
     } catch (error: unknown) {
       console.error('Erro ao salvar documento:', error);
       let message = 'Erro ao salvar o documento digitalizado.';
@@ -374,48 +348,40 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
     }
   };
 
-  // Quando o modo câmera abre e já existe um stream, garantir ligação ao <video>
-  useEffect(() => {
-    if (isCameraOpen && streamRef.current && videoRef.current) {
-      videoRef.current.srcObject = streamRef.current;
-      const onLoaded = () => {
-        try { videoRef.current?.play?.(); } catch { /* noop */ }
-        videoRef.current?.removeEventListener('loadedmetadata', onLoaded);
-      };
-      videoRef.current.addEventListener('loadedmetadata', onLoaded);
-    }
-  }, [isCameraOpen]);
-
   // Cleanup ao desmontar o componente
   useEffect(() => {
     return () => {
-      stopCamera();
+      // Cleanup se necessário
+      setCapturedImage(null);
+      setCapturedPdf(null);
     };
   }, []);
 
   const handleClose = () => {
-    stopCamera();
+    setShowDocumentScanner(false);
+    setModalExpanded(false);
     setCapturedImage(null);
+    setCapturedPdf(null);
     setDescricao('');
     setNomeArquivo('');
     setNomeArquivoBase('');
-    setUsarPadraoRA(true); // Reset para default ativo
+    setUsarPadraoRA(true);
     setUploading(false);
     setAnexosExistentes([]);
     setLoadingAnexos(true);
     setDeletingAnexo(false);
     setModoDigitalizacao(false);
-    setModalExpanded(false);
-    setUserNamesCache({}); // Limpar cache de nomes
+    setUserNamesCache({});
     onClose();
   };
 
   const resetCapture = () => {
     setCapturedImage(null);
+    setCapturedPdf(null);
     setDescricao('');
     setNomeArquivo('');
     setNomeArquivoBase('');
-    setUsarPadraoRA(true); // Reset para default ativo
+    setUsarPadraoRA(true);
   };
 
   return (
@@ -429,19 +395,14 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
         </DialogHeader>
 
         <div className={modalExpanded ? "flex-1 overflow-hidden" : "mt-4 space-y-4"}>
-          {modalExpanded && isCameraOpen ? (
-            <div className="h-[calc(100vh-180px)] flex flex-col">
-              <div className="flex-1 relative bg-black rounded-lg overflow-hidden min-h-0">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-contain"
-                />
-                
-                
-              </div>
+          {modalExpanded && showDocumentScanner ? (
+            <div className="absolute inset-0 z-50">
+              {/* DocumentScanner integrado diretamente - ocupa toda a tela do modal expandido */}
+              <DocumentScannerFixed
+                isOpen={true}
+                onClose={handleScannerClose}
+                onSavePDF={handleDocumentScannerPDF}
+              />
             </div>
           ) : loadingAnexos ? (
             <div className="text-center py-12">
@@ -523,28 +484,28 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
               {/* Interface de digitalização - só disponível quando não há anexos */}
               {modoDigitalizacao && anexosExistentes.length === 0 && (
                 <>
-                  {!capturedImage && (
+                  {!capturedImage && !capturedPdf && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Opção de Câmera */}
                       <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl p-4 border-2 border-purple-200">
                         <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                           <Camera className="w-5 h-5 text-purple-600" />
-                          Scanner com Câmera
+                          Scanner Inteligente
                         </h3>
                         
                         <div className="text-center py-6">
                           <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                             <Camera className="w-8 h-8 text-purple-600" />
                           </div>
-                          <p className="text-gray-600 mb-4">
-                            Use a câmera para digitalizar a guia diretamente
+                          <p className="text-gray-600 mb-2">
+                            <strong>Scanner Adobe-style</strong>
                           </p>
                           <Button
-                            onClick={startCamera}
+                            onClick={openDocumentScanner}
                             className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700"
                           >
                             <Camera className="w-4 h-4 mr-2" />
-                            Abrir Câmera
+                            Scanner de Documentos
                           </Button>
                         </div>
                       </div>
@@ -583,7 +544,7 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
                     </div>
                   )}
 
-                  {capturedImage && (
+                  {(capturedImage || capturedPdf) && (
                     <div className="space-y-4">
                       <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border-2 border-green-200">
                         <div className="flex items-center justify-between mb-3">
@@ -604,51 +565,82 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
                         
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                           <div>
-                            <img
-                              src={capturedImage}
-                              alt="Documento capturado"
-                              className="w-full rounded-lg border-2 border-green-300 max-h-96 object-contain"
-                            />
+                            {capturedPdf ? (
+                              <div className="w-full rounded-lg border-2 border-green-300 p-8 bg-white text-center">
+                                <div className="text-6xl mb-4">📄</div>
+                                <h3 className="text-lg font-semibold text-gray-800 mb-2">PDF Gerado</h3>
+                                <p className="text-sm text-gray-600 mb-2">
+                                  <strong>Arquivo:</strong> {capturedPdf.fileName}
+                                </p>
+                                <p className="text-sm text-gray-600 mb-4">
+                                  <strong>Tamanho:</strong> {Math.round(capturedPdf.blob.size / 1024)} KB
+                                </p>
+                                <Button
+                                  onClick={() => {
+                                    const url = URL.createObjectURL(capturedPdf.blob);
+                                    window.open(url, '_blank');
+                                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                                  }}
+                                  variant="outline"
+                                  size="sm"
+                                  className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                                >
+                                  <Download className="w-4 h-4 mr-2" />
+                                  Visualizar PDF
+                                </Button>
+                              </div>
+                            ) : capturedImage ? (
+                              <img
+                                src={capturedImage}
+                                alt="Documento capturado"
+                                className="w-full rounded-lg border-2 border-green-300 max-h-96 object-contain"
+                              />
+                            ) : null}
                           </div>
                           
                           <div className="space-y-3">
-                            <div>
-                              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                                📁 Nome do Arquivo *
-                              </label>
-                              <input
-                                type="text"
-                                value={nomeArquivoBase}
-                                onChange={(e) => handleNomeArquivoChange(e.target.value)}
-                                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200 hover:border-green-300"
-                                placeholder="Ex: guia_consulta, autorizacao_exame"
-                                disabled={uploading}
-                              />
-                              
-                              <div className="mt-3 flex items-center space-x-2">
-                                <Checkbox
-                                  id="usarPadraoRA"
-                                  checked={usarPadraoRA}
-                                  onCheckedChange={(checked) => handleUsarPadraoRAChange(checked as boolean)}
+                            {/* Campo de nome do arquivo - para imagens e PDFs */}
+                            {(capturedImage || capturedPdf) && (
+                              <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                  📁 Nome do Arquivo *
+                                </label>
+                                <input
+                                  type="text"
+                                  value={nomeArquivoBase}
+                                  onChange={(e) => handleNomeArquivoChange(e.target.value)}
+                                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200 hover:border-green-300"
+                                  placeholder="Ex: guia_consulta, autorizacao_exame"
                                   disabled={uploading}
                                 />
-                                <label htmlFor="usarPadraoRA" className="text-sm font-medium text-gray-700 flex items-center gap-1 cursor-pointer">
-                                  ⚙️ Usar padrão '_RA_doc1'
-                                </label>
-                              </div>
-
-                              {nomeArquivo && (
-                                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-                                  <p className="text-xs text-blue-700 font-medium">
-                                    📄 Arquivo será salvo como: <span className="font-mono bg-blue-100 px-1 rounded">{nomeArquivo}</span>
-                                  </p>
+                                
+                                <div className="mt-3 flex items-center space-x-2">
+                                  <Checkbox
+                                    id="usarPadraoRA"
+                                    checked={usarPadraoRA}
+                                    onCheckedChange={(checked) => handleUsarPadraoRAChange(checked as boolean)}
+                                    disabled={uploading}
+                                  />
+                                  <label htmlFor="usarPadraoRA" className="text-sm font-medium text-gray-700 flex items-center gap-1 cursor-pointer">
+                                    ⚙️ Usar padrão '_RA_doc1'
+                                  </label>
                                 </div>
-                              )}
-                              
-                              <p className="text-xs text-gray-500 mt-1">
-                                💡 Formato: {usarPadraoRA ? '[seu_texto]_RA_doc1.jpg' : '[seu_texto].jpg'}
-                              </p>
-                            </div>
+
+                                {nomeArquivo && (
+                                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <p className="text-xs text-blue-700 font-medium">
+                                      📄 Arquivo será salvo como: <span className="font-mono bg-blue-100 px-1 rounded">{nomeArquivo}</span>
+                                    </p>
+                                  </div>
+                                )}
+                                
+                                <p className="text-xs text-gray-500 mt-1">
+                                  💡 Formato: {usarPadraoRA ? 
+                                    (capturedPdf ? '[seu_texto]_RA_doc1.pdf' : '[seu_texto]_RA_doc1.jpg') : 
+                                    (capturedPdf ? '[seu_texto].pdf' : '[seu_texto].jpg')}
+                                </p>
+                              </div>
+                            )}
                             
                             <div>
                               <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -702,58 +694,40 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
           )}
         </div>
 
-        <DialogFooter className="mt-6">
-          {modalExpanded && isCameraOpen ? (
-            <>
+        {!modalExpanded && (
+          <DialogFooter className="mt-6">
+            <DialogClose asChild>
               <Button
-                onClick={stopCamera}
                 variant="outline"
-                className="border-2 border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 font-semibold px-6 transition-all duration-200"
+                disabled={uploading}
+                className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
               >
-                ← Voltar
+                ❌ Fechar
               </Button>
+            </DialogClose>
+            
+            {modoDigitalizacao && (capturedImage || capturedPdf) && anexosExistentes.length === 0 && (
               <Button
-                onClick={capturePhoto}
+                onClick={handleSave}
+                disabled={uploading || !descricao.trim() || !nomeArquivoBase.trim()}
                 className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200"
               >
-                <Camera className="w-4 h-4 mr-2" />
-                Capturar Foto
+                {uploading ? (
+                  <>
+                    ⏳ Salvando...
+                  </>
+                ) : (
+                  <>
+                    💾 Salvar Documento
+                  </>
+                )}
               </Button>
-            </>
-          ) : (
-            <>
-              <DialogClose asChild>
-                <Button
-                  variant="outline"
-                  disabled={uploading}
-                  className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
-                >
-                  ❌ Fechar
-                </Button>
-              </DialogClose>
-              
-              {modoDigitalizacao && capturedImage && anexosExistentes.length === 0 && (
-                <Button
-                  onClick={handleSave}
-                  disabled={uploading || !descricao.trim() || !nomeArquivoBase.trim()}
-                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200"
-                >
-                  {uploading ? (
-                    <>
-                      ⏳ Salvando...
-                    </>
-                  ) : (
-                    <>
-                      💾 Salvar Documento
-                    </>
-                  )}
-                </Button>
-              )}
-            </>
-          )}
-        </DialogFooter>
+            )}
+          </DialogFooter>
+        )}
       </DialogContent>
-      {/* Cropper */}
+      
+      {/* Cropper - mantido para compatibilidade com upload de imagem */}
       <ImageCropper
         isOpen={showCropper}
         imageDataUrl={capturedImage}
@@ -761,10 +735,18 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
         onClose={() => setShowCropper(false)}
         onCropped={(dataUrl) => {
           setCapturedImage(dataUrl);
-          setIsCameraOpen(false);
           setShowCropper(false);
         }}
       />
+
+      {/* DocumentScanner externo - usado quando não está no modal expandido */}
+      {!modalExpanded && (
+        <DocumentScannerFixed
+          isOpen={showDocumentScanner}
+          onClose={() => setShowDocumentScanner(false)}
+          onSavePDF={handleDocumentScannerPDF}
+        />
+      )}
     </Dialog>
   );
 };
