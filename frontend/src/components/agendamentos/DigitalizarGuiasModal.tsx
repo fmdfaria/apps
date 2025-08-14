@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Camera, Upload, Download, X, Check } from 'lucide-react';
+import { FullScreenCamera } from '@/components/ui/FullScreenCamera';
+import { ImageCropper } from '@/components/ui/ImageCropper';
 import { AppToast } from '@/services/toast';
 import type { Agendamento } from '@/types/Agendamento';
 import type { Anexo } from '@/types/Anexo';
@@ -39,6 +41,8 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showCameraFull, setShowCameraFull] = useState(false);
+  const [showCropper, setShowCropper] = useState(false);
 
   // Função para buscar o nome do usuário pelo ID
   const fetchUserName = async (userId: string): Promise<string> => {
@@ -200,35 +204,8 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
   };
 
   const startCamera = async () => {
-    try {
-      // Tornar o container visível antes para garantir que o <video> exista no DOM
-      setIsCameraOpen(true);
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: 'environment', // Usar câmera traseira preferencialmente
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      });
-      
-      // Guardar stream e associar ao <video> quando disponível
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        const onLoaded = () => {
-          // Tentar iniciar a reprodução assim que os metadados estiverem disponíveis
-          try { videoRef.current?.play?.(); } catch { /* noop */ }
-          videoRef.current?.removeEventListener('loadedmetadata', onLoaded);
-        };
-        videoRef.current.addEventListener('loadedmetadata', onLoaded);
-      }
-    } catch (error) {
-      console.error('Erro ao acessar câmera:', error);
-      AppToast.error('Erro ao acessar câmera', {
-        description: 'Não foi possível acessar a câmera do dispositivo. Verifique as permissões.'
-      });
-    }
+    // Agora usamos a câmera em tela cheia
+    setShowCameraFull(true);
   };
 
   const stopCamera = () => {
@@ -741,6 +718,28 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
           )}
         </DialogFooter>
       </DialogContent>
+      {/* Overlays: câmera em tela cheia e cropper */}
+      <FullScreenCamera
+        isOpen={showCameraFull}
+        onClose={() => setShowCameraFull(false)}
+        onCapture={(img) => {
+          // após capturar, abrir cropper A4 retrato por padrão
+          setCapturedImage(img);
+          setShowCameraFull(false);
+          setShowCropper(true);
+        }}
+      />
+      <ImageCropper
+        isOpen={showCropper}
+        imageDataUrl={capturedImage}
+        aspect={'A4-portrait'}
+        onClose={() => setShowCropper(false)}
+        onCropped={(dataUrl) => {
+          setCapturedImage(dataUrl);
+          setIsCameraOpen(false);
+          setShowCropper(false);
+        }}
+      />
     </Dialog>
   );
 };
