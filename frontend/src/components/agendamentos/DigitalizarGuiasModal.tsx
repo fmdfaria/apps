@@ -43,6 +43,7 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showCameraFull, setShowCameraFull] = useState(false);
   const [showCropper, setShowCropper] = useState(false);
+  const [modalExpanded, setModalExpanded] = useState(false);
 
   // Função para buscar o nome do usuário pelo ID
   const fetchUserName = async (userId: string): Promise<string> => {
@@ -204,8 +205,34 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
   };
 
   const startCamera = async () => {
-    // Agora usamos a câmera em tela cheia
-    setShowCameraFull(true);
+    // Expandir o modal e abrir a câmera integrada
+    setModalExpanded(true);
+    setIsCameraOpen(true);
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        // @ts-expect-error - srcObject não existe em alguns tipos
+        videoRef.current.srcObject = stream;
+        const onLoaded = () => {
+          try { videoRef.current?.play?.(); } catch {}
+          videoRef.current?.removeEventListener('loadedmetadata', onLoaded);
+        };
+        videoRef.current.addEventListener('loadedmetadata', onLoaded);
+      }
+    } catch (err) {
+      console.error('Erro ao iniciar câmera:', err);
+      setModalExpanded(false);
+      setIsCameraOpen(false);
+    }
   };
 
   const stopCamera = () => {
@@ -219,6 +246,7 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
       videoRef.current.srcObject = null;
     }
     setIsCameraOpen(false);
+    setModalExpanded(false);
   };
 
   const capturePhoto = () => {
@@ -244,6 +272,7 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
       const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
       setCapturedImage(imageDataUrl);
       stopCamera();
+      setShowCropper(true);
     }
   };
 
@@ -376,6 +405,7 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
     setLoadingAnexos(true);
     setDeletingAnexo(false);
     setModoDigitalizacao(false);
+    setModalExpanded(false);
     setUserNamesCache({}); // Limpar cache de nomes
     onClose();
   };
@@ -390,7 +420,7 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className={modalExpanded ? "max-w-[95vw] max-h-[95vh] w-full h-full overflow-hidden" : "max-w-4xl max-h-[90vh] overflow-y-auto"}>
         <DialogHeader className="bg-gradient-to-r from-purple-50 to-violet-50 -mx-6 -mt-6 px-6 pt-6 pb-4 border-b border-gray-200">
           <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
             <Camera className="w-6 h-6 text-purple-600" />
@@ -398,8 +428,22 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="mt-4 space-y-4">
-          {loadingAnexos ? (
+        <div className={modalExpanded ? "flex-1 overflow-hidden" : "mt-4 space-y-4"}>
+          {modalExpanded && isCameraOpen ? (
+            <div className="h-[calc(100vh-180px)] flex flex-col">
+              <div className="flex-1 relative bg-black rounded-lg overflow-hidden min-h-0">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-contain"
+                />
+                
+                
+              </div>
+            </div>
+          ) : loadingAnexos ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
               <p className="text-gray-600">Verificando guias existentes...</p>
@@ -488,51 +532,21 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
                           Scanner com Câmera
                         </h3>
                         
-                        {!isCameraOpen ? (
-                          <div className="text-center py-6">
-                            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                              <Camera className="w-8 h-8 text-purple-600" />
-                            </div>
-                            <p className="text-gray-600 mb-4">
-                              Use a câmera para digitalizar a guia diretamente
-                            </p>
-                            <Button
-                              onClick={startCamera}
-                              className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700"
-                            >
-                              <Camera className="w-4 h-4 mr-2" />
-                              Abrir Câmera
-                            </Button>
+                        <div className="text-center py-6">
+                          <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Camera className="w-8 h-8 text-purple-600" />
                           </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <video
-                              ref={videoRef}
-                              autoPlay
-                              playsInline
-                              muted
-                              className="w-full rounded-lg border-2 border-purple-300"
-                              style={{ maxHeight: '300px' }}
-                            />
-                            <div className="flex gap-2 justify-center">
-                              <Button
-                                onClick={capturePhoto}
-                                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-                              >
-                                <Camera className="w-4 h-4 mr-2" />
-                                Capturar
-                              </Button>
-                              <Button
-                                onClick={stopCamera}
-                                variant="outline"
-                                className="border-gray-300"
-                              >
-                                <X className="w-4 h-4 mr-2" />
-                                Cancelar
-                              </Button>
-                            </div>
-                          </div>
-                        )}
+                          <p className="text-gray-600 mb-4">
+                            Use a câmera para digitalizar a guia diretamente
+                          </p>
+                          <Button
+                            onClick={startCamera}
+                            className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700"
+                          >
+                            <Camera className="w-4 h-4 mr-2" />
+                            Abrir Câmera
+                          </Button>
+                        </div>
                       </div>
 
                       {/* Opção de Upload */}
@@ -689,46 +703,57 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
         </div>
 
         <DialogFooter className="mt-6">
-          <DialogClose asChild>
-            <Button
-              variant="outline"
-              disabled={uploading}
-              className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
-            >
-              ❌ Fechar
-            </Button>
-          </DialogClose>
-          
-          {modoDigitalizacao && capturedImage && anexosExistentes.length === 0 && (
-            <Button
-              onClick={handleSave}
-              disabled={uploading || !descricao.trim() || !nomeArquivoBase.trim()}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200"
-            >
-              {uploading ? (
-                <>
-                  ⏳ Salvando...
-                </>
-              ) : (
-                <>
-                  💾 Salvar Documento
-                </>
+          {modalExpanded && isCameraOpen ? (
+            <>
+              <Button
+                onClick={stopCamera}
+                variant="outline"
+                className="border-2 border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 font-semibold px-6 transition-all duration-200"
+              >
+                ← Voltar
+              </Button>
+              <Button
+                onClick={capturePhoto}
+                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200"
+              >
+                <Camera className="w-4 h-4 mr-2" />
+                Capturar Foto
+              </Button>
+            </>
+          ) : (
+            <>
+              <DialogClose asChild>
+                <Button
+                  variant="outline"
+                  disabled={uploading}
+                  className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
+                >
+                  ❌ Fechar
+                </Button>
+              </DialogClose>
+              
+              {modoDigitalizacao && capturedImage && anexosExistentes.length === 0 && (
+                <Button
+                  onClick={handleSave}
+                  disabled={uploading || !descricao.trim() || !nomeArquivoBase.trim()}
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200"
+                >
+                  {uploading ? (
+                    <>
+                      ⏳ Salvando...
+                    </>
+                  ) : (
+                    <>
+                      💾 Salvar Documento
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
+            </>
           )}
         </DialogFooter>
       </DialogContent>
-      {/* Overlays: câmera em tela cheia e cropper */}
-      <FullScreenCamera
-        isOpen={showCameraFull}
-        onClose={() => setShowCameraFull(false)}
-        onCapture={(img) => {
-          // após capturar, abrir cropper A4 retrato por padrão
-          setCapturedImage(img);
-          setShowCameraFull(false);
-          setShowCropper(true);
-        }}
-      />
+      {/* Cropper */}
       <ImageCropper
         isOpen={showCropper}
         imageDataUrl={capturedImage}

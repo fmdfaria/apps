@@ -12,6 +12,7 @@ export const FullScreenCamera: React.FC<FullScreenCameraProps> = ({ isOpen, onCl
   const streamRef = useRef<MediaStream | null>(null);
   const [isPortrait, setIsPortrait] = useState(true);
   const [isTabletOrUp, setIsTabletOrUp] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
 
   useEffect(() => {
     const start = async () => {
@@ -78,7 +79,9 @@ export const FullScreenCamera: React.FC<FullScreenCameraProps> = ({ isOpen, onCl
   }, []);
 
   const handleCapture = () => {
+    if (isCapturing) return;
     if (!videoRef.current) return;
+    setIsCapturing(true);
     const video = videoRef.current;
     if (!video.videoWidth || !video.videoHeight) return;
     const canvas = document.createElement('canvas');
@@ -89,7 +92,6 @@ export const FullScreenCamera: React.FC<FullScreenCameraProps> = ({ isOpen, onCl
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
     onCapture(dataUrl);
-    onClose();
   };
 
   if (!isOpen) return null;
@@ -97,20 +99,20 @@ export const FullScreenCamera: React.FC<FullScreenCameraProps> = ({ isOpen, onCl
   const placeRight = isTabletOrUp && !isPortrait;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black h-[100dvh] w-[100vw]" style={{ contain: 'layout paint size' }}>
-      <div className="relative h-full w-full overflow-hidden">
+    <div className="fixed inset-0 z-[9999] bg-black h-[100dvh] w-[100vw] flex items-center justify-center" style={{ contain: 'layout paint size', padding: '12px' }}>
+      <div className="relative w-full h-full max-w-4xl max-h-full overflow-hidden rounded-xl border-4 border-white/90">
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
-          className="absolute inset-0 w-full h-full object-contain"
+          className="w-full h-full object-contain pointer-events-none"
         />
 
         {/* Botão fechar no topo direito */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-[101] p-2 rounded-full bg-white/10 text-white hover:bg-white/20"
+          className="absolute top-4 right-4 z-[10001] p-3 rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-black/70 transition-colors"
         >
           <X className="w-6 h-6" />
         </button>
@@ -120,16 +122,16 @@ export const FullScreenCamera: React.FC<FullScreenCameraProps> = ({ isOpen, onCl
           onClick={handleCapture}
           className={
             placeRight
-              ? 'absolute top-1/2 -translate-y-1/2 right-4 md:right-6 z-[101] px-6 py-4 rounded-full bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-xl active:scale-95'
-              : 'absolute left-1/2 -translate-x-1/2 z-[101] bottom-6 md:bottom-8 px-6 py-4 rounded-full bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-xl active:scale-95'
+              ? 'absolute top-1/2 -translate-y-1/2 right-6 md:right-10 z-[10001] px-7 py-5 rounded-full bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-xl active:scale-95'
+              : 'absolute left-1/2 -translate-x-1/2 z-[10001] bottom-10 md:bottom-14 px-7 py-5 rounded-full bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-xl active:scale-95'
           }
-          style={
-            placeRight
-              ? { marginRight: 'env(safe-area-inset-right, 0px)' }
-              : { paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }
-          }
+          type="button"
+          disabled={isCapturing}
+          aria-label="Capturar foto"
+          title="Capturar foto"
+          style={{ touchAction: 'manipulation' }}
         >
-          <span className="flex items-center gap-2"><Camera className="w-6 h-6" /> Capturar</span>
+          <span className="flex items-center gap-2"><Camera className="w-6 h-6" /> {isCapturing ? 'Capturando...' : 'Capturar'}</span>
         </button>
       </div>
     </div>
