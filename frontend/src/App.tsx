@@ -38,6 +38,9 @@ import RoutesPage from './pages/admin/RoutesPage';
 import UserRolesPage from './pages/admin/UserRolesPage';
 import PermissionsPage from './pages/admin/PermissionsPage';
 import EvolucaoPacientesPage from '@/pages/pacientes/EvolucaoPacientesPage';
+import { TestDocumentScanner } from '@/components/TestDocumentScanner';
+import { SimpleDocumentScanner } from '@/components/SimpleDocumentScanner';
+import { TestPDFOrientation } from '@/components/TestPDFOrientation';
 
 export default function App() {
   const initializeAuth = useAuthStore((s) => s.initializeAuth);
@@ -89,6 +92,9 @@ export default function App() {
             <Route path="administracao/rotas" element={<RoutesPage />} />
             <Route path="administracao/usuarios-roles" element={<UserRolesPage />} />
             <Route path="administracao/permissoes" element={<PermissionsPage />} />
+            <Route path="test/scanner" element={<TestDocumentScanner />} />
+            <Route path="test/simple-camera" element={<SimpleDocumentScanner />} />
+            <Route path="test/pdf-orientation" element={<TestPDFOrientation />} />
           </Route>
         </Route>
 

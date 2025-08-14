@@ -1,7 +1,8 @@
 
 import { useState, useRef } from 'react';
-import { Upload, X, File } from 'lucide-react';
+import { Upload, X, File, Scan } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DocumentScannerFixed } from '@/components/ui/DocumentScannerFixed';
 
 interface FileUploadProps {
   files: File[];
@@ -19,6 +20,7 @@ export const FileUpload = ({
   label = 'Arquivos'
 }: FileUploadProps) => {
   const [dragActive, setDragActive] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleDrag = (e: React.DragEvent) => {
@@ -65,6 +67,18 @@ export const FileUpload = ({
     inputRef.current?.click();
   };
 
+  const handleScannerPDF = (pdfBlob: Blob, fileName: string) => {
+    // Converter Blob para File
+    const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+    
+    // Adicionar arquivo à lista
+    if (files.length < maxFiles) {
+      onFilesChange([...files, pdfFile]);
+    }
+    
+    setShowScanner(false);
+  };
+
   return (
     <div className="space-y-4">
       <div
@@ -98,6 +112,30 @@ export const FileUpload = ({
             clique para selecionar
           </button>
         </p>
+        
+        <div className="flex justify-center gap-2 mt-4">
+          <Button
+            type="button"
+            onClick={onButtonClick}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <Upload className="w-4 h-4" />
+            Selecionar Arquivo
+          </Button>
+          
+          <Button
+            type="button"
+            onClick={() => setShowScanner(true)}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2 text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700"
+          >
+            <Scan className="w-4 h-4" />
+            Digitalizar Documento
+          </Button>
+        </div>
         <p className="text-sm text-gray-400">
           Formatos aceitos: {acceptedTypes.replace(/\./g, '').toUpperCase()}
         </p>
@@ -131,6 +169,13 @@ export const FileUpload = ({
           ))}
         </div>
       )}
+      
+      {/* Document Scanner Modal */}
+      <DocumentScannerFixed
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onSavePDF={handleScannerPDF}
+      />
     </div>
   );
 };
