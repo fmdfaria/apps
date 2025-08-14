@@ -42,7 +42,6 @@ export const DocumentScannerFixed: React.FC<DocumentScannerFixedProps> = ({
     contrast: 0,
     grayscale: false
   });
-  const [pdfOrientation, setPdfOrientation] = useState<'auto' | 'portrait' | 'landscape'>('auto');
 
   // Carregar OpenCV.js
   useEffect(() => {
@@ -198,30 +197,104 @@ export const DocumentScannerFixed: React.FC<DocumentScannerFixedProps> = ({
     }
   }, [isCapturing]);
 
+  // Aplicar correção de perspectiva usando OpenCV
+  const applyPerspectiveCorrection = useCallback(async (): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      try {
+        // Criar elemento de imagem
+        const img = new Image();
+        img.onload = () => {
+          // Criar canvas para processamento
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d')!;
+          ctx.drawImage(img, 0, 0);
+          
+          // Converter para matriz OpenCV
+          const src = window.cv.imread(canvas);
+          
+          // Ordenar pontos para correção de perspectiva (top-left, top-right, bottom-right, bottom-left)
+          const sortedCorners = [...corners];
+          
+          // Calcular dimensões do documento corrigido
+          const widthTop = Math.sqrt(Math.pow(sortedCorners[1].x - sortedCorners[0].x, 2) + Math.pow(sortedCorners[1].y - sortedCorners[0].y, 2));
+          const widthBottom = Math.sqrt(Math.pow(sortedCorners[2].x - sortedCorners[3].x, 2) + Math.pow(sortedCorners[2].y - sortedCorners[3].y, 2));
+          const maxWidth = Math.max(widthTop, widthBottom);
+          
+          const heightLeft = Math.sqrt(Math.pow(sortedCorners[3].x - sortedCorners[0].x, 2) + Math.pow(sortedCorners[3].y - sortedCorners[0].y, 2));
+          const heightRight = Math.sqrt(Math.pow(sortedCorners[2].x - sortedCorners[1].x, 2) + Math.pow(sortedCorners[2].y - sortedCorners[1].y, 2));
+          const maxHeight = Math.max(heightLeft, heightRight);
+          
+          // Pontos de origem (quadrilátero irregular)
+          const srcPoints = window.cv.matFromArray(4, 1, window.cv.CV_32FC2, [
+            sortedCorners[0].x, sortedCorners[0].y, // top-left
+            sortedCorners[1].x, sortedCorners[1].y, // top-right
+            sortedCorners[2].x, sortedCorners[2].y, // bottom-right
+            sortedCorners[3].x, sortedCorners[3].y  // bottom-left
+          ]);
+          
+          // Pontos de destino (retângulo perfeito)
+          const dstPoints = window.cv.matFromArray(4, 1, window.cv.CV_32FC2, [
+            0, 0,           // top-left
+            maxWidth, 0,    // top-right
+            maxWidth, maxHeight, // bottom-right
+            0, maxHeight    // bottom-left
+          ]);
+          
+          // Calcular matriz de transformação
+          const transformMatrix = window.cv.getPerspectiveTransform(srcPoints, dstPoints);
+          
+          // Aplicar transformação
+          const corrected = new window.cv.Mat();
+          window.cv.warpPerspective(src, corrected, transformMatrix, new window.cv.Size(maxWidth, maxHeight));
+          
+          // Converter de volta para canvas
+          const outputCanvas = document.createElement('canvas');
+          window.cv.imshow(outputCanvas, corrected);
+          
+          // Limpar memória do OpenCV
+          src.delete();
+          corrected.delete();
+          transformMatrix.delete();
+          srcPoints.delete();
+          dstPoints.delete();
+          
+          // Retornar imagem corrigida como data URL
+          resolve(outputCanvas.toDataURL('image/jpeg', 0.9));
+        };
+        
+        img.onerror = () => reject(new Error('Erro ao carregar imagem'));
+        img.src = capturedImage!;
+        
+      } catch (error) {
+        console.error('Erro na correção de perspectiva:', error);
+        // Em caso de erro, retornar imagem original
+        resolve(capturedImage!);
+      }
+    });
+  }, [capturedImage, corners, opencvLoaded]);
+
   // Gerar PDF
   const handleGeneratePDF = useCallback(async () => {
-    if (!capturedImage || corners.length !== 4) {
-      alert('Imagem ou cantos não definidos');
+    if (!capturedImage || corners.length !== 4 || !opencvLoaded) {
+      alert('Imagem, cantos não definidos ou OpenCV não carregado');
       return;
     }
     
     setIsProcessing(true);
     
     try {
+      console.log('Aplicando correção de perspectiva...');
+      
+      // Aplicar correção de perspectiva usando OpenCV
+      const correctedImage = await applyPerspectiveCorrection();
+      
       console.log('Gerando PDF...');
       
-      // Determinar orientação do PDF
-      let orientation: 'portrait' | 'landscape';
-      
-      if (pdfOrientation === 'auto') {
-        // Detectar orientação da tela/dispositivo
-        const isLandscape = window.innerWidth > window.innerHeight;
-        orientation = isLandscape ? 'landscape' : 'portrait';
-        console.log('Orientação detectada automaticamente:', orientation, `${window.innerWidth}x${window.innerHeight}`);
-      } else {
-        orientation = pdfOrientation;
-        console.log('Orientação manual selecionada:', orientation);
-      }
+      // PDF sempre em orientação horizontal (landscape)
+      const orientation: 'portrait' | 'landscape' = 'landscape';
+      console.log('PDF será gerado em orientação horizontal (landscape)');
       
       // Criar PDF com orientação apropriada
       const pdf = new jsPDF({
@@ -241,12 +314,12 @@ export const DocumentScannerFixed: React.FC<DocumentScannerFixedProps> = ({
       const availableWidth = pageWidth - (margin * 2);
       const availableHeight = pageHeight - (margin * 2);
       
-      // Criar uma imagem temporária para calcular proporções
+      // Criar uma imagem temporária para calcular proporções (usando imagem corrigida)
       const img = new Image();
       await new Promise((resolve, reject) => {
         img.onload = resolve;
         img.onerror = reject;
-        img.src = capturedImage;
+        img.src = correctedImage;
       });
       
       const imageAspectRatio = img.width / img.height;
@@ -271,8 +344,8 @@ export const DocumentScannerFixed: React.FC<DocumentScannerFixedProps> = ({
       
       console.log('Posicionamento da imagem:', { x, y, width: finalWidth, height: finalHeight });
       
-      // Adicionar imagem ao PDF
-      pdf.addImage(capturedImage, 'JPEG', x, y, finalWidth, finalHeight);
+      // Adicionar imagem corrigida ao PDF
+      pdf.addImage(correctedImage, 'JPEG', x, y, finalWidth, finalHeight);
       
       const pdfBlob = pdf.output('blob');
       const fileName = `documento_${orientation}_${new Date().toISOString().split('T')[0]}.pdf`;
@@ -286,7 +359,7 @@ export const DocumentScannerFixed: React.FC<DocumentScannerFixedProps> = ({
     } finally {
       setIsProcessing(false);
     }
-  }, [capturedImage, corners, onSavePDF]);
+  }, [capturedImage, corners, onSavePDF, opencvLoaded, applyPerspectiveCorrection]);
 
   // Funções para arrastar pontos
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -407,7 +480,6 @@ export const DocumentScannerFixed: React.FC<DocumentScannerFixedProps> = ({
   const resetCapture = () => {
     setCapturedImage(null);
     setCorners([]);
-    setPdfOrientation('auto'); // Resetar para automático
   };
 
   if (!isOpen) return null;
@@ -532,57 +604,6 @@ export const DocumentScannerFixed: React.FC<DocumentScannerFixedProps> = ({
               </button>
             </div>
             
-            {/* Controle de Orientação do PDF */}
-            <div className="absolute right-4 top-20 bg-black/80 backdrop-blur-sm rounded-lg p-3 text-white">
-              <h3 className="text-xs font-semibold mb-2 flex items-center gap-1">
-                <RotateCw className="w-3 h-3" />
-                Orientação PDF
-              </h3>
-              
-              <div className="space-y-1">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="orientation"
-                    value="auto"
-                    checked={pdfOrientation === 'auto'}
-                    onChange={(e) => setPdfOrientation(e.target.value as 'auto')}
-                    className="w-3 h-3"
-                  />
-                  <span className="text-xs">Automático</span>
-                </label>
-                
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="orientation"
-                    value="portrait"
-                    checked={pdfOrientation === 'portrait'}
-                    onChange={(e) => setPdfOrientation(e.target.value as 'portrait')}
-                    className="w-3 h-3"
-                  />
-                  <span className="text-xs">📄 Vertical</span>
-                </label>
-                
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="orientation"
-                    value="landscape"
-                    checked={pdfOrientation === 'landscape'}
-                    onChange={(e) => setPdfOrientation(e.target.value as 'landscape')}
-                    className="w-3 h-3"
-                  />
-                  <span className="text-xs">📄 Horizontal</span>
-                </label>
-              </div>
-              
-              <div className="text-xs text-gray-300 mt-2">
-                Atual: {pdfOrientation === 'auto' ? 
-                  (window.innerWidth > window.innerHeight ? 'horizontal' : 'vertical') : 
-                  pdfOrientation === 'landscape' ? 'horizontal' : 'vertical'}
-              </div>
-            </div>
             
             {/* Botões de ação */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-4">
