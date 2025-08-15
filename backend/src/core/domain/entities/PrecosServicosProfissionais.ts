@@ -8,6 +8,8 @@ export class PrecosServicosProfissionais {
   servicoId!: string;
   precoProfissional?: number | null;
   precoClinica?: number | null;
+  percentualClinica?: number | null;
+  percentualProfissional?: number | null;
   createdAt!: Date;
   updatedAt!: Date;
 

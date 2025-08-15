@@ -262,28 +262,25 @@ export const PagamentosPage = () => {
       return valorProfissionalDireto;
     }
 
-    // Obter o preço do serviço para cálculos baseados em percentual
-    const precoServico = parseFloat((agendamento as any).servico?.preco || '0');
-    
-    if (precoServico === 0) {
-      return 0; // Se não tem preço do serviço, retorna 0
-    }
-
-    // Prioridade 2: percentual específico da tabela precos_servicos_profissional
+    // Prioridade 2: valor direto da tabela precos_servicos_profissional
     const precoEspecifico = precosServicoProfissional.find(p => 
       p.profissionalId === agendamento.profissionalId && 
       p.servicoId === agendamento.servicoId
     );
 
-    if (precoEspecifico) {
-      // Usar o percentual específico da tabela precos_servicos_profissional
-      return (precoServico * precoEspecifico.precoProfissional) / 100;
+    if (precoEspecifico?.precoProfissional && precoEspecifico.precoProfissional > 0) {
+      return precoEspecifico.precoProfissional; // Agora é valor direto, não percentual
     }
 
-    // Prioridade 3: percentual padrão do serviço
+    // Prioridade 3: cálculo baseado no percentual armazenado na tabela precos_servicos_profissional
+    const precoServico = parseFloat((agendamento as any).servico?.preco || '0');
+    if (precoEspecifico?.percentualProfissional && precoServico > 0) {
+      return (precoServico * precoEspecifico.percentualProfissional) / 100;
+    }
+
+    // Prioridade 4: percentual padrão do serviço
     const percentualProfissional = parseFloat((agendamento as any).servico?.percentualProfissional || '0');
-    
-    if (percentualProfissional > 0) {
+    if (percentualProfissional > 0 && precoServico > 0) {
       return (precoServico * percentualProfissional) / 100;
     }
 

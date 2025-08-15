@@ -23,6 +23,10 @@ export class CreatePrecoServicoProfissionalUseCase {
     data: ICreatePrecoServicoProfissionalDTO
   ): Promise<PrecosServicosProfissionais> {
     const { profissionalId, servicoId, precoClinica, precoProfissional } = data;
+    
+    // Auto-calcular os percentuais baseado nos valores diretos
+    let percentualClinica: number | null = null;
+    let percentualProfissional: number | null = null;
 
     if (
       precoClinica !== null &&
@@ -61,7 +65,21 @@ export class CreatePrecoServicoProfissionalUseCase {
       );
     }
 
-    const preco = await this.precosRepository.create(data);
+    // Se foram fornecidos valores diretos, calcular os percentuais
+    if (precoClinica !== null && precoClinica !== undefined && 
+        precoProfissional !== null && precoProfissional !== undefined) {
+      const total = precoClinica + precoProfissional;
+      if (total > 0) {
+        percentualClinica = Number(((precoClinica / total) * 100).toFixed(2));
+        percentualProfissional = Number(((precoProfissional / total) * 100).toFixed(2));
+      }
+    }
+    
+    const preco = await this.precosRepository.create({
+      ...data,
+      percentualClinica,
+      percentualProfissional
+    });
 
     return preco;
   }

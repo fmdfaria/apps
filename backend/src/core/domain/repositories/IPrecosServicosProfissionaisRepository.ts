@@ -5,6 +5,8 @@ export interface ICreatePrecoServicoProfissionalDTO {
   servicoId: string;
   precoProfissional?: number | null;
   precoClinica?: number | null;
+  percentualClinica?: number | null;
+  percentualProfissional?: number | null;
 }
 
 export interface IUpdatePrecoServicoProfissionalDTO

@@ -173,17 +173,14 @@ export const FechamentoPage = () => {
       return valorClinicaDireto;
     }
 
-    // Obter o preço do serviço para cálculos baseados em percentual
-    const precoServico = parseFloat((agendamento as any).servico?.preco || '0');
+    // Prioridade 2: valor direto da tabela precos_servicos_profissional (se existir)
+    // (para casos onde há preços personalizados por profissional)
     
-    if (precoServico === 0) {
-      return 0; // Se não tem preço do serviço, retorna 0
-    }
-
-    // Prioridade 2: percentual padrão do serviço
+    // Prioridade 3: cálculo baseado no percentual padrão do serviço
+    const precoServico = parseFloat((agendamento as any).servico?.preco || '0');
     const percentualClinica = parseFloat((agendamento as any).servico?.percentualClinica || '0');
     
-    if (percentualClinica > 0) {
+    if (percentualClinica > 0 && precoServico > 0) {
       return (precoServico * percentualClinica) / 100;
     }
 

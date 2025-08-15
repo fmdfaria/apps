@@ -187,15 +187,17 @@ model ProfissionaisServicos {
 }
 
 model PrecosServicosProfissionais {
-  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  profissionalId    String       @map("profissional_id") @db.Uuid
-  servicoId         String       @map("servico_id") @db.Uuid
-  precoProfissional Decimal?     @map("preco_profissional") @db.Decimal(10, 2)
-  precoClinica      Decimal?     @map("preco_clinica") @db.Decimal(10, 2)
-  createdAt         DateTime?    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime?    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  profissional      Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  servico           Servico      @relation(fields: [servicoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                     String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profissionalId         String       @map("profissional_id") @db.Uuid
+  servicoId              String       @map("servico_id") @db.Uuid
+  precoProfissional      Decimal?     @map("preco_profissional") @db.Decimal(10, 2)
+  precoClinica           Decimal?     @map("preco_clinica") @db.Decimal(10, 2)
+  percentualClinica      Decimal?     @map("percentual_clinica") @db.Decimal(5, 2)
+  percentualProfissional Decimal?     @map("percentual_profissional") @db.Decimal(5, 2)
+  createdAt              DateTime?    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime?    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profissional           Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  servico                Servico      @relation(fields: [servicoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([profissionalId, servicoId])
   @@map("precos_servicos_profissionais")

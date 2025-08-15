@@ -29,17 +29,18 @@ export class UpdatePrecoServicoProfissionalUseCase {
       data.precoProfissional !== undefined
         ? data.precoProfissional
         : preco.precoProfissional;
-
-    if (
-      precoClinica !== null &&
-      precoClinica !== undefined &&
-      precoProfissional !== null &&
-      precoProfissional !== undefined
-    ) {
-      if (precoClinica + precoProfissional !== 100) {
-        throw new AppError(
-          'A soma dos percentuais da clínica e do profissional deve ser 100.'
-        );
+    
+    // Auto-calcular os percentuais baseado nos valores diretos
+    let percentualClinica: number | null = null;
+    let percentualProfissional: number | null = null;
+    
+    // Se foram fornecidos valores diretos, calcular os percentuais
+    if (precoClinica !== null && precoClinica !== undefined && 
+        precoProfissional !== null && precoProfissional !== undefined) {
+      const total = precoClinica + precoProfissional;
+      if (total > 0) {
+        percentualClinica = Number(((precoClinica / total) * 100).toFixed(2));
+        percentualProfissional = Number(((precoProfissional / total) * 100).toFixed(2));
       }
     }
 
@@ -50,7 +51,11 @@ export class UpdatePrecoServicoProfissionalUseCase {
       );
     }
 
-    const updatedPreco = await this.precosRepository.update(id, data);
+    const updatedPreco = await this.precosRepository.update(id, {
+      ...data,
+      percentualClinica,
+      percentualProfissional
+    });
 
     return updatedPreco;
   }

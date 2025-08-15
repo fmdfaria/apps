@@ -23,6 +23,8 @@ function toDomain(
       ? preco.precoProfissional.toNumber()
       : null,
     precoClinica: preco.precoClinica ? preco.precoClinica.toNumber() : null,
+    percentualClinica: preco.percentualClinica ? preco.percentualClinica.toNumber() : null,
+    percentualProfissional: preco.percentualProfissional ? preco.percentualProfissional.toNumber() : null,
     profissional: preco.profissional
       ? {
           ...preco.profissional,
