@@ -23,7 +23,7 @@ export default function Login() {
       AppToast.success('Login realizado com sucesso!', {
         description: 'Bem-vindo ao painel da clínica.'
       });
-      navigate('/dashboard');
+      navigate('/home');
     }
   }, [isAuthenticated, navigate]);
 

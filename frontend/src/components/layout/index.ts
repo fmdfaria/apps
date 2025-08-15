@@ -14,6 +14,7 @@ export { ActionButton } from './ActionButton';
 export { ResponsiveCardFooter } from './ResponsiveCardFooter';
 export { PageTemplate } from './PageTemplate';
 export { ProtectedRoute, AdminRoute, ConditionalRender } from './ProtectedRoute';
+export { default as Home } from './Home';
 
 // Types Export
 export type { TableColumn, FilterType, FilterConfig } from './ResponsiveTable';

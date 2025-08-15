@@ -256,32 +256,20 @@ export const PagamentosPage = () => {
 
   // Função para calcular valor a pagar para o profissional
   const calcularValorProfissional = (agendamento: Agendamento): number => {
-    // Prioridade 1: valor_profissional direto do serviço
-    const valorProfissionalDireto = parseFloat((agendamento as any).servico?.valorProfissional || '0');
-    if (valorProfissionalDireto > 0) {
-      return valorProfissionalDireto;
-    }
-
-    // Prioridade 2: valor direto da tabela precos_servicos_profissional
+    // Prioridade 1: valor direto da tabela precos_servicos_profissional
     const precoEspecifico = precosServicoProfissional.find(p => 
       p.profissionalId === agendamento.profissionalId && 
       p.servicoId === agendamento.servicoId
     );
 
     if (precoEspecifico?.precoProfissional && precoEspecifico.precoProfissional > 0) {
-      return precoEspecifico.precoProfissional; // Agora é valor direto, não percentual
+      return precoEspecifico.precoProfissional; // Valor direto em R$
     }
 
-    // Prioridade 3: cálculo baseado no percentual armazenado na tabela precos_servicos_profissional
-    const precoServico = parseFloat((agendamento as any).servico?.preco || '0');
-    if (precoEspecifico?.percentualProfissional && precoServico > 0) {
-      return (precoServico * precoEspecifico.percentualProfissional) / 100;
-    }
-
-    // Prioridade 4: percentual padrão do serviço
-    const percentualProfissional = parseFloat((agendamento as any).servico?.percentualProfissional || '0');
-    if (percentualProfissional > 0 && precoServico > 0) {
-      return (precoServico * percentualProfissional) / 100;
+    // Prioridade 3: valor_profissional direto do serviço
+    const valorProfissionalDireto = parseFloat((agendamento as any).servico?.valorProfissional || '0');
+    if (valorProfissionalDireto > 0) {
+      return valorProfissionalDireto;
     }
 
     // Fallback para valor padrão
@@ -297,7 +285,7 @@ export const PagamentosPage = () => {
 
   const handleVerDetalhes = (item: PagamentoProfissional) => {
     setAgendamentosModal(item.agendamentos);
-    setTituloModal(`Agendamentos de ${item.profissional}`);
+    setTituloModal(`Atendimentos de ${item.profissional}`);
     setShowListarModal(true);
   };
 
@@ -524,7 +512,7 @@ export const PagamentosPage = () => {
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <span className="text-4xl">💰</span>
             <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-              Pagamentos dos Profissionais
+              Pagamentos
             </span>
           </h1>
         </div>
@@ -781,6 +769,7 @@ export const PagamentosPage = () => {
         isOpen={showListarModal}
         agendamentos={agendamentosModal}
         titulo={tituloModal}
+        calcularValor={calcularValorProfissional} // Passa a função de cálculo
         onClose={() => {
           setShowListarModal(false);
           setAgendamentosModal([]);

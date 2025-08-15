@@ -7,6 +7,8 @@ export class PrecosParticulares {
   pacienteId!: string;
   servicoId!: string;
   preco!: number;
+  tipoPagamento?: string | null;
+  pagamentoAntecipado?: boolean | null;
   createdAt!: Date;
   updatedAt!: Date;
 

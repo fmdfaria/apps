@@ -24,5 +24,14 @@
 ---SE existir valor do ID PROFISSIONAL na tabela precos_servicos_profissional, coluna = 'preco_profissional'
 ---SE não existir na tabela precos_servicos_profissional, deve utilizar o preço tabelado que está na tabela 'servicos', coluna as colunas de 'preco' e 'percentual_profissional'
 
-###
+### DisponibilidadePage
+- Quando profissional logar, deve fixar ele na seleção.
 
+### ProfissionaisPage
+- No modal Editar Endereço retirar opcao para Digitalizar Documento.
+
+### Agendamentos / Calendario
+- Alterar recorrencia, não está editando todos da serie..
+
+### LiberarPage
+- Arrumar forma de para o particular efetuar cobrança.

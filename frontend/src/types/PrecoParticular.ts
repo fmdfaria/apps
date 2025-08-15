@@ -7,4 +7,6 @@ export interface PrecoParticular {
   percentualClinica?: number;
   percentualProfissional?: number;
   precoPaciente?: number;
+  tipoPagamento?: string | null;
+  pagamentoAntecipado?: boolean | null;
 } 

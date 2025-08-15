@@ -735,7 +735,7 @@ export const FechamentoPage = () => {
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <span className="text-4xl">💰</span>
             <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-              Fechamento Financeiro
+              Fechamento
             </span>
           </h1>
         </div>
@@ -907,7 +907,7 @@ export const FechamentoPage = () => {
       )}
 
       {/* Conteúdo com scroll independente */}
-      <div className="flex-1 overflow-y-auto pt-2 pl-6 pr-6">
+      <div className="flex-1 overflow-y-auto">
         {/* Toggle grande para separar Convênios | Particular */}
         <div className="mb-6">
           <Tabs 

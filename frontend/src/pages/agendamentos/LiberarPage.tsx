@@ -780,7 +780,7 @@ export const LiberarPage = () => {
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <span className="text-4xl">🔓</span>
             <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-              Liberação de Agendamentos
+              Liberações
             </span>
           </h1>
           <div className="flex items-center gap-3">

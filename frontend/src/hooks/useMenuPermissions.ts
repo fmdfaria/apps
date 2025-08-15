@@ -10,8 +10,8 @@ const routePermissionMap: Record<string, { path: string; method: string }> = {
   'agendamentos/liberacao': { path: '/agendamentos-liberar/:id', method: 'PUT' },
   'agendamentos/atendimento': { path: '/agendamentos-atender/:id', method: 'PUT' },
   'agendamentos/conclusao': { path: '/agendamentos-concluir/:id', method: 'PUT' },
-  'agendamentos/fechamento': { path: '/agendamentos', method: 'GET' },
-  'agendamentos/pagamentos': { path: '/agendamentos', method: 'GET' },
+  'agendamentos/fechamento': { path: '/agendamentos-fechamento', method: 'GET' },
+  'agendamentos/pagamentos': { path: '/agendamentos-pagamentos', method: 'GET' },
   'pacientes': { path: '/pacientes', method: 'POST' },
   'pacientes/precos-particulares': { path: '/precos-particulares', method: 'GET' },
   'profissionais': { path: '/profissionais', method: 'POST' },
@@ -62,8 +62,8 @@ export const useMenuPermissions = () => {
       });
       
       
-      // Dashboard sempre visível (usuário autenticado)
-      userPermissions['dashboard'] = true;
+      // Remover override do Dashboard - deve respeitar permissões de rota
+      // userPermissions['dashboard'] = true; // REMOVIDO: deve seguir permissões normais
       
       console.log('🔐 Permissões do menu calculadas:', userPermissions);
       setPermissions(userPermissions);

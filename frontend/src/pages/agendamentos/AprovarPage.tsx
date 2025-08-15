@@ -559,7 +559,7 @@ export const AprovarPage = () => {
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <span className="text-4xl">✅</span>
             <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-              Conclusão de Agendamentos
+              Aprovações
             </span>
           </h1>
         </div>

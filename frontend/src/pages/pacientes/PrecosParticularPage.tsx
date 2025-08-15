@@ -30,7 +30,7 @@ export default function PrecosParticularPage() {
   const [canDelete, setCanDelete] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState<PrecoParticular | null>(null);
-  const [form, setForm] = useState({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '' });
+  const [form, setForm] = useState({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true });
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [excluindo, setExcluindo] = useState<PrecoParticular | null>(null);
@@ -263,6 +263,28 @@ export default function PrecosParticularPage() {
       filterable: { type: 'currency', placeholder: 'Valor em R$' },
     },
     {
+      key: 'tipoPagamento',
+      header: '💳 Tipo pagamento',
+      render: (p: PrecoParticular) => p.tipoPagamento || '-',
+      className: 'text-center',
+      filterable: { type: 'text', placeholder: 'Ex.: PIX, Cartão' },
+    },
+    {
+      key: 'pagamentoAntecipado',
+      header: '⏱️ Antecipado?',
+      render: (p: PrecoParticular) => (
+        <span className={`text-xs px-2 py-1 rounded ${p.pagamentoAntecipado ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+          {p.pagamentoAntecipado ? 'Sim' : 'Não'}
+        </span>
+      ),
+      className: 'text-center',
+      filterable: { type: 'select', options: [
+        { label: 'Todos', value: '' },
+        { label: 'Sim', value: 'true' },
+        { label: 'Não', value: 'false' },
+      ] },
+    },
+    {
       key: 'whatsapp',
       header: '📱 Whatsapp',
       render: (p: PrecoParticular) => {
@@ -393,7 +415,7 @@ export default function PrecosParticularPage() {
 
   const abrirModalNovo = () => {
     setEditando(null);
-    setForm({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '' });
+    setForm({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true });
     setFormError('');
     setShowModal(true);
   };
@@ -411,6 +433,8 @@ export default function PrecosParticularPage() {
       precoPaciente: p.preco !== undefined && p.preco !== null
         ? Number(p.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         : '',
+      tipoPagamento: p.tipoPagamento || '',
+      pagamentoAntecipado: p.pagamentoAntecipado ?? true,
     });
     setFormError('');
     setShowModal(true);
@@ -419,7 +443,7 @@ export default function PrecosParticularPage() {
   const fecharModal = () => {
     setShowModal(false);
     setEditando(null);
-    setForm({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '' });
+    setForm({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true });
     setFormError('');
   };
 
@@ -455,6 +479,8 @@ export default function PrecosParticularPage() {
           duracaoMinutos: form.duracaoMinutos ? Number(form.duracaoMinutos) : undefined,
           percentualClinica: form.percentualClinica ? Number(form.percentualClinica) : undefined,
           percentualProfissional: form.percentualProfissional ? Number(form.percentualProfissional) : undefined,
+          tipoPagamento: form.tipoPagamento || undefined,
+          pagamentoAntecipado: form.pagamentoAntecipado ?? undefined,
         });
       } else {
         await createPrecoParticular({
@@ -464,6 +490,8 @@ export default function PrecosParticularPage() {
           duracaoMinutos: form.duracaoMinutos ? Number(form.duracaoMinutos) : undefined,
           percentualClinica: form.percentualClinica ? Number(form.percentualClinica) : undefined,
           percentualProfissional: form.percentualProfissional ? Number(form.percentualProfissional) : undefined,
+          tipoPagamento: form.tipoPagamento || undefined,
+          pagamentoAntecipado: form.pagamentoAntecipado ?? undefined,
         });
       }
       fecharModal();

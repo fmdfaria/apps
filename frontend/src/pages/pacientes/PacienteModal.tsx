@@ -119,7 +119,7 @@ export default function PacienteModal({
                   value={form.whatsapp}
                   onChange={e => onFormChange({ whatsapp: maskTelefone(e.target.value) })}
                   className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
-                  placeholder="+55 (11) 9999-9999 ou +55 (11) 99999-9999"
+                  placeholder="+55 (11) 99999-9999"
                   disabled={formLoading}
                 />
               </div>

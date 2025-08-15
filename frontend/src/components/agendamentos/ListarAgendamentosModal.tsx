@@ -27,13 +27,15 @@ interface ListarAgendamentosModalProps {
   agendamentos: Agendamento[];
   titulo: string;
   onClose: () => void;
+  calcularValor?: (agendamento: Agendamento) => number; // Função opcional para calcular valor
 }
 
 export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = ({
   isOpen,
   agendamentos,
   titulo,
-  onClose
+  onClose,
+  calcularValor
 }) => {
   const formatarDataHora = (dataISO: string) => {
     if (!dataISO) return { data: '', hora: '' };
@@ -57,8 +59,12 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
 
   const calcularValorTotal = () => {
     return agendamentos.reduce((total, agendamento) => {
-      const preco = parseFloat((agendamento as any).servico?.preco || '0');
-      return total + preco;
+      if (calcularValor) {
+        return total + calcularValor(agendamento);
+      } else {
+        const preco = parseFloat((agendamento as any).servico?.preco || '0');
+        return total + preco;
+      }
     }, 0);
   };
 
@@ -118,7 +124,7 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-blue-600" />
                 <span className="text-sm font-medium text-blue-900">
-                  Total de agendamentos: {agendamentos.length}
+                  Total de atendimentos: {agendamentos.length}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -164,7 +170,7 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
                   <TableHead className="py-3 text-sm font-semibold text-gray-700">
                     <div className="flex items-center gap-2">
                       <DollarSign className="w-4 h-4" />
-                      Preço
+                      {calcularValor ? 'Valor a Pagar' : 'Preço'}
                     </div>
                   </TableHead>
                   <TableHead className="py-3 text-sm font-semibold text-gray-700">
@@ -184,7 +190,7 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
                           <AlertCircle className="w-8 h-8 text-gray-400" />
                         </div>
                         <p className="text-gray-500 font-medium">
-                          Nenhum agendamento encontrado
+                          Nenhum atendimento encontrado
                         </p>
                       </div>
                     </TableCell>
@@ -234,7 +240,10 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
                         
                         <TableCell className="py-3">
                           <span className="text-sm font-semibold text-green-700 bg-green-50 px-2 py-1 rounded">
-                            {formatarValor(parseFloat((agendamento as any).servico?.preco || '0'))}
+                            {calcularValor 
+                              ? formatarValor(calcularValor(agendamento))
+                              : formatarValor(parseFloat((agendamento as any).servico?.preco || '0'))
+                            }
                           </span>
                         </TableCell>
                         
@@ -268,7 +277,7 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-purple-600" />
                   <span className="text-gray-600">
-                    Total: {agendamentos.length} agendamento(s)
+                    Total: {agendamentos.length} atendimento(s)
                   </span>
                 </div>
                 <div className="flex items-center gap-2">

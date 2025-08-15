@@ -9,6 +9,7 @@ import Index from '@/pages/Index';
 import NotFound from '@/pages/NotFound';
 import Landing from '@/pages/Landing';
 import { useEffect } from 'react';
+import { Home } from '@/components/layout';
 import { useAuthStore } from './store/auth';
 import { useFavicon } from '@/hooks/useFavicon';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
@@ -70,6 +71,7 @@ export default function App() {
         {/* Rotas protegidas */}
         <Route element={<PrivateRoute />}> 
             <Route element={<Index />}> {/* Layout compartilhado com Sidebar */}
+            <Route path="home" element={<Home />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="dashboard/ocupacao" element={<OcupacaoPage />} />
             <Route path="dashboard/pedidos-medicos" element={<PedidosMedicosPage />} />

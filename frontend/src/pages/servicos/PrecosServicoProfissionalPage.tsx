@@ -186,11 +186,11 @@ export default function PrecosServicoProfissionalPage() {
       header: '🏥 Clínica (%)',
       essential: false,
       render: (item) => {
-        const percentualAtual = obterPercentualAtual(item);
-        const colors = getPercentualProfissionalColor(percentualAtual);
+        const percentualClinica = item.percentualClinica || 0;
+        const colors = getPercentualProfissionalColor(item.percentualProfissional || 0);
         return (
           <span className={`text-sm px-2 py-1 rounded-md font-medium ${colors.bg} ${colors.text}`}>
-            {(item.precoClinica || 0).toFixed(2).replace('.', ',')}%
+            {percentualClinica.toFixed(2).replace('.', ',')}%
           </span>
         );
       }
@@ -501,7 +501,7 @@ export default function PrecosServicoProfissionalPage() {
             </div>
             <div className="flex justify-center">
               <span className={`text-xs px-2 py-1 rounded-md font-medium ${colors.bg} ${colors.text}`}>
-                Prof: {percentualAtual.toFixed(1)}% | Clín: {(preco.precoClinica || 0).toFixed(1)}%
+                Prof: {percentualAtual.toFixed(1)}% | Clín: {(preco.percentualClinica || 0).toFixed(1)}%
               </span>
             </div>
           </div>
@@ -760,20 +760,15 @@ export default function PrecosServicoProfissionalPage() {
   };
 
   const obterPercentualAtual = (precoItem: PrecoServicoProfissional) => {
-    // precoProfissional já é o percentual salvo no banco
-    return precoItem.precoProfissional || 0;
+    // Agora usamos o campo percentualProfissional que armazena o percentual
+    return precoItem.percentualProfissional || 0;
   };
 
   const calcularValorEmReais = (precoItem: PrecoServicoProfissional, tipo: 'profissional' | 'clinica') => {
-    const servico = servicos.find(s => s.id === precoItem.servicoId);
-    if (!servico?.preco) return 0;
-    
     if (tipo === 'profissional') {
-      const percentual = precoItem.precoProfissional || 0;
-      return (servico.preco * percentual) / 100;
+      return precoItem.precoProfissional || 0; // Agora é valor direto
     } else {
-      const percentual = precoItem.precoClinica || 0;
-      return (servico.preco * percentual) / 100;
+      return precoItem.precoClinica || 0; // Agora é valor direto
     }
   };
 

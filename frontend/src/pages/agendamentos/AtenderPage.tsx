@@ -955,7 +955,7 @@ export const AtenderPage = () => {
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <span className="text-4xl">🩺</span>
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Atendimento de Agendamentos
+              Atendimentos
             </span>
           </h1>
         </div>

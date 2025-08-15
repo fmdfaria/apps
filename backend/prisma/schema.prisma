@@ -208,6 +208,8 @@ model PrecosParticulares {
   pacienteId String    @map("paciente_id") @db.Uuid
   servicoId  String    @map("servico_id") @db.Uuid
   preco      Decimal   @db.Decimal(10, 2)
+  tipoPagamento String?  @map("tipo_pagamento") @db.VarChar(50)
+  pagamentoAntecipado Boolean? @map("pagamento_antecipado")
   createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   paciente   Paciente  @relation(fields: [pacienteId], references: [id], onDelete: Cascade, onUpdate: NoAction)

@@ -300,15 +300,18 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
         {logoLoading ? (
           <div className={cn('h-10 w-24 bg-gray-200 animate-pulse rounded transition-all duration-200', isCollapsed ? 'hidden' : 'block')} />
         ) : logoUrl ? (
-          <img 
-            src={logoUrl} 
-            alt="Probotec Logo" 
-            className={cn('h-10 w-auto transition-all duration-200', isCollapsed ? 'hidden' : 'block')}
-          />
+          <button onClick={() => navigate('/home')} title="Ir para Home">
+            <img 
+              src={logoUrl} 
+              alt="Probotec Logo" 
+              className={cn('h-10 w-auto transition-all duration-200', isCollapsed ? 'hidden' : 'block')}
+            />
+          </button>
         ) : (
-          <div className={cn('h-10 w-24 bg-gray-100 flex items-center justify-center text-gray-500 text-xs rounded transition-all duration-200', isCollapsed ? 'hidden' : 'block')}>
+          <button onClick={() => navigate('/home')} title="Ir para Home"
+                  className={cn('h-10 w-24 bg-gray-100 flex items-center justify-center text-gray-500 text-xs rounded transition-all duration-200', isCollapsed ? 'hidden' : 'block')}>
             Logo
-          </div>
+          </button>
         )}
         <button
           onClick={handleToggle}

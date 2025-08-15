@@ -4,6 +4,8 @@ export interface ICreatePrecoParticularDTO {
   pacienteId: string;
   servicoId: string;
   preco: number;
+  tipoPagamento?: string | null;
+  pagamentoAntecipado?: boolean | null;
 }
 
 export interface IUpdatePrecoParticularDTO extends Partial<ICreatePrecoParticularDTO> {}
