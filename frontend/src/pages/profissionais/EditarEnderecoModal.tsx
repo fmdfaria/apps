@@ -156,7 +156,7 @@ export default function EditarEnderecoModal({ open, onClose, profissional, onSal
           <div className="py-3 space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-10 gap-4">
               <div className="col-span-2 space-y-1">
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                   <span className="text-lg">📮</span>
                   <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent font-semibold">CEP</span>
                 </label>
@@ -171,7 +171,7 @@ export default function EditarEnderecoModal({ open, onClose, profissional, onSal
                 />
               </div>
               <div className="col-span-4 space-y-1">
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                   <span className="text-lg">🛣️</span>
                   <span className="bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent font-semibold">Logradouro</span>
                 </label>
@@ -185,7 +185,7 @@ export default function EditarEnderecoModal({ open, onClose, profissional, onSal
                 />
               </div>
               <div className="col-span-2 space-y-1">
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                   <span className="text-lg">🔢</span>
                   <span className="bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent font-semibold">Número</span>
                 </label>
@@ -199,7 +199,7 @@ export default function EditarEnderecoModal({ open, onClose, profissional, onSal
                 />
               </div>
               <div className="col-span-2 space-y-1">
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                   <span className="text-lg">🏠</span>
                   <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-semibold">Complemento</span>
                 </label>
@@ -216,7 +216,7 @@ export default function EditarEnderecoModal({ open, onClose, profissional, onSal
 
             <div className="grid grid-cols-1 md:grid-cols-10 gap-4">
               <div className="col-span-4 space-y-1">
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                   <span className="text-lg">🏘️</span>
                   <span className="bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent font-semibold">Bairro</span>
                 </label>
@@ -230,7 +230,7 @@ export default function EditarEnderecoModal({ open, onClose, profissional, onSal
                 />
               </div>
               <div className="col-span-4 space-y-1">
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                   <span className="text-lg">🏙️</span>
                   <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent font-semibold">Cidade</span>
                 </label>
@@ -244,7 +244,7 @@ export default function EditarEnderecoModal({ open, onClose, profissional, onSal
                 />
               </div>
               <div className="col-span-2 space-y-1">
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                   <span className="text-lg">🗺️</span>
                   <span className="bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent font-semibold">Estado</span>
                 </label>
@@ -260,7 +260,7 @@ export default function EditarEnderecoModal({ open, onClose, profissional, onSal
             </div>
 
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-800 mb-2 flex items-center gap-2">
+              <label className="flex text-sm font-medium text-gray-800 mb-2 items-center gap-2">
                 <span className="text-lg">📄</span>
                 <span className="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent font-semibold">Comprovante de Endereço</span>
               </label>
@@ -300,6 +300,7 @@ export default function EditarEnderecoModal({ open, onClose, profissional, onSal
                       acceptedTypes=".pdf,.jpg,.jpeg,.png"
                       maxFiles={1}
                       label="📤 Arraste o arquivo aqui ou clique para selecionar"
+                      enableScanner={false}
                     />
                   </div>
                 )}

@@ -32,6 +32,7 @@ import { AprovarPage } from '@/pages/agendamentos/AprovarPage';
 import { FechamentoPage } from '@/pages/agendamentos/FechamentoPage';
 import { PagamentosPage } from '@/pages/agendamentos/PagamentosPage';
 import { CalendarioPage } from '@/pages/agendamentos/CalendarioPage';
+import { CalendarioProfissionalPage } from '@/pages/agendamentos/CalendarioProfissionalPage';
 import PrecosParticularPage from '@/pages/pacientes/PrecosParticularPage';
 import { Perfil } from '@/pages/perfil/Perfil';
 import { RecursosPage } from './pages/recursos/RecursosPage';
@@ -88,6 +89,7 @@ export default function App() {
             <Route path="bancos" element={<BancosPage />} />
             <Route path="recursos" element={<RecursosPage />} />
             <Route path="agendamentos" element={<AgendamentosPage />} />
+            <Route path="agendamentos/calendario-profissional" element={<CalendarioProfissionalPage />} />
             <Route path="agendamentos/liberacao" element={<LiberarPage />} />
             <Route path="agendamentos/atendimento" element={<AtenderPage />} />
             <Route path="agendamentos/conclusao" element={<AprovarPage />} />

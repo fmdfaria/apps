@@ -58,4 +58,31 @@ export class UsersController {
     const { senha, ...userWithoutSenha } = user;
     return reply.send(userWithoutSenha);
   }
+
+  async me(request: FastifyRequest, reply: FastifyReply) {
+    // @ts-ignore
+    const userId = request.user?.id;
+    
+    if (!userId) {
+      return reply.status(401).send({ message: 'Usuário não autenticado.' });
+    }
+
+    try {
+      const usersRepository = container.resolve<IUsersRepository>('UsersRepository');
+      const user = await usersRepository.findById(userId);
+      
+      if (!user) {
+        return reply.status(404).send({ message: 'Usuário não encontrado.' });
+      }
+
+      // Remove o campo senha
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { senha, ...userWithoutSenha } = user;
+      
+      return reply.send(userWithoutSenha);
+    } catch (error) {
+      console.error('Erro ao buscar dados do usuário logado:', error);
+      return reply.status(500).send({ message: 'Erro interno do servidor.' });
+    }
+  }
 } 

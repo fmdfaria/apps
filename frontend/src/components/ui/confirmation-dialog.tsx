@@ -47,7 +47,7 @@ export interface ConfirmationDialogProps {
   loading?: boolean;
   loadingText?: string;
   showCloseButton?: boolean;
-  maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl';
 }
 
 const typeConfig = {
@@ -122,7 +122,11 @@ const maxWidthClasses = {
   md: 'max-w-md',
   lg: 'max-w-lg',
   xl: 'max-w-xl',
-  '2xl': 'max-w-2xl'
+  '2xl': 'max-w-2xl',
+  '3xl': 'max-w-3xl',
+  '4xl': 'max-w-4xl',
+  '5xl': 'max-w-5xl',
+  '6xl': 'max-w-6xl'
 };
 
 /**
@@ -276,19 +280,61 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
 
           {/* Detalhes adicionais */}
           {details && details.length > 0 && (
-            <div className="bg-white/70 rounded-lg p-4 border border-gray-200">
-              <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                <Info className="w-4 h-4 text-gray-600" />
-                Detalhes:
-              </h4>
-              <ul className="space-y-1">
-                {details.map((detail, index) => (
-                  <li key={index} className="text-sm text-gray-600 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full flex-shrink-0"></span>
-                    {detail}
-                  </li>
-                ))}
-              </ul>
+            <div className="bg-white/70 rounded-lg border border-gray-200">
+              <div className="p-4 border-b border-gray-200">
+                <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                  <Info className="w-4 h-4 text-gray-600" />
+                  Detalhes:
+                </h4>
+              </div>
+              <div className="max-h-80 overflow-y-auto p-4">
+                <ul className="space-y-1">
+                  {details.map((detail, index) => {
+                    // Detectar se é uma linha de tabela markdown
+                    const isTableRow = detail.startsWith('|') && detail.endsWith('|');
+                    const isTableHeader = detail.includes('---');
+                    
+                    if (isTableHeader) {
+                      return null; // Pular linhas separadoras de cabeçalho
+                    }
+                    
+                    if (isTableRow) {
+                      const cells = detail.split('|').slice(1, -1).map(cell => cell.trim());
+                      const isHeaderRow = detail.includes('Data |') || detail.includes('Hora |');
+                      
+                      return (
+                        <li key={index} className="text-sm">
+                          <div className={`grid grid-cols-4 gap-4 py-3 px-4 rounded-lg border ${
+                            isHeaderRow
+                              ? 'bg-gray-800 text-white font-semibold border-gray-700 sticky top-0 z-10' 
+                              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-150'
+                          }`}>
+                            {cells.map((cell, cellIndex) => (
+                              <div 
+                                key={cellIndex} 
+                                className={`${
+                                  cellIndex === 0 ? 'font-medium' : ''
+                                } text-left truncate text-xs leading-relaxed`} 
+                                title={cell}
+                              >
+                                {cell}
+                              </div>
+                            ))}
+                          </div>
+                        </li>
+                      );
+                    }
+                    
+                    // Renderização normal para outros tipos de conteúdo
+                    return (
+                      <li key={index} className="text-sm text-gray-600 flex items-start gap-2">
+                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full flex-shrink-0 mt-2"></span>
+                        <span className="flex-1 font-medium">{detail}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             </div>
           )}
 

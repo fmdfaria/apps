@@ -144,7 +144,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
 
           <div className="py-2 space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+              <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                 <span className="text-lg">🎯</span>
                 <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">Especialidades</span>
                 <span className="text-red-500">*</span>
@@ -162,7 +162,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
 
             <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
               <div className="space-y-1 min-w-0 overflow-hidden">
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                   <span className="text-lg">⚖️</span>
                   <span className="bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent font-semibold">Conselho</span>
                 </label>
@@ -178,7 +178,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                   <span className="text-lg">🔢</span>
                   <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent font-semibold">Número do Conselho</span>
                 </label>
@@ -196,7 +196,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
             </div>
 
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+              <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                 <span className="text-lg">📄</span>
                 <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-semibold">Comprovante de Registro</span>
               </label>
@@ -236,6 +236,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
                       acceptedTypes=".pdf,.jpg,.jpeg,.png"
                       maxFiles={1}
                       label="📤 Arraste o arquivo aqui ou clique para selecionar"
+                      enableScanner={false}
                     />
                   </div>
                 )}

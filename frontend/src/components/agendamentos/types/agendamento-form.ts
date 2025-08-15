@@ -6,6 +6,7 @@ import type { Convenio } from '@/types/Convenio';
 import type { Servico } from '@/types/Servico';
 import type { Recurso } from '@/types/Recurso';
 import type { ProfissionalServico } from '@/services/profissionais-servicos';
+import type { ConflitosRecorrencia } from '@/services/verificacao-disponibilidade-recorrencia';
 
 export type TipoFluxo = 'por-profissional' | 'por-data';
 
@@ -67,4 +68,8 @@ export interface AgendamentoFormContext {
   } | null;
   handleResourceConfirmation: () => Promise<void>;
   handleResourceCancel: () => void;
+  // Estados e funções do modal de conflitos
+  showConflictModal: boolean;
+  conflitosRecorrencia: ConflitosRecorrencia | null;
+  handleConflictModalClose: () => void;
 } 

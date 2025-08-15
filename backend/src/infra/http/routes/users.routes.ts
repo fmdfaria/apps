@@ -6,6 +6,11 @@ import { ensureAuthorized } from '../middlewares/ensureAuthorized';
 const controller = new UsersController();
 
 export async function usersRoutes(app: FastifyInstance) {
+  // Rota para buscar dados do usuário logado
+  app.get('/users/me', { 
+    preHandler: [ensureAuthenticated] 
+  }, async (req, res) => controller.me(req, res));
+
   // Rota para buscar permissões do usuário logado
   app.get('/users/me/permissions', { 
     preHandler: [ensureAuthenticated] 

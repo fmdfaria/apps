@@ -127,10 +127,10 @@ export const CalendarioPage = () => {
     recursoId?: string;
     tipoFluxo?: 'por-profissional' | 'por-data';
   }) {
-    // Sempre usar fluxo "Por Profissional" quando vem do calendário
+    // Usar o tipoFluxo fornecido nos dados, senão usar "Por Profissional" como padrão
     const dadosComFluxo = {
       ...dados,
-      tipoFluxo: 'por-profissional' as const
+      tipoFluxo: dados?.tipoFluxo || 'por-profissional' as const
     };
     setPreenchimentoInicialModal(dadosComFluxo);
     setShowAgendamentoModal(true);
@@ -965,12 +965,12 @@ export const CalendarioPage = () => {
                   
                   const dataHoraLocal = `${ano}-${mes}-${dia}T${horaFormatada}:${minutoFormatado}`;
                   
-                  // Sempre usar fluxo "Por Profissional" - se clicou em recurso, deixa profissional em branco para seleção
+                  // Escolher fluxo baseado na visualização atual
                   const dadosFormulario = {
                     dataHoraInicio: dataHoraLocal,
                     profissionalId: gridViewType === 'profissionais' ? entityId : undefined,
-                    // Se clicou em recurso, pode passar como informação adicional (opcional)
-                    recursoId: gridViewType === 'recursos' ? entityId : undefined
+                    recursoId: gridViewType === 'recursos' ? entityId : undefined,
+                    tipoFluxo: gridViewType === 'recursos' ? 'por-data' as const : 'por-profissional' as const
                   };
                   
                   handleAbrirFormularioDireto(dadosFormulario);

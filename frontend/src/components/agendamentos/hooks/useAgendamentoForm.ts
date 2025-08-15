@@ -4,6 +4,7 @@ import type { CreateAgendamentoData, AgendamentoFormData } from '@/services/agen
 import type { TipoRecorrencia } from '@/types/Agendamento';
 import { getProfissionaisByServico, getServicosConveniosByProfissional, type ServicoConvenioProfissional } from '@/services/profissionais-servicos';
 import { createAgendamento, getAgendamentoFormData } from '@/services/agendamentos';
+import { verificarConflitosRecorrencia, type ConflitosRecorrencia } from '@/services/verificacao-disponibilidade-recorrencia';
 import { FORM_DATA_PADRAO, RECORRENCIA_PADRAO, OPCOES_HORARIOS } from '../utils/agendamento-constants';
 import type { 
   TipoFluxo, 
@@ -67,6 +68,10 @@ export const useAgendamentoForm = ({
     profissionalNome: string;
     dadosParaEnvio: any;
   } | null>(null);
+
+  // Estados para modal de conflitos de recorrência
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [conflitosRecorrencia, setConflitosRecorrencia] = useState<ConflitosRecorrencia | null>(null);
 
   // Estado para controlar se o usuário selecionou manualmente um recurso
   const [userSelectedResource, setUserSelectedResource] = useState(false);
@@ -174,6 +179,10 @@ export const useAgendamentoForm = ({
     // Limpar estados do modal de confirmação
     setShowResourceConfirmation(false);
     setResourceConfirmationData(null);
+    
+    // Limpar estados do modal de conflitos
+    setShowConflictModal(false);
+    setConflitosRecorrencia(null);
     
     // Resetar flag de seleção manual
     setUserSelectedResource(false);
@@ -307,19 +316,48 @@ export const useAgendamentoForm = ({
       return; // Parar execução até confirmação
     }
 
-    // Se chegou até aqui, o recurso está conforme - prosseguir com criação
-    setLoading(true);
-    try {
-      const dadosParaEnvio = {
-        ...formData,
-        dataHoraInicio: dataHoraCombinada,
-        recorrencia: temRecorrencia ? {
-          tipo: recorrencia.tipo,
-          ...(recorrencia.repeticoes && { repeticoes: recorrencia.repeticoes }),
-          ...(recorrencia.ate && { ate: recorrencia.ate })
-        } : undefined
-      };
+    // Se chegou até aqui, o recurso está conforme - verificar conflitos de recorrência
+    const dadosParaEnvio = {
+      ...formData,
+      dataHoraInicio: dataHoraCombinada,
+      recorrencia: temRecorrencia ? {
+        tipo: recorrencia.tipo,
+        ...(recorrencia.repeticoes && { repeticoes: recorrencia.repeticoes }),
+        ...(recorrencia.ate && { ate: recorrencia.ate })
+      } : undefined
+    };
 
+    // Se tem recorrência, verificar conflitos primeiro
+    if (temRecorrencia && dadosParaEnvio.recorrencia) {
+      setLoading(true);
+      try {
+        const conflitos = await verificarConflitosRecorrencia(
+          formData.profissionalId,
+          formData.recursoId,
+          dataHoraCombinada,
+          dadosParaEnvio.recorrencia
+        );
+
+        if (conflitos.totalConflitos > 0) {
+          // Se há conflitos, mostrar modal e BLOQUEAR salvamento
+          setConflitosRecorrencia(conflitos);
+          setShowConflictModal(true);
+          setLoading(false);
+          return; // PARAR EXECUÇÃO - não salvar nada
+        }
+      } catch (error) {
+        console.error('Erro ao verificar conflitos de recorrência:', error);
+        AppToast.error('Erro ao verificar disponibilidade', {
+          description: 'Não foi possível verificar conflitos de recorrência. Tente novamente.'
+        });
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Se não há conflitos, prosseguir com criação
+    try {
+      if (!loading) setLoading(true);
       await createAgendamento(dadosParaEnvio);
       AppToast.created('Agendamento', 'O agendamento foi criado com sucesso!');
       resetForm();
@@ -364,6 +402,13 @@ export const useAgendamentoForm = ({
     setShowResourceConfirmation(false);
     setResourceConfirmationData(null);
     // O usuário permanece no formulário para escolher outro recurso
+  }, []);
+
+  // Função para fechar modal de conflitos
+  const handleConflictModalClose = useCallback(() => {
+    setShowConflictModal(false);
+    setConflitosRecorrencia(null);
+    // O usuário permanece no formulário para ajustar data/hora ou recorrência
   }, []);
 
   // Effect para carregar dados quando o modal abrir
@@ -752,6 +797,10 @@ export const useAgendamentoForm = ({
     showResourceConfirmation,
     resourceConfirmationData,
     handleResourceConfirmation,
-    handleResourceCancel
+    handleResourceCancel,
+    // Estados e funções do modal de conflitos
+    showConflictModal,
+    conflitosRecorrencia,
+    handleConflictModalClose
   };
 }; 

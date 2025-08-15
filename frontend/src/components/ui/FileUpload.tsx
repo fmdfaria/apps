@@ -10,6 +10,7 @@ interface FileUploadProps {
   acceptedTypes?: string;
   maxFiles?: number;
   label?: string;
+  enableScanner?: boolean;
 }
 
 export const FileUpload = ({ 
@@ -17,7 +18,8 @@ export const FileUpload = ({
   onFilesChange, 
   acceptedTypes = '.pdf,.jpg,.jpeg,.png',
   maxFiles = 5,
-  label = 'Arquivos'
+  label = 'Arquivos',
+  enableScanner = true
 }: FileUploadProps) => {
   const [dragActive, setDragActive] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -124,17 +126,18 @@ export const FileUpload = ({
             <Upload className="w-4 h-4" />
             Selecionar Arquivo
           </Button>
-          
-          <Button
-            type="button"
-            onClick={() => setShowScanner(true)}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2 text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700"
-          >
-            <Scan className="w-4 h-4" />
-            Digitalizar Documento
-          </Button>
+          {enableScanner && (
+            <Button
+              type="button"
+              onClick={() => setShowScanner(true)}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2 text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700"
+            >
+              <Scan className="w-4 h-4" />
+              Digitalizar Documento
+            </Button>
+          )}
         </div>
         <p className="text-sm text-gray-400">
           Formatos aceitos: {acceptedTypes.replace(/\./g, '').toUpperCase()}
@@ -171,11 +174,13 @@ export const FileUpload = ({
       )}
       
       {/* Document Scanner Modal */}
-      <DocumentScannerFixed
-        isOpen={showScanner}
-        onClose={() => setShowScanner(false)}
-        onSavePDF={handleScannerPDF}
-      />
+      {enableScanner && (
+        <DocumentScannerFixed
+          isOpen={showScanner}
+          onClose={() => setShowScanner(false)}
+          onSavePDF={handleScannerPDF}
+        />
+      )}
     </div>
   );
 };

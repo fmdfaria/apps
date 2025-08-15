@@ -107,6 +107,45 @@ export const AgendamentoModal: React.FC<AgendamentoModalProps> = ({
         showCloseButton={true}
         maxWidth="lg"
       />
+
+      {/* Modal de conflitos de recorrência */}
+      <ConfirmationDialog
+        open={agendamentoContext.showConflictModal}
+        onClose={agendamentoContext.handleConflictModalClose}
+        type="error"
+        title="Conflitos de Disponibilidade Detectados"
+        description={(() => {
+          return `🚫 **ATENÇÃO:** Não é possível criar agendamentos... Foram encontrados ${agendamentoContext.conflitosRecorrencia?.totalConflitos || 0} conflito(s) em ${agendamentoContext.conflitosRecorrencia?.totalDatas || 0} agendamento(s).`;
+        })()}
+        details={[
+          // Cabeçalho da tabela
+          '| Data | Hora | Paciente Agendado | Serviço |',
+          '|------|------|-------------------|---------|',
+          // Linhas da tabela
+          ...(agendamentoContext.conflitosRecorrencia?.datasComConflito?.map(conflito => {
+            const dataFormatada = new Date(conflito.data + 'T00:00:00').toLocaleDateString('pt-BR', {
+              weekday: 'short',
+              day: '2-digit',
+              month: '2-digit'
+            });
+            const paciente = conflito.agendamentoConflitante?.pacienteNome || '-';
+            const servico = conflito.agendamentoConflitante?.servicoNome || 
+                          (conflito.tipo === 'indisponivel' ? conflito.motivo : '-');
+            
+            return `| ${dataFormatada} | ${conflito.hora} | ${paciente} | ${servico} |`;
+          }) || []),
+        ]}
+        actions={[
+          {
+            label: "Entendi, vou ajustar",
+            onClick: agendamentoContext.handleConflictModalClose,
+            className: "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl font-semibold px-6 transition-all duration-200"
+          }
+        ]}
+        defaultActions={false}
+        showCloseButton={true}
+        maxWidth="4xl"  
+      />
     </>
   );
 };

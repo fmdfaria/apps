@@ -146,6 +146,11 @@ export default function DisponibilidadeProfissionaisPage() {
     checkPermissions();
     carregarProfissionais();
     carregarRecursos();
+    
+    // Se o usuário logado for PROFISSIONAL, bloquear o campo desde o início
+    if (user?.roles?.includes('PROFISSIONAL') && user?.profissionalId) {
+      setProfissionalBloqueado(true);
+    }
   }, []);
 
   useEffect(() => {

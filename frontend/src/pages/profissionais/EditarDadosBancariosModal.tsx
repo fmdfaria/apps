@@ -207,7 +207,7 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
           <div className="py-3 space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
               <div>
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                   <span className="text-lg">🏪</span>
                   <span className="bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent font-semibold">Banco</span>
                 </label>
@@ -227,7 +227,7 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                   <span className="text-lg">🏦</span>
                   <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent font-semibold">Tipo de Conta</span>
                 </label>
@@ -242,7 +242,7 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                   <span className="text-lg">🏢</span>
                   <span className="bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent font-semibold">Agência</span>
                 </label>
@@ -256,7 +256,7 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                   <span className="text-lg">🔢</span>
                   <span className="bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent font-semibold">Número da Conta</span>
                 </label>
@@ -270,7 +270,7 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                   <span className="text-lg">✔️</span>
                   <span className="bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent font-semibold">Dígito</span>
                 </label>
@@ -287,7 +287,7 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
               <div>
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                   <span className="text-lg">🔑</span>
                   <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-semibold">Tipo PIX</span>
                 </label>
@@ -299,7 +299,7 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                   <span className="text-lg">💳</span>
                   <span className="bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent font-semibold">PIX</span>
                 </label>
@@ -315,7 +315,7 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
             </div>
 
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-800 mb-2 flex items-center gap-2">
+              <label className="flex text-sm font-medium text-gray-800 mb-2 items-center gap-2">
                 <span className="text-lg">📄</span>
                 <span className="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent font-semibold">Comprovante Bancário</span>
               </label>
@@ -355,6 +355,7 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
                       acceptedTypes=".pdf,.jpg,.jpeg,.png"
                       maxFiles={1}
                       label="📤 Arraste o arquivo aqui ou clique para selecionar"
+                      enableScanner={false}
                     />
                   </div>
                 )}

@@ -8,6 +8,7 @@ const routePermissionMap: Record<string, { path: string; method: string }> = {
   'calendario': { path: '/agendamentos', method: 'GET' },
   'agendamentos': { path: '/agendamentos', method: 'GET' },
   'agendamentos/liberacao': { path: '/agendamentos-liberar/:id', method: 'PUT' },
+  'agendamentos/calendario-profissional': { path: '/agendamentos-calendario-profissional', method: 'GET' },
   'agendamentos/atendimento': { path: '/agendamentos-atender/:id', method: 'PUT' },
   'agendamentos/conclusao': { path: '/agendamentos-concluir/:id', method: 'PUT' },
   'agendamentos/fechamento': { path: '/agendamentos-fechamento', method: 'GET' },
