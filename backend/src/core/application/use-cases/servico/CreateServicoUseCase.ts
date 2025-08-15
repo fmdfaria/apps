@@ -11,6 +11,8 @@ interface IRequest {
   preco: number;
   percentualClinica?: number | null;
   percentualProfissional?: number | null;
+  valorClinica?: number | null;
+  valorProfissional?: number | null;
   procedimentoPrimeiroAtendimento?: string;
   procedimentoDemaisAtendimentos?: string;
   convenioId?: string;
@@ -32,6 +34,8 @@ export class CreateServicoUseCase {
     preco,
     percentualClinica,
     percentualProfissional,
+    valorClinica,
+    valorProfissional,
     procedimentoPrimeiroAtendimento,
     procedimentoDemaisAtendimentos,
     convenioId,
@@ -56,6 +60,8 @@ export class CreateServicoUseCase {
       preco,
       percentualClinica,
       percentualProfissional,
+      valorClinica,
+      valorProfissional,
       procedimentoPrimeiroAtendimento,
       procedimentoDemaisAtendimentos,
       convenioId,

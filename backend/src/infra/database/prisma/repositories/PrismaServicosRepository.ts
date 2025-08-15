@@ -20,6 +20,8 @@ function toDomain(
     preco: servico.preco.toNumber(),
     percentualClinica: servico.percentualClinica?.toNumber() ?? null,
     percentualProfissional: servico.percentualProfissional?.toNumber() ?? null,
+    valorClinica: servico.valorClinica?.toNumber() ?? null,
+    valorProfissional: servico.valorProfissional?.toNumber() ?? null,
     convenio: servico.convenio as Convenio | null,
   };
 }

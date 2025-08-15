@@ -51,8 +51,6 @@ interface FormularioServico {
   preco: string;
   percentualClinica?: number | null;
   percentualProfissional?: number | null;
-  valorClinica?: string | null;
-  valorProfissional?: string | null;
   procedimentoPrimeiroAtendimento?: string | null;
   procedimentoDemaisAtendimentos?: string | null;
   convenioId?: string;
@@ -135,8 +133,6 @@ export const ServicosPage = () => {
     preco: '',
     percentualClinica: null,
     percentualProfissional: null,
-    valorClinica: null,
-    valorProfissional: null,
     procedimentoPrimeiroAtendimento: '',
     procedimentoDemaisAtendimentos: '',
     convenioId: '',
@@ -235,8 +231,10 @@ export const ServicosPage = () => {
         currency: 'BRL'
       },
       render: (item) => (
-        <span className="text-sm font-medium text-blue-600">
-          {item.percentualClinica != null && item.preco != null 
+        <span className="text-sm font-medium text-green-600">
+          {item.valorClinica != null
+            ? Number(item.valorClinica).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+            : item.percentualClinica != null && item.preco != null 
             ? ((item.percentualClinica / 100) * item.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
             : '-'
           }
@@ -254,8 +252,10 @@ export const ServicosPage = () => {
         currency: 'BRL'
       },
       render: (item) => (
-        <span className="text-sm font-medium text-emerald-600">
-          {item.percentualProfissional != null && item.preco != null 
+        <span className="text-sm font-medium text-green-600">
+          {item.valorProfissional != null
+            ? Number(item.valorProfissional).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+            : item.percentualProfissional != null && item.preco != null 
             ? ((item.percentualProfissional / 100) * item.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
             : '-'
           }
@@ -406,10 +406,14 @@ export const ServicosPage = () => {
     dadosFiltrados = dadosFiltrados.map(servico => ({
       ...servico,
       // Extrair valores para filtros de campos calculados
-      valorClinica: servico.percentualClinica != null && servico.preco != null 
+      valorClinica: servico.valorClinica != null 
+        ? servico.valorClinica
+        : servico.percentualClinica != null && servico.preco != null 
         ? (servico.percentualClinica / 100) * servico.preco 
         : 0,
-      valorProfissional: servico.percentualProfissional != null && servico.preco != null 
+      valorProfissional: servico.valorProfissional != null 
+        ? servico.valorProfissional
+        : servico.percentualProfissional != null && servico.preco != null 
         ? (servico.percentualProfissional / 100) * servico.preco 
         : 0
     }));
@@ -574,8 +578,11 @@ export const ServicosPage = () => {
                       </Badge>
                     );
                   })()}
-                  <span className="text-blue-600 font-medium">
-                    {((servico.percentualClinica / 100) * servico.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  <span className="text-green-600 font-medium">
+                    {servico.valorClinica != null
+                      ? Number(servico.valorClinica).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                      : ((servico.percentualClinica / 100) * servico.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                    }
                   </span>
                 </div>
               </div>
@@ -590,8 +597,11 @@ export const ServicosPage = () => {
                       </Badge>
                     );
                   })()}
-                  <span className="text-emerald-600 font-medium">
-                    {((servico.percentualProfissional / 100) * servico.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  <span className="text-green-600 font-medium">
+                    {servico.valorProfissional != null
+                      ? Number(servico.valorProfissional).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                      : ((servico.percentualProfissional / 100) * servico.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                    }
                   </span>
                 </div>
               </div>
@@ -679,8 +689,6 @@ export const ServicosPage = () => {
       preco: '',
       percentualClinica: null,
       percentualProfissional: null,
-      valorClinica: null,
-      valorProfissional: null,
       procedimentoPrimeiroAtendimento: '',
       procedimentoDemaisAtendimentos: '',
       convenioId: '',
@@ -702,8 +710,6 @@ export const ServicosPage = () => {
       preco: precoValue,
       percentualClinica: s.percentualClinica != null ? s.percentualClinica : 38,
       percentualProfissional: s.percentualProfissional != null ? s.percentualProfissional : 62,
-      valorClinica: s.valorClinica != null ? s.valorClinica.toString() : null,
-      valorProfissional: s.valorProfissional != null ? s.valorProfissional.toString() : null,
       procedimentoPrimeiroAtendimento: s.procedimentoPrimeiroAtendimento || '',
       procedimentoDemaisAtendimentos: s.procedimentoDemaisAtendimentos || '',
       convenioId: s.convenio?.id || '',
@@ -722,8 +728,6 @@ export const ServicosPage = () => {
       preco: '',
       percentualClinica: null,
       percentualProfissional: null,
-      valorClinica: null,
-      valorProfissional: null,
       procedimentoPrimeiroAtendimento: '',
       procedimentoDemaisAtendimentos: '',
       convenioId: '',
@@ -765,13 +769,21 @@ export const ServicosPage = () => {
     }
     setFormLoading(true);
     try {
+      // Calcular valores diretos baseados nos percentuais e preço
+      const valorClinicaCalculado = form.percentualClinica != null && precoNumber > 0 
+        ? Number(((form.percentualClinica / 100) * precoNumber).toFixed(2))
+        : null;
+      const valorProfissionalCalculado = form.percentualProfissional != null && precoNumber > 0 
+        ? Number(((form.percentualProfissional / 100) * precoNumber).toFixed(2))
+        : null;
+
       const payload = { 
         ...form, 
         duracaoMinutos: duracaoNumber, 
         preco: precoNumber, 
         convenioId: form.convenioId,
-        valorClinica: form.valorClinica ? Number(form.valorClinica.replace(/\./g, '').replace(',', '.')) : null,
-        valorProfissional: form.valorProfissional ? Number(form.valorProfissional.replace(/\./g, '').replace(',', '.')) : null
+        valorClinica: valorClinicaCalculado,
+        valorProfissional: valorProfissionalCalculado
       };
       if (editando) {
         await updateServico(editando.id, payload);

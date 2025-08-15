@@ -9,6 +9,8 @@ export class Servico {
   preco!: number;
   percentualClinica?: number | null;
   percentualProfissional?: number | null;
+  valorClinica?: number | null;
+  valorProfissional?: number | null;
   procedimentoPrimeiroAtendimento?: string | null;
   procedimentoDemaisAtendimentos?: string | null;
   createdAt!: Date;

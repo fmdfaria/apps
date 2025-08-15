@@ -12,6 +12,8 @@ interface IRequest {
   preco: number;
   percentualClinica?: number | null;
   percentualProfissional?: number | null;
+  valorClinica?: number | null;
+  valorProfissional?: number | null;
   procedimentoPrimeiroAtendimento?: string;
   procedimentoDemaisAtendimentos?: string;
   convenioId?: string;
