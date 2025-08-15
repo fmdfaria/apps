@@ -12,8 +12,17 @@
 - Utilize sempre o AppToast para manter o padrão de notificação.
 - Não defina nada no frontend que afete o backend, veja sempre a estrutura do backend no arquivo @apps/backend/prisma/schema.prisma .. lá contém toda estrutura do meu banco de dados.
 
-### AprovarPage ✅
-- Criar um botão 'Digitalizar Guias' e colocar entre 'Visualizar' e 'Aprovar Atendimento' ✅
-- Criar uma funcionalidade para escanear um documento quando clicar no botão ✅
-- Essa funcionalidade deve abrir a camera do dispositivo e permitir fazer o scanner com a camera. ✅
-- utilizar as funcionalidades de anexos para anexar o documento vinculado a entidade agendamentos. ✅
+### Criar Nova Pagina 'PagamentosPage'
+- Deve copiar FechamentoPage apresentando todos os agendamentos com status FINALIZADO.
+- É a página responsável pelo pagamento financeiro dos agendamentos FINALIZADOS pelos profissionais.
+- Não precisa ter abas, deixe somente a tabela / CARDs.
+- Deve conter as colunas Profissional | Data Inicio | Data Fim | Qtd | Valor a pagar
+-- Data Inicio - Data do agendamento mais antigo com status FINALIZADOS.
+-- Data Fim - Data do agendametno mais novo com status FINALIZADOS.
+-- Qtd - Mostrar a qtd de atendimentos daquele profissional FINALIZADOS.
+-- Valor a pagar - O valor total a ser pago deve considerar:
+---SE existir valor do ID PROFISSIONAL na tabela precos_servicos_profissional, coluna = 'preco_profissional'
+---SE não existir na tabela precos_servicos_profissional, deve utilizar o preço tabelado que está na tabela 'servicos', coluna as colunas de 'preco' e 'percentual_profissional'
+
+###
+

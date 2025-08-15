@@ -28,6 +28,8 @@ import { AgendamentosPage } from '@/pages/agendamentos/AgendamentosPage';
 import { LiberarPage } from '@/pages/agendamentos/LiberarPage';
 import { AtenderPage } from '@/pages/agendamentos/AtenderPage';
 import { AprovarPage } from '@/pages/agendamentos/AprovarPage';
+import { FechamentoPage } from '@/pages/agendamentos/FechamentoPage';
+import { PagamentosPage } from '@/pages/agendamentos/PagamentosPage';
 import { CalendarioPage } from '@/pages/agendamentos/CalendarioPage';
 import PrecosParticularPage from '@/pages/pacientes/PrecosParticularPage';
 import { Perfil } from '@/pages/perfil/Perfil';
@@ -42,6 +44,7 @@ import { TestDocumentScanner } from '@/components/TestDocumentScanner';
 import { SimpleDocumentScanner } from '@/components/SimpleDocumentScanner';
 import { TestPDFOrientation } from '@/components/TestPDFOrientation';
 import { TestDigitalizarGuias } from '@/components/TestDigitalizarGuias';
+import ScannerS3Page from '@/pages/test/ScannerS3Page';
 
 export default function App() {
   const initializeAuth = useAuthStore((s) => s.initializeAuth);
@@ -86,6 +89,8 @@ export default function App() {
             <Route path="agendamentos/liberacao" element={<LiberarPage />} />
             <Route path="agendamentos/atendimento" element={<AtenderPage />} />
             <Route path="agendamentos/conclusao" element={<AprovarPage />} />
+            <Route path="agendamentos/fechamento" element={<FechamentoPage />} />
+            <Route path="agendamentos/pagamentos" element={<PagamentosPage />} />
             <Route path="calendario" element={<CalendarioPage />} />
             <Route path="perfil" element={<Perfil />} />
             <Route path="administracao/usuarios" element={<UsuariosPage />} />
@@ -97,6 +102,7 @@ export default function App() {
             <Route path="test/simple-camera" element={<SimpleDocumentScanner />} />
             <Route path="test/pdf-orientation" element={<TestPDFOrientation />} />
             <Route path="test/digitalizar-guias" element={<TestDigitalizarGuias />} />
+            <Route path="test/scanner-s3" element={<ScannerS3Page />} />
           </Route>
         </Route>
 

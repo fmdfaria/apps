@@ -504,4 +504,171 @@ export const updateAssinaturaPaciente = async (id: string, assinaturaPaciente: b
 
 export const updateAssinaturaProfissional = async (id: string, assinaturaProfissional: boolean | null): Promise<Agendamento> => {
   return updateAgendamento(id, { assinaturaProfissional });
+};
+
+// Interfaces para fechamento financeiro
+export interface FechamentoConvenio {
+  convenio: string;
+  dataInicio: string;
+  dataFim: string;
+  qtdAgendamentos: number;
+  valorReceber: number;
+}
+
+export interface FechamentoParticular {
+  paciente: string;
+  dataInicio: string;
+  dataFim: string;
+  qtdAgendamentos: number;
+  valorReceber: number;
+}
+
+// Funções para fechamento financeiro
+export const getFechamentosConvenios = async (filtros?: {
+  dataInicio?: string;
+  dataFim?: string;
+  convenio?: string;
+}): Promise<FechamentoConvenio[]> => {
+  try {
+    // Buscar agendamentos finalizados
+    const agendamentos = await getAgendamentos({ status: 'FINALIZADO' });
+    
+    // Filtrar por parâmetros adicionais se fornecidos
+    let agendamentosFiltrados = agendamentos;
+    
+    if (filtros) {
+      if (filtros.dataInicio || filtros.dataFim) {
+        agendamentosFiltrados = agendamentos.filter(a => {
+          const dataAgendamento = a.dataHoraInicio.split('T')[0];
+          if (filtros.dataInicio && dataAgendamento < filtros.dataInicio) return false;
+          if (filtros.dataFim && dataAgendamento > filtros.dataFim) return false;
+          return true;
+        });
+      }
+      
+      if (filtros.convenio) {
+        agendamentosFiltrados = agendamentosFiltrados.filter(a => 
+          a.convenioNome?.toLowerCase().includes(filtros.convenio!.toLowerCase())
+        );
+      }
+    }
+    
+    // Agrupar por convênio
+    const conveniosMap = new Map<string, {
+      agendamentos: Agendamento[],
+      valorTotal: number
+    }>();
+
+    agendamentosFiltrados.forEach(agendamento => {
+      const convenio = agendamento.convenioNome || 'Não informado';
+      
+      if (!conveniosMap.has(convenio)) {
+        conveniosMap.set(convenio, {
+          agendamentos: [],
+          valorTotal: 0
+        });
+      }
+
+      const dados = conveniosMap.get(convenio)!;
+      dados.agendamentos.push(agendamento);
+      // Valor padrão - em produção, buscar da tabela servicos
+      dados.valorTotal += 100.00;
+    });
+
+    // Converter para array e calcular datas
+    return Array.from(conveniosMap.entries()).map(([convenio, dados]) => {
+      const datas = dados.agendamentos.map(a => a.dataHoraInicio.split('T')[0]);
+      const dataInicio = Math.min(...datas.map(d => new Date(d).getTime()));
+      const dataFim = Math.max(...datas.map(d => new Date(d).getTime()));
+
+      return {
+        convenio,
+        dataInicio: new Date(dataInicio).toISOString().split('T')[0],
+        dataFim: new Date(dataFim).toISOString().split('T')[0],
+        qtdAgendamentos: dados.agendamentos.length,
+        valorReceber: dados.valorTotal
+      };
+    }).sort((a, b) => a.convenio.localeCompare(b.convenio));
+    
+  } catch (error) {
+    console.error('Erro ao buscar fechamentos de convênios:', error);
+    throw error;
+  }
+};
+
+export const getFechamentosParticulares = async (filtros?: {
+  dataInicio?: string;
+  dataFim?: string;
+  paciente?: string;
+}): Promise<FechamentoParticular[]> => {
+  try {
+    // Buscar agendamentos finalizados
+    const agendamentos = await getAgendamentos({ status: 'FINALIZADO' });
+    
+    // Filtrar apenas particulares
+    let agendamentosParticulares = agendamentos.filter(a => 
+      a.convenioNome?.toLowerCase().includes('particular') || 
+      a.convenioNome?.toLowerCase().includes('privado') ||
+      a.convenioNome === 'Particular'
+    );
+    
+    // Aplicar filtros adicionais se fornecidos
+    if (filtros) {
+      if (filtros.dataInicio || filtros.dataFim) {
+        agendamentosParticulares = agendamentosParticulares.filter(a => {
+          const dataAgendamento = a.dataHoraInicio.split('T')[0];
+          if (filtros.dataInicio && dataAgendamento < filtros.dataInicio) return false;
+          if (filtros.dataFim && dataAgendamento > filtros.dataFim) return false;
+          return true;
+        });
+      }
+      
+      if (filtros.paciente) {
+        agendamentosParticulares = agendamentosParticulares.filter(a => 
+          a.pacienteNome?.toLowerCase().includes(filtros.paciente!.toLowerCase())
+        );
+      }
+    }
+    
+    // Agrupar por paciente
+    const pacientesMap = new Map<string, {
+      agendamentos: Agendamento[],
+      valorTotal: number
+    }>();
+
+    agendamentosParticulares.forEach(agendamento => {
+      const paciente = agendamento.pacienteNome || 'Não informado';
+      
+      if (!pacientesMap.has(paciente)) {
+        pacientesMap.set(paciente, {
+          agendamentos: [],
+          valorTotal: 0
+        });
+      }
+
+      const dados = pacientesMap.get(paciente)!;
+      dados.agendamentos.push(agendamento);
+      // Valor padrão para particulares - em produção, buscar de precos_particulares
+      dados.valorTotal += 150.00;
+    });
+
+    // Converter para array e calcular datas
+    return Array.from(pacientesMap.entries()).map(([paciente, dados]) => {
+      const datas = dados.agendamentos.map(a => a.dataHoraInicio.split('T')[0]);
+      const dataInicio = Math.min(...datas.map(d => new Date(d).getTime()));
+      const dataFim = Math.max(...datas.map(d => new Date(d).getTime()));
+
+      return {
+        paciente,
+        dataInicio: new Date(dataInicio).toISOString().split('T')[0],
+        dataFim: new Date(dataFim).toISOString().split('T')[0],
+        qtdAgendamentos: dados.agendamentos.length,
+        valorReceber: dados.valorTotal
+      };
+    }).sort((a, b) => a.paciente.localeCompare(b.paciente));
+    
+  } catch (error) {
+    console.error('Erro ao buscar fechamentos particulares:', error);
+    throw error;
+  }
 }; 

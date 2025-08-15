@@ -10,6 +10,8 @@ const routePermissionMap: Record<string, { path: string; method: string }> = {
   'agendamentos/liberacao': { path: '/agendamentos-liberar/:id', method: 'PUT' },
   'agendamentos/atendimento': { path: '/agendamentos-atender/:id', method: 'PUT' },
   'agendamentos/conclusao': { path: '/agendamentos-concluir/:id', method: 'PUT' },
+  'agendamentos/fechamento': { path: '/agendamentos', method: 'GET' },
+  'agendamentos/pagamentos': { path: '/agendamentos', method: 'GET' },
   'pacientes': { path: '/pacientes', method: 'POST' },
   'pacientes/precos-particulares': { path: '/precos-particulares', method: 'GET' },
   'profissionais': { path: '/profissionais', method: 'POST' },

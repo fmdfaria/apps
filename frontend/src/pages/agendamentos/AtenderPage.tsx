@@ -717,26 +717,8 @@ export const AtenderPage = () => {
               </TableHead>
               <TableHead className="py-3 text-sm font-semibold text-gray-700">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">🏥</span>
-                  Convênio
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
                   <span className="text-lg">🩺</span>
                   Serviço
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🏷️</span>
-                  Tipo
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">📊</span>
-                  Status
                 </div>
               </TableHead>
               <TableHead className="py-3 text-sm font-semibold text-gray-700">
@@ -774,7 +756,7 @@ export const AtenderPage = () => {
         <TableBody>
           {agendamentosPaginados.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={13} className="py-12 text-center">
+              <TableCell colSpan={10} className="py-12 text-center">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                     <span className="text-3xl">🩺</span>
@@ -810,28 +792,7 @@ export const AtenderPage = () => {
                     <span className="text-sm">{agendamento.profissionalNome}</span>
                   </TableCell>
                   <TableCell className="py-2">
-                    <span className="text-sm">{agendamento.convenioNome}</span>
-                  </TableCell>
-                  <TableCell className="py-2">
                     <span className="text-sm">{agendamento.servicoNome}</span>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-                      agendamento.tipoAtendimento === 'online' 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {agendamento.tipoAtendimento}
-                    </span>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-                      agendamento.status === 'LIBERADO' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {agendamento.status}
-                    </span>
                   </TableCell>
                   <TableCell className="py-2">
                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${

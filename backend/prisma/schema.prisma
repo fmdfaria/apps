@@ -130,6 +130,8 @@ model Servico {
   preco                           Decimal                       @db.Decimal(10, 2)
   percentualClinica               Decimal?                      @map("percentual_clinica") @db.Decimal(5, 2)
   percentualProfissional          Decimal?                      @map("percentual_profissional") @db.Decimal(5, 2)
+  valorClinica                    Decimal?                      @map("valor_clinica") @db.Decimal(10, 2)
+  valorProfissional               Decimal?                      @map("valor_profissional") @db.Decimal(10, 2)
   procedimentoPrimeiroAtendimento String?                       @map("procedimento_primeiro_atendimento") @db.VarChar(100)
   procedimentoDemaisAtendimentos  String?                       @map("procedimento_demais_atendimentos") @db.VarChar(100)
   convenioId                      String?                       @map("convenio_id") @db.Uuid

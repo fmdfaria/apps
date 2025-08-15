@@ -51,6 +51,8 @@ interface FormularioServico {
   preco: string;
   percentualClinica?: number | null;
   percentualProfissional?: number | null;
+  valorClinica?: string | null;
+  valorProfissional?: string | null;
   procedimentoPrimeiroAtendimento?: string | null;
   procedimentoDemaisAtendimentos?: string | null;
   convenioId?: string;
@@ -133,6 +135,8 @@ export const ServicosPage = () => {
     preco: '',
     percentualClinica: null,
     percentualProfissional: null,
+    valorClinica: null,
+    valorProfissional: null,
     procedimentoPrimeiroAtendimento: '',
     procedimentoDemaisAtendimentos: '',
     convenioId: '',
@@ -675,6 +679,8 @@ export const ServicosPage = () => {
       preco: '',
       percentualClinica: null,
       percentualProfissional: null,
+      valorClinica: null,
+      valorProfissional: null,
       procedimentoPrimeiroAtendimento: '',
       procedimentoDemaisAtendimentos: '',
       convenioId: '',
@@ -696,6 +702,8 @@ export const ServicosPage = () => {
       preco: precoValue,
       percentualClinica: s.percentualClinica != null ? s.percentualClinica : 38,
       percentualProfissional: s.percentualProfissional != null ? s.percentualProfissional : 62,
+      valorClinica: s.valorClinica != null ? s.valorClinica.toString() : null,
+      valorProfissional: s.valorProfissional != null ? s.valorProfissional.toString() : null,
       procedimentoPrimeiroAtendimento: s.procedimentoPrimeiroAtendimento || '',
       procedimentoDemaisAtendimentos: s.procedimentoDemaisAtendimentos || '',
       convenioId: s.convenio?.id || '',
@@ -714,6 +722,8 @@ export const ServicosPage = () => {
       preco: '',
       percentualClinica: null,
       percentualProfissional: null,
+      valorClinica: null,
+      valorProfissional: null,
       procedimentoPrimeiroAtendimento: '',
       procedimentoDemaisAtendimentos: '',
       convenioId: '',
@@ -755,7 +765,14 @@ export const ServicosPage = () => {
     }
     setFormLoading(true);
     try {
-      const payload = { ...form, duracaoMinutos: duracaoNumber, preco: precoNumber, convenioId: form.convenioId };
+      const payload = { 
+        ...form, 
+        duracaoMinutos: duracaoNumber, 
+        preco: precoNumber, 
+        convenioId: form.convenioId,
+        valorClinica: form.valorClinica ? Number(form.valorClinica.replace(/\./g, '').replace(',', '.')) : null,
+        valorProfissional: form.valorProfissional ? Number(form.valorProfissional.replace(/\./g, '').replace(',', '.')) : null
+      };
       if (editando) {
         await updateServico(editando.id, payload);
         AppToast.updated('Serviço', `O serviço "${form.nome.trim()}" foi atualizado com sucesso.`);
