@@ -44,6 +44,7 @@ export class AgendamentosController {
       profissionalId: z.string().uuid().optional(),
       pacienteId: z.string().uuid().optional(),
       dataHoraInicio: z.coerce.date().optional(),
+      dataHoraFim: z.coerce.date().optional(),
       status: z.string().optional(),
     });
     const filters = querySchema.parse(request.query);

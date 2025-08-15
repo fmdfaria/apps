@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   Calendar as CalendarIcon, 
-  Plus,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -75,7 +74,7 @@ export const CalendarioProfissionalPage = () => {
   const [loading, setLoading] = useState(true);
   const [userProfissional, setUserProfissional] = useState<Profissional | null>(null);
 
-  // Estados para modais de agendamento  
+  // Estados para modais de agendamento (apenas duplo clique)
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
   const [preenchimentoInicialModal, setPreenchimentoInicialModal] = useState<any>(undefined);
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
@@ -84,9 +83,6 @@ export const CalendarioProfissionalPage = () => {
   // Estados para edição de agendamento
   const [showEditarAgendamento, setShowEditarAgendamento] = useState(false);
   const [agendamentoEdicao, setAgendamentoEdicao] = useState<Agendamento | null>(null);
-  
-  // Estados para controle de permissões
-  const [canCreate, setCanCreate] = useState(true);
 
   // Horários de trabalho (8h às 18h em intervalos de 30 minutos)
   const timeSlots: TimeSlot[] = [];
@@ -95,7 +91,7 @@ export const CalendarioProfissionalPage = () => {
     timeSlots.push({ time: `${hour.toString().padStart(2, '0')}:30`, hour, minute: 30 });
   }
 
-  // Função para obter os dias da semana atual
+  // Função para obter os dias da semana atual (Segunda a Sábado)
   const getWeekDays = (date: Date): WeekDay[] => {
     const startOfWeek = new Date(date);
     const day = startOfWeek.getDay();
@@ -106,7 +102,8 @@ export const CalendarioProfissionalPage = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    for (let i = 0; i < 7; i++) {
+    // Apenas 6 dias: Segunda a Sábado (i < 6 ao invés de i < 7)
+    for (let i = 0; i < 6; i++) {
       const currentDay = new Date(startOfWeek);
       currentDay.setDate(startOfWeek.getDate() + i);
       
@@ -155,16 +152,6 @@ export const CalendarioProfissionalPage = () => {
     handleFecharAgendamentoModal();
   };
 
-  const handleAbrirNovoAgendamento = () => {
-    // Pré-preencher com o profissional logado
-    if (userProfissional) {
-      setPreenchimentoInicialModal({
-        profissionalId: userProfissional.id,
-        tipoFluxo: 'por-profissional'
-      });
-    }
-    setShowAgendamentoModal(true);
-  };
 
   // Função para abrir modal com preenchimento direto (duplo clique)
   const handleAbrirFormularioDireto = (dados?: { 
@@ -209,7 +196,6 @@ export const CalendarioProfissionalPage = () => {
 
   // Carregamento de dados
   useEffect(() => {
-    checkPermissions();
     carregarDados();
     carregarUsuarioProfissional();
   }, []);
@@ -221,22 +207,6 @@ export const CalendarioProfissionalPage = () => {
     }
   }, [currentWeek, userProfissional]);
 
-  const checkPermissions = async () => {
-    try {
-      const response = await api.get('/users/me/permissions');
-      const allowedRoutes = response.data;
-      
-      const canCreate = allowedRoutes.some((route: any) => {
-        return route.path === '/agendamentos' && route.method.toLowerCase() === 'post';
-      });
-      
-      setCanCreate(canCreate);
-      
-    } catch (error: any) {
-      setCanCreate(false);
-      console.error('Erro ao verificar permissões:', error);
-    }
-  };
 
   const carregarUsuarioProfissional = async () => {
     try {
@@ -259,15 +229,16 @@ export const CalendarioProfissionalPage = () => {
     setLoading(true);
     try {
       // Definir período da semana para buscar agendamentos
-      const startDate = weekDays[0].date;
-      const endDate = weekDays[6].date;
-      endDate.setHours(23, 59, 59, 999);
+      const startDate = new Date(weekDays[0].date);
+      startDate.setHours(0, 0, 0, 0); // Início do primeiro dia
+      const endDate = new Date(weekDays[5].date); // Último dia é agora índice 5 (sábado)
+      endDate.setHours(23, 59, 59, 999); // Final do último dia
 
       const [agendamentosData, recursosData, disponibilidadesData] = await Promise.all([
         getAgendamentos({
           profissionalId: userProfissional.id,
-          dataInicio: startDate.toISOString().split('T')[0],
-          dataFim: endDate.toISOString().split('T')[0]
+          dataInicio: startDate.toISOString(),
+          dataFim: endDate.toISOString()
         }),
         getRecursos(),
         getAllDisponibilidades()
@@ -402,38 +373,6 @@ export const CalendarioProfissionalPage = () => {
     }
   };
 
-  // Função para lidar com duplo clique em slot de tempo
-  const handleSlotDoubleClick = (date: Date, timeSlot: TimeSlot) => {
-    if (!canCreate || !userProfissional) {
-      AppToast.error('Acesso negado', {
-        description: 'Você não tem permissão para criar agendamentos.'
-      });
-      return;
-    }
-
-    const status = verificarDisponibilidade(date, timeSlot);
-    if (status === 'folga' || status === 'nao_configurado' || status === 'ocupado') {
-      return; // Não permitir criar em slots indisponíveis
-    }
-
-    // Criar data/hora combinada
-    const dataHoraCombinada = new Date(date);
-    dataHoraCombinada.setHours(timeSlot.hour, timeSlot.minute, 0, 0);
-    
-    const ano = dataHoraCombinada.getFullYear();
-    const mes = (dataHoraCombinada.getMonth() + 1).toString().padStart(2, '0');
-    const dia = dataHoraCombinada.getDate().toString().padStart(2, '0');
-    const hora = dataHoraCombinada.getHours().toString().padStart(2, '0');
-    const minuto = dataHoraCombinada.getMinutes().toString().padStart(2, '0');
-    
-    const dataHoraLocal = `${ano}-${mes}-${dia}T${hora}:${minuto}`;
-    
-    handleAbrirFormularioDireto({
-      dataHoraInicio: dataHoraLocal,
-      profissionalId: userProfissional.id
-    });
-  };
-
   if (loading) {
     return (
       <div className="pt-2 pl-6 pr-6 h-full flex items-center justify-center">
@@ -460,7 +399,7 @@ export const CalendarioProfissionalPage = () => {
   return (
     <div className="pt-2 pl-6 pr-6 h-screen flex flex-col overflow-hidden">
       {/* Header */}
-      <div className={`bg-gradient-to-r ${theme.headerBg} border border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 flex-shrink-0 shadow-sm`}>
+      <div className={`bg-gradient-to-r ${theme.headerBg} border border-gray-200 flex items-center mb-6 px-6 py-4 rounded-lg gap-4 flex-shrink-0 shadow-sm`}>
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <span>👨‍⚕️</span>
@@ -468,31 +407,13 @@ export const CalendarioProfissionalPage = () => {
               Minha Agenda
             </span>
           </h1>
-          <p className="text-sm text-gray-600 mt-1">
-            {userProfissional.nome}
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-4">
-          <Button 
-            className={canCreate 
-              ? `!h-10 bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} shadow-lg hover:shadow-xl transition-all duration-200 font-semibold` 
-              : "!h-10 bg-gray-400 cursor-not-allowed shadow-lg disabled:opacity-50"
-            }
-            onClick={canCreate ? handleAbrirNovoAgendamento : undefined}
-            disabled={!canCreate}
-            title={!canCreate ? "Você não tem permissão para criar agendamentos" : ""}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Novo Agendamento
-          </Button>
         </div>
       </div>
 
       {/* Navegação da Semana */}
       <Card className="mb-6 flex-shrink-0">
         <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between relative">
             <div className="flex items-center gap-4">
               <Button
                 variant="outline"
@@ -520,6 +441,16 @@ export const CalendarioProfissionalPage = () => {
               </Button>
             </div>
 
+            {/* Nome do profissional no centro */}
+            <div className="absolute left-1/2 transform -translate-x-1/2">
+              <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <User className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800">
+                  {userProfissional.nome}
+                </span>
+              </div>
+            </div>
+
             <Button 
               variant="outline"
               size="sm"
@@ -536,126 +467,154 @@ export const CalendarioProfissionalPage = () => {
       {/* Grid do Calendário Semanal */}
       <Card className="flex-1 min-h-0">
         <CardContent className="p-0 h-full">
-          <div className="h-full flex flex-col">
-            {/* Cabeçalho dos Dias */}
-            <div className="grid grid-cols-8 border-b bg-gray-50">
-              <div className="p-4 border-r bg-gray-100">
-                <span className="text-sm font-medium text-gray-600">Horário</span>
+          <div className="flex h-full border rounded-lg overflow-hidden bg-white">
+            {/* Time Column */}
+            <div className="w-20 bg-gray-50 border-r flex flex-col flex-shrink-0">
+              {/* Fixed Time Header */}
+              <div className="h-16 border-b bg-white flex items-center justify-center text-sm font-semibold text-gray-700 sticky top-0 z-40 shadow-sm">
+                Hora
               </div>
-              {weekDays.map((day, index) => (
-                <div key={index} className="p-4 text-center border-r last:border-r-0">
-                  <div className="text-sm font-medium text-gray-600">{day.dayName}</div>
-                  <div className={`text-lg font-bold mt-1 ${
-                    day.isToday 
-                      ? `text-white bg-gradient-to-r ${theme.primaryButton} rounded-full w-8 h-8 flex items-center justify-center mx-auto` 
-                      : 'text-gray-800'
-                  }`}>
-                    {day.dayNumber}
-                  </div>
+              
+              {/* Scrollable Time Content */}
+              <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <div className="relative">
+                  {timeSlots.map((timeSlot, index) => (
+                    <div
+                      key={timeSlot.time}
+                      className={`h-[60px] border-b border-gray-100 flex items-center justify-center text-sm text-gray-600 font-medium flex-shrink-0 ${
+                        index % 2 === 0 ? "bg-gray-50" : "bg-white"
+                      }`}
+                    >
+                      {timeSlot.time}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
 
-            {/* Grid de Horários */}
-            <div className="flex-1 overflow-y-auto">
-              {timeSlots.map((timeSlot, timeIndex) => (
-                <div key={timeIndex} className="grid grid-cols-8 border-b last:border-b-0 min-h-[60px]">
-                  <div className="p-2 border-r bg-gray-50 flex items-center justify-center">
-                    <span className="text-sm text-gray-600 font-medium">
-                      {timeSlot.time}
-                    </span>
+            {/* Day Columns */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Fixed Headers */}
+              <div className="bg-white border-b h-16 flex-shrink-0 z-30 shadow-sm flex pr-3">
+                {weekDays.map((day, index) => (
+                  <div
+                    key={index}
+                    className="flex-1 border-r border-gray-200 p-3 flex flex-col items-center justify-center gap-1 min-w-0"
+                  >
+                    <div className="text-sm font-medium text-gray-600">{day.dayName}</div>
+                    <div className={`text-lg font-bold ${
+                      day.isToday 
+                        ? `text-white bg-gradient-to-r ${theme.primaryButton} rounded-full w-8 h-8 flex items-center justify-center` 
+                        : 'text-gray-800'
+                    }`}>
+                      {day.dayNumber}
+                    </div>
                   </div>
-                  
-                  {weekDays.map((day, dayIndex) => {
-                    const agendamentosDay = getAgendamentosForDay(day.date);
-                    const agendamentosSlot = agendamentosDay.filter(ag => 
-                      ag.time <= timeSlot.time && 
-                      new Date(`1970-01-01T${ag.time}`).getTime() + (ag.duration * 60 * 1000) > 
-                      new Date(`1970-01-01T${timeSlot.time}`).getTime()
-                    );
-                    
-                    return (
-                      <div 
-                        key={dayIndex} 
-                        className={`border-r last:border-r-0 relative p-1 cursor-pointer transition-colors ${
-                          getSlotColor(day.date, timeSlot)
-                        }`}
-                        onDoubleClick={() => handleSlotDoubleClick(day.date, timeSlot)}
-                      >
-                        {agendamentosSlot.map((agendamento, agIndex) => (
+                ))}
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-auto" style={{ scrollbarWidth: 'thin', scrollBehavior: 'smooth' }}>
+                {/* Grid */}
+                <div className="flex min-h-full h-full min-w-full">
+                  {weekDays.map((day, dayIndex) => (
+                    <div
+                      key={dayIndex}
+                      className="flex-1 border-r border-gray-200 relative bg-white min-w-0"
+                    >
+                      {/* Time grid background */}
+                      {timeSlots.map((timeSlot, timeIndex) => {
+                        const status = verificarDisponibilidade(day.date, timeSlot);
+                        const agendamentosDay = getAgendamentosForDay(day.date);
+                        const agendamentosSlot = agendamentosDay.filter(ag => 
+                          ag.time <= timeSlot.time && 
+                          new Date(`1970-01-01T${ag.time}`).getTime() + (ag.duration * 60 * 1000) > 
+                          new Date(`1970-01-01T${timeSlot.time}`).getTime()
+                        );
+                        
+                        return (
                           <div
-                            key={agendamento.id}
-                            className="relative mb-1 last:mb-0"
-                            style={{ 
-                              backgroundColor: agendamento.color + '20',
-                              borderLeft: `4px solid ${agendamento.color}`
-                            }}
+                            key={timeIndex}
+                            className={`h-[60px] border-b border-gray-100 transition-colors relative ${
+                              timeIndex % 2 === 0 ? "bg-gray-50/30" : "bg-white"
+                            } ${getSlotColor(day.date, timeSlot)} cursor-pointer`}
+                            onDoubleClick={() => handleSlotDoubleClick(day.date, timeSlot)}
                           >
-                            <div className="p-2 rounded-r text-xs">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-gray-800 truncate">
-                                    {agendamento.paciente}
-                                  </p>
-                                  <p className="text-gray-600 truncate">
-                                    {agendamento.time} - {agendamento.servico}
-                                  </p>
-                                  <div className="flex items-center gap-1 mt-1">
-                                    {agendamento.tipo === 'online' ? (
-                                      <Monitor className="w-3 h-3 text-blue-600" />
-                                    ) : (
-                                      <Building2 className="w-3 h-3 text-green-600" />
-                                    )}
-                                    <span className="text-xs text-gray-500">
-                                      {agendamento.recurso}
-                                    </span>
-                                  </div>
-                                </div>
-                                
-                                <div className="flex flex-col gap-1 ml-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 hover:bg-white"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleVerDetalhes(agendamento.agendamento);
-                                    }}
-                                  >
-                                    <Eye className="w-3 h-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 hover:bg-white"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEditarAgendamento(agendamento.id);
-                                    }}
-                                  >
-                                    <Edit className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                              
-                              <Badge 
-                                variant="outline" 
-                                className="mt-1 text-xs"
+                            {agendamentosSlot.map((agendamento, agIndex) => (
+                              <div
+                                key={agendamento.id}
+                                className="absolute inset-1 z-10"
                                 style={{ 
-                                  borderColor: agendamento.color,
-                                  color: agendamento.color
+                                  backgroundColor: agendamento.color + '20',
+                                  borderLeft: `4px solid ${agendamento.color}`
                                 }}
                               >
-                                {agendamento.status}
-                              </Badge>
-                            </div>
+                                <div className="p-2 rounded-r text-xs h-full overflow-hidden">
+                                  <div className="flex items-start justify-between h-full">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-medium text-gray-800 truncate">
+                                        {agendamento.paciente}
+                                      </p>
+                                      <p className="text-gray-600 truncate">
+                                        {agendamento.time} - {agendamento.servico}
+                                      </p>
+                                      <div className="flex items-center gap-1 mt-1">
+                                        {agendamento.tipo === 'online' ? (
+                                          <Monitor className="w-3 h-3 text-blue-600" />
+                                        ) : (
+                                          <Building2 className="w-3 h-3 text-green-600" />
+                                        )}
+                                        <span className="text-xs text-gray-500 truncate">
+                                          {agendamento.recurso}
+                                        </span>
+                                      </div>
+                                      <Badge 
+                                        variant="outline" 
+                                        className="mt-1 text-xs"
+                                        style={{ 
+                                          borderColor: agendamento.color,
+                                          color: agendamento.color
+                                        }}
+                                      >
+                                        {agendamento.status}
+                                      </Badge>
+                                    </div>
+                                    
+                                    <div className="flex flex-col gap-1 ml-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-5 w-5 p-0 hover:bg-white"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleVerDetalhes(agendamento.agendamento);
+                                        }}
+                                      >
+                                        <Eye className="w-3 h-3" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-5 w-5 p-0 hover:bg-white"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleEditarAgendamento(agendamento.id);
+                                        }}
+                                      >
+                                        <Edit className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    );
-                  })}
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
           </div>
         </CardContent>

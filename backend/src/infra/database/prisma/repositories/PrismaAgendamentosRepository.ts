@@ -54,12 +54,27 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     return agendamento ? toDomain(agendamento) : null;
   }
 
-  async findAll(filters?: Partial<{ profissionalId: string; pacienteId: string; dataHoraInicio: Date; status: string }>): Promise<Agendamento[]> {
+  async findAll(filters?: Partial<{ profissionalId: string; pacienteId: string; dataHoraInicio: Date; dataHoraFim: Date; status: string }>): Promise<Agendamento[]> {
+    const whereConditions: any = {};
+    
+    // Adicionar filtros básicos
+    if (filters?.profissionalId) whereConditions.profissionalId = filters.profissionalId;
+    if (filters?.pacienteId) whereConditions.pacienteId = filters.pacienteId;
+    if (filters?.status) whereConditions.status = filters.status;
+    
+    // Filtros de data - se ambos dataHoraInicio e dataHoraFim forem fornecidos, usar range
+    if (filters?.dataHoraInicio && filters?.dataHoraFim) {
+      whereConditions.dataHoraInicio = {
+        gte: filters.dataHoraInicio,
+        lte: filters.dataHoraFim,
+      };
+    } else if (filters?.dataHoraInicio) {
+      // Se apenas dataHoraInicio for fornecido, buscar apenas essa data específica
+      whereConditions.dataHoraInicio = filters.dataHoraInicio;
+    }
+
     const agendamentos = await this.prisma.agendamento.findMany({
-      where: {
-        ...filters,
-        dataHoraInicio: filters?.dataHoraInicio,
-      },
+      where: whereConditions,
       include: { servico: true, paciente: true, profissional: true, recurso: true, convenio: true },
       orderBy: { dataHoraInicio: 'asc' },
     });
