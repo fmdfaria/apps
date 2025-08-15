@@ -28,18 +28,7 @@ export class CreatePrecoServicoProfissionalUseCase {
     let percentualClinica: number | null = null;
     let percentualProfissional: number | null = null;
 
-    if (
-      precoClinica !== null &&
-      precoClinica !== undefined &&
-      precoProfissional !== null &&
-      precoProfissional !== undefined
-    ) {
-      if (precoClinica + precoProfissional !== 100) {
-        throw new AppError(
-          'A soma dos percentuais da clínica e do profissional deve ser 100.'
-        );
-      }
-    }
+    // Validação removida: agora precoClinica e precoProfissional são valores diretos em R$, não percentuais
 
     const [profissional, servico, precoExists] = await Promise.all([
       this.profissionaisRepository.findById(profissionalId),

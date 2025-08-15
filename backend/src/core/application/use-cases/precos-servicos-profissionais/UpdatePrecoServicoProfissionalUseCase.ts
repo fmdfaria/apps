@@ -34,7 +34,7 @@ export class UpdatePrecoServicoProfissionalUseCase {
     let percentualClinica: number | null = null;
     let percentualProfissional: number | null = null;
     
-    // Se foram fornecidos valores diretos, calcular os percentuais
+    // Auto-calcular os percentuais baseado nos valores diretos (se fornecidos)
     if (precoClinica !== null && precoClinica !== undefined && 
         precoProfissional !== null && precoProfissional !== undefined) {
       const total = precoClinica + precoProfissional;
@@ -42,6 +42,10 @@ export class UpdatePrecoServicoProfissionalUseCase {
         percentualClinica = Number(((precoClinica / total) * 100).toFixed(2));
         percentualProfissional = Number(((precoProfissional / total) * 100).toFixed(2));
       }
+    } else {
+      // Se os percentuais foram fornecidos diretamente, usar eles
+      percentualClinica = data.percentualClinica !== undefined ? data.percentualClinica : preco.percentualClinica;
+      percentualProfissional = data.percentualProfissional !== undefined ? data.percentualProfissional : preco.percentualProfissional;
     }
 
     // Impede a alteração das chaves estrangeiras

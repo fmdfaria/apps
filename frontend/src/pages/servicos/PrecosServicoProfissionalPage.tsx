@@ -661,14 +661,19 @@ export default function PrecosServicoProfissionalPage() {
     setFormError('');
 
     try {
-      const { percentualProfissional, percentualClinica } = calcularPercentuais(form.servicoId, valorProf);
+      // Calcular valores e percentuais
+      const valorClinica = servico.preco - valorProf;
+      const percentualProfissional = Number(((valorProf / servico.preco) * 100).toFixed(2));
+      const percentualClinica = Number(((valorClinica / servico.preco) * 100).toFixed(2));
       
-      // Salvar percentuais no banco (precoProfissional e precoClinica são para %)
+      // Agora enviamos tanto valores diretos quanto percentuais
       const dadosPreco: Omit<PrecoServicoProfissional, 'id'> = {
         profissionalId: form.profissionalId,
         servicoId: form.servicoId,
-        precoProfissional: percentualProfissional,  // % do profissional
-        precoClinica: percentualClinica,            // % da clínica
+        precoProfissional: valorProf,              // Valor direto do profissional
+        precoClinica: valorClinica,                // Valor direto da clínica  
+        percentualProfissional: percentualProfissional, // % do profissional
+        percentualClinica: percentualClinica,      // % da clínica
       };
       
       if (editando) {
