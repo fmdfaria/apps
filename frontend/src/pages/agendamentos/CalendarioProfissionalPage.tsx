@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import {
   AgendamentoModal,
   DetalhesAgendamentoModal
 } from '@/components/agendamentos';
+import { AppointmentCard } from '@/components/calendar/AppointmentCard';
 import { EditarAgendamentoModal } from '@/components/agendamentos/components/EditarAgendamentoModal';
 import { getAgendamentos } from '@/services/agendamentos';
 import { getProfissionais } from '@/services/profissionais';
@@ -83,13 +84,9 @@ export const CalendarioProfissionalPage = () => {
   // Estados para edição de agendamento
   const [showEditarAgendamento, setShowEditarAgendamento] = useState(false);
   const [agendamentoEdicao, setAgendamentoEdicao] = useState<Agendamento | null>(null);
-
-  // Horários de trabalho (8h às 18h em intervalos de 30 minutos)
-  const timeSlots: TimeSlot[] = [];
-  for (let hour = 8; hour < 18; hour++) {
-    timeSlots.push({ time: `${hour.toString().padStart(2, '0')}:00`, hour, minute: 0 });
-    timeSlots.push({ time: `${hour.toString().padStart(2, '0')}:30`, hour, minute: 30 });
-  }
+  // Refs para sincronizar scroll entre coluna de horas e conteúdo
+  const timeColumnRef = useRef<HTMLDivElement>(null);
+  const contentScrollRef = useRef<HTMLDivElement>(null);
 
   // Função para obter os dias da semana atual (Segunda a Sábado)
   const getWeekDays = (date: Date): WeekDay[] => {
@@ -123,6 +120,31 @@ export const CalendarioProfissionalPage = () => {
   };
 
   const weekDays = getWeekDays(currentWeek);
+
+  // Usar horários fixos por enquanto (como era antes, funcionando)
+  const timeSlots = useMemo(() => {
+    const slots = [];
+    for (let hour = 7; hour <= 19; hour++) {
+      slots.push({ time: `${hour.toString().padStart(2, '0')}:00`, hour, minute: 0 });
+      slots.push({ time: `${hour.toString().padStart(2, '0')}:30`, hour, minute: 30 });
+    }
+    return slots;
+  }, []);
+
+  const minHour = 7;
+  const maxHour = 19;
+
+  // Função para calcular posição do agendamento (baseado no SchedulerGrid)
+  const getAppointmentPosition = (horarioInicio: string, horarioFim: string) => {
+    const startMinutes = parseInt(horarioInicio.split(':')[0]) * 60 + parseInt(horarioInicio.split(':')[1]);
+    const endMinutes = parseInt(horarioFim.split(':')[0]) * 60 + parseInt(horarioFim.split(':')[1]);
+    const baseMinutes = minHour * 60; // Usar minHour dinâmico como base
+
+    const top = ((startMinutes - baseMinutes) / 30) * 60; // 60px per 30-minute slot
+    const height = ((endMinutes - startMinutes) / 30) * 60;
+
+    return { top, height };
+  };
 
   // Funções de navegação da semana
   const goToPreviousWeek = () => {
@@ -207,6 +229,47 @@ export const CalendarioProfissionalPage = () => {
     }
   }, [currentWeek, userProfissional]);
 
+  // Sincronizar scroll vertical
+  useLayoutEffect(() => {
+    // Pequeno delay para garantir que os elementos estejam renderizados
+    const timer = setTimeout(() => {
+      const timeCol = timeColumnRef.current;
+      const contentCol = contentScrollRef.current;
+      
+      if (!timeCol || !contentCol) return;
+
+      let isScrolling = false;
+
+      const handleTimeScroll = () => {
+        if (isScrolling) return;
+        isScrolling = true;
+        contentCol.scrollTop = timeCol.scrollTop;
+        requestAnimationFrame(() => {
+          isScrolling = false;
+        });
+      };
+
+      const handleContentScroll = () => {
+        if (isScrolling) return;
+        isScrolling = true;
+        timeCol.scrollTop = contentCol.scrollTop;
+        requestAnimationFrame(() => {
+          isScrolling = false;
+        });
+      };
+
+      timeCol.addEventListener('scroll', handleTimeScroll, { passive: true });
+      contentCol.addEventListener('scroll', handleContentScroll, { passive: true });
+
+      return () => {
+        timeCol.removeEventListener('scroll', handleTimeScroll);
+        contentCol.removeEventListener('scroll', handleContentScroll);
+      };
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [loading, userProfissional]);
+
 
   const carregarUsuarioProfissional = async () => {
     try {
@@ -270,9 +333,32 @@ export const CalendarioProfissionalPage = () => {
         return agendamentoDate >= dayStart && agendamentoDate <= dayEnd;
       })
       .map((agendamento, index) => {
-        const startTime = new Date(agendamento.dataHoraInicio);
-        const endTime = agendamento.dataHoraFim ? new Date(agendamento.dataHoraFim) : new Date(startTime.getTime() + 60 * 60 * 1000); // 1 hora default
-        const duration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)); // minutos
+        // Parse manual sem conversão de timezone (como no CalendarioPage)
+        const [datePart, timePart] = agendamento.dataHoraInicio.split('T');
+        const [hora, minuto] = timePart.split(':');
+        const horarioInicio = `${hora}:${minuto}`;
+        
+        // Calcular horário fim baseado na duração ou usar dataHoraFim
+        let duration: number;
+        let horarioFim: string;
+        
+        if (agendamento.dataHoraFim) {
+          const [, timePartFim] = agendamento.dataHoraFim.split('T');
+          const [horaFim, minutoFim] = timePartFim.split(':');
+          horarioFim = `${horaFim}:${minutoFim}`;
+          
+          // Calcular duração em minutos
+          const startMinutes = parseInt(hora) * 60 + parseInt(minuto);
+          const endMinutes = parseInt(horaFim) * 60 + parseInt(minutoFim);
+          duration = endMinutes - startMinutes;
+        } else {
+          // Estimar duração padrão de 60 minutos
+          duration = 60;
+          const totalMinutos = parseInt(hora) * 60 + parseInt(minuto) + duration;
+          const horaFim = Math.floor(totalMinutos / 60);
+          const minutoFim = totalMinutos % 60;
+          horarioFim = `${horaFim.toString().padStart(2, '0')}:${minutoFim.toString().padStart(2, '0')}`;
+        }
 
         const recurso = recursos.find(r => r.id === agendamento.recursoId);
         
@@ -289,7 +375,7 @@ export const CalendarioProfissionalPage = () => {
         return {
           id: agendamento.id,
           title: agendamento.pacienteNome,
-          time: startTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          time: horarioInicio,
           duration,
           paciente: agendamento.pacienteNome,
           servico: agendamento.servicoNome,
@@ -302,6 +388,58 @@ export const CalendarioProfissionalPage = () => {
         };
       })
       .sort((a, b) => a.time.localeCompare(b.time));
+  };
+
+  // Função para verificar o status de disponibilidade de um horário para um profissional
+  const verificarStatusDisponibilidade = (profissionalId: string, data: Date, horario: string): 'presencial' | 'online' | 'folga' | 'nao_configurado' => {
+    const diaSemana = data.getDay(); // 0 = domingo, 1 = segunda, etc.
+    const [hora, minuto] = horario.split(':').map(Number);
+    const horarioMinutos = hora * 60 + minuto;
+    
+    // Filtrar disponibilidades do profissional
+    const disponibilidadesProfissional = disponibilidades.filter(d => d.profissionalId === profissionalId);
+    
+    // PASSO 1: Verificar se há uma dataEspecifica que cobre este horário específico
+    const datasEspecificas = disponibilidadesProfissional.filter(d => {
+      if (!d.dataEspecifica) return false;
+      
+      // Comparar datas sem considerar timezone - usar apenas ano, mês e dia
+      const dataDisponibilidade = new Date(d.dataEspecifica);
+      const dataParametro = new Date(data);
+      
+      return dataDisponibilidade.getFullYear() === dataParametro.getFullYear() &&
+             dataDisponibilidade.getMonth() === dataParametro.getMonth() &&
+             dataDisponibilidade.getDate() === dataParametro.getDate();
+    });
+    
+    // Verificar se alguma dataEspecifica cobre este horário específico
+    for (const disponibilidade of datasEspecificas) {
+      const inicioDisponibilidade = disponibilidade.horaInicio.getHours() * 60 + disponibilidade.horaInicio.getMinutes();
+      const fimDisponibilidade = disponibilidade.horaFim.getHours() * 60 + disponibilidade.horaFim.getMinutes();
+      
+      // Se o horário está dentro do intervalo da disponibilidade específica
+      if (horarioMinutos >= inicioDisponibilidade && horarioMinutos < fimDisponibilidade) {
+        return disponibilidade.tipo; // dataEspecifica tem precedência para este horário específico
+      }
+    }
+    
+    // PASSO 2: Se nenhuma dataEspecifica cobre este horário, verificar horários semanais (diaSemana)
+    const horariosSemanais = disponibilidadesProfissional.filter(d => 
+      d.diaSemana !== null && d.diaSemana === diaSemana && !d.dataEspecifica
+    );
+    
+    for (const disponibilidade of horariosSemanais) {
+      const inicioDisponibilidade = disponibilidade.horaInicio.getHours() * 60 + disponibilidade.horaInicio.getMinutes();
+      const fimDisponibilidade = disponibilidade.horaFim.getHours() * 60 + disponibilidade.horaFim.getMinutes();
+      
+      // Se o horário está dentro do intervalo da disponibilidade semanal
+      if (horarioMinutos >= inicioDisponibilidade && horarioMinutos < fimDisponibilidade) {
+        return disponibilidade.tipo; // Usar configuração semanal como fallback
+      }
+    }
+    
+    // PASSO 3: Se não há configuração específica nem semanal para este horário
+    return 'nao_configurado';
   };
 
   // Função para verificar disponibilidade em um horário
@@ -357,19 +495,47 @@ export const CalendarioProfissionalPage = () => {
 
   // Função para obter cor do slot baseado na disponibilidade
   const getSlotColor = (date: Date, timeSlot: TimeSlot): string => {
-    const status = verificarDisponibilidade(date, timeSlot);
+    if (!userProfissional) return 'bg-gray-50 border-gray-200';
+    
+    // Verificar se há agendamento neste horário
+    const diaSemana = date.getDay();
+    const horarioMinutos = timeSlot.hour * 60 + timeSlot.minute;
+    
+    const temAgendamento = agendamentos.some(agendamento => {
+      // Parse manual para evitar problemas de timezone
+      const [datePart, timePart] = agendamento.dataHoraInicio.split('T');
+      const [ano, mes, dia] = datePart.split('-').map(Number);
+      const [hora, minuto] = timePart.split(':').map(Number);
+      
+      // Criar data no fuso local
+      const agendamentoDate = new Date(ano, mes - 1, dia);
+      const agendamentoMinutos = hora * 60 + minuto;
+      
+      const isSameDay = agendamentoDate.toDateString() === date.toDateString();
+      const isWithinTimeSlot = Math.abs(agendamentoMinutos - horarioMinutos) < 30;
+      
+      return isSameDay && isWithinTimeSlot;
+    });
+
+    if (temAgendamento) {
+      return 'bg-white'; // Ocupado sem cor de fundo específica
+    }
+
+    // Usar verificarStatusDisponibilidade para obter o tipo correto
+    const status = verificarStatusDisponibilidade(userProfissional.id, date, timeSlot.time);
+    
     
     switch (status) {
-      case 'disponivel':
-        return 'bg-green-50 hover:bg-green-100 border-green-200';
-      case 'ocupado':
-        return 'bg-blue-50 border-blue-200';
+      case 'presencial':
+        return 'bg-green-100'; // Verde para presencial
+      case 'online':
+        return 'bg-blue-100'; // Azul para online
       case 'folga':
-        return 'bg-red-50 border-red-200';
+        return 'bg-red-50'; // Vermelho para folga
       case 'nao_configurado':
-        return 'bg-gray-50 border-gray-200';
+        return 'bg-gray-100'; // Cinza para não configurado
       default:
-        return 'bg-gray-50 border-gray-200';
+        return 'bg-gray-100';
     }
   };
 
@@ -476,7 +642,14 @@ export const CalendarioProfissionalPage = () => {
               </div>
               
               {/* Scrollable Time Content */}
-              <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <div 
+                ref={timeColumnRef}
+                className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden"
+                style={{ 
+                  scrollbarWidth: 'none', 
+                  msOverflowStyle: 'none'
+                }}
+              >
                 <div className="relative">
                   {timeSlots.map((timeSlot, index) => (
                     <div
@@ -514,9 +687,16 @@ export const CalendarioProfissionalPage = () => {
               </div>
 
               {/* Scrollable Content */}
-              <div className="flex-1 overflow-auto" style={{ scrollbarWidth: 'thin', scrollBehavior: 'smooth' }}>
+              <div 
+                ref={contentScrollRef} 
+                className="flex-1 overflow-auto" 
+                style={{ 
+                  scrollbarWidth: 'thin',
+                  scrollBehavior: 'smooth'
+                }}
+              >
                 {/* Grid */}
-                <div className="flex min-h-full h-full min-w-full">
+                <div className="flex min-w-full" style={{ height: `${timeSlots.length * 60}px`, minHeight: '600px' }}>
                   {weekDays.map((day, dayIndex) => (
                     <div
                       key={dayIndex}
@@ -525,89 +705,59 @@ export const CalendarioProfissionalPage = () => {
                       {/* Time grid background */}
                       {timeSlots.map((timeSlot, timeIndex) => {
                         const status = verificarDisponibilidade(day.date, timeSlot);
-                        const agendamentosDay = getAgendamentosForDay(day.date);
-                        const agendamentosSlot = agendamentosDay.filter(ag => 
-                          ag.time <= timeSlot.time && 
-                          new Date(`1970-01-01T${ag.time}`).getTime() + (ag.duration * 60 * 1000) > 
-                          new Date(`1970-01-01T${timeSlot.time}`).getTime()
-                        );
                         
                         return (
                           <div
                             key={timeIndex}
-                            className={`h-[60px] border-b border-gray-100 transition-colors relative ${
-                              timeIndex % 2 === 0 ? "bg-gray-50/30" : "bg-white"
-                            } ${getSlotColor(day.date, timeSlot)} cursor-pointer`}
-                            onDoubleClick={() => handleSlotDoubleClick(day.date, timeSlot)}
+                            className={`h-[60px] border-b border-gray-100 transition-colors relative ${getSlotColor(day.date, timeSlot)} ${
+                              verificarStatusDisponibilidade(userProfissional?.id || '', day.date, timeSlot.time) === 'presencial' ||
+                              verificarStatusDisponibilidade(userProfissional?.id || '', day.date, timeSlot.time) === 'online'
+                                ? 'cursor-pointer hover:bg-opacity-80' 
+                                : 'cursor-default'
+                            }`}
                           >
-                            {agendamentosSlot.map((agendamento, agIndex) => (
-                              <div
-                                key={agendamento.id}
-                                className="absolute inset-1 z-10"
-                                style={{ 
-                                  backgroundColor: agendamento.color + '20',
-                                  borderLeft: `4px solid ${agendamento.color}`
-                                }}
-                              >
-                                <div className="p-2 rounded-r text-xs h-full overflow-hidden">
-                                  <div className="flex items-start justify-between h-full">
-                                    <div className="flex-1 min-w-0">
-                                      <p className="font-medium text-gray-800 truncate">
-                                        {agendamento.paciente}
-                                      </p>
-                                      <p className="text-gray-600 truncate">
-                                        {agendamento.time} - {agendamento.servico}
-                                      </p>
-                                      <div className="flex items-center gap-1 mt-1">
-                                        {agendamento.tipo === 'online' ? (
-                                          <Monitor className="w-3 h-3 text-blue-600" />
-                                        ) : (
-                                          <Building2 className="w-3 h-3 text-green-600" />
-                                        )}
-                                        <span className="text-xs text-gray-500 truncate">
-                                          {agendamento.recurso}
-                                        </span>
-                                      </div>
-                                      <Badge 
-                                        variant="outline" 
-                                        className="mt-1 text-xs"
-                                        style={{ 
-                                          borderColor: agendamento.color,
-                                          color: agendamento.color
-                                        }}
-                                      >
-                                        {agendamento.status}
-                                      </Badge>
-                                    </div>
-                                    
-                                    <div className="flex flex-col gap-1 ml-1">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-5 w-5 p-0 hover:bg-white"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleVerDetalhes(agendamento.agendamento);
-                                        }}
-                                      >
-                                        <Eye className="w-3 h-3" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-5 w-5 p-0 hover:bg-white"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleEditarAgendamento(agendamento.id);
-                                        }}
-                                      >
-                                        <Edit className="w-3 h-3" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
+                          </div>
+                        );
+                      })}
+
+                      {/* Agendamentos posicionados absolutamente */}
+                      {getAgendamentosForDay(day.date).map((agendamento) => {
+                        // Calcular horário fim baseado na duração
+                        const [startHour, startMinute] = agendamento.time.split(':').map(Number);
+                        const endTotalMinutes = startHour * 60 + startMinute + agendamento.duration;
+                        const endHour = Math.floor(endTotalMinutes / 60) % 24;
+                        const endMinute = endTotalMinutes % 60;
+                        const horarioFim = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+                        
+                        const { top, height } = getAppointmentPosition(agendamento.time, horarioFim);
+                        
+                        return (
+                          <div
+                            key={agendamento.id}
+                            className="absolute left-1 right-1 z-10"
+                            style={{ top: `${top}px`, height: `${height}px` }}
+                          >
+                            <AppointmentCard
+                              appointment={{
+                                id: agendamento.id,
+                                profissionalId: agendamento.agendamento.profissionalId,
+                                paciente: agendamento.paciente,
+                                servico: agendamento.servico,
+                                convenio: agendamento.agendamento.convenioNome || '',
+                                tipo: agendamento.tipo,
+                                horarioInicio: agendamento.time,
+                                horarioFim,
+                                status: (agendamento.status || '').toLowerCase(),
+                                data: new Date(agendamento.agendamento.dataHoraInicio),
+                                profissionalNome: userProfissional?.nome,
+                                recursoNome: agendamento.recurso,
+                              }}
+                              viewType="profissionais"
+                              className="w-full h-full border-l-4 rounded-md shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md"
+                              style={{ borderLeftColor: agendamento.color, backgroundColor: agendamento.color + '20' }}
+                              onDetailsClick={() => handleVerDetalhes(agendamento.agendamento)}
+                              onEditClick={() => handleEditarAgendamento(agendamento.id)}
+                            />
                           </div>
                         );
                       })}

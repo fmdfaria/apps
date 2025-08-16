@@ -99,7 +99,6 @@ export const CalendarioPage = () => {
   
   // Estados para filtro de funcionários ativos
   const [filtrarFuncionariosAtivos, setFiltrarFuncionariosAtivos] = useState(false);
-  const [filtrarFuncionariosOnline, setFiltrarFuncionariosOnline] = useState(false);
   
   // Estados para controle de permissões
   const [canCreate, setCanCreate] = useState(true);
@@ -400,18 +399,10 @@ export const CalendarioPage = () => {
   // Converter profissionais para o formato do calendário
   const calendarProfissionais: CalendarProfissional[] = profissionais
     .filter(prof => {
-      // Se ambos os filtros estão ativos, mostrar profissionais que atendem ambos os critérios
-      if (filtrarFuncionariosAtivos && filtrarFuncionariosOnline) {
-        return profissionalTemDisponibilidadePresencial(prof.id, currentDate) && 
-               profissionalTemDisponibilidadeOnline(prof.id, currentDate);
-      }
-      // Se apenas filtro de ativos presencial está ativo
+      // Se filtro de ativos está ativo, mostrar profissionais que têm qualquer disponibilidade (presencial OU online)
       if (filtrarFuncionariosAtivos) {
-        return profissionalTemDisponibilidadePresencial(prof.id, currentDate);
-      }
-      // Se apenas filtro de ativos online está ativo
-      if (filtrarFuncionariosOnline) {
-        return profissionalTemDisponibilidadeOnline(prof.id, currentDate);
+        return profissionalTemDisponibilidadePresencial(prof.id, currentDate) || 
+               profissionalTemDisponibilidadeOnline(prof.id, currentDate);
       }
       // Se nenhum filtro está ativo, mostrar todos
       return true;
@@ -864,25 +855,10 @@ export const CalendarioPage = () => {
                         Ativos
                         {filtrarFuncionariosAtivos && (
                           <span className="ml-1 bg-green-200 text-green-800 px-1.5 py-0.5 rounded-full text-xs font-semibold">
-                            {profissionais.filter(p => profissionalTemDisponibilidadePresencial(p.id, currentDate)).length}
-                          </span>
-                        )}
-                      </Button>
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={filtrarFuncionariosOnline 
-                          ? "!h-10 px-3 bg-blue-600 hover:bg-blue-700 text-white shadow-md" 
-                          : "!h-10 px-3 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors"
-                        }
-                        onClick={() => setFiltrarFuncionariosOnline(!filtrarFuncionariosOnline)}
-                      >
-                        <Monitor className="w-4 h-4 mr-1" />
-                        Ativos Online
-                        {filtrarFuncionariosOnline && (
-                          <span className="ml-1 bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded-full text-xs font-semibold">
-                            {profissionais.filter(p => profissionalTemDisponibilidadeOnline(p.id, currentDate)).length}
+                            {profissionais.filter(p => 
+                              profissionalTemDisponibilidadePresencial(p.id, currentDate) || 
+                              profissionalTemDisponibilidadeOnline(p.id, currentDate)
+                            ).length}
                           </span>
                         )}
                       </Button>
