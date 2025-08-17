@@ -15,8 +15,10 @@ import {
   Filter,
   Calendar,
   Clock,
-  Activity
+  Activity,
+  TrendingUp
 } from 'lucide-react';
+import { AgendamentoModal } from '@/components/agendamentos';
 import { 
   PageContainer, 
   ResponsivePagination
@@ -25,6 +27,7 @@ import { getServicos } from '@/services/servicos';
 import { getAgendamentos } from '@/services/agendamentos';
 import { getProfissionaisServicos } from '@/services/profissionais-servicos';
 import { getAllDisponibilidades } from '@/services/disponibilidades';
+import { getDadosOcupacao, type OcupacaoProfissional } from '@/services/ocupacao';
 import type { Servico } from '@/types/Servico';
 import type { Agendamento } from '@/types/Agendamento';
 import type { ProfissionalServico } from '@/services/profissionais-servicos';
@@ -104,6 +107,12 @@ interface SlotDisponivel {
   servicoId: string;
   servicoNome: string;
   duracaoMinutos: number;
+  // Dados de ocupação (próximos 7 dias)
+  ocupados: number;
+  total: number;
+  percentual: number;
+  agendamentosHoje: number;
+  agendamentosProximos7: number;
 }
 
 export const VerificarAgendaPage: React.FC = () => {
@@ -122,6 +131,11 @@ export const VerificarAgendaPage: React.FC = () => {
   const [tipoAgendamentoSelecionado, setTipoAgendamentoSelecionado] = useState<{id: string, nome: string} | null>(null);
   const [carregandoServicos, setCarregandoServicos] = useState(false);
   const [carregandoVerificacao, setCarregandoVerificacao] = useState(false);
+  const [dadosOcupacao, setDadosOcupacao] = useState<OcupacaoProfissional[]>([]);
+
+  // Estados para modal de agendamento
+  const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
+  const [preenchimentoInicialModal, setPreenchimentoInicialModal] = useState<any>(undefined);
 
   // Filtrar slots baseado na busca textual
   const slotsAtuais = useMemo(() => {
@@ -172,6 +186,10 @@ export const VerificarAgendaPage: React.FC = () => {
       
       // 3. Buscar disponibilidades dos profissionais
       const disponibilidades = await getAllDisponibilidades();
+      
+      // 4. Buscar dados de ocupação (próximos 7 dias)
+      const dadosOcupacaoCompletos = await getDadosOcupacao();
+      setDadosOcupacao(dadosOcupacaoCompletos.ocupacoesProfissionais);
       
       console.log('📊 Dados carregados:', {
         totalAgendamentos: agendamentos.length,
@@ -302,41 +320,78 @@ export const VerificarAgendaPage: React.FC = () => {
               const horaSlot = `${horaAtual.getHours().toString().padStart(2, '0')}:${horaAtual.getMinutes().toString().padStart(2, '0')}`;
               const fimSlot = new Date(horaAtual.getTime() + (duracaoServico * 60000));
               
-              // Verificar se já existe agendamento neste horário
+              // Verificar se já existe agendamento neste horário (considerando sobreposição)
               const temAgendamento = agendamentos.some(ag => {
-                const dataAgendamento = new Date(ag.dataHoraInicio);
+                // Só verificar agendamentos não cancelados do mesmo profissional
+                if (ag.profissionalId !== profServico.profissionalId || ag.status === 'CANCELADO') {
+                  return false;
+                }
                 
-                // Converter para data local no formato YYYY-MM-DD
-                const ano = dataAgendamento.getFullYear();
-                const mes = (dataAgendamento.getMonth() + 1).toString().padStart(2, '0');
-                const dia = dataAgendamento.getDate().toString().padStart(2, '0');
-                const dataAgendamentoStr = `${ano}-${mes}-${dia}`;
+                // Parse da string de data da API sem conversão de timezone
+                const [datePart, timePart] = ag.dataHoraInicio.split('T');
+                const dataAgendamentoStr = datePart; // já no formato YYYY-MM-DD
                 
-                const horaAgendamento = `${dataAgendamento.getHours().toString().padStart(2, '0')}:${dataAgendamento.getMinutes().toString().padStart(2, '0')}`;
+                // Verificar se é a mesma data
+                if (dataAgendamentoStr !== dataStr) {
+                  return false;
+                }
                 
-                const conflito = ag.profissionalId === profServico.profissionalId &&
-                       dataAgendamentoStr === dataStr &&
-                       horaAgendamento === horaSlot &&
-                       ag.status !== 'CANCELADO';
+                // Parse dos horários
+                const [horaAgStr, minutoAgStr] = timePart.split(':');
+                const inicioAgendamento = parseInt(horaAgStr) * 60 + parseInt(minutoAgStr); // em minutos
                 
-                if (conflito) {
-                  console.log(`⚠️ Conflito encontrado:`, {
+                // Calcular fim do agendamento (usar dataHoraFim se disponível, senão assumir 60 min)
+                let fimAgendamento = inicioAgendamento + 60; // padrão 60 min
+                if (ag.dataHoraFim) {
+                  const [, timePartFim] = ag.dataHoraFim.split('T');
+                  const [horaFimStr, minutoFimStr] = timePartFim.split(':');
+                  fimAgendamento = parseInt(horaFimStr) * 60 + parseInt(minutoFimStr);
+                }
+                
+                // Converter horário do slot atual para minutos
+                const inicioSlot = horaAtual.getHours() * 60 + horaAtual.getMinutes();
+                const fimSlot = inicioSlot + duracaoServico;
+                
+                // Verificar sobreposição: slots se sobrepõem se um começar antes do outro terminar
+                const temSobreposicao = inicioSlot < fimAgendamento && fimSlot > inicioAgendamento;
+                
+                if (temSobreposicao) {
+                  console.log(`⚠️ Conflito de horário encontrado:`, {
                     profissional: profServico.profissional.nome,
                     data: dataStr,
-                    hora: horaSlot,
+                    slotVerificado: {
+                      inicio: horaSlot,
+                      fim: `${Math.floor(fimSlot / 60).toString().padStart(2, '0')}:${(fimSlot % 60).toString().padStart(2, '0')}`,
+                      duracaoMin: duracaoServico
+                    },
                     agendamentoExistente: {
-                      dataOriginal: ag.dataHoraInicio,
-                      dataConvertida: dataAgendamentoStr,
-                      horaConvertida: horaAgendamento,
-                      status: ag.status
+                      inicio: `${horaAgStr}:${minutoAgStr}`,
+                      fim: `${Math.floor(fimAgendamento / 60).toString().padStart(2, '0')}:${(fimAgendamento % 60).toString().padStart(2, '0')}`,
+                      status: ag.status,
+                      paciente: ag.pacienteNome,
+                      servicoNome: ag.servicoNome
                     }
                   });
                 }
                 
-                return conflito;
+                return temSobreposicao;
               });
               
               if (!temAgendamento) {
+                // Buscar dados de ocupação do profissional
+                const ocupacaoProfissional = dadosOcupacaoCompletos.ocupacoesProfissionais.find(
+                  ocp => ocp.profissionalId === profServico.profissionalId
+                );
+                
+                console.log(`✅ Slot disponível adicionado:`, {
+                  profissional: profServico.profissional.nome,
+                  data: dataStr,
+                  hora: horaSlot,
+                  servico: profServico.servico.nome,
+                  tipo: tipoAtendimento,
+                  duracaoMin: duracaoServico
+                });
+                
                 slots.push({
                   profissionalId: profServico.profissionalId,
                   profissionalNome: profServico.profissional.nome,
@@ -345,7 +400,13 @@ export const VerificarAgendaPage: React.FC = () => {
                   tipo: tipoAtendimento,
                   servicoId: profServico.servicoId,
                   servicoNome: profServico.servico.nome,
-                  duracaoMinutos: duracaoServico
+                  duracaoMinutos: duracaoServico,
+                  // Dados de ocupação (próximos 7 dias)
+                  ocupados: ocupacaoProfissional?.ocupados || 0,
+                  total: ocupacaoProfissional?.total || 0,
+                  percentual: ocupacaoProfissional?.percentual || 0,
+                  agendamentosHoje: ocupacaoProfissional?.agendamentosHoje || 0,
+                  agendamentosProximos7: ocupacaoProfissional?.agendamentosProximos7 || 0
                 });
               }
               
@@ -383,6 +444,43 @@ export const VerificarAgendaPage: React.FC = () => {
     } finally {
       setCarregandoServicos(false);
     }
+  };
+
+  // Funções do modal de agendamento
+  const handleFecharAgendamentoModal = () => {
+    setShowAgendamentoModal(false);
+    setPreenchimentoInicialModal(undefined);
+  };
+
+  const handleSuccessAgendamento = () => {
+    // Recarregar dados após criar agendamento
+    verificarAgenda();
+    handleFecharAgendamentoModal();
+  };
+
+  const handleAgendar = (slot: SlotDisponivel) => {
+    // Formatar data e hora para o formato esperado pelo modal
+    const dataHoraCombinada = new Date(`${slot.data}T${slot.hora}:00`);
+    
+    // Formatar para datetime-local sem conversão de timezone
+    const ano = dataHoraCombinada.getFullYear();
+    const mes = (dataHoraCombinada.getMonth() + 1).toString().padStart(2, '0');
+    const dia = dataHoraCombinada.getDate().toString().padStart(2, '0');
+    const horaFormatada = dataHoraCombinada.getHours().toString().padStart(2, '0');
+    const minutoFormatado = dataHoraCombinada.getMinutes().toString().padStart(2, '0');
+    
+    const dataHoraLocal = `${ano}-${mes}-${dia}T${horaFormatada}:${minutoFormatado}`;
+    
+    // Dados para pré-preenchimento do formulário
+    const dadosFormulario = {
+      profissionalId: slot.profissionalId,
+      dataHoraInicio: dataHoraLocal,
+      servicoId: slot.servicoId,
+      tipoFluxo: 'por-profissional' as const
+    };
+    
+    setPreenchimentoInicialModal(dadosFormulario);
+    setShowAgendamentoModal(true);
   };
 
   const handlePageChange = (page: number) => {
@@ -588,6 +686,14 @@ export const VerificarAgendaPage: React.FC = () => {
           />
         </div>
       )}
+
+      {/* Modal de Agendamento */}
+      <AgendamentoModal
+        isOpen={showAgendamentoModal}
+        onClose={handleFecharAgendamentoModal}
+        onSuccess={handleSuccessAgendamento}
+        preenchimentoInicial={preenchimentoInicialModal}
+      />
     </div>
   );
 
@@ -631,8 +737,26 @@ export const VerificarAgendaPage: React.FC = () => {
                 </th>
                 <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
                   <div className="flex items-center justify-center gap-2">
-                    <Building className="w-4 h-4 text-emerald-600" />
-                    Tipo
+                    <Activity className="w-4 h-4 text-emerald-600" />
+                    Ocupação
+                  </div>
+                </th>
+                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
+                  <div className="flex items-center justify-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-emerald-600" />
+                    Percentual
+                  </div>
+                </th>
+                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
+                  <div className="flex items-center justify-center gap-2">
+                    <Calendar className="w-4 h-4 text-emerald-600" />
+                    Agendamentos
+                  </div>
+                </th>
+                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
+                  <div className="flex items-center justify-center gap-2">
+                    <CalendarCheck className="w-4 h-4 text-emerald-600" />
+                    Ações
                   </div>
                 </th>
               </tr>
@@ -640,7 +764,7 @@ export const VerificarAgendaPage: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {currentItems.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-12 text-center">
+                  <td colSpan={7} className="py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                         <CalendarCheck className="w-8 h-8 text-gray-400" />
@@ -692,23 +816,35 @@ export const VerificarAgendaPage: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-3 text-center">
-                        <Badge variant="outline" className={`${
-                          slot.tipo === 'presencial' 
-                            ? 'bg-blue-50 text-blue-700 border-blue-200' 
-                            : 'bg-purple-50 text-purple-700 border-purple-200'
-                        }`}>
-                          {slot.tipo === 'presencial' ? (
-                            <>
-                              <Building className="w-3 h-3 mr-1" />
-                              Presencial
-                            </>
-                          ) : (
-                            <>
-                              <Activity className="w-3 h-3 mr-1" />
-                              Online
-                            </>
-                          )}
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium">
+                            {slot.ocupados}/{slot.total}
+                          </div>
+                          <Progress 
+                            value={slot.percentual} 
+                            className="h-2 w-24 mx-auto" 
+                          />
+                        </div>
+                      </td>
+                      <td className="px-6 py-3 text-center">
+                        <Badge className={`${getOcupacaoColor(slot.percentual).bg} ${getOcupacaoColor(slot.percentual).text}`}>
+                          {slot.percentual}%
                         </Badge>
+                      </td>
+                      <td className="px-6 py-3 text-center">
+                        <div className="text-sm">
+                          Hoje: <span className="font-medium">{slot.agendamentosHoje}</span> | 7 dias: <span className="font-medium">{slot.agendamentosProximos7}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-3 text-center">
+                        <Button
+                          size="sm"
+                          onClick={() => handleAgendar(slot)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        >
+                          <CalendarCheck className="w-3 h-3 mr-1" />
+                          Agendar
+                        </Button>
                       </td>
                     </tr>
                   );

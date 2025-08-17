@@ -31,23 +31,35 @@ export class CreatePacienteUseCase {
   ) {}
 
   async execute(data: IRequest): Promise<Paciente> {
-    if (data.cpf) {
-      const pacienteExists = await this.pacientesRepository.findByCpf(data.cpf);
+    // Copiar dados para permitir ajustes controlados
+    const payload: IRequest = { ...data };
+
+    if (payload.cpf) {
+      const pacienteExists = await this.pacientesRepository.findByCpf(payload.cpf);
       if (pacienteExists) {
         throw new AppError('Já existe um paciente com este CPF.');
       }
     }
 
-    if (data.convenioId) {
+    // Regra: Se tipo de serviço for "Particular", vincular automaticamente ao convênio "Particular"
+    if (payload.tipoServico && payload.tipoServico.toLowerCase() === 'particular') {
+      const convenioParticular = await this.conveniosRepository.findByName('Particular');
+      if (!convenioParticular) {
+        throw new AppError("Convênio 'Particular' não encontrado. Cadastre o convênio 'Particular' antes de criar um paciente com serviço Particular.", 400);
+      }
+      payload.convenioId = convenioParticular.id;
+    }
+
+    if (payload.convenioId) {
       const convenioExists = await this.conveniosRepository.findById(
-        data.convenioId
+        payload.convenioId
       );
       if (!convenioExists) {
         throw new AppError('Convênio não encontrado.', 404);
       }
     }
 
-    const paciente = await this.pacientesRepository.create(data);
+    const paciente = await this.pacientesRepository.create(payload);
 
     return paciente;
   }

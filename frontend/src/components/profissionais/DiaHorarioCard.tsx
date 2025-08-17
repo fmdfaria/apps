@@ -11,6 +11,7 @@ import { Plus, Trash2, Clock, Monitor, Users, Home } from 'lucide-react';
 import type { HorarioSemana, IntervaloHorario } from '@/types/DisponibilidadeProfissional';
 import type { Recurso } from '@/types/Recurso';
 import { validarIntervalo, verificarSobreposicao, marcarComoNovo } from '@/lib/horarios-utils';
+import { AppToast } from '@/services/toast';
 
 // Função para obter cores baseada no tipo
 const obterCoresPorTipo = (tipo: 'presencial' | 'online' | 'folga') => {
@@ -223,7 +224,16 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
 
   const handleAdicionarIntervalo = () => {
     if (!horarioInicioSelecionado || !horarioFimSelecionado) {
-      setErro('Selecione os horários de início e fim');
+      AppToast.error('Horários obrigatórios', {
+        description: 'Selecione os horários de início e fim'
+      });
+      return;
+    }
+
+    if (!recursoSelecionado) {
+      AppToast.error('Recurso obrigatório', {
+        description: 'Selecione um recurso para o intervalo'
+      });
       return;
     }
 
@@ -236,12 +246,16 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
 
     const erro = validarIntervalo(intervaloParaValidar.horaInicio, intervaloParaValidar.horaFim);
     if (erro) {
-      setErro(erro);
+      AppToast.error('Horário inválido', {
+        description: erro
+      });
       return;
     }
 
     if (verificarSobreposicao(horario.intervalos, intervaloParaValidar)) {
-      setErro('Este horário se sobrepõe a um intervalo existente');
+      AppToast.error('Conflito de horário', {
+        description: 'Este horário se sobrepõe a um intervalo existente'
+      });
       return;
     }
 
@@ -430,6 +444,9 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
                   />
                 </div>
                 <div>
+                  <Label className="text-sm text-gray-600 block mb-1">
+                    Recurso <span className="text-red-500">*</span>
+                  </Label>
                   <SingleSelectDropdown
                     options={recursos.map(r => ({ id: r.id, nome: r.nome }))}
                     selected={recursoSelecionado ? { id: recursoSelecionado.id, nome: recursoSelecionado.nome } : null}
@@ -441,7 +458,7 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
                         setRecursoSelecionado(null);
                       }
                     }}
-                    placeholder="Recurso"
+                    placeholder="Recurso *"
                     headerText="Recursos disponíveis"
                     dotColor="purple"
                   />
@@ -502,6 +519,9 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
                   
                   {/* Segunda linha: Recursos */}
                   <div>
+                    <Label className="text-sm text-gray-600 block mb-1">
+                      Recurso <span className="text-red-500">*</span>
+                    </Label>
                     <SingleSelectDropdown
                       options={recursos.map(r => ({ id: r.id, nome: r.nome }))}
                       selected={recursoSelecionado ? { id: recursoSelecionado.id, nome: recursoSelecionado.nome } : null}
@@ -513,7 +533,7 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
                           setRecursoSelecionado(null);
                         }
                       }}
-                      placeholder="Recurso"
+                      placeholder="Recurso *"
                       headerText="Recursos disponíveis"
                       dotColor="purple"
                     />

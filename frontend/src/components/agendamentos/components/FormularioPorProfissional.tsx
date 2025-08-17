@@ -294,7 +294,7 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
               </label>
               <div className="w-full">
                 <SingleSelectDropdown
-                  options={pacientes.map(p => ({
+                  options={(formData.convenioId ? pacientes.filter(p => p.convenioId === formData.convenioId) : pacientes).map(p => ({
                     id: p.id,
                     nome: p.nomeCompleto,
                     sigla: p.whatsapp
@@ -306,25 +306,13 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                   } : null}
                   onChange={(selected) => {
                     const pacienteId = selected?.id || '';
-                    let convenioId = '';
                     
-                    // Se selecionou um paciente, buscar seu convênio
-                    if (pacienteId) {
-                      const pacienteSelecionado = pacientes.find(p => p.id === pacienteId);
-                      if (pacienteSelecionado?.convenioId) {
-                        // Verificar se o convênio do paciente existe na lista de convênios disponíveis
-                        const conveniosDisponiveis = formData.profissionalId ? conveniosDoProfissional : convenios;
-                        const convenioExiste = conveniosDisponiveis.find(c => c.id === pacienteSelecionado.convenioId);
-                        if (convenioExiste) {
-                          convenioId = pacienteSelecionado.convenioId;
-                        }
-                      }
-                    }
+                    // Só limpar servicoId se não havia um já selecionado (evita limpar pré-preenchimento)
+                    const shouldClearServico = !formData.servicoId;
                     
                     updateFormData({ 
                       pacienteId,
-                      convenioId,
-                      servicoId: '' // Limpar serviço quando trocar paciente/convênio
+                      ...(shouldClearServico && { servicoId: '' }) // Só limpar se não havia serviço pré-selecionado
                     });
                   }}
                   placeholder={loadingData ? "Carregando pacientes..." : "Buscar paciente..."}
@@ -346,30 +334,33 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                 </label>
                 <div className="w-full">
                   <SingleSelectDropdown
-                    options={formData.profissionalId ? conveniosDoProfissional.map(c => ({
-                      id: c.id,
-                      nome: c.nome,
-                      sigla: undefined
-                    })) : convenios.map(c => ({
+                    options={(formData.pacienteId ? (() => {
+                      const pacienteSel = pacientes.find(p => p.id === formData.pacienteId);
+                      if (pacienteSel?.convenioId) {
+                        return convenios.filter(c => c.id === pacienteSel.convenioId);
+                      }
+                      return convenios;
+                    })() : convenios).map(c => ({
                       id: c.id,
                       nome: c.nome,
                       sigla: undefined
                     }))}
-                    selected={(formData.profissionalId ? conveniosDoProfissional : convenios).find(c => c.id === formData.convenioId) ? {
+                    selected={convenios.find(c => c.id === formData.convenioId) ? {
                       id: formData.convenioId,
-                      nome: (formData.profissionalId ? conveniosDoProfissional : convenios).find(c => c.id === formData.convenioId)?.nome || '',
+                      nome: convenios.find(c => c.id === formData.convenioId)?.nome || '',
                       sigla: undefined
                     } : null}
                     onChange={(selected) => {
+                      const novoConvenioId = selected?.id || '';
                       updateFormData({ 
-                        convenioId: selected?.id || '',
-                        servicoId: '', // Limpar serviço quando trocar convênio
-                        recursoId: '', // Limpar recurso quando trocar convênio
-                        tipoAtendimento: 'presencial' as TipoAtendimento // Reset tipo de atendimento
+                        convenioId: novoConvenioId,
+                        servicoId: '',
+                        recursoId: '',
+                        tipoAtendimento: 'presencial' as TipoAtendimento
                       });
                     }}
                     placeholder={!formData.pacienteId ? "Selecione um paciente primeiro..." : loadingData ? "Carregando convênios..." : "Buscar convênio..."}
-                    headerText={formData.profissionalId ? "Convênios do profissional" : "Convênios disponíveis"}
+                    headerText={formData.pacienteId ? "Convênio do paciente" : "Convênios disponíveis"}
                     formatOption={(option) => option.nome}
                     disabled={!formData.pacienteId || loadingData}
                   />
@@ -397,10 +388,33 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                       sigla: (formData.profissionalId ? servicosDoProfissional : servicos).find(s => s.id === formData.servicoId)?.duracaoMinutos ? `${(formData.profissionalId ? servicosDoProfissional : servicos).find(s => s.id === formData.servicoId)?.duracaoMinutos} min` : undefined
                     } : null}
                     onChange={(selected) => {
+                      const novoServicoId = selected?.id || '';
+                      
+                      // Se está limpando o serviço, limpar campos dependentes
+                      if (!novoServicoId) {
+                        updateFormData({
+                          servicoId: '',
+                          recursoId: '',
+                          tipoAtendimento: 'presencial' as TipoAtendimento
+                        });
+                        return;
+                      }
+                      
+                      // Se está selecionando um serviço, só limpar recurso se não havia um pré-preenchido
+                      const shouldClearResource = !formData.recursoId;
+                      const shouldResetTipoAtendimento = formData.tipoAtendimento === 'presencial';
+                      
+                      console.log('🔄 Alterando serviço:', {
+                        novoServico: selected?.nome,
+                        servicoId: novoServicoId,
+                        shouldClearResource,
+                        recursoAtual: formData.recursoId
+                      });
+                      
                       updateFormData({
-                        servicoId: selected?.id || '',
-                        recursoId: '', // Limpar recurso quando trocar serviço
-                        tipoAtendimento: 'presencial' as TipoAtendimento // Reset tipo de atendimento
+                        servicoId: novoServicoId,
+                        ...(shouldClearResource && { recursoId: '' }),
+                        ...(shouldResetTipoAtendimento && { tipoAtendimento: 'presencial' as TipoAtendimento })
                       });
                     }}
                     placeholder={!formData.convenioId ? "Selecione um convênio primeiro..." : loadingData ? "Carregando serviços..." : "Buscar serviço..."}

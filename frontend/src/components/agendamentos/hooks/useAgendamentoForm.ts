@@ -205,19 +205,22 @@ export const useAgendamentoForm = ({
 
     // Buscar disponibilidades do profissional
     const disponibilidadesProfissional = disponibilidades.filter(disp => {
-      if (disp.profissionalId !== profissionalId) return false;
+      const dispProfissionalId = disp.profissionalId ?? disp.profissional_id;
+      if (dispProfissionalId !== profissionalId) return false;
       
       // Verificar se é para data específica
-      if (disp.dataEspecifica) {
-        const dataDisp = new Date(disp.dataEspecifica);
+      const dataEspecifica = disp.dataEspecifica ?? disp.data_especifica;
+      if (dataEspecifica) {
+        const dataDisp = new Date(dataEspecifica);
         return dataDisp.getFullYear() === dataObj.getFullYear() &&
                dataDisp.getMonth() === dataObj.getMonth() &&
                dataDisp.getDate() === dataObj.getDate();
       }
       
       // Verificar se é para dia da semana
-      if (disp.diaSemana !== null && disp.diaSemana !== undefined) {
-        return disp.diaSemana === diaSemana;
+      const diaSemanaDisp = (disp.diaSemana ?? disp.dia_semana);
+      if (diaSemanaDisp !== null && diaSemanaDisp !== undefined) {
+        return diaSemanaDisp === diaSemana;
       }
       
       return false;
@@ -225,25 +228,28 @@ export const useAgendamentoForm = ({
 
     // Verificar se existe uma disponibilidade com o recurso selecionado no horário específico
     const disponibilidadeComRecurso = disponibilidadesProfissional.find(disp => {
-      if (disp.recursoId !== recursoId) return false;
+      const dispRecursoId = disp.recursoId ?? disp.recurso_id;
+      if (dispRecursoId !== recursoId) return false;
       
-      if (disp.horaInicio && disp.horaFim) {
+      const horaInicioRaw = disp.horaInicio ?? disp.hora_inicio;
+      const horaFimRaw = disp.horaFim ?? disp.hora_fim;
+      if (horaInicioRaw && horaFimRaw) {
         let horaInicioDisp, horaFimDisp;
         
         // Tratar diferentes formatos de horário (mesmo código da auto-seleção)
-        if (typeof disp.horaInicio === 'string' && disp.horaInicio.includes('T')) {
-          const dataInicio = new Date(disp.horaInicio);
-          const dataFim = new Date(disp.horaFim);
+        if (typeof horaInicioRaw === 'string' && horaInicioRaw.includes('T')) {
+          const dataInicio = new Date(horaInicioRaw);
+          const dataFim = new Date(horaFimRaw as any);
           horaInicioDisp = dataInicio.getHours() * 60 + dataInicio.getMinutes();
           horaFimDisp = dataFim.getHours() * 60 + dataFim.getMinutes();
         }
-        else if (typeof disp.horaInicio === 'object' && disp.horaInicio.getHours) {
-          horaInicioDisp = disp.horaInicio.getHours() * 60 + disp.horaInicio.getMinutes();
-          horaFimDisp = disp.horaFim.getHours() * 60 + disp.horaFim.getMinutes();
+        else if (typeof horaInicioRaw === 'object' && (horaInicioRaw as any).getHours) {
+          horaInicioDisp = (horaInicioRaw as Date).getHours() * 60 + (horaInicioRaw as Date).getMinutes();
+          horaFimDisp = (horaFimRaw as Date).getHours() * 60 + (horaFimRaw as Date).getMinutes();
         } 
-        else if (typeof disp.horaInicio === 'string' && disp.horaInicio.includes(':')) {
-          const [hI, mI] = disp.horaInicio.split(':').map(Number);
-          const [hF, mF] = disp.horaFim.split(':').map(Number);
+        else if (typeof horaInicioRaw === 'string' && horaInicioRaw.includes(':')) {
+          const [hI, mI] = (horaInicioRaw as string).split(':').map(Number);
+          const [hF, mF] = (horaFimRaw as string).split(':').map(Number);
           horaInicioDisp = hI * 60 + mI;
           horaFimDisp = hF * 60 + mF;
         }
@@ -476,6 +482,33 @@ export const useAgendamentoForm = ({
     }
   }, [formData.profissionalId, carregarDadosDoProfissional]);
 
+  // Effect para recarregar disponibilidades quando Profissional + Data forem definidos (suporta fluxo Por Data)
+  useEffect(() => {
+    if (formData.profissionalId && dataAgendamento) {
+      carregarDados({ data: dataAgendamento, profissionalId: formData.profissionalId });
+    }
+  }, [formData.profissionalId, dataAgendamento, carregarDados]);
+
+  // Effect para auto-preencher convênio quando serviço está pré-preenchido
+  useEffect(() => {
+    if (formData.servicoId && !formData.convenioId && servicos.length > 0) {
+      // Buscar o serviço para obter seu convênio
+      const servicoEncontrado = servicos.find(s => s.id === formData.servicoId);
+      if (servicoEncontrado && servicoEncontrado.convenioId) {
+        console.log('🔗 Auto-preenchendo convênio baseado no serviço:', {
+          servicoId: formData.servicoId,
+          servicoNome: servicoEncontrado.nome,
+          convenioId: servicoEncontrado.convenioId
+        });
+        
+        setFormData(prev => ({
+          ...prev,
+          convenioId: servicoEncontrado.convenioId
+        }));
+      }
+    }
+  }, [formData.servicoId, formData.convenioId, servicos]);
+
   // Funções de atualização
   const updateFormData = useCallback((data: Partial<CreateAgendamentoData>) => {
     // Se o recurso está sendo alterado, marcar como seleção manual
@@ -535,19 +568,22 @@ export const useAgendamentoForm = ({
     
     // Buscar disponibilidades do profissional para esta data ou dia da semana
     const disponibilidadesProfissional = disponibilidades.filter(disp => {
-      if (disp.profissionalId !== profissionalId) return false;
+      const dispProfissionalId = disp.profissionalId ?? disp.profissional_id;
+      if (dispProfissionalId !== profissionalId) return false;
       
       // Verificar se é para data específica
-      if (disp.dataEspecifica) {
-        const dataDisp = new Date(disp.dataEspecifica);
+      const dataEspecifica = disp.dataEspecifica ?? disp.data_especifica;
+      if (dataEspecifica) {
+        const dataDisp = new Date(dataEspecifica);
         return dataDisp.getFullYear() === dataObj.getFullYear() &&
                dataDisp.getMonth() === dataObj.getMonth() &&
                dataDisp.getDate() === dataObj.getDate();
       }
       
       // Verificar se é para dia da semana
-      if (disp.diaSemana !== null && disp.diaSemana !== undefined) {
-        return disp.diaSemana === diaSemana;
+      const diaSemanaDisp = (disp.diaSemana ?? disp.dia_semana);
+      if (diaSemanaDisp !== null && diaSemanaDisp !== undefined) {
+        return diaSemanaDisp === diaSemana;
       }
       
       return false;
@@ -555,30 +591,33 @@ export const useAgendamentoForm = ({
     
     // Filtrar disponibilidades que têm recurso associado E que cobrem o horário específico
     const disponibilidadesParaEsteHorario = disponibilidadesProfissional.filter(disp => {
-      if (!disp.recursoId) {
+      const dispRecursoId = disp.recursoId ?? disp.recurso_id;
+      if (!dispRecursoId) {
         return false;
       }
       
       // Converter horários da disponibilidade para minutos
       let horaInicioDisp, horaFimDisp;
       
-      if (disp.horaInicio && disp.horaFim) {
+      const horaInicioRaw = disp.horaInicio ?? disp.hora_inicio;
+      const horaFimRaw = disp.horaFim ?? disp.hora_fim;
+      if (horaInicioRaw && horaFimRaw) {
         // Se horaInicio e horaFim são strings ISO (formato da API)
-        if (typeof disp.horaInicio === 'string' && disp.horaInicio.includes('T')) {
-          const dataInicio = new Date(disp.horaInicio);
-          const dataFim = new Date(disp.horaFim);
+        if (typeof horaInicioRaw === 'string' && horaInicioRaw.includes('T')) {
+          const dataInicio = new Date(horaInicioRaw);
+          const dataFim = new Date(horaFimRaw as any);
           horaInicioDisp = dataInicio.getHours() * 60 + dataInicio.getMinutes();
           horaFimDisp = dataFim.getHours() * 60 + dataFim.getMinutes();
         }
         // Se horaInicio e horaFim são objetos Date
-        else if (typeof disp.horaInicio === 'object' && disp.horaInicio.getHours) {
-          horaInicioDisp = disp.horaInicio.getHours() * 60 + disp.horaInicio.getMinutes();
-          horaFimDisp = disp.horaFim.getHours() * 60 + disp.horaFim.getMinutes();
+        else if (typeof horaInicioRaw === 'object' && (horaInicioRaw as any).getHours) {
+          horaInicioDisp = (horaInicioRaw as Date).getHours() * 60 + (horaInicioRaw as Date).getMinutes();
+          horaFimDisp = (horaFimRaw as Date).getHours() * 60 + (horaFimRaw as Date).getMinutes();
         } 
         // Se horaInicio e horaFim são strings no formato HH:mm
-        else if (typeof disp.horaInicio === 'string' && disp.horaInicio.includes(':')) {
-          const [hI, mI] = disp.horaInicio.split(':').map(Number);
-          const [hF, mF] = disp.horaFim.split(':').map(Number);
+        else if (typeof horaInicioRaw === 'string' && (horaInicioRaw as string).includes(':')) {
+          const [hI, mI] = (horaInicioRaw as string).split(':').map(Number);
+          const [hF, mF] = (horaFimRaw as string).split(':').map(Number);
           horaInicioDisp = hI * 60 + mI;
           horaFimDisp = hF * 60 + mF;
         }
@@ -597,7 +636,7 @@ export const useAgendamentoForm = ({
     
     // Se houver apenas uma disponibilidade para este horário, usar o recurso dela
     if (disponibilidadesParaEsteHorario.length === 1) {
-      const recursoId = disponibilidadesParaEsteHorario[0].recursoId;
+      const recursoId = (disponibilidadesParaEsteHorario[0].recursoId ?? disponibilidadesParaEsteHorario[0].recurso_id) as string;
       const recursoExiste = recursos.find(r => r.id === recursoId);
       return recursoExiste ? recursoId : null;
     }
@@ -615,7 +654,7 @@ export const useAgendamentoForm = ({
     }
     
     // Se não houver presencial, usar o primeiro disponível
-    const recursoId = disponibilidadesParaEsteHorario[0].recursoId;
+    const recursoId = (disponibilidadesParaEsteHorario[0].recursoId ?? disponibilidadesParaEsteHorario[0].recurso_id) as string;
     const recursoExiste = recursos.find(r => r.id === recursoId);
     return recursoExiste ? recursoId : null;
     

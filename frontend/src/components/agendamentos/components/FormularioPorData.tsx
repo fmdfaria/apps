@@ -306,7 +306,7 @@ export const FormularioPorData: React.FC<FormularioPorDataProps> = ({ context })
               </label>
               <div className="w-full">
                 <SingleSelectDropdown
-                  options={pacientes.map(p => ({
+                  options={(formData.convenioId ? pacientes.filter(p => p.convenioId === formData.convenioId) : pacientes).map(p => ({
                     id: p.id,
                     nome: p.nomeCompleto,
                     sigla: p.whatsapp
@@ -318,25 +318,9 @@ export const FormularioPorData: React.FC<FormularioPorDataProps> = ({ context })
                   } : null}
                   onChange={(selected) => {
                     const pacienteId = selected?.id || '';
-                    let convenioId = '';
-                    
-                    // Se selecionou um paciente, buscar seu convênio
-                    if (pacienteId) {
-                      const pacienteSelecionado = pacientes.find(p => p.id === pacienteId);
-                      if (pacienteSelecionado?.convenioId) {
-                        // Verificar se o convênio do paciente existe na lista de convênios disponíveis
-                        const conveniosDisponiveis = formData.profissionalId ? conveniosDoProfissional : convenios;
-                        const convenioExiste = conveniosDisponiveis.find(c => c.id === pacienteSelecionado.convenioId);
-                        if (convenioExiste) {
-                          convenioId = pacienteSelecionado.convenioId;
-                        }
-                      }
-                    }
-                    
                     updateFormData({ 
                       pacienteId,
-                      convenioId,
-                      servicoId: '' // Limpar serviço quando trocar paciente/convênio
+                      servicoId: '' // Limpar serviço quando trocar paciente
                     });
                   }}
                   placeholder={loadingData ? "Carregando pacientes..." : "Buscar paciente..."}
@@ -358,31 +342,44 @@ export const FormularioPorData: React.FC<FormularioPorDataProps> = ({ context })
                 </label>
                 <div className="w-full">
                   <SingleSelectDropdown
-                    options={formData.profissionalId ? conveniosDoProfissional.map(c => ({
-                      id: c.id,
-                      nome: c.nome,
-                      sigla: undefined
-                    })) : convenios.map(c => ({
+                    options={(formData.pacienteId ? (() => {
+                      const pacienteSel = pacientes.find(p => p.id === formData.pacienteId);
+                      if (pacienteSel?.convenioId) {
+                        return convenios.filter(c => c.id === pacienteSel.convenioId);
+                      }
+                      return convenios;
+                    })() : convenios).map(c => ({
                       id: c.id,
                       nome: c.nome,
                       sigla: undefined
                     }))}
-                    selected={(formData.profissionalId ? conveniosDoProfissional : convenios).find(c => c.id === formData.convenioId) ? {
+                    selected={convenios.find(c => c.id === formData.convenioId) ? {
                       id: formData.convenioId,
-                      nome: (formData.profissionalId ? conveniosDoProfissional : convenios).find(c => c.id === formData.convenioId)?.nome || '',
+                      nome: convenios.find(c => c.id === formData.convenioId)?.nome || '',
                       sigla: undefined
                     } : null}
                     onChange={(selected) => {
+                      const novoConvenioId = selected?.id || '';
+
+                      // Se há paciente selecionado e não pertence ao novo convênio, limpar paciente
+                      let pacienteIdAtual = formData.pacienteId;
+                      if (pacienteIdAtual) {
+                        const pacienteSel = pacientes.find(p => p.id === pacienteIdAtual);
+                        if (pacienteSel?.convenioId !== novoConvenioId) {
+                          pacienteIdAtual = '';
+                        }
+                      }
+
                       updateFormData({ 
-                        convenioId: selected?.id || '',
+                        convenioId: novoConvenioId,
+                        ...(pacienteIdAtual === '' && { pacienteId: '' }),
                         servicoId: '', // Limpar serviço quando trocar convênio
-                        profissionalId: '', // Limpar profissional quando trocar convênio
                         recursoId: '', // Limpar recurso quando trocar convênio
                         tipoAtendimento: 'presencial' as TipoAtendimento // Reset tipo de atendimento
                       });
                     }}
                     placeholder={!formData.pacienteId ? "Selecione um paciente primeiro..." : loadingData ? "Carregando convênios..." : "Buscar convênio..."}
-                    headerText={formData.profissionalId ? "Convênios do profissional" : "Convênios disponíveis"}
+                    headerText={formData.pacienteId ? "Convênio do paciente" : "Convênios disponíveis"}
                     formatOption={(option) => option.nome}
                     disabled={!formData.pacienteId || loadingData}
                   />
@@ -413,7 +410,6 @@ export const FormularioPorData: React.FC<FormularioPorDataProps> = ({ context })
                       const newServiceId = selected?.id || '';
                       updateFormData({
                         servicoId: newServiceId,
-                        profissionalId: '', // Limpar profissional quando trocar serviço
                         recursoId: '', // Limpar recurso quando trocar serviço
                         tipoAtendimento: 'presencial' as TipoAtendimento // Reset tipo de atendimento
                       });

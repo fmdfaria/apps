@@ -16,8 +16,8 @@
 ### LiberarPage
 - Arrumar forma de para o particular efetuar cobrança.
 
-### Agendamentos
--  Funcionalidade para buscar disponibilidades por periodo , dia da semana... para propor horarios / profissioanis disponiveis...
-
 ### FormularioPorData
 - Quando seleciona o recurso, está limpandos os campos.
+
+### PacientesPage
+- No cadastro do paciente, caso o tipo de serviço seja 'Particular', deve cadastrar também no banco de dados o valor do 'convenio_id' de acordo com o ID do convenio chamado 'Particular'... qdo é 'Convênio' será editado depois no modal de convênio.

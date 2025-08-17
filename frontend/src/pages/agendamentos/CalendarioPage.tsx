@@ -20,7 +20,8 @@ import {
   ChevronUp,
   X,
   Building2,
-  Monitor
+  Monitor,
+  Search
 } from 'lucide-react';
 import { getAgendamentos } from '@/services/agendamentos';
 import { getProfissionais } from '@/services/profissionais';
@@ -35,6 +36,7 @@ import type { DisponibilidadeProfissional } from '@/types/DisponibilidadeProfiss
 import { AppToast } from '@/services/toast';
 import api from '@/services/api';
 import { getModuleTheme } from '@/types/theme';
+import { useNavigate } from 'react-router-dom';
 
 interface CalendarProfissional {
   id: string;
@@ -62,6 +64,9 @@ interface CalendarAgendamento {
 }
 
 export const CalendarioPage = () => {
+  // Navegação
+  const navigate = useNavigate();
+  
   // Tema do módulo
   const theme = getModuleTheme('calendario');
   
@@ -839,6 +844,17 @@ export const CalendarioPage = () => {
                 </div>
                 
                 <div className="flex items-center gap-2">
+                  {/* Botão Verificar Agenda */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="!h-10 px-3 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors"
+                    onClick={() => navigate('/agendamentos/verificar-agenda')}
+                  >
+                    <Search className="w-4 h-4 mr-1" />
+                    Verificar Agenda
+                  </Button>
+                  
                   {/* Botões Ativos - apenas para visualização de profissionais */}
                   {gridViewType === 'profissionais' && (
                     <>
