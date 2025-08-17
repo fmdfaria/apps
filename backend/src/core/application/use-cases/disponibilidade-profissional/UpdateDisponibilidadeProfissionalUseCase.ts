@@ -51,7 +51,8 @@ export class UpdateDisponibilidadeProfissionalUseCase {
       throw new AppError('Já existe uma disponibilidade sobreposta para este profissional.', 409);
     }
 
-    // Validação 2: Verificar conflito de recurso (apenas para disponibilidades semanais com recurso)
+    // Validação 2: Verificar conflito de recurso (apenas para atendimentos presenciais)
+    // Para atendimentos online, múltiplos profissionais podem usar o mesmo "recurso" simultaneamente
     if (mergedData.recursoId && mergedData.diaSemana !== null && mergedData.diaSemana !== undefined && !mergedData.dataEspecifica) {
       const resourceConflict = await this.disponibilidadesRepository.findResourceConflict({
         recursoId: mergedData.recursoId,
@@ -63,12 +64,19 @@ export class UpdateDisponibilidadeProfissionalUseCase {
       });
       
       if (resourceConflict && resourceConflict.profissional) {
-        const nomeProfissional = resourceConflict.profissional.nome;
-        const nomeRecurso = resourceConflict.recurso?.nome || 'o recurso';
-        throw new AppError(
-          `Conflito de horário detectado! O profissional "${nomeProfissional}" já está utilizando ${nomeRecurso} neste horário.`, 
-          409
-        );
+        // Verificar se é atendimento online - se for, permitir múltiplos profissionais
+        const isOnline = data.tipo === 'online' || disponibilidade.tipo === 'online';
+        
+        if (!isOnline) {
+          // Apenas bloquear para atendimentos presenciais
+          const nomeProfissional = resourceConflict.profissional.nome;
+          const nomeRecurso = resourceConflict.recurso?.nome || 'o recurso';
+          throw new AppError(
+            `Conflito de horário detectado! O profissional "${nomeProfissional}" já está utilizando ${nomeRecurso} neste horário.`, 
+            409
+          );
+        }
+        // Para atendimentos online, não bloquear - permite múltiplos profissionais simultaneamente
       }
     }
 

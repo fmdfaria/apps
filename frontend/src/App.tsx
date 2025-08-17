@@ -33,6 +33,7 @@ import { FechamentoPage } from '@/pages/agendamentos/FechamentoPage';
 import { PagamentosPage } from '@/pages/agendamentos/PagamentosPage';
 import { CalendarioPage } from '@/pages/agendamentos/CalendarioPage';
 import { CalendarioProfissionalPage } from '@/pages/agendamentos/CalendarioProfissionalPage';
+import { VerificarAgendaPage } from '@/pages/agendamentos/VerificarAgendaPage';
 import PrecosParticularPage from '@/pages/pacientes/PrecosParticularPage';
 import { Perfil } from '@/pages/perfil/Perfil';
 import { RecursosPage } from './pages/recursos/RecursosPage';
@@ -90,6 +91,7 @@ export default function App() {
             <Route path="recursos" element={<RecursosPage />} />
             <Route path="agendamentos" element={<AgendamentosPage />} />
             <Route path="agendamentos/calendario-profissional" element={<CalendarioProfissionalPage />} />
+            <Route path="agendamentos/verificar-agenda" element={<VerificarAgendaPage />} />
             <Route path="agendamentos/liberacao" element={<LiberarPage />} />
             <Route path="agendamentos/atendimento" element={<AtenderPage />} />
             <Route path="agendamentos/conclusao" element={<AprovarPage />} />

@@ -13,8 +13,11 @@
 - Não defina nada no frontend que afete o backend, veja sempre a estrutura do backend no arquivo @apps/backend/prisma/schema.prisma .. lá contém toda estrutura do meu banco de dados.
 
 
-### Agendamentos / Calendario
-- Alterar recorrencia, não está editando todos da serie..
-
 ### LiberarPage
 - Arrumar forma de para o particular efetuar cobrança.
+
+### Agendamentos
+-  Funcionalidade para buscar disponibilidades por periodo , dia da semana... para propor horarios / profissioanis disponiveis...
+
+### FormularioPorData
+- Quando seleciona o recurso, está limpandos os campos.

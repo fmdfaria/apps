@@ -310,7 +310,7 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Você não tem permissão para ativar/desativar este dia</p>
+                  <p>Você não tem permissão para ativar/desativar horários semanais.</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -382,7 +382,7 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
                       size="sm"
                       disabled={true}
                       className="text-gray-400 h-8 w-8 p-0 flex-shrink-0 opacity-50 cursor-not-allowed"
-                      title="Você não tem permissão para remover intervalos"
+                      title="Você não tem permissão para modificar horários semanais."
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -462,7 +462,7 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
                       size="sm"
                       disabled={true}
                       className="h-8 px-4 bg-gray-400 cursor-not-allowed"
-                      title="Você não tem permissão para adicionar intervalos"
+                      title="Você não tem permissão para modificar horários semanais."
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Adicionar
@@ -536,7 +536,7 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
                       size="sm"
                       disabled={true}
                       className="h-[72px] w-12 sm:w-12 md:w-14 lg:w-12 xl:w-14 min-w-[48px] p-0 bg-gray-400 cursor-not-allowed flex-shrink-0 flex items-center justify-center"
-                      title="Você não tem permissão para adicionar intervalos"
+                      title="Você não tem permissão para modificar horários semanais."
                     >
                       <Plus className="w-5 h-5" />
                     </Button>

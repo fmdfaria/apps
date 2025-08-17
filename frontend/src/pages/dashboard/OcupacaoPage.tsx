@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -18,7 +19,8 @@ import {
   LayoutGrid,
   List,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  CalendarCheck
 } from 'lucide-react';
 import { getDadosOcupacao, type DadosOcupacao, type OcupacaoProfissional, type OcupacaoRecurso } from '@/services/ocupacao';
 import { 
@@ -73,6 +75,7 @@ function getAvatarGradient(nome: string, tipo: 'profissional' | 'recurso') {
 }
 
 export const OcupacaoPage: React.FC = () => {
+  const navigate = useNavigate();
   const [dadosOcupacao, setDadosOcupacao] = useState<DadosOcupacao | null>(null);
   const [carregandoDados, setCarregandoDados] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -233,6 +236,14 @@ export const OcupacaoPage: React.FC = () => {
                 Cards
               </Button>
             </div>
+            
+            <Button
+              onClick={() => navigate('/agendamentos/verificar-agenda')}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <CalendarCheck className="w-4 h-4 mr-2" />
+              Verificar Agenda
+            </Button>
           </div>
         </div>
 

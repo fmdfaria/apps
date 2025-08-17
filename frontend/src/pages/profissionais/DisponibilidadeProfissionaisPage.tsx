@@ -114,6 +114,7 @@ export default function DisponibilidadeProfissionaisPage() {
   const [canCreate, setCanCreate] = useState(true);
   const [canUpdate, setCanUpdate] = useState(true);
   const [canDelete, setCanDelete] = useState(true);
+  const [canEditHorariosSemanais, setCanEditHorariosSemanais] = useState(false);
   
   // Estados para data específica
   const [dataEspecifica, setDataEspecifica] = useState('');
@@ -184,10 +185,16 @@ export default function DisponibilidadeProfissionaisPage() {
         return route.path === '/disponibilidades-profissionais/:id' && route.method.toLowerCase() === 'delete';
       });
       
+      // Verificar permissão específica para editar horários semanais
+      const canEditHorariosSemanais = allowedRoutes.some((route: any) => {
+        return route.path === '/disponibilidades-profissionais/horarios-semanais' && route.method.toLowerCase() === 'post';
+      });
+      
       setCanRead(canRead);
       setCanCreate(canCreate);
       setCanUpdate(canUpdate);
       setCanDelete(canDelete);
+      setCanEditHorariosSemanais(canEditHorariosSemanais);
       
       // Se não tem nem permissão de leitura, marca como access denied
       if (!canRead) {
@@ -200,6 +207,7 @@ export default function DisponibilidadeProfissionaisPage() {
       setCanCreate(false);
       setCanUpdate(false);
       setCanDelete(false);
+      setCanEditHorariosSemanais(false);
       
       // Se retornar 401/403 no endpoint de permissões, considera acesso negado
       if (error?.response?.status === 401 || error?.response?.status === 403) {
@@ -409,13 +417,6 @@ export default function DisponibilidadeProfissionaisPage() {
   };
 
   const handleAdicionarDataEspecifica = async () => {
-    if (!canCreate) {
-      AppToast.error('Acesso negado', {
-        description: 'Você não tem permissão para criar disponibilidades'
-      });
-      return;
-    }
-    
     if (!profissionalSelecionado || !dataEspecifica || !horarioInicioEspecificoSelecionado || !horarioFimEspecificoSelecionado) {
       AppToast.validation('Campos obrigatórios', 'Preencha todos os campos obrigatórios');
       return;
@@ -473,11 +474,9 @@ export default function DisponibilidadeProfissionaisPage() {
     } catch (err: any) {
       console.error('Erro ao adicionar:', err);
       
-      if (err?.response?.status === 403) {
-        // Erro de permissão será tratado pelo interceptor
-        return;
-      } else if (err?.response?.status === 409) {
+      if (err?.response?.status === 409) {
         const errorMessage = err?.response?.data?.message || 'Conflito de horários detectado';
+        
         // Verificar se é conflito de recurso específico ou conflito geral
         if (errorMessage.includes('já está utilizando')) {
           AppToast.error('Conflito de Recurso', {
@@ -504,12 +503,7 @@ export default function DisponibilidadeProfissionaisPage() {
   };
 
   const handleExcluirDataEspecifica = async () => {
-    if (!disponibilidadeParaExcluir || !canDelete) {
-      if (!canDelete) {
-        AppToast.error('Acesso negado', {
-          description: 'Você não tem permissão para excluir disponibilidades'
-        });
-      }
+    if (!disponibilidadeParaExcluir) {
       return;
     }
     
@@ -521,11 +515,6 @@ export default function DisponibilidadeProfissionaisPage() {
       setShowDeleteConfirm(false);
       setDisponibilidadeParaExcluir(null);
     } catch (err: any) {
-      if (err?.response?.status === 403) {
-        // Erro de permissão será tratado pelo interceptor
-        return;
-      }
-      
       AppToast.error('Erro ao remover disponibilidade', {
         description: err?.response?.data?.message || 'Erro ao remover disponibilidade'
       });
@@ -539,9 +528,9 @@ export default function DisponibilidadeProfissionaisPage() {
   };
 
   const handleSalvar = async () => {
-    if (!canCreate && !canUpdate && !canDelete) {
+    if (!canEditHorariosSemanais) {
       AppToast.error('Acesso negado', {
-        description: 'Você não tem permissão para modificar disponibilidades'
+        description: 'Você não tem permissão para modificar horários semanais'
       });
       return;
     }
@@ -559,56 +548,29 @@ export default function DisponibilidadeProfissionaisPage() {
       // Comparar horários atuais com originais para detectar mudanças
       const { novos, removidos } = compararHorarios(horariosSemana, horariosOriginais);
 
-      // Verificar se há mudanças que requerem permissões que o usuário não tem
-      const temRemocoesNaoPermitidas = removidos.length > 0 && !canDelete;
-      const temCriacoesNaoPermitidas = novos.length > 0 && !canCreate;
-      
-      if (temRemocoesNaoPermitidas || temCriacoesNaoPermitidas) {
-        let mensagem = 'Você não tem permissão para realizar as seguintes operações: ';
-        const operacoes = [];
-        
-        if (temRemocoesNaoPermitidas) {
-          operacoes.push(`remover ${removidos.length} intervalo(s)`);
-        }
-        if (temCriacoesNaoPermitidas) {
-          operacoes.push(`criar ${novos.length} intervalo(s)`);
-        }
-        
-        mensagem += operacoes.join(' e ') + '.';
-        
-        AppToast.error('Acesso negado', {
-          description: mensagem
-        });
-        return;
-      }
-
       let operacoesRealizadas = 0;
 
-      // 1. Remover intervalos deletados (se tem permissão)
-      if (canDelete) {
-        for (const intervalo of removidos) {
-          if (intervalo.id && !intervalo.id.startsWith('temp-')) {
-            await deleteDisponibilidade(intervalo.id);
-            operacoesRealizadas++;
-          }
+      // 1. Remover intervalos deletados
+      for (const intervalo of removidos) {
+        if (intervalo.id && !intervalo.id.startsWith('temp-')) {
+          await deleteDisponibilidade(intervalo.id);
+          operacoesRealizadas++;
         }
       }
 
-      // 2. Criar novos intervalos (se tem permissão)
-      if (canCreate) {
-        for (const intervalo of novos) {
-          const novaDisponibilidade: CreateDisponibilidadeDto = {
-            profissionalId: profissionalSelecionado.id,
-            recursoId: intervalo.recursoId || null, // Agora permite recurso em horários semanais
-            horaInicio: gerarHorarioParaAPI(dataAplicacao, intervalo.horaInicio),
-            horaFim: gerarHorarioParaAPI(dataAplicacao, intervalo.horaFim),
-            tipo: intervalo.tipo,
-            diaSemana: (intervalo as any).diaSemana,
-            observacao: intervalo.observacao || null
-          };
-          await createDisponibilidade(novaDisponibilidade);
-          operacoesRealizadas++;
-        }
+      // 2. Criar novos intervalos
+      for (const intervalo of novos) {
+        const novaDisponibilidade: CreateDisponibilidadeDto = {
+          profissionalId: profissionalSelecionado.id,
+          recursoId: intervalo.recursoId || null, // Agora permite recurso em horários semanais
+          horaInicio: gerarHorarioParaAPI(dataAplicacao, intervalo.horaInicio),
+          horaFim: gerarHorarioParaAPI(dataAplicacao, intervalo.horaFim),
+          tipo: intervalo.tipo,
+          diaSemana: (intervalo as any).diaSemana,
+          observacao: intervalo.observacao || null
+        };
+        await createDisponibilidade(novaDisponibilidade);
+        operacoesRealizadas++;
       }
 
       if (operacoesRealizadas === 0) {
@@ -617,7 +579,7 @@ export default function DisponibilidadeProfissionaisPage() {
         });
       } else {
         AppToast.success('Horários salvos com eficiência!', {
-          description: `${operacoesRealizadas} operação(ões) realizadas: ${canDelete ? removidos.length : 0} removidas, ${canCreate ? novos.length : 0} criadas.`
+          description: `${operacoesRealizadas} operação(ões) realizadas: ${removidos.length} removidas, ${novos.length} criadas.`
         });
       }
       
@@ -626,14 +588,19 @@ export default function DisponibilidadeProfissionaisPage() {
 
     } catch (err: any) {
       console.error('Erro ao salvar:', err);
-      if (err?.response?.status === 403) {
-        // Erro de permissão será tratado pelo interceptor
-        return;
-      } else if (err?.response?.status === 409) {
+      if (err?.response?.status === 409) {
         const errorMessage = err?.response?.data?.message || 'Conflito de horários detectado';
-        AppToast.error('Conflito de Recurso', {
-          description: errorMessage
-        });
+        
+        // Verificar se é conflito de recurso específico ou conflito geral
+        if (errorMessage.includes('já está utilizando')) {
+          AppToast.error('Conflito de Recurso', {
+            description: errorMessage
+          });
+        } else {
+          AppToast.error('Conflito de Horários', {
+            description: `${errorMessage}. Verifique se não há conflito com horários semanais ou outras datas específicas já configuradas.`
+          });
+        }
       } else {
         AppToast.error('Erro ao salvar horários', {
           description: err?.response?.data?.message || 'Erro ao salvar horários'
@@ -854,7 +821,7 @@ export default function DisponibilidadeProfissionaisPage() {
                               horario={horario}
                               tipoEdicao={tipoEdicao}
                               onChange={handleAlterarHorario}
-                              canModify={canCreate || canUpdate || canDelete}
+                              canModify={canEditHorariosSemanais}
                               recursos={recursos}
                             />
                           ))}
@@ -940,23 +907,13 @@ export default function DisponibilidadeProfissionaisPage() {
                             </div>
                             <div>
                               <Label className="invisible">Ação</Label>
-                              {canCreate ? (
-                                <Button
-                                  onClick={handleAdicionarDataEspecifica}
-                                  disabled={salvando || !dataEspecifica || !horarioInicioEspecificoSelecionado || !horarioFimEspecificoSelecionado}
-                                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-                                >
-                                  {salvando ? 'Adicionando...' : '+ Adicionar'}
-                                </Button>
-                              ) : (
-                                <Button
-                                  disabled={true}
-                                  className="w-full bg-gray-400 cursor-not-allowed"
-                                  title="Você não tem permissão para criar disponibilidades"
-                                >
-                                  + Adicionar
-                                </Button>
-                              )}
+                              <Button
+                                onClick={handleAdicionarDataEspecifica}
+                                disabled={salvando || !dataEspecifica || !horarioInicioEspecificoSelecionado || !horarioFimEspecificoSelecionado}
+                                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                              >
+                                {salvando ? 'Adicionando...' : '+ Adicionar'}
+                              </Button>
                             </div>
                           </div>
 
@@ -1046,29 +1003,16 @@ export default function DisponibilidadeProfissionaisPage() {
                                             </div>
                                           </div>
                                           <div className="flex-shrink-0">
-                                            {canDelete ? (
-                                              <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handleAbrirConfirmacaoExclusao(disp)}
-                                                className="text-red-600 border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 hover:shadow-lg transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:bg-transparent disabled:hover:text-red-600 disabled:hover:border-red-200 disabled:hover:shadow-none group-hover:shadow-md"
-                                                disabled={salvando}
-                                              >
-                                                <Trash2 className="w-3 h-3 mr-1" />
-                                                Remover
-                                              </Button>
-                                            ) : (
-                                              <Button
-                                                variant="outline"
-                                                size="sm"
-                                                disabled={true}
-                                                className="text-gray-400 border-gray-200 cursor-not-allowed opacity-50"
-                                                title="Você não tem permissão para excluir disponibilidades"
-                                              >
-                                                <Trash2 className="w-3 h-3 mr-1" />
-                                                Remover
-                                              </Button>
-                                            )}
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => handleAbrirConfirmacaoExclusao(disp)}
+                                              className="text-red-600 border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 hover:shadow-lg transform hover:scale-105 transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:bg-transparent disabled:hover:text-red-600 disabled:hover:border-red-200 disabled:hover:shadow-none group-hover:shadow-md"
+                                              disabled={salvando}
+                                            >
+                                              <Trash2 className="w-3 h-3 mr-1" />
+                                              Remover
+                                            </Button>
                                           </div>
                                         </div>
                                       </div>
@@ -1110,7 +1054,7 @@ export default function DisponibilidadeProfissionaisPage() {
         <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-4 flex-shrink-0 shadow-sm">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 sm:gap-2">
             <div className="flex flex-wrap items-center gap-2 justify-end">
-              {(canCreate || canUpdate || canDelete) ? (
+              {canEditHorariosSemanais ? (
                 <>
                   <Button
                     variant="outline"
@@ -1135,7 +1079,7 @@ export default function DisponibilidadeProfissionaisPage() {
                     variant="outline"
                     disabled={true}
                     className="flex items-center gap-2 border-gray-300 text-gray-400 opacity-50 cursor-not-allowed"
-                    title="Você não tem permissão para modificar horários"
+                    title="Você não tem permissão para modificar horários semanais."
                   >
                     <Trash2 className="w-4 h-4" />
                     Limpar Horários
@@ -1143,7 +1087,7 @@ export default function DisponibilidadeProfissionaisPage() {
                   <Button
                     disabled={true}
                     className="bg-gray-400 cursor-not-allowed flex items-center gap-2"
-                    title="Você não tem permissão para modificar horários"
+                    title="Você não tem permissão para modificar horários semanais."
                   >
                     <Save className="w-4 h-4" />
                     Salvar Horários

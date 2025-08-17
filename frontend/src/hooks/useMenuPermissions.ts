@@ -5,7 +5,7 @@ import api from '@/services/api';
 const routePermissionMap: Record<string, { path: string; method: string }> = {
   'dashboard': { path: '/dashboard', method: 'GET' },
   'dashboard/pedidos-medicos': { path: '/pedidos-medicos', method: 'GET' },
-  'calendario': { path: '/agendamentos', method: 'GET' },
+  'calendario': { path: '/agendamentos-calendario', method: 'GET' },
   'agendamentos': { path: '/agendamentos', method: 'GET' },
   'agendamentos/liberacao': { path: '/agendamentos-liberar/:id', method: 'PUT' },
   'agendamentos/calendario-profissional': { path: '/agendamentos-calendario-profissional', method: 'GET' },
