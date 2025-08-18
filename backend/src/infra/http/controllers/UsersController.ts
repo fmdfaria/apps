@@ -24,6 +24,7 @@ export class UsersController {
     const bodySchema = z.object({
       nome: z.string().min(3).optional(),
       email: z.string().email().optional(),
+      whatsapp: z.string().min(12).max(14).regex(/^55\d{2}9?\d{8,9}$/, 'Formato de WhatsApp inválido. Use: 551199999999, 5511999999999 ou 55119999999999').optional(),
       ativo: z.boolean().optional(),
       profissionalId: z.string().uuid().optional(),
       pacienteId: z.string().uuid().optional(),

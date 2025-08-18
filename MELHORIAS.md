@@ -14,3 +14,8 @@
 
 
 ### Funcionalidade Online
+
+
+### EditarInfoProfissionalModal
+- Qdo seleciono um arquivo com nome muito grande, está quebrando e ultrapassando o modal... deixar o nome do arquivo truncado com ... no final e se passar o mouse em cima.. mostra o tooltip com o nome inteiro..
+- Deixar enviar mais que 1 arquivo tbm

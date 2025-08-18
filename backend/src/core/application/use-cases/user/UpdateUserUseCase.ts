@@ -6,6 +6,7 @@ interface IRequest {
   userId: string;
   nome?: string;
   email?: string;
+  whatsapp?: string;
   ativo?: boolean;
   profissionalId?: string;
   pacienteId?: string;

@@ -3,6 +3,7 @@ import { useState, useRef } from 'react';
 import { Upload, X, File, Scan } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DocumentScannerFixed } from '@/components/ui/DocumentScannerFixed';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface FileUploadProps {
   files: File[];
@@ -152,19 +153,32 @@ export const FileUpload = ({
           <h4 className="font-medium text-gray-700">{label} ({files.length})</h4>
           {files.map((file, index) => (
             <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-              <div className="flex items-center">
-                <File className="w-4 h-4 text-gray-500 mr-2" />
-                <span className="text-sm text-gray-700 truncate">{file.name}</span>
-                <span className="text-xs text-gray-500 ml-2">
-                  ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                </span>
+              <div className="flex items-center min-w-0 flex-1">
+                <File className="w-4 h-4 text-gray-500 mr-2 flex-shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-sm text-gray-700 block overflow-hidden text-ellipsis whitespace-nowrap cursor-help">
+                          {file.name}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-md break-words">
+                        <p>{file.name}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <span className="text-xs text-gray-500">
+                    ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                  </span>
+                </div>
               </div>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={() => removeFile(index)}
-                className="text-red-600 hover:text-red-700"
+                className="text-red-600 hover:text-red-700 ml-2 flex-shrink-0"
               >
                 <X className="w-4 h-4" />
               </Button>

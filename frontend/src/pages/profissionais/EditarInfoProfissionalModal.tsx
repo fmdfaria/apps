@@ -8,6 +8,7 @@ import { FileUpload } from '@/components/ui/FileUpload';
 import { MultiSelectDropdown } from '@/components/ui/multiselect-dropdown';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { updateProfissionalInfoProfissional, deleteProfissionalComprovanteRegistro } from '@/services/profissionais';
 import { getEspecialidades } from '@/services/especialidades';
 import { getConselhos, type ConselhoProfissional } from '@/services/conselhos';
@@ -29,7 +30,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
     numeroConselho: '',
     especialidadesIds: [] as string[],
   });
-  const [comprovanteFile, setComprovanteFile] = useState<File | null>(null);
+  const [comprovanteFiles, setComprovanteFiles] = useState<File[]>([]);
   const [comprovanteAnexo, setComprovanteAnexo] = useState<Anexo | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -54,7 +55,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
           ? profissional.especialidades.map(e => e.id)
           : (profissional.especialidadesIds || []),
       });
-      setComprovanteFile(null);
+      setComprovanteFiles([]);
       setComprovanteAnexo(null);
       setShowDeleteConfirm(false);
       setError('');
@@ -84,7 +85,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
       // Atualizar informações profissionais
       await updateProfissionalInfoProfissional(profissional.id, {
         ...form,
-        file: comprovanteFile,
+        files: comprovanteFiles,
       });
 
 
@@ -119,7 +120,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
       setLoading(true);
       await deleteProfissionalComprovanteRegistro(profissional.id);
       setComprovanteAnexo(null);
-      setComprovanteFile(null);
+      setComprovanteFiles([]);
       setShowDeleteConfirm(false);
       onSalvar(); // Atualizar a lista de profissionais
     } catch (err) {
@@ -130,7 +131,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
   };
 
   const handleUploadComprovante = (files: File[]) => {
-    setComprovanteFile(files[0] || null);
+    setComprovanteFiles(files);
     setComprovanteAnexo(null);
   };
 
@@ -209,14 +210,23 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <a
-                        href={comprovanteAnexo.url || '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 font-medium underline decoration-2 underline-offset-2 transition-colors duration-200 truncate block"
-                      >
-                        {comprovanteAnexo.nomeArquivo}
-                      </a>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <a
+                              href={comprovanteAnexo.url || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 font-medium underline decoration-2 underline-offset-2 transition-colors duration-200 block overflow-hidden text-ellipsis whitespace-nowrap"
+                            >
+                              {comprovanteAnexo.nomeArquivo}
+                            </a>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-md break-words">
+                            <p>{comprovanteAnexo.nomeArquivo}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <p className="text-gray-500 text-xs mt-1">Clique para visualizar o arquivo</p>
                     </div>
                     <button
@@ -231,11 +241,11 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
                 ) : (
                   <div className="border-2 border-dashed border-gray-300 rounded-xl hover:border-purple-400 transition-colors duration-200">
                     <FileUpload
-                      files={comprovanteFile ? [comprovanteFile] : []}
+                      files={comprovanteFiles}
                       onFilesChange={handleUploadComprovante}
                       acceptedTypes=".pdf,.jpg,.jpeg,.png"
-                      maxFiles={1}
-                      label="📤 Arraste o arquivo aqui ou clique para selecionar"
+                      maxFiles={5}
+                      label="📤 Arraste os arquivos aqui ou clique para selecionar"
                       enableScanner={false}
                     />
                   </div>
