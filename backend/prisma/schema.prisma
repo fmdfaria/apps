@@ -56,6 +56,7 @@ model Profissional {
   tipo_pix            String?                       @db.VarChar(30)
   comprovanteBancario String?                       @map("comprovante_bancario")
   userId              String?                       @map("user_id") @db.Uuid
+  ativo               Boolean?                      @default(true)
   createdAt           DateTime?                     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime?                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   agendamentos        Agendamento[]
@@ -87,6 +88,7 @@ model Paciente {
   cbo                 String?                      @db.VarChar(100)
   cid                 String?                      @db.VarChar(255)
   userId              String?                      @map("user_id") @db.Uuid
+  ativo               Boolean?                     @default(true)
   createdAt           DateTime?                    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime?                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   agendamentos        Agendamento[]
@@ -135,6 +137,7 @@ model Servico {
   procedimentoPrimeiroAtendimento String?                       @map("procedimento_primeiro_atendimento") @db.VarChar(100)
   procedimentoDemaisAtendimentos  String?                       @map("procedimento_demais_atendimentos") @db.VarChar(100)
   convenioId                      String?                       @map("convenio_id") @db.Uuid
+  ativo                           Boolean?                      @default(true)
   createdAt                       DateTime?                     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                       DateTime?                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   agendamentos                    Agendamento[]

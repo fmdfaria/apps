@@ -15,6 +15,7 @@ export interface ICreatePacienteDTO {
   cbo?: string | null;
   cid?: string | null;
   userId?: string | null;
+  ativo?: boolean;
 }
 
 export interface IPacientesRepository {
@@ -23,6 +24,7 @@ export interface IPacientesRepository {
   findByEmail(email: string): Promise<Paciente | null>;
   findById(id: string): Promise<Paciente | null>;
   findAll(): Promise<Paciente[]>;
+  findAllActive(): Promise<Paciente[]>;
   save(paciente: Paciente): Promise<Paciente>;
   delete(id: string): Promise<void>;
 } 

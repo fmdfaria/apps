@@ -31,6 +31,7 @@ export class Profissional {
   tipo_pix?: string | null;
   comprovanteBancario?: string | null;
   userId?: string | null;
+  ativo?: boolean;
   createdAt!: Date;
   updatedAt!: Date;
 

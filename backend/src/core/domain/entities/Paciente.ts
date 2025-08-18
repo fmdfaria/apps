@@ -18,6 +18,7 @@ export class Paciente {
   cbo?: string | null;
   cid?: string | null;
   userId?: string | null;
+  ativo?: boolean;
   createdAt!: Date;
   updatedAt!: Date;
 

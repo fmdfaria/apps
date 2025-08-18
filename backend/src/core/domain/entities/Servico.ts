@@ -13,10 +13,11 @@ export class Servico {
   valorProfissional?: number | null;
   procedimentoPrimeiroAtendimento?: string | null;
   procedimentoDemaisAtendimentos?: string | null;
+  convenioId?: string | null;
+  ativo?: boolean;
   createdAt!: Date;
   updatedAt!: Date;
   convenio?: Convenio | null;
-  convenioId?: string | null;
 
   constructor(
     props: Omit<Servico, 'id' | 'createdAt' | 'updatedAt' | 'convenio'>,

@@ -14,4 +14,5 @@ export interface Paciente {
   cbo?: string | null;
   cid?: string | null;
   userId?: string | null;
+  ativo?: boolean;
 } 

@@ -28,6 +28,7 @@ export interface Profissional {
   tipo_pix?: string | null;
   comprovanteBancario?: string | null;
   userId?: string | null;
+  ativo?: boolean;
   especialidades?: { id: string }[];
   servicos?: Array<{ id: string; nome?: string; [key: string]: any }>;
 } 

@@ -13,6 +13,11 @@ export async function getProfissionais(): Promise<Profissional[]> {
   return data;
 }
 
+export async function getProfissionaisAtivos(): Promise<Profissional[]> {
+  const { data } = await api.get('/profissionais/ativos');
+  return data;
+}
+
 export async function getProfissional(id: string): Promise<Profissional> {
   const { data } = await api.get(`/profissionais/${id}`);
   return data;
@@ -165,4 +170,9 @@ export async function updateProfissionalServicos(id: string, servicosIds: string
     headers: { 'Content-Type': 'application/json' },
   });
   return data;
-} 
+}
+
+export const toggleProfissionalStatus = async (id: string, ativo: boolean): Promise<Profissional> => {
+  const { data } = await api.patch(`/profissionais/${id}/status`, { ativo });
+  return data;
+}; 

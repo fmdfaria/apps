@@ -12,6 +12,7 @@ export interface ICreateServicoDTO {
   procedimentoPrimeiroAtendimento?: string | null;
   procedimentoDemaisAtendimentos?: string | null;
   convenioId?: string | null;
+  ativo?: boolean;
 }
 
 export interface IServicosRepository {
@@ -23,6 +24,7 @@ export interface IServicosRepository {
   findByNameAndDuration(nome: string, duracaoMinutos: number): Promise<Servico | null>;
   findById(id: string): Promise<Servico | null>;
   findAll(): Promise<Servico[]>;
+  findAllActive(): Promise<Servico[]>;
   save(servico: Servico): Promise<Servico>;
   delete(id: string): Promise<void>;
 } 

@@ -6,6 +6,11 @@ export const getServicos = async (): Promise<Servico[]> => {
   return data;
 };
 
+export const getServicosAtivos = async (): Promise<Servico[]> => {
+  const { data } = await api.get('/servicos/ativos');
+  return data;
+};
+
 export const createServico = async (servico: Omit<Servico, 'id'>): Promise<Servico> => {
   const { data } = await api.post('/servicos', servico);
   return data;
@@ -18,4 +23,9 @@ export const updateServico = async (id: string, servico: Omit<Servico, 'id'>): P
 
 export const deleteServico = async (id: string): Promise<void> => {
   await api.delete(`/servicos/${id}`);
+};
+
+export const toggleServicoStatus = async (id: string, ativo: boolean): Promise<Servico> => {
+  const { data } = await api.patch(`/servicos/${id}/status`, { ativo });
+  return data;
 }; 

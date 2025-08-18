@@ -11,5 +11,6 @@ export interface Servico {
   procedimentoPrimeiroAtendimento?: string | null;
   procedimentoDemaisAtendimentos?: string | null;
   convenioId?: string | null;
+  ativo?: boolean;
   convenio?: { id: string; nome: string } | null;
 } 

@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Paperclip, Building2, Phone, History } from 'lucide-react';
+import { Plus, Edit, Trash2, Paperclip, Building2, Phone, History, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AppToast } from '@/services/toast';
-import { getPacientes, createPaciente, updatePaciente, deletePaciente } from '@/services/pacientes';
+import { getPacientes, createPaciente, updatePaciente, deletePaciente, togglePacienteStatus } from '@/services/pacientes';
 import { getConvenios } from '@/services/convenios';
 import type { Paciente } from '@/types/Paciente';
 import type { Convenio } from '@/types/Convenio';
@@ -248,6 +248,23 @@ export const PacientesPage = () => {
       )
     },
     {
+      key: 'status',
+      header: '📊 Status',
+      essential: true,
+      render: (item) => (
+        <Badge 
+          variant="outline" 
+          className={`text-xs ${
+            item.ativo === true
+              ? 'bg-green-50 text-green-700 border-green-200' 
+              : 'bg-red-50 text-red-700 border-red-200'
+          }`}
+        >
+          {item.ativo === true ? 'Ativo' : 'Inativo'}
+        </Badge>
+      )
+    },
+    {
       key: 'actions',
       header: '⚙️ Ações',
       essential: true,
@@ -299,6 +316,14 @@ export const PacientesPage = () => {
                 title="Evolução do paciente"
               >
                 <History className="w-4 h-4" />
+              </ActionButton>
+              <ActionButton
+                variant={item.ativo === true ? "delete" : "view"}
+                module="pacientes"
+                onClick={() => handleToggleStatus(item.id, !item.ativo)}
+                title={item.ativo === true ? "Inativar paciente" : "Ativar paciente"}
+              >
+                <RotateCcw className="w-4 h-4" />
               </ActionButton>
             </>
           ) : (
