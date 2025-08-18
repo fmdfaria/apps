@@ -42,6 +42,8 @@ export class PrismaPacientesRepository implements IPacientesRepository {
         cbo: data.cbo || undefined,
         cid: data.cid || undefined,
         userId: data.userId || undefined,
+        autoPedidos: data.autoPedidos !== null ? data.autoPedidos : undefined,
+        descricao: data.descricao || undefined,
       },
       include: pacienteInclude,
     });
@@ -78,6 +80,15 @@ export class PrismaPacientesRepository implements IPacientesRepository {
     return pacientes as Paciente[];
   }
 
+  async findAllActive(): Promise<Paciente[]> {
+    const pacientes = await this.prisma.paciente.findMany({
+      where: { ativo: true },
+      orderBy: { nomeCompleto: 'asc' },
+      include: pacienteInclude,
+    });
+    return pacientes as Paciente[];
+  }
+
   async save(data: PacienteParaSalvar): Promise<Paciente> {
     const paciente = await this.prisma.paciente.update({
       where: { id: data.id },
@@ -97,6 +108,8 @@ export class PrismaPacientesRepository implements IPacientesRepository {
         cbo: data.cbo || undefined,
         cid: data.cid || undefined,
         userId: data.userId || undefined,
+        autoPedidos: data.autoPedidos !== null ? data.autoPedidos : undefined,
+        descricao: data.descricao || undefined,
       },
       include: pacienteInclude,
     });

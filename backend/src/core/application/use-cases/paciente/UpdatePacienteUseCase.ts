@@ -71,6 +71,8 @@ export class UpdatePacienteUseCase {
     paciente.cbo = data.cbo;
     paciente.cid = data.cid;
     paciente.userId = data.userId;
+    paciente.autoPedidos = data.autoPedidos;
+    paciente.descricao = data.descricao;
 
     // Remove a propriedade do objeto aninhado para evitar o erro do Prisma
     delete (paciente as any).convenio;

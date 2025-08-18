@@ -16,6 +16,8 @@ export interface ICreatePacienteDTO {
   cid?: string | null;
   userId?: string | null;
   ativo?: boolean;
+  autoPedidos?: boolean | null;
+  descricao?: string | null;
 }
 
 export interface IPacientesRepository {
