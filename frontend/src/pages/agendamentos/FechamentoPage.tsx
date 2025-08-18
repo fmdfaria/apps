@@ -23,7 +23,9 @@ import {
   Eye
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
+import type { PrecoParticular } from '@/types/PrecoParticular';
 import { getAgendamentos } from '@/services/agendamentos';
+import { getPrecosParticulares } from '@/services/precos-particulares';
 import { ListarAgendamentosModal } from '@/components/agendamentos';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
@@ -45,10 +47,13 @@ interface FechamentoParticular {
   qtdAgendamentos: number;
   valorReceber: number;
   agendamentos: Agendamento[];
+  tipoPagamento?: string;
+  pagamentoAntecipado?: boolean;
 }
 
 export const FechamentoPage = () => {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
+  const [precosParticulares, setPrecosParticulares] = useState<PrecoParticular[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Estados para controle de permissões RBAC
@@ -78,6 +83,7 @@ export const FechamentoPage = () => {
   useEffect(() => {
     checkPermissions();
     carregarAgendamentos();
+    carregarPrecosParticulares();
   }, []);
 
   useEffect(() => {
@@ -131,6 +137,16 @@ export const FechamentoPage = () => {
     }
   };
 
+  const carregarPrecosParticulares = async () => {
+    try {
+      const dados = await getPrecosParticulares();
+      setPrecosParticulares(dados);
+    } catch (e: any) {
+      console.error('Erro ao carregar preços particulares:', e);
+      // Não exibir erro para o usuário, pois é opcional
+    }
+  };
+
   const updateFiltro = (campo: keyof typeof filtros, valor: string) => {
     setFiltros(prev => ({ ...prev, [campo]: valor }));
     setPaginaAtual(1);
@@ -163,6 +179,24 @@ export const FechamentoPage = () => {
       style: 'currency',
       currency: 'BRL'
     }).format(valor);
+  };
+
+  // Função para verificar status geral de recebimento
+  const verificarStatusRecebimento = (agendamentos: Agendamento[]) => {
+    if (agendamentos.length === 0) return null;
+    const recebidos = agendamentos.filter(a => a.recebimento === true).length;
+    if (recebidos === agendamentos.length) return true; // Todos recebidos
+    if (recebidos === 0) return false; // Nenhum recebido
+    return null; // Parcial
+  };
+
+  // Função para verificar status geral de pagamento
+  const verificarStatusPagamento = (agendamentos: Agendamento[]) => {
+    if (agendamentos.length === 0) return null;
+    const pagos = agendamentos.filter(a => a.pagamento === true).length;
+    if (pagos === agendamentos.length) return true; // Todos pagos
+    if (pagos === 0) return false; // Nenhum pago
+    return null; // Parcial
   };
 
   // Função para calcular valor a receber pela clínica
@@ -278,64 +312,119 @@ export const FechamentoPage = () => {
 
   // Processar dados para visualização particular
   const processarDadosParticulares = (): FechamentoParticular[] => {
-    const particularesMap = new Map<string, {
-      agendamentos: Agendamento[],
-      valorTotal: number
-    }>();
+    // Para fechamentos particulares, aplicar filtros diferentes baseado no pagamento antecipado
+    const agendamentosParticulares = agendamentos
+      .filter(a => 
+        // Aplicar os mesmos filtros da interface (busca e filtros avançados), exceto status
+        (!busca || 
+         a.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||
+         a.profissionalNome?.toLowerCase().includes(busca.toLowerCase()) ||
+         a.servicoNome?.toLowerCase().includes(busca.toLowerCase()) ||
+         a.convenioNome?.toLowerCase().includes(busca.toLowerCase())
+        )
+      )
+      .filter(a => !filtros.paciente || a.pacienteNome?.toLowerCase().includes(filtros.paciente.toLowerCase()))
+      .filter(a => !filtros.profissional || a.profissionalNome?.toLowerCase().includes(filtros.profissional.toLowerCase()))
+      .filter(a => !filtros.servico || a.servicoNome?.toLowerCase().includes(filtros.servico.toLowerCase()))
+      .filter(a => !filtros.convenio || a.convenioNome?.toLowerCase().includes(filtros.convenio.toLowerCase()))
+      .filter(a => {
+        if (!filtros.dataInicio && !filtros.dataFim) return true;
+        
+        const dataAgendamentoISO = a.dataHoraInicio.split('T')[0];
+        
+        if (filtros.dataInicio && dataAgendamentoISO < filtros.dataInicio) return false;
+        if (filtros.dataFim && dataAgendamentoISO > filtros.dataFim) return false;
+        
+        return true;
+      })
+      .filter(a => 
+        // Filtrar apenas atendimentos particulares
+        a.convenioNome?.toLowerCase().includes('particular') || 
+        a.convenioNome?.toLowerCase().includes('privado') ||
+        a.convenioNome === 'Particular'
+      )
+      .filter(a => {
+        // Buscar configuração de preço particular para este agendamento
+        const precoParticular = precosParticulares.find(p => 
+          p.pacienteId === a.pacienteId && 
+          p.servicoId === a.servicoId
+        );
 
-    // Filtrar apenas atendimentos particulares (convenio 'Particular' ou similar)
-    const agendamentosParticulares = agendamentosFiltrados.filter(a => 
-      a.convenioNome?.toLowerCase().includes('particular') || 
-      a.convenioNome?.toLowerCase().includes('privado') ||
-      a.convenioNome === 'Particular'
-    );
+        const pagamentoAntecipado = precoParticular?.pagamentoAntecipado ?? false;
+
+        // Se pagamento é antecipado, incluir todos os status
+        // Se não é antecipado, incluir apenas status FINALIZADO
+        return pagamentoAntecipado ? true : a.status === 'FINALIZADO';
+      });
+
+    const resultados: FechamentoParticular[] = [];
 
     agendamentosParticulares.forEach(agendamento => {
       const paciente = agendamento.pacienteNome || 'Não informado';
       
-      if (!particularesMap.has(paciente)) {
-        particularesMap.set(paciente, {
-          agendamentos: [],
-          valorTotal: 0
-        });
-      }
+      // Buscar configuração de preço particular para este paciente/serviço
+      const precoParticular = precosParticulares.find(p => 
+        p.pacienteId === agendamento.pacienteId && 
+        p.servicoId === agendamento.servicoId
+      );
 
-      const dados = particularesMap.get(paciente)!;
-      dados.agendamentos.push(agendamento);
-      // Calcular valor a receber pela clínica
+      const tipoPagamento = precoParticular?.tipoPagamento || 'Mensal';
+      const pagamentoAntecipado = precoParticular?.pagamentoAntecipado ?? false;
       const valorClinica = calcularValorClinica(agendamento);
-      dados.valorTotal += valorClinica;
-    });
 
-    return Array.from(particularesMap.entries()).map(([paciente, dados]) => {
-      const datas = dados.agendamentos
-        .map(a => a.dataHoraInicio?.split('T')[0])
-        .filter(d => d); // Remove undefined/null values
-      
-      if (datas.length === 0) {
-        const hoje = new Date().toISOString().split('T')[0];
-        return {
-          paciente: paciente || 'Não informado',
-          dataInicio: hoje,
-          dataFim: hoje,
-          qtdAgendamentos: dados.agendamentos.length,
-          valorReceber: dados.valorTotal,
-          agendamentos: dados.agendamentos
-        };
+      if (tipoPagamento === 'Avulso') {
+        // Para pagamentos avulsos, cada agendamento é uma linha separada
+        const dataAgendamento = agendamento.dataHoraInicio?.split('T')[0] || new Date().toISOString().split('T')[0];
+        
+        resultados.push({
+          paciente: paciente,
+          dataInicio: dataAgendamento,
+          dataFim: dataAgendamento,
+          qtdAgendamentos: 1,
+          valorReceber: valorClinica,
+          agendamentos: [agendamento],
+          tipoPagamento: tipoPagamento,
+          pagamentoAntecipado: pagamentoAntecipado
+        });
+      } else {
+        // Para pagamentos mensais, agrupar por paciente
+        const existingEntry = resultados.find(r => 
+          r.paciente === paciente && r.tipoPagamento === 'Mensal'
+        );
+
+        if (existingEntry) {
+          existingEntry.agendamentos.push(agendamento);
+          existingEntry.qtdAgendamentos += 1;
+          existingEntry.valorReceber += valorClinica;
+          
+          // Atualizar datas para incluir este agendamento
+          const dataAgendamento = agendamento.dataHoraInicio?.split('T')[0];
+          if (dataAgendamento) {
+            if (dataAgendamento < existingEntry.dataInicio) {
+              existingEntry.dataInicio = dataAgendamento;
+            }
+            if (dataAgendamento > existingEntry.dataFim) {
+              existingEntry.dataFim = dataAgendamento;
+            }
+          }
+        } else {
+          const dataAgendamento = agendamento.dataHoraInicio?.split('T')[0] || new Date().toISOString().split('T')[0];
+          
+          resultados.push({
+            paciente: paciente,
+            dataInicio: dataAgendamento,
+            dataFim: dataAgendamento,
+            qtdAgendamentos: 1,
+            valorReceber: valorClinica,
+            agendamentos: [agendamento],
+            tipoPagamento: tipoPagamento,
+            pagamentoAntecipado: pagamentoAntecipado
+          });
+        }
       }
-
-      const dataInicio = Math.min(...datas.map(d => new Date(d).getTime()));
-      const dataFim = Math.max(...datas.map(d => new Date(d).getTime()));
-
-      return {
-        paciente: paciente || 'Não informado',
-        dataInicio: new Date(dataInicio).toISOString().split('T')[0],
-        dataFim: new Date(dataFim).toISOString().split('T')[0],
-        qtdAgendamentos: dados.agendamentos.length,
-        valorReceber: dados.valorTotal,
-        agendamentos: dados.agendamentos
-      };
     });
+
+    return resultados;
   };
 
   const dadosConvenios = processarDadosConvenios();
@@ -396,6 +485,12 @@ export const FechamentoPage = () => {
               Valor a Receber
             </div>
           </TableHead>
+          <TableHead className="py-3 text-sm font-semibold text-gray-700 text-center">
+            <div className="flex items-center justify-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Recebimento
+            </div>
+          </TableHead>
           <TableHead className="py-3 text-sm font-semibold text-gray-700">
             <div className="flex items-center gap-2">
               <span className="text-lg">⚙️</span>
@@ -407,7 +502,7 @@ export const FechamentoPage = () => {
       <TableBody>
         {dadosPaginados.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={6} className="py-12 text-center">
+            <TableCell colSpan={7} className="py-12 text-center">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                   <DollarSign className="w-8 h-8 text-gray-400" />
@@ -449,6 +544,18 @@ export const FechamentoPage = () => {
                 <span className="text-sm font-semibold text-green-700 bg-green-50 px-2 py-1 rounded">
                   {formatarValor(item.valorReceber)}
                 </span>
+              </TableCell>
+              <TableCell className="py-3 text-center">
+                {(() => {
+                  const status = verificarStatusRecebimento(item.agendamentos);
+                  if (status === true) {
+                    return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Completo</Badge>;
+                  } else if (status === false) {
+                    return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Pendente</Badge>;
+                  } else {
+                    return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Parcial</Badge>;
+                  }
+                })()}
               </TableCell>
               <TableCell className="text-left py-3">
                 <div className="flex justify-start gap-1.5">
@@ -610,6 +717,24 @@ export const FechamentoPage = () => {
               Valor a Receber
             </div>
           </TableHead>
+          <TableHead className="py-3 text-sm font-semibold text-gray-700 text-center">
+            <div className="flex items-center justify-center gap-2">
+              <CreditCard className="w-4 h-4" />
+              Tipo Pagamento
+            </div>
+          </TableHead>
+          <TableHead className="py-3 text-sm font-semibold text-gray-700 text-center">
+            <div className="flex items-center justify-center gap-2">
+              <Clock className="w-4 h-4" />
+              Pagamento Antecipado
+            </div>
+          </TableHead>
+          <TableHead className="py-3 text-sm font-semibold text-gray-700 text-center">
+            <div className="flex items-center justify-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Recebimento
+            </div>
+          </TableHead>
           <TableHead className="py-3 text-sm font-semibold text-gray-700">
             <div className="flex items-center gap-2">
               <span className="text-lg">⚙️</span>
@@ -621,7 +746,7 @@ export const FechamentoPage = () => {
       <TableBody>
         {dadosPaginados.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={6} className="py-12 text-center">
+            <TableCell colSpan={9} className="py-12 text-center">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                   <Users className="w-8 h-8 text-gray-400" />
@@ -663,6 +788,28 @@ export const FechamentoPage = () => {
                 <span className="text-sm font-semibold text-green-700 bg-green-50 px-2 py-1 rounded">
                   {formatarValor(item.valorReceber)}
                 </span>
+              </TableCell>
+              <TableCell className="py-3 text-center">
+                <Badge variant="outline" className={item.tipoPagamento === 'Avulso' ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-blue-50 text-blue-700 border-blue-200"}>
+                  {item.tipoPagamento || 'Mensal'}
+                </Badge>
+              </TableCell>
+              <TableCell className="py-3 text-center">
+                <Badge variant="outline" className={item.pagamentoAntecipado ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"}>
+                  {item.pagamentoAntecipado ? 'SIM' : 'NÃO'}
+                </Badge>
+              </TableCell>
+              <TableCell className="py-3 text-center">
+                {(() => {
+                  const status = verificarStatusRecebimento(item.agendamentos);
+                  if (status === true) {
+                    return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Completo</Badge>;
+                  } else if (status === false) {
+                    return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Pendente</Badge>;
+                  } else {
+                    return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Parcial</Badge>;
+                  }
+                })()}
               </TableCell>
               <TableCell className="text-left py-3">
                 <div className="flex justify-start gap-1.5">

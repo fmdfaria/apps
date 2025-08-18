@@ -19,5 +19,20 @@
 ### FormularioPorData
 - Quando seleciona o recurso, está limpandos os campos.
 
-### PacientesPage
-- No cadastro do paciente, caso o tipo de serviço seja 'Particular', deve cadastrar também no banco de dados o valor do 'convenio_id' de acordo com o ID do convenio chamado 'Particular'... qdo é 'Convênio' será editado depois no modal de convênio.
+### Verificar melhorias num geral dos modais de agendamentos.
+
+### FechamentoPage - Aba Particular
+- Para fechamentos particulares, o recebimento pode ser feito de maneira 'Avulso' ou 'Mensal' e com pagamento antecipado 'SIM' ou 'NÃO' ... essas informações ficam salvar na tabela precos_particulares obtido na rota /precos-particulares do backend..
+- então para fechamento particular (pagamento) 'Avulso' deve cadastrar na tabela linha por linha.
+- adicionar as colunas 'tipo_pagamento' e 'pagamento_antecipado' antes da coluna ação da tabela.
+
+
+Criei duas novas colunas na tabela agendamentos:
+ALTER TABLE agendamentos
+ADD COLUMN recebimento BOOLEAN DEFAULT FALSE,
+ADD COLUMN pagamento BOOLEAN DEFAULT FALSE;
+
+objetivo dessas colunas é fazer a gestão dos pagamentos e recebimentos de cada agendamento.
+
+ajustar o backend para incluir essa coluna na regra de criação, edição de agendamentos....
+ajustar o frontend para enviar os dados caso necessário, visto que será default FALSE.. e a gestão desse status não será feito no ato do agendamento, e sim no fechamento.

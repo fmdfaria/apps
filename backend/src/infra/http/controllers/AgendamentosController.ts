@@ -28,6 +28,8 @@ const agendamentoBodySchema = z.object({
   compareceu: z.boolean().optional().nullable(),
   assinaturaPaciente: z.boolean().optional().nullable(),
   assinaturaProfissional: z.boolean().optional().nullable(),
+  recebimento: z.boolean().optional(),
+  pagamento: z.boolean().optional(),
   recorrencia: recorrenciaSchema.optional(),
 });
 

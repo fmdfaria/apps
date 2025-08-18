@@ -50,6 +50,8 @@ export interface Agendamento {
   
   // Campos gerais
   status: StatusAgendamento;
+  recebimento?: boolean;
+  pagamento?: boolean;
   criadoEm: string;
   atualizadoEm: string;
   

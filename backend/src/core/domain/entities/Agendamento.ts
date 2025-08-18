@@ -19,6 +19,8 @@ export class Agendamento {
   statusCodLiberacao?: string | null;
   dataCodLiberacao?: Date | null;
   status!: string;
+  recebimento?: boolean;
+  pagamento?: boolean;
   createdAt!: Date;
   updatedAt!: Date;
 

@@ -284,6 +284,10 @@ export interface UpdateAgendamentoData {
   motivoCancelamento?: string;
   aprovadoPor?: string;
   
+  // Gestão de pagamentos
+  recebimento?: boolean;
+  pagamento?: boolean;
+  
   // Status
   status?: StatusAgendamento;
 }
@@ -504,6 +508,14 @@ export const updateAssinaturaPaciente = async (id: string, assinaturaPaciente: b
 
 export const updateAssinaturaProfissional = async (id: string, assinaturaProfissional: boolean | null): Promise<Agendamento> => {
   return updateAgendamento(id, { assinaturaProfissional });
+};
+
+export const updateRecebimento = async (id: string, recebimento: boolean): Promise<Agendamento> => {
+  return updateAgendamento(id, { recebimento });
+};
+
+export const updatePagamento = async (id: string, pagamento: boolean): Promise<Agendamento> => {
+  return updateAgendamento(id, { pagamento });
 };
 
 // Interfaces para fechamento financeiro

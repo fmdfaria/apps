@@ -11,7 +11,7 @@ const Home: React.FC = () => {
     {
       icon: Clock,
       title: "Disponibilidade",
-      description: "Consulte e gerencie sua disponibilidade na agenda",
+      description: "Consulte a sua disponibilidade na agenda",
       steps: [
         "Visualize horários livres e ocupados",
         "Configure bloqueios de agenda",
@@ -68,10 +68,6 @@ const Home: React.FC = () => {
         <div className="relative px-6 py-10 sm:py-14 lg:px-10">
           <div className="max-w-6xl mx-auto text-center">
             <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 bg-emerald-700/40 backdrop-blur px-3 py-1 rounded-full text-xs font-semibold">
-                <span>📚</span>
-                <span>Mini Treinamento - Sistema CelebraMente</span>
-              </div>
               <h1 className="text-3xl sm:text-4xl xl:text-5xl font-extrabold leading-tight">
                 Guia Rápido para
                 <span className="block bg-white/90 bg-clip-text text-transparent">Profissionais</span>
@@ -169,7 +165,7 @@ const Home: React.FC = () => {
                     <span className="text-emerald-600 font-bold">4</span>
                   </div>
                   <h3 className="font-medium">Final do Dia</h3>
-                  <p className="text-sm text-gray-600">Configure "Disponibilidade" para próximos dias</p>
+                  <p className="text-sm text-gray-600">Verifique as assinaturas e agendamentos do dia</p>
                 </div>
               </div>
               <div className="mt-8 p-4 bg-emerald-50 rounded-lg">

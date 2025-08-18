@@ -236,6 +236,8 @@ model Agendamento {
   compareceu         Boolean?
   assinaturaPaciente Boolean?           @map("assinatura_paciente")
   assinaturaProfissional Boolean?       @map("assinatura_profissional")
+  recebimento        Boolean?           @default(false)
+  pagamento          Boolean?           @default(false)
   createdAt          DateTime?          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime?          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   convenio           Convenio           @relation(fields: [convenioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
