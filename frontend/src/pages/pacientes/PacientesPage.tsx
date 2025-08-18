@@ -78,6 +78,7 @@ export const PacientesPage = () => {
   const [canCreate, setCanCreate] = useState(true);
   const [canUpdate, setCanUpdate] = useState(true);
   const [canDelete, setCanDelete] = useState(true);
+  const [canToggle, setCanToggle] = useState(true);
   const [convenios, setConvenios] = useState<Convenio[]>([]);
 
   // Estados dos modais existentes
@@ -334,14 +335,37 @@ export const PacientesPage = () => {
               >
                 <History className="w-4 h-4" />
               </ActionButton>
-              <ActionButton
-                variant={item.ativo === true ? "delete" : "view"}
-                module="pacientes"
-                onClick={() => handleToggleStatus(item.id, !item.ativo)}
-                title={item.ativo === true ? "Inativar paciente" : "Ativar paciente"}
-              >
-                <RotateCcw className="w-4 h-4" />
-              </ActionButton>
+              {canToggle ? (
+                <ActionButton
+                  variant={item.ativo === true ? "delete" : "view"}
+                  module="pacientes"
+                  onClick={() => handleToggleStatus(item.id, !item.ativo)}
+                  title={item.ativo === true ? "Inativar paciente" : "Ativar paciente"}
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </ActionButton>
+              ) : (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-block">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 w-8 p-0 border-gray-300 text-gray-400 opacity-50 cursor-not-allowed"
+                          disabled={true}
+                          title="Sem permissão para alterar status"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Você não tem permissão para ativar/inativar pacientes</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </>
           ) : (
             <TooltipProvider>
@@ -489,12 +513,17 @@ export const PacientesPage = () => {
         return route.path === '/pacientes/:id' && route.method.toLowerCase() === 'put';
       });
       
+      const canToggle = allowedRoutes.some((route: any) => {
+        return route.path === '/pacientes/:id/status' && route.method.toLowerCase() === 'patch';
+      });
+
       const canDelete = allowedRoutes.some((route: any) => {
         return route.path === '/pacientes/:id' && route.method.toLowerCase() === 'delete';
       });
       
       setCanCreate(canCreate);
       setCanUpdate(canUpdate);
+      setCanToggle(canToggle);
       setCanDelete(canDelete);
       
       // Se não tem nem permissão de leitura, marca como access denied
@@ -506,6 +535,7 @@ export const PacientesPage = () => {
       // Em caso de erro, desabilita tudo por segurança
       setCanCreate(false);
       setCanUpdate(false);
+      setCanToggle(false);
       setCanDelete(false);
       
       // Se retornar 401/403 no endpoint de permissões, considera acesso negado

@@ -80,6 +80,7 @@ export const ProfissionaisPage = () => {
   const [canUpdateEmpresaContrato, setCanUpdateEmpresaContrato] = useState(true);
   const [canUpdateServicos, setCanUpdateServicos] = useState(true);
   const [canDelete, setCanDelete] = useState(true);
+  const [canToggle, setCanToggle] = useState(true);
   const [convenios, setConvenios] = useState<Convenio[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [especialidades, setEspecialidades] = useState<Especialidade[]>([]);
@@ -432,7 +433,7 @@ export const ProfissionaisPage = () => {
             </TooltipProvider>
           )}
           
-          {canUpdateDadosPessoais ? (
+          {canToggle ? (
             <ActionButton
               variant={item.ativo === true ? 'delete' : 'view'}
               module="profissionais"
@@ -450,7 +451,28 @@ export const ProfissionaisPage = () => {
             >
               <RotateCcw className="w-4 h-4" />
             </ActionButton>
-          ) : null}
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 border-gray-300 text-gray-400 opacity-50 cursor-not-allowed"
+                      disabled={true}
+                      title="Sem permissão para alterar status"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Você não tem permissão para ativar/inativar profissionais</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
 
           {canDelete ? (
             <ActionButton
@@ -597,6 +619,10 @@ export const ProfissionaisPage = () => {
         return route.path === '/profissionais/:id/servicos' && route.method.toLowerCase() === 'put';
       });
       
+      const canToggle = allowedRoutes.some((route: any) => {
+        return route.path === '/profissionais/:id/status' && route.method.toLowerCase() === 'patch';
+      });
+
       const canDelete = allowedRoutes.some((route: any) => {
         return route.path === '/profissionais/:id' && route.method.toLowerCase() === 'delete';
       });
@@ -609,6 +635,7 @@ export const ProfissionaisPage = () => {
       setCanUpdateEmpresaContrato(canUpdateEmpresaContrato);
       setCanUpdateServicos(canUpdateServicos);
       setCanDelete(canDelete);
+      setCanToggle(canToggle);
       
       // Se não tem nem permissão de leitura, marca como access denied
       if (!canRead) {
@@ -625,6 +652,7 @@ export const ProfissionaisPage = () => {
       setCanUpdateEmpresaContrato(false);
       setCanUpdateServicos(false);
       setCanDelete(false);
+      setCanToggle(false);
       
       // Se retornar 401/403 no endpoint de permissões, considera acesso negado
       if (error?.response?.status === 401 || error?.response?.status === 403) {

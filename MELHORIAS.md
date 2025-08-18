@@ -13,25 +13,4 @@
 - Não defina nada no frontend que afete o backend, veja sempre a estrutura do backend no arquivo @apps/backend/prisma/schema.prisma .. lá contém toda estrutura do meu banco de dados.
 
 
-### LiberarPage
-- Arrumar forma de para o particular efetuar cobrança.
-
-### FormularioPorData
-- Quando seleciona o recurso, está limpandos os campos.
-
-### Verificar melhorias num geral dos modais de agendamentos.
-
-### Ajustes
-- Criei a coluna 'ativo' nas tabela pacientes, profissionais e servicos com default TRUE.
-
-ALTER TABLE pacientes
-ADD COLUMN ativo BOOLEAN DEFAULT TRUE;
-
-ALTER TABLE profissionais
-ADD COLUMN ativo BOOLEAN DEFAULT TRUE;
-
-ALTER TABLE servicos
-ADD COLUMN ativo BOOLEAN DEFAULT TRUE;
-
-- agora preciso ajustar o backend e o frontend para considerar esse campo e essa funcionalidade  quando estiver ativo ou inativo.
-- Não precisa rodar nada para atualizar o banco de dados, já está feito.
+### Funcionalidade Online

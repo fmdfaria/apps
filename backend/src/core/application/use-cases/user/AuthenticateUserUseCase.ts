@@ -35,8 +35,12 @@ export class AuthenticateUserUseCase {
 
   async execute({ email, senha, ip, userAgent }: IRequest): Promise<IResponse> {
     const user = await this.usersRepository.findByEmail(email);
-    if (!user || !user.ativo) {
+    if (!user) {
       throw new AppError('Usuário ou senha inválidos.', 401);
+    }
+    
+    if (!user.ativo) {
+      throw new AppError('Usuário inativo. Entre em contato com o administrador.', 401);
     }
     const passwordMatch = await bcrypt.compare(senha, user.senha);
     if (!passwordMatch) {
