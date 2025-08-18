@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MapPin, User, CreditCard, Building, List, UserCheck, Phone } from 'lucide-react';
+import { Plus, Edit, Trash2, MapPin, User, CreditCard, Building, List, UserCheck, Phone, RotateCcw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AppToast } from '@/services/toast';
-import { getProfissionais, deleteProfissional } from '@/services/profissionais';
+import { getProfissionais, deleteProfissional, toggleProfissionalStatus } from '@/services/profissionais';
 import { getConvenios } from '@/services/convenios';
 import { getServicos } from '@/services/servicos';
 import { getEspecialidades } from '@/services/especialidades';
@@ -208,6 +208,23 @@ export const ProfissionaisPage = () => {
             <span className="text-xs text-gray-400">0</span>
           )}
         </div>
+      )
+    },
+    {
+      key: 'status',
+      header: '📊 Status',
+      essential: true,
+      render: (item) => (
+        <Badge 
+          variant="outline" 
+          className={`text-xs ${
+            item.ativo === true
+              ? 'bg-green-50 text-green-700 border-green-200' 
+              : 'bg-red-50 text-red-700 border-red-200'
+          }`}
+        >
+          {item.ativo === true ? 'Ativo' : 'Inativo'}
+        </Badge>
       )
     },
     {
@@ -415,6 +432,26 @@ export const ProfissionaisPage = () => {
             </TooltipProvider>
           )}
           
+          {canUpdateDadosPessoais ? (
+            <ActionButton
+              variant={item.ativo === true ? 'delete' : 'view'}
+              module="profissionais"
+              onClick={async () => {
+                try {
+                  await toggleProfissionalStatus(item.id, !item.ativo);
+                  AppToast.success(item.ativo ? 'Profissional inativado' : 'Profissional ativado');
+                  fetchData();
+                } catch (e: any) {
+                  if (e?.response?.status === 403) return;
+                  AppToast.error('Erro ao alterar status');
+                }
+              }}
+              title={item.ativo === true ? 'Inativar profissional' : 'Ativar profissional'}
+            >
+              <RotateCcw className="w-4 h-4" />
+            </ActionButton>
+          ) : null}
+
           {canDelete ? (
             <ActionButton
               variant="delete"
@@ -645,6 +682,16 @@ export const ProfissionaisPage = () => {
             </div>
             <CardTitle className="text-sm font-medium truncate">{profissional.nome}</CardTitle>
           </div>
+          <Badge 
+            variant="outline" 
+            className={`text-xs ml-2 flex-shrink-0 ${
+              profissional.ativo === true
+                ? 'bg-green-50 text-green-700 border-green-200' 
+                : 'bg-red-50 text-red-700 border-red-200'
+            }`}
+          >
+            {profissional.ativo === true ? 'Ativo' : 'Inativo'}
+          </Badge>
         </div>
       </CardHeader>
       <CardContent className="pt-0 px-3 pb-3">

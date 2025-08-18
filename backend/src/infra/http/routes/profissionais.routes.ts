@@ -19,6 +19,7 @@ export async function profissionaisRoutes(app: FastifyInstance) {
   app.put('/profissionais/:id/dados-bancarios', { preHandler: [ensureAuthenticated, ensureAuthorized('/profissionais/:id/dados-bancarios', 'PUT')] }, profissionaisController.editarDadosBancarios.bind(profissionaisController));
   app.put('/profissionais/:id/empresa-contrato', { preHandler: [ensureAuthenticated, ensureAuthorized('/profissionais/:id/empresa-contrato', 'PUT')] }, profissionaisController.editarEmpresaContrato.bind(profissionaisController));
   app.put('/profissionais/:id/servicos', { preHandler: [ensureAuthenticated, ensureAuthorized('/profissionais/:id/servicos', 'PUT')] }, profissionaisController.editarServicos.bind(profissionaisController));
+  app.patch('/profissionais/:id/status', { preHandler: [ensureAuthenticated, ensureAuthorized('/profissionais/:id/status', 'PATCH')] }, profissionaisController.updateStatus.bind(profissionaisController));
   
   // Rotas para deletar comprovantes específicos
   app.delete('/profissionais/:id/comprovante-endereco', { preHandler: [ensureAuthenticated, ensureAuthorized('/profissionais/:id/comprovante-endereco', 'DELETE')] }, profissionaisController.deletarComprovanteEndereco.bind(profissionaisController));

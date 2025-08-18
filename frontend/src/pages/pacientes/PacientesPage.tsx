@@ -220,6 +220,23 @@ export const PacientesPage = () => {
       )
     },
     {
+      key: 'status',
+      header: '📊 Status',
+      essential: true,
+      render: (item) => (
+        <Badge 
+          variant="outline" 
+          className={`text-xs ${
+            item.ativo === true
+              ? 'bg-green-50 text-green-700 border-green-200' 
+              : 'bg-red-50 text-red-700 border-red-200'
+          }`}
+        >
+          {item.ativo === true ? 'Ativo' : 'Inativo'}
+        </Badge>
+      )
+    },
+    {
       key: 'convenio',
       header: '🏥 Convênio',
       essential: false,
@@ -529,6 +546,17 @@ export const PacientesPage = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleStatus = async (id: string, ativo: boolean) => {
+    try {
+      await togglePacienteStatus(id, ativo);
+      AppToast.success(ativo ? 'Paciente ativado' : 'Paciente inativado');
+      fetchData();
+    } catch (error: any) {
+      if (error?.response?.status === 403) return;
+      AppToast.error('Erro ao alterar status do paciente');
     }
   };
 

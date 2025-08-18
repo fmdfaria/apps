@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, RotateCcw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { AppToast } from '@/services/toast';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
-import { getServicos, createServico, updateServico, deleteServico } from '@/services/servicos';
+import { getServicos, createServico, updateServico, deleteServico, toggleServicoStatus } from '@/services/servicos';
 import { getConvenios } from '@/services/convenios';
 import type { Servico } from '@/types/Servico';
 import type { Convenio } from '@/types/Convenio';
@@ -303,6 +303,23 @@ export const ServicosPage = () => {
       }
     },
     {
+      key: 'status',
+      header: '📊 Status',
+      essential: true,
+      render: (item) => (
+        <Badge 
+          variant="outline" 
+          className={`text-xs ${
+            item.ativo === true
+              ? 'bg-green-50 text-green-700 border-green-200' 
+              : 'bg-red-50 text-red-700 border-red-200'
+          }`}
+        >
+          {item.ativo === true ? 'Ativo' : 'Inativo'}
+        </Badge>
+      )
+    },
+    {
       key: 'actions',
       header: '⚙️ Ações',
       essential: true,
@@ -341,6 +358,26 @@ export const ServicosPage = () => {
             </TooltipProvider>
           )}
           
+          {canUpdate ? (
+            <ActionButton
+              variant={item.ativo === true ? 'delete' : 'view'}
+              module="servicos"
+              onClick={async () => {
+                try {
+                  await toggleServicoStatus(item.id, !item.ativo);
+                  AppToast.success(item.ativo ? 'Serviço inativado' : 'Serviço ativado');
+                  fetchServicos();
+                } catch (e: any) {
+                  if (e?.response?.status === 403) return;
+                  AppToast.error('Erro ao alterar status');
+                }
+              }}
+              title={item.ativo === true ? 'Inativar Serviço' : 'Ativar Serviço'}
+            >
+              <RotateCcw className="w-4 h-4" />
+            </ActionButton>
+          ) : null}
+
           {canDelete ? (
             <ActionButton
               variant="delete"
@@ -536,14 +573,26 @@ export const ServicosPage = () => {
             <span className="text-lg">🩺</span>
             <CardTitle className="text-sm font-medium truncate">{servico.nome}</CardTitle>
           </div>
-          {servico.convenio && (() => {
-            const colors = getConvenioColor(servico.convenio.id);
-            return (
-              <Badge className={`text-xs flex-shrink-0 ml-2 ${colors.bg} ${colors.text}`}>
-                {servico.convenio.nome}
-              </Badge>
-            );
-          })()}
+          <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+            <Badge 
+              variant="outline" 
+              className={`text-xs ${
+                servico.ativo === true
+                  ? 'bg-green-50 text-green-700 border-green-200' 
+                  : 'bg-red-50 text-red-700 border-red-200'
+              }`}
+            >
+              {servico.ativo === true ? 'Ativo' : 'Inativo'}
+            </Badge>
+            {servico.convenio && (() => {
+              const colors = getConvenioColor(servico.convenio!.id);
+              return (
+                <Badge className={`text-xs flex-shrink-0 ${colors.bg} ${colors.text}`}>
+                  {servico.convenio!.nome}
+                </Badge>
+              );
+            })()}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0 px-3 pb-3">

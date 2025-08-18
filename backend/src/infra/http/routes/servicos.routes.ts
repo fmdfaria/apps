@@ -21,4 +21,7 @@ export async function servicosRoutes(app: FastifyInstance) {
   app.delete('/servicos/:id', { 
     preHandler: [ensureAuthenticated, ensureAuthorized('/servicos/:id', 'DELETE')] 
   }, servicosController.delete);
+  app.patch('/servicos/:id/status', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/servicos/:id/status', 'PATCH')] 
+  }, servicosController.updateStatus.bind(servicosController));
 } 

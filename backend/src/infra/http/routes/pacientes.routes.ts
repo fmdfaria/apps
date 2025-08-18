@@ -10,4 +10,5 @@ export async function pacientesRoutes(app: FastifyInstance) {
   app.get('/pacientes', { preHandler: [ensureAuthenticated, ensureAuthorized('/pacientes', 'GET')] }, pacientesController.list);
   app.put('/pacientes/:id', { preHandler: [ensureAuthenticated, ensureAuthorized('/pacientes/:id', 'PUT')] }, pacientesController.update);
   app.delete('/pacientes/:id', { preHandler: [ensureAuthenticated, ensureAuthorized('/pacientes/:id', 'DELETE')] }, pacientesController.delete);
+  app.patch('/pacientes/:id/status', { preHandler: [ensureAuthenticated, ensureAuthorized('/pacientes/:id/status', 'PATCH')] }, pacientesController.updateStatus.bind(pacientesController));
 } 

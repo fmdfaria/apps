@@ -5,6 +5,7 @@ import { CreateServicoUseCase } from '../../../core/application/use-cases/servic
 import { ListServicosUseCase } from '../../../core/application/use-cases/servico/ListServicosUseCase';
 import { UpdateServicoUseCase } from '../../../core/application/use-cases/servico/UpdateServicoUseCase';
 import { DeleteServicoUseCase } from '../../../core/application/use-cases/servico/DeleteServicoUseCase';
+import { UpdateServicoStatusUseCase } from '../../../core/application/use-cases/servico/UpdateServicoStatusUseCase';
 
 export class ServicosController {
   async create(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
@@ -61,5 +62,15 @@ export class ServicosController {
     const useCase = container.resolve(DeleteServicoUseCase);
     await useCase.execute({ id });
     return reply.status(204).send();
+  }
+
+  async updateStatus(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const updateParamsSchema = z.object({ id: z.string().uuid() });
+    const bodySchema = z.object({ ativo: z.boolean() });
+    const { id } = updateParamsSchema.parse(request.params);
+    const { ativo } = bodySchema.parse(request.body);
+    const useCase = container.resolve(UpdateServicoStatusUseCase);
+    const servico = await useCase.execute({ id, ativo });
+    return reply.status(200).send(servico);
   }
 } 

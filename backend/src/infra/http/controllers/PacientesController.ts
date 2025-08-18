@@ -5,6 +5,7 @@ import { CreatePacienteUseCase } from '../../../core/application/use-cases/pacie
 import { ListPacientesUseCase } from '../../../core/application/use-cases/paciente/ListPacientesUseCase';
 import { UpdatePacienteUseCase } from '../../../core/application/use-cases/paciente/UpdatePacienteUseCase';
 import { DeletePacienteUseCase } from '../../../core/application/use-cases/paciente/DeletePacienteUseCase';
+import { UpdatePacienteStatusUseCase } from '../../../core/application/use-cases/paciente/UpdatePacienteStatusUseCase';
 
 const bodySchema = z.object({
   nomeCompleto: z.string().min(3),
@@ -85,5 +86,15 @@ export class PacientesController {
     const useCase = container.resolve(DeletePacienteUseCase);
     await useCase.execute({ id });
     return reply.status(204).send();
+  }
+
+  async updateStatus(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const paramsSchema = z.object({ id: z.string().uuid() });
+    const bodySchema = z.object({ ativo: z.boolean() });
+    const { id } = paramsSchema.parse(request.params);
+    const { ativo } = bodySchema.parse(request.body);
+    const useCase = container.resolve(UpdatePacienteStatusUseCase) as UpdatePacienteStatusUseCase;
+    const paciente = await useCase.execute({ id, ativo });
+    return reply.status(200).send(paciente);
   }
 } 

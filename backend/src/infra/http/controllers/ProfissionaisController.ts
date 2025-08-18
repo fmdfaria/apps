@@ -8,6 +8,7 @@ import { DeleteProfissionalUseCase } from '../../../core/application/use-cases/p
 import { GetProfissionalByUserIdUseCase } from '../../../core/application/use-cases/profissional/GetProfissionalByUserIdUseCase';
 import { IProfissionaisRepository } from '../../../core/domain/repositories/IProfissionaisRepository';
 import { S3StorageService } from '../../../shared/services/S3StorageService';
+import { UpdateProfissionalStatusUseCase } from '../../../core/application/use-cases/profissional/UpdateProfissionalStatusUseCase';
 
 export class ProfissionaisController {
   private s3Service: S3StorageService;
@@ -213,6 +214,16 @@ export class ProfissionaisController {
     const useCase = container.resolve(DeleteProfissionalUseCase);
     await useCase.execute({ id });
     return reply.status(204).send();
+  }
+
+  async updateStatus(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const paramsSchema = z.object({ id: z.string().uuid() });
+    const { id } = paramsSchema.parse(request.params);
+    const bodySchema = z.object({ ativo: z.boolean() });
+    const { ativo } = bodySchema.parse(request.body);
+    const useCase = container.resolve(UpdateProfissionalStatusUseCase);
+    const profissional = await useCase.execute({ id, ativo });
+    return reply.status(200).send(profissional);
   }
 
   async show(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
