@@ -30,7 +30,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
     numeroConselho: '',
     especialidadesIds: [] as string[],
   });
-  const [comprovanteFiles, setComprovanteFiles] = useState<File[]>([]);
+  const [comprovanteFile, setComprovanteFile] = useState<File | null>(null);
   const [comprovanteAnexo, setComprovanteAnexo] = useState<Anexo | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -55,7 +55,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
           ? profissional.especialidades.map(e => e.id)
           : (profissional.especialidadesIds || []),
       });
-      setComprovanteFiles([]);
+      setComprovanteFile(null);
       setComprovanteAnexo(null);
       setShowDeleteConfirm(false);
       setError('');
@@ -85,7 +85,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
       // Atualizar informações profissionais
       await updateProfissionalInfoProfissional(profissional.id, {
         ...form,
-        files: comprovanteFiles,
+        file: comprovanteFile,
       });
 
 
@@ -120,7 +120,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
       setLoading(true);
       await deleteProfissionalComprovanteRegistro(profissional.id);
       setComprovanteAnexo(null);
-      setComprovanteFiles([]);
+      setComprovanteFile(null);
       setShowDeleteConfirm(false);
       onSalvar(); // Atualizar a lista de profissionais
     } catch (err) {
@@ -131,7 +131,7 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
   };
 
   const handleUploadComprovante = (files: File[]) => {
-    setComprovanteFiles(files);
+    setComprovanteFile(files[0] || null);
     setComprovanteAnexo(null);
   };
 
@@ -241,11 +241,11 @@ export default function EditarInfoProfissionalModal({ open, onClose, profissiona
                 ) : (
                   <div className="border-2 border-dashed border-gray-300 rounded-xl hover:border-purple-400 transition-colors duration-200">
                     <FileUpload
-                      files={comprovanteFiles}
+                      files={comprovanteFile ? [comprovanteFile] : []}
                       onFilesChange={handleUploadComprovante}
                       acceptedTypes=".pdf,.jpg,.jpeg,.png"
-                      maxFiles={5}
-                      label="📤 Arraste os arquivos aqui ou clique para selecionar"
+                      maxFiles={1}
+                      label="📤 Arraste o arquivo aqui ou clique para selecionar"
                       enableScanner={false}
                     />
                   </div>

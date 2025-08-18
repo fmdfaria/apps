@@ -51,6 +51,8 @@ interface FormularioServico {
   preco: string;
   percentualClinica?: number | null;
   percentualProfissional?: number | null;
+  valorClinica?: string;
+  valorProfissional?: string;
   procedimentoPrimeiroAtendimento?: string | null;
   procedimentoDemaisAtendimentos?: string | null;
   convenioId?: string;
@@ -180,17 +182,6 @@ export const ServicosPage = () => {
         label: 'Nome'
       },
       render: (item) => <span className="text-sm font-medium">{item.nome}</span>
-    },
-    {
-      key: 'descricao',
-      header: '📝 Descrição',
-      essential: false,
-      filterable: {
-        type: 'text',
-        placeholder: 'Buscar na descrição...',
-        label: 'Descrição'
-      },
-      render: (item) => <span className="text-sm">{item.descricao}</span>
     },
     {
       key: 'duracaoMinutos',
@@ -456,7 +447,6 @@ export const ServicosPage = () => {
     // Primeiro aplicar busca textual
     let dadosFiltrados = servicos.filter(s =>
       s.nome.toLowerCase().includes(busca.toLowerCase()) ||
-      (s.descricao || '').toLowerCase().includes(busca.toLowerCase()) ||
       s.convenio?.nome.toLowerCase().includes(busca.toLowerCase())
     );
     
@@ -625,11 +615,6 @@ export const ServicosPage = () => {
       </CardHeader>
       <CardContent className="pt-0 px-3 pb-3">
         <div className="space-y-2 mb-3">
-          {servico.descricao && (
-            <CardDescription className="line-clamp-2 text-xs">
-              {servico.descricao}
-            </CardDescription>
-          )}
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="flex items-center gap-1">
               <span>⏱️</span>
@@ -766,6 +751,8 @@ export const ServicosPage = () => {
       preco: '',
       percentualClinica: null,
       percentualProfissional: null,
+      valorClinica: '',
+      valorProfissional: '',
       procedimentoPrimeiroAtendimento: '',
       procedimentoDemaisAtendimentos: '',
       convenioId: '',
@@ -780,13 +767,24 @@ export const ServicosPage = () => {
     if (s.preco !== undefined && s.preco !== null) {
       precoValue = formatarMoedaBRL(String(s.preco));
     }
+    
+    // Calcular valores iniciais baseados no preço e percentuais
+    const precoNum = s.preco || 0;
+    const percClinica = s.percentualClinica != null ? s.percentualClinica : 38;
+    const percProfissional = s.percentualProfissional != null ? s.percentualProfissional : 62;
+    
+    const valorClinicaInicial = precoNum > 0 ? formatarMoedaBRL(String((precoNum * percClinica) / 100)) : '';
+    const valorProfissionalInicial = precoNum > 0 ? formatarMoedaBRL(String((precoNum * percProfissional) / 100)) : '';
+    
     setForm({
       nome: s.nome,
       descricao: s.descricao || '',
       duracaoMinutos: s.duracaoMinutos !== undefined && s.duracaoMinutos !== null ? String(s.duracaoMinutos) : '',
       preco: precoValue,
-      percentualClinica: s.percentualClinica != null ? s.percentualClinica : 38,
-      percentualProfissional: s.percentualProfissional != null ? s.percentualProfissional : 62,
+      percentualClinica: percClinica,
+      percentualProfissional: percProfissional,
+      valorClinica: valorClinicaInicial,
+      valorProfissional: valorProfissionalInicial,
       procedimentoPrimeiroAtendimento: s.procedimentoPrimeiroAtendimento || '',
       procedimentoDemaisAtendimentos: s.procedimentoDemaisAtendimentos || '',
       convenioId: s.convenio?.id || '',
@@ -805,6 +803,8 @@ export const ServicosPage = () => {
       preco: '',
       percentualClinica: null,
       percentualProfissional: null,
+      valorClinica: '',
+      valorProfissional: '',
       procedimentoPrimeiroAtendimento: '',
       procedimentoDemaisAtendimentos: '',
       convenioId: '',
@@ -846,13 +846,18 @@ export const ServicosPage = () => {
     }
     setFormLoading(true);
     try {
-      // Calcular valores diretos baseados nos percentuais e preço
-      const valorClinicaCalculado = form.percentualClinica != null && precoNumber > 0 
-        ? Number(((form.percentualClinica / 100) * precoNumber).toFixed(2))
-        : null;
-      const valorProfissionalCalculado = form.percentualProfissional != null && precoNumber > 0 
-        ? Number(((form.percentualProfissional / 100) * precoNumber).toFixed(2))
-        : null;
+      // Usar os valores R$ digitados pelo usuário, não recalcular
+      const valorClinicaCalculado = form.valorClinica 
+        ? Number(form.valorClinica.replace(/\./g, '').replace(',', '.'))
+        : form.percentualClinica != null && precoNumber > 0 
+          ? Number(((form.percentualClinica / 100) * precoNumber).toFixed(2))
+          : null;
+      
+      const valorProfissionalCalculado = form.valorProfissional 
+        ? Number(form.valorProfissional.replace(/\./g, '').replace(',', '.'))
+        : form.percentualProfissional != null && precoNumber > 0 
+          ? Number(((form.percentualProfissional / 100) * precoNumber).toFixed(2))
+          : null;
 
       const payload = { 
         ...form, 
@@ -1161,18 +1166,54 @@ export const ServicosPage = () => {
                         setForm(f => {
                           const precoNum = Number(valor.replace(/\./g, '').replace(',', '.'));
                           if (!editando && precoNum > 0 && (f.percentualClinica == null && f.percentualProfissional == null)) {
-                            return { ...f, preco: valor, percentualClinica: 38, percentualProfissional: 62 };
+                            // Para novos serviços, definir percentuais padrão e calcular valores R$
+                            const valorClinicaR = precoNum > 0 ? ((38 / 100) * precoNum).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+                            const valorProfissionalR = precoNum > 0 ? ((62 / 100) * precoNum).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+                            return { 
+                              ...f, 
+                              preco: valor, 
+                              percentualClinica: 38, 
+                              percentualProfissional: 62,
+                              valorClinica: valorClinicaR,
+                              valorProfissional: valorProfissionalR
+                            };
+                          }
+                          // Para edições, recalcular valores R$ baseado nos percentuais existentes
+                          if (precoNum > 0 && f.percentualClinica != null && f.percentualProfissional != null) {
+                            const valorClinicaR = ((f.percentualClinica / 100) * precoNum).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            const valorProfissionalR = ((f.percentualProfissional / 100) * precoNum).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            return { 
+                              ...f, 
+                              preco: valor,
+                              valorClinica: valorClinicaR,
+                              valorProfissional: valorProfissionalR
+                            };
                           }
                           return { ...f, preco: valor };
                         });
                       }}
                       onBlur={e => {
                         setForm(f => {
-                          let novoForm = { ...f, preco: formatarMoedaBRL(f.preco) };
+                          const precoFormatado = formatarMoedaBRL(f.preco);
+                          const precoNum = Number(f.preco.replace(/\./g, '').replace(',', '.'));
+                          let novoForm = { ...f, preco: precoFormatado };
+                          
                           if (!editando && (f.percentualClinica == null && f.percentualProfissional == null)) {
+                            // Para novos serviços, definir percentuais padrão e calcular valores R$
+                            const valorClinicaR = precoNum > 0 ? ((38 / 100) * precoNum).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+                            const valorProfissionalR = precoNum > 0 ? ((62 / 100) * precoNum).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
                             novoForm.percentualClinica = 38;
                             novoForm.percentualProfissional = 62;
+                            novoForm.valorClinica = valorClinicaR;
+                            novoForm.valorProfissional = valorProfissionalR;
+                          } else if (precoNum > 0 && f.percentualClinica != null && f.percentualProfissional != null) {
+                            // Para edições, recalcular valores R$ baseado nos percentuais existentes
+                            const valorClinicaR = ((f.percentualClinica / 100) * precoNum).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            const valorProfissionalR = ((f.percentualProfissional / 100) * precoNum).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            novoForm.valorClinica = valorClinicaR;
+                            novoForm.valorProfissional = valorProfissionalR;
                           }
+                          
                           return novoForm;
                         });
                       }}
@@ -1197,24 +1238,12 @@ export const ServicosPage = () => {
                         <Input
                           type="number"
                           value={form.percentualClinica ?? ''}
-                          onChange={e => {
-                            const val = e.target.value;
-                            if (val === '') {
-                              setForm(f => ({ ...f, percentualClinica: null, percentualProfissional: null }));
-                            } else {
-                              const num = Math.max(0, Math.min(100, Number(val)));
-                              setForm(f => ({
-                                ...f,
-                                percentualClinica: num,
-                                percentualProfissional: 100 - num
-                              }));
-                            }
-                          }}
+                          readOnly
+                          disabled={true}
                           min={0}
                           max={100}
                           step={0.01}
-                          disabled={formLoading || !form.preco || isNaN(Number(form.preco.replace(/\./g, '').replace(',', '.'))) || Number(form.preco.replace(/\./g, '').replace(',', '.')) <= 0}
-                          className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
+                          className="bg-gray-100 text-gray-500 cursor-not-allowed"
                         />
                       </div>
                       <div className="flex items-center gap-1">
@@ -1222,29 +1251,53 @@ export const ServicosPage = () => {
                         <Input
                           type="text"
                           inputMode="decimal"
-                          value={
-                            form.percentualClinica != null && form.preco && !isNaN(Number(form.preco.replace(/\./g, '').replace(',', '.'))) && Number(form.preco.replace(/\./g, '').replace(',', '.')) > 0
-                              ? ((form.percentualClinica / 100) * Number(form.preco.replace(/\./g, '').replace(',', '.'))).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                              : ''
-                          }
+                          value={form.valorClinica}
                           onChange={e => {
                             let valor = e.target.value;
                             valor = valor.replace(/[^\d,]/g, '');
                             const partes = valor.split(',');
                             if (partes.length > 2) valor = partes[0] + ',' + partes.slice(1).join('');
+                            
                             const precoNum = Number(form.preco.replace(/\./g, '').replace(',', '.'));
-                            if (!precoNum) return setForm(f => ({ ...f, percentualClinica: null, percentualProfissional: null }));
+                            if (!precoNum) {
+                              setForm(f => ({ ...f, valorClinica: valor, percentualClinica: null, percentualProfissional: null }));
+                              return;
+                            }
+                            
                             const valorNum = Number(valor.replace(/\./g, '').replace(',', '.'));
-                            if (isNaN(valorNum)) return;
-                            const pct = Number(((valorNum / precoNum) * 100).toFixed(2));
-                            setForm(f => ({ ...f, percentualClinica: pct, percentualProfissional: 100 - pct }));
+                            if (isNaN(valorNum)) {
+                              setForm(f => ({ ...f, valorClinica: valor }));
+                              return;
+                            }
+                            
+                            // Limitar valor máximo ao preço total
+                            const valorClinicaFinal = Math.min(valorNum, precoNum);
+                            const valorProfissionalFinal = precoNum - valorClinicaFinal;
+                            
+                            // Calcular percentuais arredondados que somem 100%
+                            let pctClinica = Math.round((valorClinicaFinal / precoNum) * 100);
+                            let pctProfissional = 100 - pctClinica;
+                            
+                            // Manter os valores R$ conforme digitados/calculados
+                            const valorClinicaFormatado = valor; // Manter o valor digitado
+                            const valorProfissionalFormatado = valorProfissionalFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            
+                            setForm(f => ({ 
+                              ...f, 
+                              valorClinica: valorClinicaFormatado,
+                              valorProfissional: valorProfissionalFormatado,
+                              percentualClinica: pctClinica, 
+                              percentualProfissional: pctProfissional
+                            }));
                           }}
                           onBlur={e => {
                             setForm(f => {
-                              const precoNum = Number(f.preco.replace(/\./g, '').replace(',', '.'));
-                              if (!precoNum || f.percentualClinica == null) return f;
-                              const valor = ((f.percentualClinica / 100) * precoNum).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                              return { ...f, percentualClinica: f.percentualClinica, percentualProfissional: f.percentualProfissional };
+                              if (!f.valorClinica) return f;
+                              // Apenas formatar o valor digitado sem recalcular
+                              const valorNum = Number(f.valorClinica.replace(/\./g, '').replace(',', '.'));
+                              if (isNaN(valorNum)) return f;
+                              const valorFormatado = valorNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                              return { ...f, valorClinica: valorFormatado };
                             });
                           }}
                           disabled={formLoading || !form.preco || isNaN(Number(form.preco.replace(/\./g, '').replace(',', '.'))) || Number(form.preco.replace(/\./g, '').replace(',', '.')) <= 0}
@@ -1267,24 +1320,12 @@ export const ServicosPage = () => {
                         <Input
                           type="number"
                           value={form.percentualProfissional ?? ''}
-                          onChange={e => {
-                            const val = e.target.value;
-                            if (val === '') {
-                              setForm(f => ({ ...f, percentualProfissional: null, percentualClinica: null }));
-                            } else {
-                              const num = Math.max(0, Math.min(100, Number(val)));
-                              setForm(f => ({
-                                ...f,
-                                percentualProfissional: num,
-                                percentualClinica: 100 - num
-                              }));
-                            }
-                          }}
+                          readOnly
+                          disabled={true}
                           min={0}
                           max={100}
                           step={0.01}
-                          disabled={formLoading || !form.preco || isNaN(Number(form.preco.replace(/\./g, '').replace(',', '.'))) || Number(form.preco.replace(/\./g, '').replace(',', '.')) <= 0}
-                          className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
+                          className="bg-gray-100 text-gray-500 cursor-not-allowed"
                         />
                       </div>
                       <div className="flex items-center gap-1">
@@ -1292,29 +1333,53 @@ export const ServicosPage = () => {
                         <Input
                           type="text"
                           inputMode="decimal"
-                          value={
-                            form.percentualProfissional != null && form.preco && !isNaN(Number(form.preco.replace(/\./g, '').replace(',', '.'))) && Number(form.preco.replace(/\./g, '').replace(',', '.')) > 0
-                              ? ((form.percentualProfissional / 100) * Number(form.preco.replace(/\./g, '').replace(',', '.'))).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                              : ''
-                          }
+                          value={form.valorProfissional}
                           onChange={e => {
                             let valor = e.target.value;
                             valor = valor.replace(/[^\d,]/g, '');
                             const partes = valor.split(',');
                             if (partes.length > 2) valor = partes[0] + ',' + partes.slice(1).join('');
+                            
                             const precoNum = Number(form.preco.replace(/\./g, '').replace(',', '.'));
-                            if (!precoNum) return setForm(f => ({ ...f, percentualProfissional: null, percentualClinica: null }));
+                            if (!precoNum) {
+                              setForm(f => ({ ...f, valorProfissional: valor, percentualProfissional: null, percentualClinica: null }));
+                              return;
+                            }
+                            
                             const valorNum = Number(valor.replace(/\./g, '').replace(',', '.'));
-                            if (isNaN(valorNum)) return;
-                            const pct = Number(((valorNum / precoNum) * 100).toFixed(2));
-                            setForm(f => ({ ...f, percentualProfissional: pct, percentualClinica: 100 - pct }));
+                            if (isNaN(valorNum)) {
+                              setForm(f => ({ ...f, valorProfissional: valor }));
+                              return;
+                            }
+                            
+                            // Limitar valor máximo ao preço total
+                            const valorProfissionalFinal = Math.min(valorNum, precoNum);
+                            const valorClinicaFinal = precoNum - valorProfissionalFinal;
+                            
+                            // Calcular percentuais arredondados que somem 100%
+                            let pctProfissional = Math.round((valorProfissionalFinal / precoNum) * 100);
+                            let pctClinica = 100 - pctProfissional;
+                            
+                            // Manter os valores R$ conforme digitados/calculados
+                            const valorProfissionalFormatado = valor; // Manter o valor digitado
+                            const valorClinicaFormatado = valorClinicaFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            
+                            setForm(f => ({ 
+                              ...f, 
+                              valorProfissional: valorProfissionalFormatado,
+                              valorClinica: valorClinicaFormatado,
+                              percentualProfissional: pctProfissional, 
+                              percentualClinica: pctClinica
+                            }));
                           }}
                           onBlur={e => {
                             setForm(f => {
-                              const precoNum = Number(f.preco.replace(/\./g, '').replace(',', '.'));
-                              if (!precoNum || f.percentualProfissional == null) return f;
-                              const valor = ((f.percentualProfissional / 100) * precoNum).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                              return { ...f, percentualProfissional: f.percentualProfissional, percentualClinica: f.percentualClinica };
+                              if (!f.valorProfissional) return f;
+                              // Apenas formatar o valor digitado sem recalcular
+                              const valorNum = Number(f.valorProfissional.replace(/\./g, '').replace(',', '.'));
+                              if (isNaN(valorNum)) return f;
+                              const valorFormatado = valorNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                              return { ...f, valorProfissional: valorFormatado };
                             });
                           }}
                           disabled={formLoading || !form.preco || isNaN(Number(form.preco.replace(/\./g, '').replace(',', '.'))) || Number(form.preco.replace(/\./g, '').replace(',', '.')) <= 0}
@@ -1332,19 +1397,16 @@ export const ServicosPage = () => {
                   max={100}
                   step={1}
                   value={[form.percentualClinica ?? 0]}
-                  onValueChange={([value]) => {
-                    setForm(f => ({
-                      ...f,
-                      percentualClinica: value,
-                      percentualProfissional: 100 - value
-                    }));
-                  }}
-                  className="w-full"
+                  disabled={true}
+                  className="w-full opacity-50 cursor-not-allowed"
                 />
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <div className="flex justify-between text-xs text-gray-400 mt-1">
                   <span>0%</span>
                   <span>100%</span>
                 </div>
+                <p className="text-xs text-gray-500 text-center mt-1">
+                  Os percentuais são calculados automaticamente com base nos valores em R$
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-4">

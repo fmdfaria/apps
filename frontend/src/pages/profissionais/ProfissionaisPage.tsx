@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, MapPin, User, CreditCard, Building, List, UserCheck, Phone, RotateCcw } from 'lucide-react';
+import { Plus, Edit, Trash2, MapPin, User, CreditCard, Building, List, UserCheck, Phone, RotateCcw, Paperclip } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AppToast } from '@/services/toast';
@@ -15,6 +15,8 @@ import type { Especialidade } from '@/types/Especialidade';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { getAnexos } from '@/services/anexos';
+import type { Anexo } from '@/types/Anexo';
 
 // Modais existentes
 import CriarProfissionalModal from './CriarProfissionalModal';
@@ -24,6 +26,7 @@ import EditarEnderecoModal from './EditarEnderecoModal';
 import EditarInfoProfissionalModal from './EditarInfoProfissionalModal';
 import EditarDadosBancariosModal from './EditarDadosBancariosModal';
 import EditarEmpresaContratoModal from './EditarEmpresaContratoModal';
+import AnexosProfissionaisModal from './AnexosProfissionaisModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 
 import { 
@@ -56,15 +59,6 @@ const formatWhatsApp = (whatsapp: string) => {
   return whatsapp;
 };
 
-// Função para formatar CPF
-const formatCPF = (cpf: string) => {
-  if (!cpf) return '';
-  const numbers = cpf.replace(/\D/g, '');
-  if (numbers.length === 11) {
-    return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9)}`;
-  }
-  return cpf;
-};
 
 export const ProfissionaisPage = () => {
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
@@ -94,6 +88,17 @@ export const ProfissionaisPage = () => {
   const [modalDadosBancarios, setModalDadosBancarios] = useState<{ open: boolean, profissional: Profissional | null }>({ open: false, profissional: null });
   const [modalEmpresaContrato, setModalEmpresaContrato] = useState<{ open: boolean, profissional: Profissional | null }>({ open: false, profissional: null });
   
+  // Estados para modal de anexos
+  const [showAnexoModal, setShowAnexoModal] = useState(false);
+  const [profissionalAnexo, setProfissionalAnexo] = useState<Profissional | null>(null);
+  const [anexoFiles, setAnexoFiles] = useState<File[]>([]);
+  const [anexoDescricao, setAnexoDescricao] = useState('');
+  const [anexos, setAnexos] = useState<Anexo[]>([]);
+  const [anexoError, setAnexoError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [anexoToDelete, setAnexoToDelete] = useState<Anexo | null>(null);
+  const [deletingAnexo, setDeletingAnexo] = useState(false);
+  
   const [excluindo, setExcluindo] = useState<Profissional | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -121,17 +126,6 @@ export const ProfissionaisPage = () => {
       )
     },
     {
-      key: 'cpf',
-      header: '📄 CPF',
-      essential: true,
-      filterable: {
-        type: 'text',
-        placeholder: 'CPF do profissional...',
-        label: 'CPF'
-      },
-      render: (item) => <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded text-gray-700">{formatCPF(item.cpf)}</span>
-    },
-    {
       key: 'email',
       header: '📧 Email',
       essential: true,
@@ -156,43 +150,6 @@ export const ProfissionaisPage = () => {
           {item.whatsapp ? formatWhatsApp(item.whatsapp) : '-'}
         </span>
       )
-    },
-    {
-      key: 'especialidades',
-      header: '🎯 Especialidades',
-      essential: true,
-      render: (item) => {
-        if (!item.especialidades || item.especialidades.length === 0) {
-          return <span className="text-xs text-gray-400">Nenhuma</span>;
-        }
-        
-        // Mapear IDs para nomes das especialidades
-        const nomesEspecialidades = item.especialidades
-          .map(esp => {
-            const especialidade = especialidades.find(e => e.id === esp.id);
-            return especialidade?.nome || 'Esp. não encontrada';
-          })
-          .filter(nome => nome !== 'Esp. não encontrada');
-
-        if (nomesEspecialidades.length === 0) {
-          return <span className="text-xs text-gray-400">Carregando...</span>;
-        }
-
-        return (
-          <div className="flex flex-wrap gap-1">
-            {nomesEspecialidades.slice(0, 2).map((nome, index) => (
-              <Badge key={index} variant="outline" className="text-xs bg-purple-50 text-purple-700">
-                {nome}
-              </Badge>
-            ))}
-            {nomesEspecialidades.length > 2 && (
-              <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600">
-                +{nomesEspecialidades.length - 2}
-              </Badge>
-            )}
-          </div>
-        );
-      }
     },
     {
       key: 'servicos',
@@ -433,6 +390,16 @@ export const ProfissionaisPage = () => {
             </TooltipProvider>
           )}
           
+          {/* Anexos */}
+          <ActionButton
+            variant="view"
+            module="profissionais"
+            onClick={() => abrirModalAnexo(item)}
+            title="Gerenciar anexos"
+          >
+            <Paperclip className="w-4 h-4" />
+          </ActionButton>
+          
           {canToggle ? (
             <ActionButton
               variant={item.ativo === true ? 'delete' : 'view'}
@@ -547,9 +514,8 @@ export const ProfissionaisPage = () => {
       }
       
       if (buscaNumeros.length > 0) {
-        const cpf = (p.cpf || '').replace(/\D/g, '');
         const whatsapp = normalizarTelefone(p.whatsapp || '');
-        match = match || cpf.includes(buscaNumeros) || whatsapp.includes(buscaNumeros);
+        match = match || whatsapp.includes(buscaNumeros);
       }
       
       return match;
@@ -699,6 +665,32 @@ export const ProfissionaisPage = () => {
     }
   };
 
+  // Funções para gerenciar anexos
+  const abrirModalAnexo = async (p: Profissional) => {
+    setProfissionalAnexo(p);
+    setAnexoFiles([]);
+    setAnexoDescricao('');
+    setAnexoError('');
+    setAnexos([]);
+    setShowAnexoModal(true);
+    // Buscar anexos reais
+    try {
+      const anexosDb = await getAnexos(p.id);
+      setAnexos(anexosDb);
+    } catch (e) {
+      setAnexos([]);
+    }
+  };
+
+  const fecharModalAnexo = () => {
+    setShowAnexoModal(false);
+    setProfissionalAnexo(null);
+    setAnexoFiles([]);
+    setAnexoDescricao('');
+    setAnexoError('');
+    setAnexos([]);
+  };
+
   // Renderização do card
   const renderCard = (profissional: Profissional) => (
     <Card className="h-full hover:shadow-md transition-shadow">
@@ -728,55 +720,15 @@ export const ProfissionaisPage = () => {
             📧 <span className="text-violet-600">{profissional.email}</span>
           </CardDescription>
           
-          <div className="grid grid-cols-1 gap-2 text-xs">
-            <div className="flex items-center gap-1">
-              <span>📄</span>
-              <span className="font-mono bg-gray-100 px-1 py-0.5 rounded text-gray-700">
-                {formatCPF(profissional.cpf)}
+          {profissional.whatsapp && (
+            <div className="flex items-center gap-1 text-xs">
+              <span>📱</span>
+              <span className="font-mono bg-green-100 px-1 py-0.5 rounded text-green-700">
+                {formatWhatsApp(profissional.whatsapp)}
               </span>
             </div>
-            
-            {profissional.whatsapp && (
-              <div className="flex items-center gap-1">
-                <span>📱</span>
-                <span className="font-mono bg-green-100 px-1 py-0.5 rounded text-green-700">
-                  {formatWhatsApp(profissional.whatsapp)}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Especialidades */}
-          {profissional.especialidades && profissional.especialidades.length > 0 && (
-            <div className="space-y-1">
-              <span className="text-xs font-medium text-gray-600">🎯 Especialidades:</span>
-              <div className="flex flex-wrap gap-1">
-                {(() => {
-                  const nomesEspecialidades = profissional.especialidades
-                    .map(esp => {
-                      const especialidade = especialidades.find(e => e.id === esp.id);
-                      return especialidade?.nome || null;
-                    })
-                    .filter(nome => nome !== null);
-
-                  return (
-                    <>
-                      {nomesEspecialidades.slice(0, 2).map((nome, index) => (
-                        <Badge key={index} variant="outline" className="text-xs bg-purple-50 text-purple-700">
-                          {nome}
-                        </Badge>
-                      ))}
-                      {nomesEspecialidades.length > 2 && (
-                        <Badge variant="outline" className="text-xs bg-gray-50">
-                          +{nomesEspecialidades.length - 2}
-                        </Badge>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
           )}
+
 
           {/* Serviços */}
           {profissional.servicos && profissional.servicos.length > 0 && (
@@ -1112,6 +1064,26 @@ export const ProfissionaisPage = () => {
           setModalEmpresaContrato({ open: false, profissional: null });
           fetchData();
         }}
+      />
+
+      <AnexosProfissionaisModal
+        showModal={showAnexoModal}
+        profissional={profissionalAnexo}
+        anexoFiles={anexoFiles}
+        anexoDescricao={anexoDescricao}
+        anexos={anexos}
+        anexoError={anexoError}
+        saving={saving}
+        anexoToDelete={anexoToDelete}
+        deletingAnexo={deletingAnexo}
+        onClose={fecharModalAnexo}
+        onAnexoFilesChange={setAnexoFiles}
+        onAnexoDescricaoChange={setAnexoDescricao}
+        onAnexosChange={setAnexos}
+        onAnexoErrorChange={setAnexoError}
+        onSavingChange={setSaving}
+        onAnexoToDeleteChange={setAnexoToDelete}
+        onDeletingAnexoChange={setDeletingAnexo}
       />
 
       {/* Modal de confirmação de exclusão */}

@@ -19,3 +19,9 @@
 ### EditarInfoProfissionalModal
 - Qdo seleciono um arquivo com nome muito grande, está quebrando e ultrapassando o modal... deixar o nome do arquivo truncado com ... no final e se passar o mouse em cima.. mostra o tooltip com o nome inteiro..
 - Deixar enviar mais que 1 arquivo tbm
+
+### ServicosPage
+- Melhorar a criação / edição de um servico.
+- Deixar os campos de % desativados para alteração (criação e edição)
+- Permitir alteração somente dos campos de R$ (Clinica e profissional)..
+- Com base a alteração dos campos R$, calcular a % aredondada com 00,00, que a soma seja 100% entre clinica e profissional.

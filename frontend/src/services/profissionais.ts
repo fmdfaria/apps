@@ -106,17 +106,9 @@ export async function updateProfissionalInfoProfissional(id: string, payload: an
     formData.append('especialidadesIds', JSON.stringify(payload.especialidadesIds));
   }
 
-  // Múltiplos arquivos de comprovante
-  if (Array.isArray(payload.files)) {
-    payload.files.forEach((file: File, index: number) => {
-      if (file instanceof File) {
-        formData.append(`files`, file);
-      }
-    });
-  }
-  // Backward compatibility: single file
-  else if (payload.file && payload.file instanceof File) {
-    formData.append('files', payload.file);
+  // Arquivo de comprovante
+  if (payload.file && payload.file instanceof File) {
+    formData.append('file', payload.file);
   }
 
   const { data } = await api.put(`/profissionais/${id}/informacao-profissional`, formData);

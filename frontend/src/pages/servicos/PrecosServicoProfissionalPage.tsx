@@ -47,6 +47,9 @@ interface FormData {
   profissionalId: string;
   servicoId: string;
   valorProfissional: string;
+  valorClinica: string;
+  percentualProfissional: number | null;
+  percentualClinica: number | null;
 }
 
 // Função para determinar a cor de fundo baseada no percentual do profissional
@@ -90,6 +93,9 @@ export default function PrecosServicoProfissionalPage() {
     profissionalId: '',
     servicoId: '',
     valorProfissional: '',
+    valorClinica: '',
+    percentualProfissional: null,
+    percentualClinica: null,
   });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
@@ -165,32 +171,45 @@ export default function PrecosServicoProfissionalPage() {
       key: 'valorClinica',
       header: '💰 Valor Clínica',
       essential: true,
-      render: (item) => (
-        <span className="text-sm font-medium text-blue-600">
-          {formatarMoeda(calcularValorEmReais(item, 'clinica'))}
-        </span>
-      )
+      render: (item) => {
+        // Mostrar valorClinica direto da tabela servicos ou do precoClinica personalizado
+        const servico = servicos.find(s => s.id === item.servicoId);
+        const valorClinica = item.precoClinica ?? servico?.valorClinica ?? 0;
+        return (
+          <span className="text-sm font-medium text-blue-600">
+            {formatarMoeda(valorClinica)}
+          </span>
+        );
+      }
     },
     {
       key: 'valorProfissional',
       header: '💵 Valor Profissional',
       essential: true,
-      render: (item) => (
-        <span className="text-sm font-medium text-emerald-600">
-          {formatarMoeda(calcularValorEmReais(item, 'profissional'))}
-        </span>
-      )
+      render: (item) => {
+        // Mostrar valorProfissional direto da tabela servicos ou do precoProfissional personalizado
+        const servico = servicos.find(s => s.id === item.servicoId);
+        const valorProfissional = item.precoProfissional ?? servico?.valorProfissional ?? 0;
+        return (
+          <span className="text-sm font-medium text-emerald-600">
+            {formatarMoeda(valorProfissional)}
+          </span>
+        );
+      }
     },
     {
       key: 'percentualClinica',
       header: '🏥 Clínica (%)',
       essential: false,
       render: (item) => {
-        const percentualClinica = item.percentualClinica || 0;
-        const colors = getPercentualProfissionalColor(item.percentualProfissional || 0);
+        // Mostrar percentualClinica direto da tabela servicos ou do percentualClinica personalizado
+        const servico = servicos.find(s => s.id === item.servicoId);
+        const percentualClinica = item.percentualClinica ?? servico?.percentualClinica ?? 0;
+        const percentualProfissional = item.percentualProfissional ?? servico?.percentualProfissional ?? 0;
+        const colors = getPercentualProfissionalColor(percentualProfissional);
         return (
           <span className={`text-sm px-2 py-1 rounded-md font-medium ${colors.bg} ${colors.text}`}>
-            {percentualClinica.toFixed(2).replace('.', ',')}%
+            {percentualClinica.toFixed(0)}%
           </span>
         );
       }
@@ -200,11 +219,13 @@ export default function PrecosServicoProfissionalPage() {
       header: '👨‍⚕️ Profissional (%)',
       essential: true,
       render: (item) => {
-        const percentualAtual = obterPercentualAtual(item);
-        const colors = getPercentualProfissionalColor(percentualAtual);
+        // Mostrar percentualProfissional direto da tabela servicos ou do percentualProfissional personalizado
+        const servico = servicos.find(s => s.id === item.servicoId);
+        const percentualProfissional = item.percentualProfissional ?? servico?.percentualProfissional ?? 0;
+        const colors = getPercentualProfissionalColor(percentualProfissional);
         return (
           <span className={`text-sm px-2 py-1 rounded-md font-medium ${colors.bg} ${colors.text}`}>
-            {percentualAtual.toFixed(2).replace('.', ',')}%
+            {percentualProfissional.toFixed(0)}%
           </span>
         );
       }
@@ -489,19 +510,35 @@ export default function PrecosServicoProfissionalPage() {
               <div className="text-center">
                 <span className="text-xs text-muted-foreground">Valor Profissional</span>
                 <p className="text-sm font-medium text-emerald-600">
-                  {formatarMoeda(calcularValorEmReais(preco, 'profissional'))}
+                  {(() => {
+                    const servico = servicos.find(s => s.id === preco.servicoId);
+                    const valorProfissional = preco.precoProfissional ?? servico?.valorProfissional ?? 0;
+                    return formatarMoeda(valorProfissional);
+                  })()}
                 </p>
               </div>
               <div className="text-center">
                 <span className="text-xs text-muted-foreground">Valor Clínica</span>
                 <p className="text-sm font-medium text-blue-600">
-                  {formatarMoeda(calcularValorEmReais(preco, 'clinica'))}
+                  {(() => {
+                    const servico = servicos.find(s => s.id === preco.servicoId);
+                    const valorClinica = preco.precoClinica ?? servico?.valorClinica ?? 0;
+                    return formatarMoeda(valorClinica);
+                  })()}
                 </p>
               </div>
             </div>
             <div className="flex justify-center">
               <span className={`text-xs px-2 py-1 rounded-md font-medium ${colors.bg} ${colors.text}`}>
-                Prof: {percentualAtual.toFixed(1)}% | Clín: {(preco.percentualClinica || 0).toFixed(1)}%
+                Prof: {(() => {
+                  const servico = servicos.find(s => s.id === preco.servicoId);
+                  const percentualProfissional = preco.percentualProfissional ?? servico?.percentualProfissional ?? 0;
+                  return percentualProfissional.toFixed(0);
+                })()}% | Clín: {(() => {
+                  const servico = servicos.find(s => s.id === preco.servicoId);
+                  const percentualClinica = preco.percentualClinica ?? servico?.percentualClinica ?? 0;
+                  return percentualClinica.toFixed(0);
+                })()}%
               </span>
             </div>
           </div>
@@ -538,6 +575,9 @@ export default function PrecosServicoProfissionalPage() {
       profissionalId: '',
       servicoId: '',
       valorProfissional: '',
+      valorClinica: '',
+      percentualProfissional: null,
+      percentualClinica: null,
     });
     setFormError('');
     setShowModal(true);
@@ -546,16 +586,26 @@ export default function PrecosServicoProfissionalPage() {
   const abrirModalEditar = (preco: PrecoServicoProfissional) => {
     setEditando(preco);
     
-    // Calcular valor em R$ a partir do percentual salvo no banco
-    const valorEmReais = calcularValorEmReais(preco, 'profissional');
+    // Usar os valores diretos da tabela servicos ou dos precos personalizados
+    const servico = servicos.find(s => s.id === preco.servicoId);
+    const valorProfissional = preco.precoProfissional ?? servico?.valorProfissional ?? 0;
+    const valorClinica = preco.precoClinica ?? servico?.valorClinica ?? 0;
+    const percentualProfissional = preco.percentualProfissional ?? servico?.percentualProfissional ?? 0;
+    const percentualClinica = preco.percentualClinica ?? servico?.percentualClinica ?? 0;
     
     setForm({
       profissionalId: preco.profissionalId,
       servicoId: preco.servicoId,
-      valorProfissional: valorEmReais.toLocaleString('pt-BR', { 
+      valorProfissional: valorProfissional.toLocaleString('pt-BR', { 
         minimumFractionDigits: 2, 
         maximumFractionDigits: 2 
       }),
+      valorClinica: valorClinica.toLocaleString('pt-BR', { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+      }),
+      percentualProfissional,
+      percentualClinica,
     });
     setFormError('');
     setShowModal(true);
@@ -568,6 +618,9 @@ export default function PrecosServicoProfissionalPage() {
       profissionalId: '',
       servicoId: '',
       valorProfissional: '',
+      valorClinica: '',
+      percentualProfissional: null,
+      percentualClinica: null,
     });
     setFormError('');
   };
@@ -577,16 +630,25 @@ export default function PrecosServicoProfissionalPage() {
     if (!servico || !servico.preco || valorProfissional <= 0) {
       return { 
         percentualProfissional: 0, 
-        percentualClinica: 0
+        percentualClinica: 0,
+        valorClinica: 0,
+        valorProfissional: 0
       };
     }
     
-    const percentualProfissional = Math.min(100, (valorProfissional / servico.preco) * 100);
-    const percentualClinica = 100 - percentualProfissional;
+    // Limitar valor máximo ao preço total
+    const valorProfissionalFinal = Math.min(valorProfissional, servico.preco);
+    const valorClinicaFinal = servico.preco - valorProfissionalFinal;
+    
+    // Calcular percentuais arredondados que somem 100%
+    let percentualProfissional = Math.round((valorProfissionalFinal / servico.preco) * 100);
+    let percentualClinica = 100 - percentualProfissional;
     
     return { 
-      percentualProfissional: Number(percentualProfissional.toFixed(2)), 
-      percentualClinica: Number(percentualClinica.toFixed(2))
+      percentualProfissional, 
+      percentualClinica,
+      valorClinica: valorClinicaFinal,
+      valorProfissional: valorProfissionalFinal
     };
   };
 
@@ -661,19 +723,17 @@ export default function PrecosServicoProfissionalPage() {
     setFormError('');
 
     try {
-      // Calcular valores e percentuais
-      const valorClinica = servico.preco - valorProf;
-      const percentualProfissional = Number(((valorProf / servico.preco) * 100).toFixed(2));
-      const percentualClinica = Number(((valorClinica / servico.preco) * 100).toFixed(2));
+      // Usar a nova função que aplica arredondamento correto dos percentuais
+      const calculado = calcularPercentuais(form.servicoId, valorProf);
       
-      // Agora enviamos tanto valores diretos quanto percentuais
+      // Agora enviamos tanto valores diretos quanto percentuais com arredondamento correto
       const dadosPreco: Omit<PrecoServicoProfissional, 'id'> = {
         profissionalId: form.profissionalId,
         servicoId: form.servicoId,
-        precoProfissional: valorProf,              // Valor direto do profissional
-        precoClinica: valorClinica,                // Valor direto da clínica  
-        percentualProfissional: percentualProfissional, // % do profissional
-        percentualClinica: percentualClinica,      // % da clínica
+        precoProfissional: calculado.valorProfissional,    // Valor direto do profissional
+        precoClinica: calculado.valorClinica,              // Valor direto da clínica  
+        percentualProfissional: calculado.percentualProfissional, // % do profissional (arredondado)
+        percentualClinica: calculado.percentualClinica,    // % da clínica (arredondado)
       };
       
       if (editando) {
@@ -1041,7 +1101,25 @@ export default function PrecosServicoProfissionalPage() {
                             id: form.servicoId, 
                             nome: `${servicos.find(s => s.id === form.servicoId)!.nome} - ${formatarMoeda(servicos.find(s => s.id === form.servicoId)!.preco)}` 
                           } : null}
-                          onChange={(selected) => setForm(f => ({ ...f, servicoId: selected?.id || '' }))}
+                          onChange={(selected) => {
+                            const servicoId = selected?.id || '';
+                            const servico = servicos.find(s => s.id === servicoId);
+                            
+                            if (servico && !editando) {
+                              // Para novos registros, inicializar com valores padrão do serviço
+                              setForm(f => ({
+                                ...f,
+                                servicoId,
+                                valorProfissional: (servico.valorProfissional || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                                valorClinica: (servico.valorClinica || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                                percentualProfissional: servico.percentualProfissional || 0,
+                                percentualClinica: servico.percentualClinica || 0,
+                              }));
+                            } else {
+                              // Para edições, apenas alterar o servicoId
+                              setForm(f => ({ ...f, servicoId }));
+                            }
+                          }}
                           placeholder="Selecione o serviço"
                           headerText="Serviços disponíveis"
                         />
@@ -1071,19 +1149,19 @@ export default function PrecosServicoProfissionalPage() {
                           </div>
                           <div className="text-center p-2 bg-white rounded-lg border border-blue-100">
                             <p className="text-xs text-gray-600">Valor Prof. Padrão</p>
-                            <p className="font-bold text-blue-700 text-sm">{formatarMoeda((servicoSelecionado.preco * (servicoSelecionado.percentualProfissional || 0)) / 100)}</p>
+                            <p className="font-bold text-blue-700 text-sm">{formatarMoeda(servicoSelecionado.valorProfissional || 0)}</p>
                           </div>
                           <div className="text-center p-2 bg-white rounded-lg border border-blue-100">
                             <p className="text-xs text-gray-600">Valor Clín. Padrão</p>
-                            <p className="font-bold text-purple-700 text-sm">{formatarMoeda((servicoSelecionado.preco * (servicoSelecionado.percentualClinica || 0)) / 100)}</p>
+                            <p className="font-bold text-purple-700 text-sm">{formatarMoeda(servicoSelecionado.valorClinica || 0)}</p>
                           </div>
                           <div className="text-center p-2 bg-white rounded-lg border border-blue-100">
                             <p className="text-xs text-gray-600">% Prof. Padrão</p>
-                            <p className="font-bold text-blue-600 text-sm">{(servicoSelecionado.percentualProfissional || 0).toFixed(1)}%</p>
+                            <p className="font-bold text-blue-600 text-sm">{(servicoSelecionado.percentualProfissional || 0).toFixed(0)}%</p>
                           </div>
                           <div className="text-center p-2 bg-white rounded-lg border border-blue-100">
                             <p className="text-xs text-gray-600">% Clín. Padrão</p>
-                            <p className="font-bold text-purple-600 text-sm">{(servicoSelecionado.percentualClinica || 0).toFixed(1)}%</p>
+                            <p className="font-bold text-purple-600 text-sm">{(servicoSelecionado.percentualClinica || 0).toFixed(0)}%</p>
                           </div>
                         </div>
                       );
@@ -1104,8 +1182,63 @@ export default function PrecosServicoProfissionalPage() {
                             type="text"
                             value={form.valorProfissional}
                             onChange={(e) => {
-                              const valorFormatado = formatarMoedaInput(e.target.value);
-                              setForm(f => ({ ...f, valorProfissional: valorFormatado }));
+                              let valor = e.target.value;
+                              valor = valor.replace(/[^\d,]/g, '');
+                              const partes = valor.split(',');
+                              if (partes.length > 2) valor = partes[0] + ',' + partes.slice(1).join('');
+                              
+                              if (!form.servicoId) {
+                                setForm(f => ({ ...f, valorProfissional: valor }));
+                                return;
+                              }
+                              
+                              const servico = servicos.find(s => s.id === form.servicoId);
+                              if (!servico || !servico.preco) {
+                                setForm(f => ({ 
+                                  ...f, 
+                                  valorProfissional: valor, 
+                                  valorClinica: '',
+                                  percentualProfissional: null, 
+                                  percentualClinica: null 
+                                }));
+                                return;
+                              }
+                              
+                              const valorNum = Number(valor.replace(/\./g, '').replace(',', '.'));
+                              if (isNaN(valorNum)) {
+                                setForm(f => ({ ...f, valorProfissional: valor }));
+                                return;
+                              }
+                              
+                              // Aplicar a mesma lógica do ServicosPage
+                              const valorProfissionalFinal = Math.min(valorNum, servico.preco);
+                              const valorClinicaFinal = servico.preco - valorProfissionalFinal;
+                              
+                              // Calcular percentuais arredondados que somem 100%
+                              let pctProfissional = Math.round((valorProfissionalFinal / servico.preco) * 100);
+                              let pctClinica = 100 - pctProfissional;
+                              
+                              // Manter os valores R$ conforme digitados/calculados
+                              const valorProfissionalFormatado = valor; // Manter o valor digitado
+                              const valorClinicaFormatado = valorClinicaFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                              
+                              setForm(f => ({ 
+                                ...f, 
+                                valorProfissional: valorProfissionalFormatado,
+                                valorClinica: valorClinicaFormatado,
+                                percentualProfissional: pctProfissional, 
+                                percentualClinica: pctClinica
+                              }));
+                            }}
+                            onBlur={(e) => {
+                              setForm(f => {
+                                if (!f.valorProfissional) return f;
+                                // Apenas formatar o valor digitado sem recalcular
+                                const valorNum = Number(f.valorProfissional.replace(/\./g, '').replace(',', '.'));
+                                if (isNaN(valorNum)) return f;
+                                const valorFormatado = valorNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                return { ...f, valorProfissional: valorFormatado };
+                              });
                             }}
                             className="w-full pl-10 pr-4 py-3 border-2 border-yellow-300 rounded-xl focus:ring-4 focus:ring-yellow-100 focus:border-yellow-500 transition-all duration-200 font-semibold text-lg text-gray-800 bg-white hover:border-yellow-400"
                             placeholder="0,00"
