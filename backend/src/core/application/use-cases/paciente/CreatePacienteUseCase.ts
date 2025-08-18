@@ -19,6 +19,8 @@ interface IRequest {
   cbo?: string | null;
   cid?: string | null;
   userId?: string | null;
+  autoPedidos?: boolean | null;
+  descricao?: string | null;
 }
 
 @injectable()

@@ -23,6 +23,8 @@ const bodySchema = z.object({
   cid: z.string().optional().nullable(),
   pedidoMedicoArquivo: z.string().optional().nullable(),
   userId: z.string().uuid().optional().nullable(),
+  autoPedidos: z.boolean().optional().nullable(),
+  descricao: z.string().optional().nullable(),
 });
 
 export class PacientesController {

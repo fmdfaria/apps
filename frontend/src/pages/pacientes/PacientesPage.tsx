@@ -117,6 +117,8 @@ export const PacientesPage = () => {
     crm: '',
     cbo: '',
     cid: '',
+    autoPedidos: true,
+    descricao: '',
   });
   const [formConvenioError, setFormConvenioError] = useState('');
   const [formConvenioLoading, setFormConvenioLoading] = useState(false);
@@ -182,16 +184,6 @@ export const PacientesPage = () => {
       render: (item) => (
         <span className="text-sm font-mono bg-green-100 px-2 py-1 rounded text-green-700">
           {item.whatsapp ? formatWhatsApp(item.whatsapp) : '-'}
-        </span>
-      )
-    },
-    {
-      key: 'dataNascimento',
-      header: '🎂 Data Nasc.',
-      essential: true,
-      render: (item) => (
-        <span className="text-sm">
-          {item.dataNascimento ? new Date(item.dataNascimento).toLocaleDateString('pt-BR') : '-'}
         </span>
       )
     },
@@ -658,6 +650,8 @@ export const PacientesPage = () => {
       crm: p.crm || '',
       cbo: p.cbo || '',
       cid: p.cid || '',
+      autoPedidos: p.autoPedidos ?? true,
+      descricao: p.descricao || '',
     });
     setFormConvenioError('');
     setShowConvenioModal(true);
@@ -673,6 +667,8 @@ export const PacientesPage = () => {
       crm: '',
       cbo: '',
       cid: '',
+      autoPedidos: true,
+      descricao: '',
     });
     setFormConvenioError('');
   };
@@ -723,10 +719,6 @@ export const PacientesPage = () => {
               </div>
             )}
 
-            <div className="flex items-center gap-1">
-              <span>🎂</span>
-              <span>{paciente.dataNascimento ? new Date(paciente.dataNascimento).toLocaleDateString('pt-BR') : 'Não informado'}</span>
-            </div>
             
             {(() => {
               const convenio = convenios.find(c => c.id === paciente.convenioId);
@@ -1111,26 +1103,44 @@ export const PacientesPage = () => {
           // Validação
           if (!formConvenio.convenioId.trim()) {
             setFormConvenioError('Selecione um convênio.');
+            AppToast.error('Campo obrigatório', {
+              description: 'Selecione um convênio.'
+            });
             return;
           }
           if (!formConvenio.numeroCarteirinha.trim()) {
             setFormConvenioError('Número da carteirinha é obrigatório.');
+            AppToast.error('Campo obrigatório', {
+              description: 'Número da carteirinha é obrigatório.'
+            });
             return;
           }
           if (!formConvenio.dataPedidoMedico) {
             setFormConvenioError('Data do pedido médico é obrigatória.');
+            AppToast.error('Campo obrigatório', {
+              description: 'Data do pedido médico é obrigatória.'
+            });
             return;
           }
           if (!formConvenio.crm.trim()) {
             setFormConvenioError('CRM é obrigatório.');
+            AppToast.error('Campo obrigatório', {
+              description: 'CRM é obrigatório.'
+            });
             return;
           }
           if (!formConvenio.cbo.trim()) {
             setFormConvenioError('CBO é obrigatório.');
+            AppToast.error('Campo obrigatório', {
+              description: 'CBO é obrigatório.'
+            });
             return;
           }
           if (!formConvenio.cid.trim()) {
             setFormConvenioError('CID é obrigatório.');
+            AppToast.error('Campo obrigatório', {
+              description: 'CID é obrigatório.'
+            });
             return;
           }
 
@@ -1150,6 +1160,8 @@ export const PacientesPage = () => {
             crm: formConvenio.crm,
             cbo: formConvenio.cbo,
             cid: formConvenio.cid,
+            autoPedidos: formConvenio.autoPedidos,
+            descricao: formConvenio.descricao,
           };
 
           try {

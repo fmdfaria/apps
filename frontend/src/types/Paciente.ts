@@ -15,4 +15,6 @@ export interface Paciente {
   cid?: string | null;
   userId?: string | null;
   ativo?: boolean;
+  autoPedidos?: boolean | null;
+  descricao?: string | null;
 } 

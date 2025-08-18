@@ -89,6 +89,8 @@ model Paciente {
   cid                 String?                      @db.VarChar(255)
   userId              String?                      @map("user_id") @db.Uuid
   ativo               Boolean?                     @default(true)
+  autoPedidos         Boolean?                     @default(true) @map("auto_pedidos")
+  descricao           String?                      @db.Text
   createdAt           DateTime?                    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime?                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   agendamentos        Agendamento[]

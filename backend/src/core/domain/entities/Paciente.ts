@@ -19,6 +19,8 @@ export class Paciente {
   cid?: string | null;
   userId?: string | null;
   ativo?: boolean;
+  autoPedidos?: boolean | null;
+  descricao?: string | null;
   createdAt!: Date;
   updatedAt!: Date;
 

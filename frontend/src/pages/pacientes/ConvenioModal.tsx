@@ -3,16 +3,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Button } from '@/components/ui/button';
 import { FormErrorMessage } from '@/components/form-error-message';
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import type { Paciente } from '@/types/Paciente';
 import type { Convenio } from '@/types/Convenio';
 
-interface FormConvenio {
+export interface FormConvenio {
   convenioId: string;
   numeroCarteirinha: string;
   dataPedidoMedico: string;
   crm: string;
   cbo: string;
   cid: string;
+  autoPedidos: boolean;
+  descricao: string;
 }
 
 interface ConvenioModalProps {
@@ -149,6 +153,45 @@ export default function ConvenioModal({
                   value={form.cid}
                   onChange={e => onFormChange({ cid: e.target.value })}
                   className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
+                  disabled={formLoading}
+                />
+              </div>
+            </div>
+            
+            {/* Linha 4: Auto Pedidos (Switch) */}
+            <div className="grid grid-cols-1 gap-4">
+              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-200">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">🔄</span>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700">
+                      Auto Pedidos
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      Envia Whatsapp automaticamente para o paciente quando data do pedido estiver próxima do vencimento.
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={form.autoPedidos}
+                  onCheckedChange={(checked) => onFormChange({ autoPedidos: checked })}
+                  disabled={formLoading}
+                />
+              </div>
+            </div>
+            
+            {/* Linha 5: Descrição (Textarea) */}
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <span className="text-lg">📝</span>
+                  Descrição
+                </label>
+                <Textarea
+                  value={form.descricao}
+                  onChange={(e) => onFormChange({ descricao: e.target.value })}
+                  placeholder="Digite observações adicionais sobre o paciente..."
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300 min-h-[100px] resize-vertical"
                   disabled={formLoading}
                 />
               </div>

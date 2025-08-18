@@ -1,8 +1,7 @@
 
 import { useState, useRef } from 'react';
-import { Upload, X, File, Scan } from 'lucide-react';
+import { Upload, X, File } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { DocumentScannerFixed } from '@/components/ui/DocumentScannerFixed';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface FileUploadProps {
@@ -11,7 +10,6 @@ interface FileUploadProps {
   acceptedTypes?: string;
   maxFiles?: number;
   label?: string;
-  enableScanner?: boolean;
 }
 
 export const FileUpload = ({ 
@@ -19,11 +17,9 @@ export const FileUpload = ({
   onFilesChange, 
   acceptedTypes = '.pdf,.jpg,.jpeg,.png',
   maxFiles = 5,
-  label = 'Arquivos',
-  enableScanner = true
+  label = 'Arquivos'
 }: FileUploadProps) => {
   const [dragActive, setDragActive] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleDrag = (e: React.DragEvent) => {
@@ -70,18 +66,6 @@ export const FileUpload = ({
     inputRef.current?.click();
   };
 
-  const handleScannerPDF = (pdfBlob: Blob, fileName: string) => {
-    // Converter Blob para File
-    const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
-    
-    // Adicionar arquivo à lista
-    if (files.length < maxFiles) {
-      onFilesChange([...files, pdfFile]);
-    }
-    
-    setShowScanner(false);
-  };
-
   return (
     <div className="space-y-4">
       <div
@@ -105,18 +89,7 @@ export const FileUpload = ({
         />
         
         <Upload className="w-8 h-8 text-gray-400 mx-auto mb-4" />
-        <p className="text-gray-600 mb-2">
-          Arraste arquivos aqui ou{' '}
-          <button
-            type="button"
-            onClick={onButtonClick}
-            className="text-blue-600 hover:text-blue-700 underline"
-          >
-            clique para selecionar
-          </button>
-        </p>
-        
-        <div className="flex justify-center gap-2 mt-4">
+        <div className="flex justify-center gap-2">
           <Button
             type="button"
             onClick={onButtonClick}
@@ -127,18 +100,6 @@ export const FileUpload = ({
             <Upload className="w-4 h-4" />
             Selecionar Arquivo
           </Button>
-          {enableScanner && (
-            <Button
-              type="button"
-              onClick={() => setShowScanner(true)}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2 text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700"
-            >
-              <Scan className="w-4 h-4" />
-              Digitalizar Documento
-            </Button>
-          )}
         </div>
         <p className="text-sm text-gray-400">
           Formatos aceitos: {acceptedTypes.replace(/\./g, '').toUpperCase()}
@@ -185,15 +146,6 @@ export const FileUpload = ({
             </div>
           ))}
         </div>
-      )}
-      
-      {/* Document Scanner Modal */}
-      {enableScanner && (
-        <DocumentScannerFixed
-          isOpen={showScanner}
-          onClose={() => setShowScanner(false)}
-          onSavePDF={handleScannerPDF}
-        />
       )}
     </div>
   );
