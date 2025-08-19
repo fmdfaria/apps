@@ -45,19 +45,13 @@ import {
   TableColumn 
 } from '@/components/layout';
 import type { FilterConfig } from '@/types/filters';
+import { formatWhatsAppDisplay } from '@/utils/whatsapp';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
 import { useTableFilters } from '@/hooks/useTableFilters';
 
-// Função para formatar WhatsApp
-const formatWhatsApp = (whatsapp: string) => {
-  if (!whatsapp) return '';
-  const numbers = whatsapp.replace(/\D/g, '');
-  if (numbers.length === 13) {
-    return `+${numbers.slice(0, 2)} (${numbers.slice(2, 4)}) ${numbers.slice(4, 9)}-${numbers.slice(9)}`;
-  }
-  return whatsapp;
-};
+// Formatação centralizada de WhatsApp (DDI internacional)
+const formatWhatsApp = (whatsapp: string) => formatWhatsAppDisplay(whatsapp);
 
 
 export const ProfissionaisPage = () => {

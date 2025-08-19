@@ -1,3 +1,5 @@
+import type { Convenio } from './Convenio';
+
 export interface Paciente {
   id: string;
   nomeCompleto: string;
@@ -17,4 +19,5 @@ export interface Paciente {
   ativo?: boolean;
   autoPedidos?: boolean | null;
   descricao?: string | null;
+  convenio?: Convenio | null;
 } 

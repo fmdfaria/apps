@@ -14,7 +14,8 @@ import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // Modais existentes
-import PacienteModal from './PacienteModal';
+import CriarPacienteModal from './CriarPacienteModal';
+import EditarPacienteModal from './EditarPacienteModal';
 import AnexoPacientesModal from './AnexoPacientesModal';
 import ConvenioModal from './ConvenioModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
@@ -39,24 +40,12 @@ import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
 import { useTableFilters } from '@/hooks/useTableFilters';
 import { getModuleTheme } from '@/types/theme';
-import { useInputMask } from '@/hooks/useInputMask';
+import { formatWhatsAppDisplay, isValidWhatsApp } from '@/utils/whatsapp';
 import { getAnexos } from '@/services/anexos';
 import type { Anexo } from '@/types/Anexo';
 
-// Função para formatar WhatsApp (suporta 8 e 9 dígitos)
-const formatWhatsApp = (whatsapp: string) => {
-  if (!whatsapp) return '';
-  const numbers = whatsapp.replace(/\D/g, '');
-  // Para números com 8 dígitos (12 total com DDI e DDD)
-  if (numbers.length === 12) {
-    return `+${numbers.slice(0, 2)} (${numbers.slice(2, 4)}) ${numbers.slice(4, 8)}-${numbers.slice(8)}`;
-  }
-  // Para números com 9 dígitos (13 total com DDI e DDD) 
-  if (numbers.length === 13) {
-    return `+${numbers.slice(0, 2)} (${numbers.slice(2, 4)}) ${numbers.slice(4, 9)}-${numbers.slice(9)}`;
-  }
-  return whatsapp;
-};
+// Formatação centralizada do WhatsApp
+const formatWhatsApp = (whatsapp: string) => formatWhatsAppDisplay(whatsapp);
 
 // Função para formatar CPF
 const formatCPF = (cpf: string) => {
@@ -82,7 +71,8 @@ export const PacientesPage = () => {
   const [convenios, setConvenios] = useState<Convenio[]>([]);
 
   // Estados dos modais existentes
-  const [showModal, setShowModal] = useState(false);
+  const [showCriarModal, setShowCriarModal] = useState(false);
+  const [showEditarModal, setShowEditarModal] = useState(false);
   const [editando, setEditando] = useState<Paciente | null>(null);
   const [form, setForm] = useState({
     nomeCompleto: '',
@@ -127,28 +117,7 @@ export const PacientesPage = () => {
   const [excluindo, setExcluindo] = useState<Paciente | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Máscara customizada para WhatsApp que suporta 8 e 9 dígitos
-  const maskTelefone = (value: string) => {
-    if (!value) return '';
-    const numbers = value.replace(/\D/g, '');
-    
-    // Limita a 13 dígitos (55 + DD + 9 dígitos)
-    const limitedNumbers = numbers.slice(0, 13);
-    
-    if (limitedNumbers.length <= 2) {
-      return `+${limitedNumbers}`;
-    } else if (limitedNumbers.length <= 4) {
-      return `+${limitedNumbers.slice(0, 2)} (${limitedNumbers.slice(2)}`;
-    } else if (limitedNumbers.length <= 8) {
-      return `+${limitedNumbers.slice(0, 2)} (${limitedNumbers.slice(2, 4)}) ${limitedNumbers.slice(4)}`;
-    } else if (limitedNumbers.length <= 12) {
-      // Para números de 8 dígitos
-      return `+${limitedNumbers.slice(0, 2)} (${limitedNumbers.slice(2, 4)}) ${limitedNumbers.slice(4, 8)}-${limitedNumbers.slice(8)}`;
-    } else {
-      // Para números de 9 dígitos
-      return `+${limitedNumbers.slice(0, 2)} (${limitedNumbers.slice(2, 4)}) ${limitedNumbers.slice(4, 9)}-${limitedNumbers.slice(9)}`;
-    }
-  };
+  // Máscara passou a ser responsabilidade do componente WhatsAppInput nos modais
 
   // Hooks responsivos
   const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'pacientes-view' });
@@ -223,23 +192,12 @@ export const PacientesPage = () => {
         label: 'Convênio'
       },
       render: (item) => {
-        const convenio = convenios.find(c => c.id === item.convenioId);
         return (
           <span className="text-sm">
-            {convenio?.nome || '-'}
+            {item.convenio?.nome || '-'}
           </span>
         );
       }
-    },
-    {
-      key: 'numeroCarteirinha',
-      header: '🆔 Nº Carteirinha',
-      essential: false,
-      render: (item) => (
-        <span className="text-sm font-mono bg-blue-100 px-2 py-1 rounded text-blue-700">
-          {item.numeroCarteirinha || '-'}
-        </span>
-      )
     },
     {
       key: 'status',
@@ -571,7 +529,7 @@ export const PacientesPage = () => {
     setEditando(null);
     setForm({ nomeCompleto: '', nomeResponsavel: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '', convenioId: '' });
     setFormError('');
-    setShowModal(true);
+    setShowCriarModal(true);
   };
 
   const abrirModalEditar = async (p: Paciente) => {
@@ -581,17 +539,24 @@ export const PacientesPage = () => {
       nomeResponsavel: p.nomeResponsavel || '',
       cpf: p.cpf || '',
       email: p.email || '',
-      whatsapp: maskTelefone(p.whatsapp || ''),
+      whatsapp: p.whatsapp || '',
       dataNascimento: p.dataNascimento ? p.dataNascimento.substring(0, 10) : '',
       tipoServico: p.tipoServico || 'Particular',
       convenioId: p.convenioId || '',
     });
     setFormError('');
-    setShowModal(true);
+    setShowEditarModal(true);
   };
 
-  const fecharModal = () => {
-    setShowModal(false);
+  const fecharCriarModal = () => {
+    setShowCriarModal(false);
+    setEditando(null);
+    setForm({ nomeCompleto: '', nomeResponsavel: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '', convenioId: '' });
+    setFormError('');
+  };
+
+  const fecharEditarModal = () => {
+    setShowEditarModal(false);
     setEditando(null);
     setForm({ nomeCompleto: '', nomeResponsavel: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '', convenioId: '' });
     setFormError('');
@@ -705,86 +670,92 @@ export const PacientesPage = () => {
             )}
 
             
-            {(() => {
-              const convenio = convenios.find(c => c.id === paciente.convenioId);
-              return convenio ? (
-                <div className="flex items-center gap-1">
-                  <span>🏥</span>
-                  <span className="text-blue-600 font-medium">{convenio.nome}</span>
-                </div>
-              ) : null;
-            })()}
-            
-            {paciente.numeroCarteirinha && (
+            {paciente.convenio && (
               <div className="flex items-center gap-1">
-                <span>🆔</span>
-                <span className="font-mono bg-blue-100 px-1 py-0.5 rounded text-blue-700">
-                  {paciente.numeroCarteirinha}
-                </span>
+                <span>🏥</span>
+                <span className="text-blue-600 font-medium">{paciente.convenio.nome}</span>
               </div>
             )}
+            
           </div>
         </div>
       </CardContent>
       
       <ResponsiveCardFooter>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white"
+        <ActionButton
+          variant="view"
+          module="pacientes"
           onClick={() => abrirModalEditar(paciente)}
           title="Editar dados do paciente"
         >
           <Edit className="w-4 h-4" />
-        </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white"
-          onClick={() => navigate(`/pacientes/evolucoes/${paciente.id}`)}
-          title="Evolução do paciente"
-        >
-          <History className="w-4 h-4" />
-        </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white"
+        </ActionButton>
+        <ActionButton
+          variant="view"
+          module="pacientes"
           onClick={() => abrirModalAnexo(paciente)}
           title="Gerenciar anexos"
         >
           <Paperclip className="w-4 h-4" />
-        </Button>
+        </ActionButton>
         {paciente.tipoServico === 'Convênio' ? (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white"
+          <ActionButton
+            variant="view"
+            module="pacientes"
             onClick={() => abrirModalConvenio(paciente)}
             title="Dados do convênio"
           >
             <Building2 className="w-4 h-4" />
-          </Button>
+          </ActionButton>
         ) : (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="border-gray-300 text-gray-400 cursor-not-allowed"
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
             disabled
             title="Paciente particular"
           >
             <Building2 className="w-4 h-4" />
           </Button>
         )}
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
-          onClick={() => setExcluindo(paciente)}
-          title="Excluir paciente"
+        <ActionButton
+          variant="view"
+          module="pacientes"
+          onClick={() => navigate(`/pacientes/evolucoes/${paciente.id}`)}
+          title="Evolução do paciente"
         >
-          <Trash2 className="w-4 h-4" />
-        </Button>
+          <History className="w-4 h-4" />
+        </ActionButton>
+        {canToggle ? (
+          <ActionButton
+            variant={paciente.ativo === true ? "delete" : "view"}
+            module="pacientes"
+            onClick={() => handleToggleStatus(paciente.id, !paciente.ativo)}
+            title={paciente.ativo === true ? "Inativar paciente" : "Ativar paciente"}
+          >
+            <RotateCcw className="w-4 h-4" />
+          </ActionButton>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
+            disabled
+            title="Sem permissão"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </Button>
+        )}
+        {canDelete && (
+          <ActionButton
+            variant="delete"
+            module="pacientes"
+            onClick={() => setExcluindo(paciente)}
+            title="Excluir paciente"
+          >
+            <Trash2 className="w-4 h-4" />
+          </ActionButton>
+        )}
       </ResponsiveCardFooter>
     </Card>
   );
@@ -960,13 +931,14 @@ export const PacientesPage = () => {
       )}
 
       {/* Modais existentes */}
-      <PacienteModal
-        showModal={showModal}
-        editando={editando}
+      {/* Modal de Criação */}
+      <CriarPacienteModal
+        showModal={showCriarModal}
+        editando={null}
         form={form}
         formError={formError}
         formLoading={formLoading}
-        onClose={fecharModal}
+        onClose={fecharCriarModal}
         onSubmit={async (e) => {
           e.preventDefault();
           
@@ -992,12 +964,10 @@ export const PacientesPage = () => {
             return;
           }
           
-          // Validar formato do WhatsApp (8 ou 9 dígitos)
-          const telefone8Digitos = /^\+55 \(\d{2}\) \d{4}-\d{4}$/.test(form.whatsapp.trim());
-          const telefone9Digitos = /^\+55 \(\d{2}\) \d{5}-\d{4}$/.test(form.whatsapp.trim());
-          if (!telefone8Digitos && !telefone9Digitos) {
+          // Validar telefone internacional (E.164 dígitos; DDI + DDD + número)
+          if (!isValidWhatsApp(form.whatsapp.trim())) {
             AppToast.error('Erro de Validação', {
-              description: 'WhatsApp inválido. Exemplo: +55 (12) 9999-9999 ou +55 (12) 99999-9999'
+              description: 'WhatsApp inválido. Exemplos: +55 (11) 99999-9999, +55 (11) 9999-9999, +1 (250) 999-9999'
             });
             return;
           }
@@ -1033,15 +1003,10 @@ export const PacientesPage = () => {
           };
 
           try {
-            if (editando) {
-              await updatePaciente(editando.id, pacientePayload);
-              AppToast.updated('Paciente', 'Os dados do paciente foram atualizados com sucesso.');
-            } else {
-              await createPaciente(pacientePayload);
-              AppToast.created('Paciente', 'O novo paciente foi cadastrado com sucesso.');
-            }
+            await createPaciente(pacientePayload);
+            AppToast.created('Paciente', 'O novo paciente foi cadastrado com sucesso.');
             await fetchData();
-            fecharModal();
+            fecharCriarModal();
           } catch (err: any) {
             let msg = 'Erro ao salvar paciente.';
             if (err?.response?.data?.message) msg = err.response.data.message;
@@ -1052,6 +1017,89 @@ export const PacientesPage = () => {
           }
         }}
         onFormChange={handleFormChange}
+        convenios={convenios}
+      />
+
+      {/* Modal de Edição */}
+      <EditarPacienteModal
+        showModal={showEditarModal}
+        editando={editando}
+        form={form}
+        formError={formError}
+        formLoading={formLoading}
+        onClose={fecharEditarModal}
+        onSubmit={async (e) => {
+          e.preventDefault();
+          
+          // Validação - Nome Completo, WhatsApp e Tipo de Serviço são obrigatórios no frontend
+          if (!form.nomeCompleto.trim() || form.nomeCompleto.trim().length < 2) {
+            AppToast.error('Erro de Validação', {
+              description: 'O Nome Completo deve ter pelo menos 2 caracteres.'
+            });
+            return;
+          }
+          
+          if (!form.whatsapp.trim()) {
+            AppToast.error('Erro de Validação', {
+              description: 'O WhatsApp é obrigatório.'
+            });
+            return;
+          }
+          
+          if (!form.tipoServico.trim()) {
+            AppToast.error('Erro de Validação', {
+              description: 'O Tipo de Serviço é obrigatório.'
+            });
+            return;
+          }
+          
+          // Validar telefone internacional
+          if (!isValidWhatsApp(form.whatsapp.trim())) {
+            AppToast.error('Erro de Validação', {
+              description: 'WhatsApp inválido. Exemplos: +55 (11) 99999-9999, +55 (11) 9999-9999, +1 (250) 999-9999'
+            });
+            return;
+          }
+          
+          if (form.email.trim() && !form.email.includes('@')) {
+            AppToast.error('Erro de Validação', {
+              description: 'E-mail inválido. Exemplo: nome@email.com'
+            });
+            return;
+          }
+
+          setFormLoading(true);
+          setFormError('');
+          const whatsappNumeros = form.whatsapp.replace(/\D/g, '');
+          const pacientePayload: any = {
+            nomeCompleto: form.nomeCompleto,
+            nomeResponsavel: form.nomeResponsavel.trim() || null,
+            cpf: form.cpf.trim() || null,
+            email: form.email.trim() || null,
+            whatsapp: whatsappNumeros,
+            dataNascimento: form.dataNascimento || null,
+            tipoServico: form.tipoServico,
+            convenioId: form.convenioId.trim() || null,
+          };
+
+          try {
+            if (editando) {
+              await updatePaciente(editando.id, pacientePayload);
+              AppToast.updated('Paciente', 'Os dados do paciente foram atualizados com sucesso.');
+              await fetchData();
+              fecharEditarModal();
+            }
+          } catch (err: any) {
+            let msg = 'Erro ao salvar paciente.';
+            if (err?.response?.data?.message) msg = err.response.data.message;
+            else if (err?.response?.data?.error) msg = err.response.data.error;
+            setFormError(msg);
+          } finally {
+            setFormLoading(false);
+          }
+        }}
+        onFormChange={handleFormChange}
+        convenios={convenios}
       />
       
       <AnexoPacientesModal

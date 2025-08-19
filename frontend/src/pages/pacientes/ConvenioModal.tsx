@@ -42,6 +42,34 @@ export default function ConvenioModal({
   onSubmit,
   onFormChange
 }: ConvenioModalProps) {
+  
+  // Buscar o convênio selecionado
+  const convenioSelecionado = convenios.find(c => c.id === form.convenioId);
+  const nomeConvenio = convenioSelecionado?.nome?.toLowerCase() || '';
+  
+  // Função para determinar se um campo é obrigatório baseado no convênio
+  const isFieldRequired = (field: string) => {
+    if (!nomeConvenio) return false;
+    
+    switch (field) {
+      case 'numeroCarteirinha':
+        // Sempre obrigatório para todos os convênios
+        return true;
+      
+      case 'dataPedidoMedico':
+      case 'crm':
+      case 'cbo':
+        // Obrigatório apenas para Amil e Mediservice
+        return nomeConvenio === 'amil' || nomeConvenio === 'mediservice';
+      
+      case 'cid':
+        // CID sempre obrigatório (regra básica)
+        return true;
+        
+      default:
+        return false;
+    }
+  };
   return (
     <Dialog open={showModal} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl">
@@ -84,7 +112,7 @@ export default function ConvenioModal({
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">🎫</span>
-                  Nº Carteirinha <span className="text-red-500">*</span>
+                  Nº Carteirinha {isFieldRequired('numeroCarteirinha') && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="text"
@@ -101,7 +129,7 @@ export default function ConvenioModal({
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">📅</span>
-                  Data Pedido Médico <span className="text-red-500">*</span>
+                  Data Pedido Médico {isFieldRequired('dataPedidoMedico') && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="date"
@@ -115,7 +143,7 @@ export default function ConvenioModal({
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">👨‍⚕️</span>
-                  CRM <span className="text-red-500">*</span>
+                  CRM {isFieldRequired('crm') && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="text"
@@ -132,7 +160,7 @@ export default function ConvenioModal({
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">🩺</span>
-                  CBO <span className="text-red-500">*</span>
+                  CBO {isFieldRequired('cbo') && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="text"
@@ -146,7 +174,7 @@ export default function ConvenioModal({
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">📋</span>
-                  CID <span className="text-red-500">*</span>
+                  CID {isFieldRequired('cid') && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="text"

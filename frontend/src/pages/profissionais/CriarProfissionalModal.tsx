@@ -7,6 +7,8 @@ import { createProfissional } from '@/services/profissionais';
 import { createUser } from '@/services/users';
 import { rbacService } from '@/services/rbac';
 import { useInputMask } from '@/hooks/useInputMask';
+import { WhatsAppInput } from '@/components/ui/whatsapp-input';
+import { isValidWhatsApp } from '@/utils/whatsapp';
 
 interface CriarProfissionalModalProps {
   open: boolean;
@@ -14,20 +16,7 @@ interface CriarProfissionalModalProps {
   onSuccess: () => void;
 }
 
-const applyWhatsAppMask = (value: string) => {
-  const numbers = value.replace(/\D/g, '');
-
-  if (numbers.length === 0) return '';
-  if (numbers.length <= 2) return `+${numbers}`;
-  if (numbers.length <= 4) return `+${numbers.slice(0, 2)} (${numbers.slice(2)}`;
-  if (numbers.length <= 9) return `+${numbers.slice(0, 2)} (${numbers.slice(2, 4)}) ${numbers.slice(4)}`;
-  return `+${numbers.slice(0, 2)} (${numbers.slice(2, 4)}) ${numbers.slice(4, 9)}-${numbers.slice(9, 13)}`;
-};
-
-// Função para remover máscara e retornar apenas números
-const removeWhatsAppMask = (value: string) => {
-  return value.replace(/\D/g, '');
-};
+// WhatsApp tratado pelo componente WhatsAppInput; form.whatsapp mantém apenas dígitos
 
 export default function CriarProfissionalModal({ open, onClose, onSuccess }: CriarProfissionalModalProps) {
   const [form, setForm] = useState({
@@ -67,9 +56,8 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
       setFormError('E-mail inválido. Exemplo: nome@email.com');
       return;
     }
-    const telefoneValido = /^\+55 \(\d{2}\) \d{5}-\d{4}$/.test(form.whatsapp.trim());
-    if (!form.whatsapp || !telefoneValido) {
-      setFormError('WhatsApp obrigatório e deve ser válido. Exemplo: +55 (11) 99999-9999');
+    if (!form.whatsapp || !isValidWhatsApp(form.whatsapp.trim())) {
+      setFormError('WhatsApp obrigatório e deve ser válido. Exemplos: +55 (11) 99999-9999, +1 (250) 999-9999');
       return;
     }
 
@@ -81,7 +69,7 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
         nome: form.nome.trim(),
         cpf: form.cpf,
         email: form.email.trim(),
-        whatsapp: form.whatsapp ? removeWhatsAppMask(form.whatsapp) : null,
+        whatsapp: form.whatsapp.replace(/\D/g, ''),
       };
 
       const profissional = await createProfissional(profissionalPayload);
@@ -90,7 +78,7 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
       const created = await createUser({
         nome: form.nome.trim(),
         email: form.email.trim(),
-        whatsapp: removeWhatsAppMask(form.whatsapp),
+        whatsapp: form.whatsapp.replace(/\D/g, ''),
         profissionalId: profissional.id,
       });
 
@@ -183,10 +171,9 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
                 <span className="text-lg">📱</span>
                 <span className="bg-gradient-to-r from-emerald-600 to-cyan-600 bg-clip-text text-transparent font-semibold">WhatsApp</span>
               </label>
-              <Input
-                type="text"
+              <WhatsAppInput
                 value={form.whatsapp}
-                onChange={e => setForm(f => ({ ...f, whatsapp: applyWhatsAppMask(e.target.value) }))}
+                onChange={(val) => setForm(f => ({ ...f, whatsapp: val }))}
                 className="hover:border-emerald-300 focus:border-emerald-500 focus:ring-emerald-100 font-mono"
                 disabled={formLoading}
                 placeholder="+55 (11) 99999-9999"

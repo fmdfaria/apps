@@ -33,7 +33,8 @@ import type { Anexo } from '@/types/Anexo';
 import { AppToast } from '@/services/toast';
 
 // Modais da PacientesPage
-import PacienteModal from '../pacientes/PacienteModal';
+import CriarPacienteModal from '../pacientes/CriarPacienteModal';
+import EditarPacienteModal from '../pacientes/EditarPacienteModal';
 import AnexoPacientesModal from '../pacientes/AnexoPacientesModal';
 import ConvenioModal from '../pacientes/ConvenioModal';
 
@@ -1021,7 +1022,7 @@ export const PedidosMedicosPage: React.FC = () => {
       )}
 
       {/* Modais reutilizados da PacientesPage */}
-      <PacienteModal
+      <EditarPacienteModal
         showModal={showModal}
         editando={editando}
         form={form}
@@ -1113,6 +1114,7 @@ export const PedidosMedicosPage: React.FC = () => {
             setFormLoading(false);
           }
         }}
+        convenios={convenios}
       />
 
       <AnexoPacientesModal

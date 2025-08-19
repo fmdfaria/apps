@@ -12,7 +12,7 @@ import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import type { User } from '@/types/User';
 import { FormErrorMessage } from '@/components/form-error-message';
 import { WhatsAppInput } from '@/components/ui/whatsapp-input';
-import { whatsAppFromStorage } from '@/utils/whatsapp';
+import { formatWhatsAppDisplay, isValidWhatsApp } from '@/utils/whatsapp';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import { 
   PageContainer, 
@@ -100,7 +100,7 @@ export const UsuariosPage = () => {
         placeholder: 'WhatsApp do usuário...',
         label: 'WhatsApp'
       },
-      render: (item) => <span className="text-sm">{whatsAppFromStorage(item.whatsapp)}</span>
+      render: (item) => <span className="text-sm">{formatWhatsAppDisplay(item.whatsapp)}</span>
     },
     {
       key: 'ativo',
@@ -317,7 +317,7 @@ export const UsuariosPage = () => {
       profissionalId: usuario.profissionalId ?? null,
     });
     setFormError('');
-    setWhatsappValid(true); // Assume que WhatsApp existente é válido
+    setWhatsappValid(isValidWhatsApp(usuario.whatsapp));
     setShowModal(true);
   };
 
@@ -367,6 +367,10 @@ export const UsuariosPage = () => {
     setFormLoading(true);
     try {
       if (editando) {
+        if (form.whatsapp && !whatsappValid) {
+          setFormError('WhatsApp inválido. Verifique o número informado.');
+          return;
+        }
         // Para edição, só enviar campos que mudaram
         const payload: any = {};
         if (form.nome !== editando.nome) payload.nome = form.nome.trim();

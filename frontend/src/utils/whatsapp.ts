@@ -3,36 +3,70 @@
  */
 
 /**
- * Formata um número de WhatsApp para exibição visual
- * @param whatsapp Número no formato 5511999999999
- * @returns Número formatado +55 (11) 99999-9999
+ * Formata um número de WhatsApp para exibição visual (DDI + DDD + número)
+ * Suporta:
+ *  - Brasil (+55): DDD 2 dígitos, número 8 ou 9 dígitos
+ *  - EUA/Canadá (+1): DDD 3 dígitos, número 7 dígitos (3-4)
+ *  - Outros: tentativa genérica (+CC (AAA) XXX-XXXX)
+ * @param whatsapp Número contendo apenas dígitos ou já formatado
  */
 export function formatWhatsAppDisplay(whatsapp: string): string {
   if (!whatsapp) return '';
-  
-  // Remove qualquer formatação existente
+
   const cleanNumber = whatsapp.replace(/\D/g, '');
-  
-  // Verifica se é um número brasileiro válido
-  if (cleanNumber.length < 13 || cleanNumber.length > 14 || !cleanNumber.startsWith('55')) {
-    return whatsapp; // Retorna original se inválido
+  if (!cleanNumber) return '';
+
+  // Brasil
+  if (cleanNumber.startsWith('55')) {
+    if (cleanNumber.length < 12) return `+55`;
+    const countryCode = '55';
+    const areaCode = cleanNumber.substring(2, 4);
+    const number = cleanNumber.substring(4);
+
+    if (number.length >= 9) {
+      return `+${countryCode} (${areaCode}) ${number.substring(0, 5)}-${number.substring(5, 9)}`;
+    }
+    if (number.length >= 8) {
+      return `+${countryCode} (${areaCode}) ${number.substring(0, 4)}-${number.substring(4, 8)}`;
+    }
+    // Parcial durante digitação
+    if (number.length > 0) {
+      return `+${countryCode} (${areaCode}) ${number}`;
+    }
+    return `+${countryCode} (${areaCode})`;
   }
-  
-  // Extrai as partes do número
-  const countryCode = cleanNumber.substring(0, 2); // 55
-  const areaCode = cleanNumber.substring(2, 4); // 11
-  const number = cleanNumber.substring(4); // 999999999
-  
-  // Formata baseado no tamanho do número
-  if (number.length === 9) {
-    // Celular com 9 dígitos: +55 (11) 99999-9999
-    return `+${countryCode} (${areaCode}) ${number.substring(0, 5)}-${number.substring(5)}`;
-  } else if (number.length === 8) {
-    // Fixo com 8 dígitos: +55 (11) 9999-9999
-    return `+${countryCode} (${areaCode}) ${number.substring(0, 4)}-${number.substring(4)}`;
+
+  // EUA/Canadá (NANP)
+  if (cleanNumber.startsWith('1')) {
+    const countryCode = '1';
+    if (cleanNumber.length <= 1) return `+${countryCode}`;
+    const area = cleanNumber.substring(1, Math.min(4, cleanNumber.length));
+    const rest = cleanNumber.substring(Math.min(4, cleanNumber.length));
+
+    if (!rest) return `+${countryCode} (${area}` + (area.length === 3 ? ')' : '');
+
+    if (rest.length <= 3) {
+      return `+${countryCode} (${area}) ${rest}`;
+    }
+    const first = rest.substring(0, 3);
+    const last = rest.substring(3, 7);
+    return `+${countryCode} (${area}) ${first}` + (last ? `-${last}` : '');
   }
-  
-  return whatsapp; // Retorna original se não conseguir formatar
+
+  // Genérico: tenta CC de 2-3 dígitos, DDD 3 dígitos, número 3-4
+  const ccLen = cleanNumber.length >= 3 ? 2 : Math.min(2, cleanNumber.length);
+  const countryCode = cleanNumber.substring(0, ccLen);
+  const area = cleanNumber.substring(ccLen, Math.min(ccLen + 3, cleanNumber.length));
+  const rest = cleanNumber.substring(ccLen + 3);
+
+  if (!area) return `+${countryCode}`;
+
+  if (!rest) return `+${countryCode} (${area}` + (area.length === 3 ? ')' : '');
+
+  if (rest.length <= 3) {
+    return `+${countryCode} (${area}) ${rest}`;
+  }
+  return `+${countryCode} (${area}) ${rest.substring(0, 3)}-${rest.substring(3, 7)}`;
 }
 
 /**
@@ -50,49 +84,45 @@ export function cleanWhatsApp(whatsapp: string): string {
  * @returns Valor formatado com máscara
  */
 export function applyWhatsAppMask(value: string): string {
-  // Remove tudo que não é número
   const cleanValue = value.replace(/\D/g, '');
-  
-  // Se não tem números, retorna vazio
   if (!cleanValue) return '';
-  
-  // Se começar com 5 mas não com 55, permite continuar digitando
-  if (cleanValue.length === 1 && cleanValue === '5') {
-    return '5';
-  }
-  
-  // Se começar com 55, aplica a formatação
+
+  // Brasil
   if (cleanValue.startsWith('55')) {
-    let formatted = '+55';
-    
-    if (cleanValue.length > 2) {
-      // Adiciona parênteses no DDD
-      const areaCode = cleanValue.substring(2, 4);
-      formatted += ` (${areaCode}`;
-      
-      if (cleanValue.length > 4) {
-        formatted += ')';
-        
-        const number = cleanValue.substring(4);
-        
-        if (number.length <= 4) {
-          // Primeiros 4 dígitos
-          formatted += ` ${number}`;
-        } else if (number.length <= 8) {
-          // Formato: +55 (11) 9999-9999 (fixo)
-          formatted += ` ${number.substring(0, 4)}-${number.substring(4)}`;
-        } else {
-          // Formato: +55 (11) 99999-9999 (celular)
-          formatted += ` ${number.substring(0, 5)}-${number.substring(5, 9)}`;
-        }
-      }
-    }
-    
-    return formatted;
+    const country = '+55';
+    if (cleanValue.length <= 2) return country;
+    if (cleanValue.length <= 4) return `${country} (${cleanValue.substring(2)}`;
+
+    const area = cleanValue.substring(2, 4);
+    const number = cleanValue.substring(4);
+
+    if (number.length <= 4) return `${country} (${area}) ${number}`;
+    if (number.length <= 8) return `${country} (${area}) ${number.substring(0, 4)}-${number.substring(4)}`;
+    return `${country} (${area}) ${number.substring(0, 5)}-${number.substring(5, 9)}`;
   }
-  
-  // Se não começar com 55, retorna apenas os números digitados (permite continuar)
-  return cleanValue;
+
+  // EUA/Canadá (NANP)
+  if (cleanValue.startsWith('1')) {
+    const country = '+1';
+    if (cleanValue.length <= 1) return country;
+    if (cleanValue.length <= 4) return `${country} (${cleanValue.substring(1)}`;
+
+    const area = cleanValue.substring(1, 4);
+    const rest = cleanValue.substring(4);
+    if (rest.length <= 3) return `${country} (${area}) ${rest}`;
+    return `${country} (${area}) ${rest.substring(0, 3)}-${rest.substring(3, 7)}`;
+  }
+
+  // Genérico: CC 2-3, DDD 3, número 3-4
+  const ccLen = cleanValue.length >= 3 ? 2 : Math.min(2, cleanValue.length);
+  const country = `+${cleanValue.substring(0, ccLen)}`;
+  if (cleanValue.length <= ccLen) return country;
+  if (cleanValue.length <= ccLen + 3) return `${country} (${cleanValue.substring(ccLen)}`;
+
+  const area = cleanValue.substring(ccLen, ccLen + 3);
+  const rest = cleanValue.substring(ccLen + 3);
+  if (rest.length <= 3) return `${country} (${area}) ${rest}`;
+  return `${country} (${area}) ${rest.substring(0, 3)}-${rest.substring(3, 7)}`;
 }
 
 /**
@@ -102,35 +132,27 @@ export function applyWhatsAppMask(value: string): string {
  */
 export function isValidWhatsApp(whatsapp: string): boolean {
   const cleanNumber = cleanWhatsApp(whatsapp);
-  
-  // Deve ter entre 12 e 14 dígitos e começar com 55
-  if (cleanNumber.length < 12 || cleanNumber.length > 14 || !cleanNumber.startsWith('55')) {
-    return false;
-  }
-  
-  // Verifica se o código de área é válido (11-99)
-  const areaCode = parseInt(cleanNumber.substring(2, 4));
-  if (areaCode < 11 || areaCode > 99) {
-    return false;
-  }
-  
-  // Para celular com 9 dígitos (5511999999999 = 14 dígitos)
-  if (cleanNumber.length === 14) {
-    const firstDigit = cleanNumber.charAt(4);
-    return firstDigit === '9';
-  }
-  
-  // Para fixo com 8 dígitos (55119999999 = 13 dígitos)
-  if (cleanNumber.length === 13) {
+  if (!cleanNumber) return false;
+
+  // Brasil
+  if (cleanNumber.startsWith('55')) {
+    if (cleanNumber.length < 12 || cleanNumber.length > 14) return false;
+    const areaCode = parseInt(cleanNumber.substring(2, 4));
+    if (Number.isNaN(areaCode) || areaCode < 11 || areaCode > 99) return false;
+    if (cleanNumber.length === 14) {
+      const firstDigit = cleanNumber.charAt(4);
+      return firstDigit === '9';
+    }
     return true;
   }
-  
-  // Para fixo com 8 dígitos (551199999999 = 12 dígitos) - formato mais antigo
-  if (cleanNumber.length === 12) {
-    return true;
+
+  // EUA/Canadá (NANP): 1 + 3 + 7 = 11
+  if (cleanNumber.startsWith('1')) {
+    return cleanNumber.length === 11;
   }
-  
-  return false;
+
+  // Genérico (E.164): 8 a 15 dígitos
+  return cleanNumber.length >= 8 && cleanNumber.length <= 15;
 }
 
 /**
@@ -139,14 +161,8 @@ export function isValidWhatsApp(whatsapp: string): boolean {
  * @returns Número para armazenar 5511999999999
  */
 export function whatsAppToStorage(whatsapp: string): string {
-  const cleanNumber = cleanWhatsApp(whatsapp);
-  
-  // Se não começar com 55, adiciona
-  if (cleanNumber && !cleanNumber.startsWith('55')) {
-    return `55${cleanNumber}`;
-  }
-  
-  return cleanNumber;
+  // Apenas retorna dígitos (E.164 sem "+"). Não adiciona DDI padrão.
+  return cleanWhatsApp(whatsapp);
 }
 
 /**

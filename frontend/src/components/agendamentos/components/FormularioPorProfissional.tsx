@@ -50,6 +50,27 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
     }
   }, [formData.profissionalId, buscarOcupacoes]);
 
+  // Aplicar regra do tipo de atendimento quando recursoId já estiver preenchido (modal pré-carregado)
+  useEffect(() => {
+    if (formData.recursoId && recursos.length > 0) {
+      const recursoSelecionado = recursos.find(r => r.id === formData.recursoId);
+      if (recursoSelecionado) {
+        let tipoAtendimento: TipoAtendimento = 'presencial';
+        const recursoNome = recursoSelecionado.nome.toLowerCase();
+        if (recursoNome.includes('online')) {
+          tipoAtendimento = 'online';
+        } else {
+          tipoAtendimento = 'presencial';
+        }
+        
+        // Só atualizar se o tipo atual for diferente
+        if (formData.tipoAtendimento !== tipoAtendimento) {
+          updateFormData({ tipoAtendimento });
+        }
+      }
+    }
+  }, [formData.recursoId, recursos, formData.tipoAtendimento, updateFormData]);
+
   // Função para verificar disponibilidade dos recursos usando a nova API
   const verificarDisponibilidadeRecursos = async () => {
     if (!dataAgendamento || !horaAgendamento) {
@@ -294,7 +315,7 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
               </label>
               <div className="w-full">
                 <SingleSelectDropdown
-                  options={(formData.convenioId ? pacientes.filter(p => p.convenioId === formData.convenioId) : pacientes).map(p => ({
+                  options={pacientes.map(p => ({
                     id: p.id,
                     nome: p.nomeCompleto,
                     sigla: p.whatsapp
@@ -334,13 +355,7 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                 </label>
                 <div className="w-full">
                   <SingleSelectDropdown
-                    options={(formData.pacienteId ? (() => {
-                      const pacienteSel = pacientes.find(p => p.id === formData.pacienteId);
-                      if (pacienteSel?.convenioId) {
-                        return convenios.filter(c => c.id === pacienteSel.convenioId);
-                      }
-                      return convenios;
-                    })() : convenios).map(c => ({
+                    options={convenios.map(c => ({
                       id: c.id,
                       nome: c.nome,
                       sigla: undefined
