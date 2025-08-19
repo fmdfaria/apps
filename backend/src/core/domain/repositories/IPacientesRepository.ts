@@ -22,8 +22,7 @@ export interface ICreatePacienteDTO {
 
 export interface IPacientesRepository {
   create(data: ICreatePacienteDTO): Promise<Paciente>;
-  findByCpf(cpf: string): Promise<Paciente | null>;
-  findByEmail(email: string): Promise<Paciente | null>;
+  findByNomeCompleto(nomeCompleto: string): Promise<Paciente | null>;
   findById(id: string): Promise<Paciente | null>;
   findAll(): Promise<Paciente[]>;
   findAllActive(): Promise<Paciente[]>;

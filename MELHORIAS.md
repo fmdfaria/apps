@@ -20,8 +20,10 @@
 - Qdo seleciono um arquivo com nome muito grande, está quebrando e ultrapassando o modal... deixar o nome do arquivo truncado com ... no final e se passar o mouse em cima.. mostra o tooltip com o nome inteiro..
 - Deixar enviar mais que 1 arquivo tbm
 
-### ServicosPage
-- Melhorar a criação / edição de um servico.
-- Deixar os campos de % desativados para alteração (criação e edição)
-- Permitir alteração somente dos campos de R$ (Clinica e profissional)..
-- Com base a alteração dos campos R$, calcular a % aredondada com 00,00, que a soma seja 100% entre clinica e profissional.
+### PacienteModal
+- No modal de criação / edição adicionar um novo campo 'Convênio' e liste dos convênios existentes.
+- Colocar o campo ficando assim:
+--Linha 1: Nome Completo | Nome Do Responsavel
+--Linha 2: Whastapp | CPF
+--Linha 3: Tipo de Serviço | Convênio
+--Linnha 4: Data de Nascimento | E-mail

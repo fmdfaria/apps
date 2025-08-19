@@ -49,16 +49,14 @@ export class PrismaPacientesRepository implements IPacientesRepository {
     });
     return paciente as Paciente;
   }
-  async findByCpf(cpf: string): Promise<Paciente | null> {
-    const paciente = await this.prisma.paciente.findUnique({
-      where: { cpf },
-      include: pacienteInclude,
-    });
-    return paciente as Paciente | null;
-  }
-  async findByEmail(email: string): Promise<Paciente | null> {
-    const paciente = await this.prisma.paciente.findUnique({
-      where: { email },
+  async findByNomeCompleto(nomeCompleto: string): Promise<Paciente | null> {
+    const paciente = await this.prisma.paciente.findFirst({
+      where: { 
+        nomeCompleto: {
+          equals: nomeCompleto,
+          mode: 'insensitive'
+        }
+      },
       include: pacienteInclude,
     });
     return paciente as Paciente | null;

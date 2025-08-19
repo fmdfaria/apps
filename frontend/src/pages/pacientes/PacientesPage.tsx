@@ -92,6 +92,7 @@ export const PacientesPage = () => {
     whatsapp: '',
     dataNascimento: '',
     tipoServico: '',
+    convenioId: '',
   });
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
@@ -209,23 +210,6 @@ export const PacientesPage = () => {
           }`}
         >
           {item.tipoServico || 'Particular'}
-        </Badge>
-      )
-    },
-    {
-      key: 'status',
-      header: '📊 Status',
-      essential: true,
-      render: (item) => (
-        <Badge 
-          variant="outline" 
-          className={`text-xs ${
-            item.ativo === true
-              ? 'bg-green-50 text-green-700 border-green-200' 
-              : 'bg-red-50 text-red-700 border-red-200'
-          }`}
-        >
-          {item.ativo === true ? 'Ativo' : 'Inativo'}
         </Badge>
       )
     },
@@ -585,7 +569,7 @@ export const PacientesPage = () => {
   // Funções dos modais existentes
   const abrirModalNovo = () => {
     setEditando(null);
-    setForm({ nomeCompleto: '', nomeResponsavel: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '' });
+    setForm({ nomeCompleto: '', nomeResponsavel: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '', convenioId: '' });
     setFormError('');
     setShowModal(true);
   };
@@ -600,6 +584,7 @@ export const PacientesPage = () => {
       whatsapp: maskTelefone(p.whatsapp || ''),
       dataNascimento: p.dataNascimento ? p.dataNascimento.substring(0, 10) : '',
       tipoServico: p.tipoServico || 'Particular',
+      convenioId: p.convenioId || '',
     });
     setFormError('');
     setShowModal(true);
@@ -608,7 +593,7 @@ export const PacientesPage = () => {
   const fecharModal = () => {
     setShowModal(false);
     setEditando(null);
-    setForm({ nomeCompleto: '', nomeResponsavel: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '' });
+    setForm({ nomeCompleto: '', nomeResponsavel: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '', convenioId: '' });
     setFormError('');
   };
 
@@ -1044,6 +1029,7 @@ export const PacientesPage = () => {
             whatsapp: whatsappNumeros,
             dataNascimento: form.dataNascimento || null,
             tipoServico: form.tipoServico,
+            convenioId: form.convenioId.trim() || null,
           };
 
           try {

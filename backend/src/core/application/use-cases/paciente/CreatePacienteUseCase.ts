@@ -36,11 +36,9 @@ export class CreatePacienteUseCase {
     // Copiar dados para permitir ajustes controlados
     const payload: IRequest = { ...data };
 
-    if (payload.cpf) {
-      const pacienteExists = await this.pacientesRepository.findByCpf(payload.cpf);
-      if (pacienteExists) {
-        throw new AppError('Já existe um paciente com este CPF.');
-      }
+    const pacienteExists = await this.pacientesRepository.findByNomeCompleto(payload.nomeCompleto);
+    if (pacienteExists) {
+      throw new AppError('Já existe um paciente com este nome.');
     }
 
     // Regra: Se tipo de serviço for "Particular", vincular automaticamente ao convênio "Particular"

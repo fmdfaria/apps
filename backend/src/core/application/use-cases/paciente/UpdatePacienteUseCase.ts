@@ -40,10 +40,10 @@ export class UpdatePacienteUseCase {
       throw new AppError('Paciente não encontrado.', 404);
     }
 
-    if (data.cpf && data.cpf !== paciente.cpf) {
-      const pacienteExists = await this.pacientesRepository.findByCpf(data.cpf);
+    if (data.nomeCompleto !== paciente.nomeCompleto) {
+      const pacienteExists = await this.pacientesRepository.findByNomeCompleto(data.nomeCompleto);
       if (pacienteExists) {
-        throw new AppError('Já existe um paciente com este CPF.');
+        throw new AppError('Já existe um paciente com este nome.');
       }
     }
 

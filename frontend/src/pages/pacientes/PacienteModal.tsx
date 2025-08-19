@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { FormErrorMessage } from '@/components/form-error-message';
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import type { Paciente } from '@/types/Paciente';
+import type { Convenio } from '@/types/Convenio';
 import { useInputMask } from '@/hooks/useInputMask';
+import { getConvenios } from '@/services/convenios';
 
 interface FormPaciente {
   nomeCompleto: string;
@@ -14,6 +16,7 @@ interface FormPaciente {
   whatsapp: string;
   dataNascimento: string;
   tipoServico: string;
+  convenioId: string;
 }
 
 interface PacienteModalProps {
@@ -37,6 +40,67 @@ export default function PacienteModal({
   onSubmit,
   onFormChange
 }: PacienteModalProps) {
+  const [convenios, setConvenios] = useState<Convenio[]>([]);
+  const [carregandoConvenios, setCarregandoConvenios] = useState(false);
+
+  useEffect(() => {
+    if (showModal) {
+      carregarConvenios();
+    }
+  }, [showModal]);
+
+  const carregarConvenios = async () => {
+    try {
+      setCarregandoConvenios(true);
+      const dados = await getConvenios();
+      setConvenios(dados);
+    } catch (error) {
+      console.error('Erro ao carregar convênios:', error);
+    } finally {
+      setCarregandoConvenios(false);
+    }
+  };
+
+  // Buscar o convênio "Particular" pelo nome
+  const getConvenioParticular = () => {
+    return convenios.find(c => c.nome.toLowerCase() === 'particular');
+  };
+
+  // Lógica para gerenciar o campo convênio baseado no tipo de serviço
+  useEffect(() => {
+    if (form.tipoServico === 'Particular') {
+      // Auto-selecionar "Particular" quando tipo = Particular
+      const convenioParticular = getConvenioParticular();
+      if (convenioParticular) {
+        onFormChange({ convenioId: convenioParticular.id });
+      }
+    } else if (form.tipoServico === 'Convênio') {
+      // Limpar seleção se estava em "Particular" e mudou para "Convênio"
+      const convenioParticular = getConvenioParticular();
+      if (convenioParticular && form.convenioId === convenioParticular.id) {
+        onFormChange({ convenioId: '' });
+      }
+    } else if (!form.tipoServico) {
+      // Se limpar o tipo de serviço, resetar o convênio
+      onFormChange({ convenioId: '' });
+    }
+  }, [form.tipoServico, convenios, onFormChange]);
+
+  // Função para filtrar opções de convênio
+  const getConvenioOptions = () => {
+    if (form.tipoServico === 'Particular') {
+      const convenioParticular = getConvenioParticular();
+      return convenioParticular ? [convenioParticular] : [];
+    } else if (form.tipoServico === 'Convênio') {
+      // Retorna todos os convênios exceto o "Particular"
+      return convenios.filter(c => c.nome.toLowerCase() !== 'particular');
+    }
+    return [];
+  };
+
+  // Verificar se o campo convênio deve estar habilitado
+  const isConvenioEnabled = form.tipoServico === 'Convênio';
+
   // Máscara customizada para WhatsApp que suporta 8 e 9 dígitos
   const maskTelefone = (value: string) => {
     if (!value) return '';
@@ -107,7 +171,7 @@ export default function PacienteModal({
               </div>
             </div>
 
-            {/* Linha 2: CPF | WhatsApp */}
+            {/* Linha 2: WhatsApp | CPF */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -139,7 +203,7 @@ export default function PacienteModal({
               </div>
             </div>
 
-            {/* Linha 3: E-mail | Tipo de Serviço */}
+            {/* Linha 3: Tipo de Serviço | Convênio */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -167,21 +231,43 @@ export default function PacienteModal({
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <span className="text-lg">📧</span>
-                  E-mail
+                  <span className="text-lg">🏥</span>
+                  Convênio
+                  {form.tipoServico && <span className="text-red-500">*</span>}
                 </label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={e => onFormChange({ email: e.target.value })}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
-                  placeholder="nome@email.com"
-                  disabled={formLoading}
-                />
+                <div className="w-full">
+                  <SingleSelectDropdown
+                    options={getConvenioOptions().map(convenio => ({ id: convenio.id, nome: convenio.nome }))}
+                    selected={form.convenioId ? {
+                      id: form.convenioId,
+                      nome: convenios.find(c => c.id === form.convenioId)?.nome || ''
+                    } : null}
+                    onChange={(selected) => {
+                      onFormChange({ convenioId: selected?.id || '' });
+                    }}
+                    placeholder={
+                      !form.tipoServico 
+                        ? "Selecione tipo de serviço..."
+                        : carregandoConvenios 
+                          ? "Carregando..." 
+                          : form.tipoServico === 'Particular'
+                            ? "Particular selecionado automaticamente"
+                            : "Selecione um convênio..."
+                    }
+                    headerText="Convênios"
+                    formatOption={(option) => option.nome}
+                    disabled={
+                      !form.tipoServico || 
+                      carregandoConvenios || 
+                      formLoading || 
+                      form.tipoServico === 'Particular'
+                    }
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Linha 4: Data de Nascimento */}
+            {/* Linha 4: Data de Nascimento | E-mail */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -196,7 +282,20 @@ export default function PacienteModal({
                   disabled={formLoading}
                 />
               </div>
-              <div></div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <span className="text-lg">📧</span>
+                  E-mail
+                </label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={e => onFormChange({ email: e.target.value })}
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
+                  placeholder="nome@email.com"
+                  disabled={formLoading}
+                />
+              </div>
             </div>
 
             {/* Footer */}
