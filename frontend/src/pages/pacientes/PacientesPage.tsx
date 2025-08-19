@@ -1142,35 +1142,70 @@ export const PacientesPage = () => {
             });
             return;
           }
-          if (!formConvenio.numeroCarteirinha.trim()) {
+          // Função para validar campos obrigatórios baseado no convênio
+          const convenioSelecionado = convenios.find(c => c.id === formConvenio.convenioId);
+          const nomeConvenio = convenioSelecionado?.nome?.toLowerCase() || '';
+          
+          const isFieldRequired = (field: string) => {
+            if (!nomeConvenio) return false;
+            
+            switch (field) {
+              case 'numeroCarteirinha':
+                // Sempre obrigatório para todos os convênios (regra geral)
+                return true;
+              
+              case 'dataPedidoMedico':
+              case 'crm':
+              case 'cbo':
+                // Obrigatório apenas para convênios específicos
+                return nomeConvenio === 'amil' || 
+                       nomeConvenio === 'mediservice' || 
+                       nomeConvenio === 'bradesco';
+              
+              case 'cid':
+                // CID obrigatório apenas para Bradesco (todos os campos)
+                return nomeConvenio === 'bradesco';
+                
+              default:
+                // Regra geral: qualquer campo não especificado é opcional
+                return false;
+            }
+          };
+
+          // Validações dinâmicas
+          if (isFieldRequired('numeroCarteirinha') && !formConvenio.numeroCarteirinha.trim()) {
             setFormConvenioError('Número da carteirinha é obrigatório.');
             AppToast.error('Campo obrigatório', {
               description: 'Número da carteirinha é obrigatório.'
             });
             return;
           }
-          if (!formConvenio.dataPedidoMedico) {
+          
+          if (isFieldRequired('dataPedidoMedico') && !formConvenio.dataPedidoMedico) {
             setFormConvenioError('Data do pedido médico é obrigatória.');
             AppToast.error('Campo obrigatório', {
               description: 'Data do pedido médico é obrigatória.'
             });
             return;
           }
-          if (!formConvenio.crm.trim()) {
+          
+          if (isFieldRequired('crm') && !formConvenio.crm.trim()) {
             setFormConvenioError('CRM é obrigatório.');
             AppToast.error('Campo obrigatório', {
               description: 'CRM é obrigatório.'
             });
             return;
           }
-          if (!formConvenio.cbo.trim()) {
+          
+          if (isFieldRequired('cbo') && !formConvenio.cbo.trim()) {
             setFormConvenioError('CBO é obrigatório.');
             AppToast.error('Campo obrigatório', {
               description: 'CBO é obrigatório.'
             });
             return;
           }
-          if (!formConvenio.cid.trim()) {
+          
+          if (isFieldRequired('cid') && !formConvenio.cid.trim()) {
             setFormConvenioError('CID é obrigatório.');
             AppToast.error('Campo obrigatório', {
               description: 'CID é obrigatório.'
@@ -1190,12 +1225,12 @@ export const PacientesPage = () => {
             tipoServico: pacienteConvenio.tipoServico,
             convenioId: formConvenio.convenioId,
             numeroCarteirinha: formConvenio.numeroCarteirinha,
-            dataPedidoMedico: formConvenio.dataPedidoMedico,
-            crm: formConvenio.crm,
-            cbo: formConvenio.cbo,
-            cid: formConvenio.cid,
+            dataPedidoMedico: formConvenio.dataPedidoMedico.trim() || null,
+            crm: formConvenio.crm.trim() || null,
+            cbo: formConvenio.cbo.trim() || null,
+            cid: formConvenio.cid.trim() || null,
             autoPedidos: formConvenio.autoPedidos,
-            descricao: formConvenio.descricao,
+            descricao: formConvenio.descricao.trim() || null,
           };
 
           try {

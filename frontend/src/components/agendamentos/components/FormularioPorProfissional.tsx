@@ -226,14 +226,7 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                 </label>
                 <div className="w-full">
                   <SingleSelectDropdown
-                    options={horariosVerificados.length > 0 ? 
-                      horariosVerificados.map(({ horario, verificacao }) => ({
-                        id: horario,
-                        nome: horario,
-                        sigla: undefined
-                      })) : 
-                      OPCOES_HORARIOS
-                    }
+                    options={OPCOES_HORARIOS}
                     selected={horaAgendamento ? {
                       id: horaAgendamento,
                       nome: horaAgendamento,
@@ -246,20 +239,14 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                     headerText="Horários disponíveis"
                     formatOption={(option) => option.nome}
                     getDotColor={(option) => {
-                      if (horariosVerificados.length > 0) {
-                        const horarioInfo = horariosVerificados.find(h => h.horario === option.id);
-                        return horarioInfo?.verificacao.dotColor || 'blue';
-                      }
-                      return 'blue';
+                      const horarioInfo = horariosVerificados.find(h => h.horario === option.id);
+                      return horarioInfo?.verificacao.dotColor || 'gray';
                     }}
                     getDisabled={(option) => {
-                      if (horariosVerificados.length > 0) {
-                        const horarioInfo = horariosVerificados.find(h => h.horario === option.id);
-                        const verificacao = horarioInfo?.verificacao;
-                        // Desabilitar apenas se for indisponível (vermelho) ou se estiver ocupado
-                        return verificacao?.dotColor === 'red' || verificacao?.isOcupado === true;
-                      }
-                      return false;
+                      const horarioInfo = horariosVerificados.find(h => h.horario === option.id);
+                      const verificacao = horarioInfo?.verificacao;
+                      // Desabilitar apenas se for indisponível (vermelho) ou se estiver ocupado
+                      return verificacao?.dotColor === 'red' || verificacao?.isOcupado === true;
                     }}
                   />
                 </div>

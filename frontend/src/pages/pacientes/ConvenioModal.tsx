@@ -53,20 +53,23 @@ export default function ConvenioModal({
     
     switch (field) {
       case 'numeroCarteirinha':
-        // Sempre obrigatório para todos os convênios
+        // Sempre obrigatório para todos os convênios (regra geral)
         return true;
       
       case 'dataPedidoMedico':
       case 'crm':
       case 'cbo':
-        // Obrigatório apenas para Amil e Mediservice
-        return nomeConvenio === 'amil' || nomeConvenio === 'mediservice';
+        // Obrigatório apenas para convênios específicos
+        return nomeConvenio === 'amil' || 
+               nomeConvenio === 'mediservice' || 
+               nomeConvenio === 'bradesco';
       
       case 'cid':
-        // CID sempre obrigatório (regra básica)
-        return true;
+        // CID obrigatório apenas para Bradesco (todos os campos)
+        return nomeConvenio === 'bradesco';
         
       default:
+        // Regra geral: qualquer campo não especificado é opcional
         return false;
     }
   };
