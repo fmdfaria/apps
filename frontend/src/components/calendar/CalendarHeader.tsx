@@ -1,7 +1,10 @@
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ChevronLeft, ChevronRight, CalendarIcon } from 'lucide-react';
 import { format, addDays, addWeeks, subDays, subWeeks } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useState } from 'react';
 
 interface CalendarHeaderProps {
   currentDate: Date;
@@ -16,6 +19,8 @@ export const CalendarHeader = ({
   onDateChange,
   onViewModeChange
 }: CalendarHeaderProps) => {
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
   const handlePrevious = () => {
     onDateChange(subDays(currentDate, 1));
   };
@@ -26,6 +31,13 @@ export const CalendarHeader = ({
 
   const handleToday = () => {
     onDateChange(new Date());
+  };
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      onDateChange(date);
+      setIsCalendarOpen(false);
+    }
   };
 
   const getDateRange = () => {
@@ -39,9 +51,26 @@ export const CalendarHeader = ({
           <ChevronLeft className="w-4 h-4" />
         </Button>
         
-        <span className="text-sm font-medium text-gray-900 min-w-[120px] text-center">
-          {getDateRange()}
-        </span>
+        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              className="text-sm font-medium text-gray-900 min-w-[120px] hover:bg-blue-50 hover:text-blue-700 hover:border hover:border-blue-200 flex items-center gap-2 transition-all duration-200 rounded-lg"
+            >
+              <CalendarIcon className="w-4 h-4" />
+              {getDateRange()}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="center">
+            <Calendar
+              mode="single"
+              selected={currentDate}
+              onSelect={handleDateSelect}
+              locale={ptBR}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
         
         <Button variant="outline" size="sm" onClick={handleNext}>
           <ChevronRight className="w-4 h-4" />

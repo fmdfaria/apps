@@ -34,6 +34,12 @@ import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
 
+// Interface para item da fila de webhooks
+interface WebhookQueueItem {
+  agendamento: Agendamento;
+  timestamp: number;
+}
+
 export const LiberarPage = () => {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +66,11 @@ export const LiberarPage = () => {
   const [showConfirmacaoReenvio, setShowConfirmacaoReenvio] = useState(false);
   const [agendamentoParaReenvio, setAgendamentoParaReenvio] = useState<Agendamento | null>(null);
 
+  // Sistema de fila para webhooks
+  const [webhookQueue, setWebhookQueue] = useState<WebhookQueueItem[]>([]);
+  const [isProcessingWebhook, setIsProcessingWebhook] = useState(false);
+  const webhookTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Funções auxiliares para gerenciar processamento paralelo
   const adicionarProcessamento = (agendamentoId: string) => {
     setAgendamentosProcessando(prev => new Set([...prev, agendamentoId]));
@@ -75,6 +86,67 @@ export const LiberarPage = () => {
 
   const estaProcessando = (agendamentoId: string) => {
     return agendamentosProcessando.has(agendamentoId);
+  };
+
+  // Funções para gerenciar a fila de webhooks
+  const adicionarNaFila = (agendamento: Agendamento) => {
+    const novoItem: WebhookQueueItem = {
+      agendamento,
+      timestamp: Date.now()
+    };
+    
+    setWebhookQueue(prev => [...prev, novoItem]);
+    adicionarProcessamento(agendamento.id);
+    
+    // O effect useEffect vai cuidar de disparar o processamento
+  };
+
+  // Função para processar o próximo webhook na fila
+  const processarProximoWebhook = async () => {
+    // Verificação dupla para evitar processamento paralelo
+    if (isProcessingWebhook) {
+      return;
+    }
+
+    // Pegar primeiro item da fila sem modificar o estado ainda
+    if (webhookQueue.length === 0) {
+      return;
+    }
+
+    setIsProcessingWebhook(true);
+    
+    const proximoItem = webhookQueue[0];
+    
+    try {
+      // Aplicar delay de 2 segundos
+      const tempoEspera = Math.max(0, 2000 - (Date.now() - proximoItem.timestamp));
+      
+      if (tempoEspera > 0) {
+        await new Promise(resolve => {
+          webhookTimeoutRef.current = setTimeout(resolve, tempoEspera);
+        });
+      }
+
+      // Executar webhook e aguardar sucesso completo
+      await executarWebhook(proximoItem.agendamento);
+      
+      // Sucesso: remover da fila e do processamento
+      setWebhookQueue(prev => prev.slice(1)); // Remove primeiro item
+      removerProcessamento(proximoItem.agendamento.id);
+      
+    } catch (error) {
+      console.error('Erro ao processar webhook:', error);
+      AppToast.error("Erro", { 
+        description: `Erro ao enviar solicitação para ${proximoItem.agendamento.pacienteNome}. Tente novamente.` 
+      });
+      
+      // Erro: também remover da fila
+      setWebhookQueue(prev => prev.slice(1)); // Remove primeiro item
+      removerProcessamento(proximoItem.agendamento.id);
+    } finally {
+      // Sempre liberar o processamento
+      setIsProcessingWebhook(false);
+    }
   };
 
   // Filtros por coluna
@@ -123,11 +195,29 @@ export const LiberarPage = () => {
     setBuscaLocal(busca);
   }, [busca]);
 
-  // Cleanup do timeout de busca ao desmontar componente
+  // Effect para processar fila quando há itens e não está processando
+  useEffect(() => {
+    // Só executar se há items na fila e não há processamento ativo
+    if (webhookQueue.length > 0 && !isProcessingWebhook) {
+      const timeoutId = setTimeout(() => {
+        // Verificação dupla antes de executar
+        if (webhookQueue.length > 0 && !isProcessingWebhook) {
+          processarProximoWebhook();
+        }
+      }, 50); // Pequeno delay para evitar chamadas simultâneas
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [webhookQueue.length, isProcessingWebhook]);
+
+  // Cleanup do timeout de busca e webhook ao desmontar componente
   useEffect(() => {
     return () => {
       if (buscaTimeoutRef.current) {
         clearTimeout(buscaTimeoutRef.current);
+      }
+      if (webhookTimeoutRef.current) {
+        clearTimeout(webhookTimeoutRef.current);
       }
     };
   }, []);
@@ -346,73 +436,73 @@ export const LiberarPage = () => {
     setAgendamentoParaReenvio(null);
   };
 
-  const handleSolicitarLiberacao = async (agendamento: Agendamento) => {
-    // Definir o agendamento como processando
-    adicionarProcessamento(agendamento.id);
+  // Função para executar o webhook efetivamente
+  const executarWebhook = async (agendamento: Agendamento) => {
+    const webhookUrl = import.meta.env.VITE_WEBHOOK_SOLICITAR_LIBERACAO_URL;
     
-    try {
-      const webhookUrl = import.meta.env.VITE_WEBHOOK_SOLICITAR_LIBERACAO_URL;
-      
-      if (!webhookUrl) {
-        AppToast.error("Erro de configuração", { 
-          description: "URL do webhook não configurada. Verifique o arquivo .env" 
-        });
-        return;
-      }
+    if (!webhookUrl) {
+      AppToast.error("Erro de configuração", { 
+        description: "URL do webhook não configurada. Verifique o arquivo .env" 
+      });
+      throw new Error("URL do webhook não configurada");
+    }
 
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(agendamento)
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(agendamento)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro HTTP: ${response.status}`);
+    }
+
+    // Capturar a resposta do webhook
+    const responseData = await response.json().catch(() => ({}));
+
+    // Atualizar o status no banco de dados
+    try {
+      await updateAgendamento(agendamento.id, {
+        status: 'SOLICITADO'
       });
 
-      if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
-      }
+      // Atualizar o status do agendamento localmente após sucesso no banco
+      setAgendamentos(prev => 
+        prev.map(a => 
+          a.id === agendamento.id 
+            ? { ...a, status: 'SOLICITADO' }
+            : a
+        )
+      );
 
-      // Capturar a resposta do webhook
-      const responseData = await response.json().catch(() => ({}));
+      // Exibir o retorno do webhook no toast
+      const mensagemWebhook = responseData.message || responseData.msg || responseData.description || JSON.stringify(responseData);
+      
+      AppToast.success("Sucesso", { 
+        description: `Solicitação enviada para ${agendamento.pacienteNome}! Status atualizado no banco de dados. Retorno: ${mensagemWebhook}` 
+      });
 
-      // Atualizar o status no banco de dados
-      try {
-        await updateAgendamento(agendamento.id, {
-          status: 'SOLICITADO'
-        });
+    } catch (dbError) {
+      
+      // Mesmo com erro no banco, o webhook foi enviado com sucesso
+      const mensagemWebhook = responseData.message || responseData.msg || responseData.description || JSON.stringify(responseData);
+      
+      AppToast.error("Webhook enviado, mas erro no banco", { 
+        description: `Solicitação enviada para ${agendamento.pacienteNome}, mas houve erro ao atualizar o status.` 
+      });
+    }
+  };
 
-        // Atualizar o status do agendamento localmente após sucesso no banco
-        setAgendamentos(prev => 
-          prev.map(a => 
-            a.id === agendamento.id 
-              ? { ...a, status: 'SOLICITADO' }
-              : a
-          )
-        );
-
-        // Exibir o retorno do webhook no toast
-        const mensagemWebhook = responseData.message || responseData.msg || responseData.description || JSON.stringify(responseData);
-        
-        AppToast.success("Sucesso", { 
-          description: `Solicitação enviada para ${agendamento.pacienteNome}! Status atualizado no banco de dados. Retorno: ${mensagemWebhook}` 
-        });
-
-      } catch (dbError) {
-        
-        // Mesmo com erro no banco, o webhook foi enviado com sucesso
-        const mensagemWebhook = responseData.message || responseData.msg || responseData.description || JSON.stringify(responseData);
-        
-        AppToast.error("Webhook enviado, mas erro no banco", { 
-          description: `Solicitação enviada para ${agendamento.pacienteNome}, mas houve erro ao atualizar o status.` 
-        });
-      }
-
+  const handleSolicitarLiberacao = async (agendamento: Agendamento) => {
+    // Adicionar na fila de webhooks em vez de executar imediatamente
+    try {
+      adicionarNaFila(agendamento);
     } catch (error) {
       AppToast.error("Erro", { 
-        description: `Erro ao enviar solicitação para ${agendamento.pacienteNome}. Tente novamente.` 
+        description: `Erro ao adicionar solicitação para ${agendamento.pacienteNome} na fila. Tente novamente.` 
       });
-    } finally {
-      // Limpar o estado de processamento
       removerProcessamento(agendamento.id);
     }
   };
@@ -787,7 +877,7 @@ export const LiberarPage = () => {
             {agendamentosProcessando.size > 0 && (
               <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-300">
                 <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                {agendamentosProcessando.size} {agendamentosProcessando.size > 1 ? 'solicitações' : 'solicitação'} em andamento, por favor aguarde...
+                Processando {agendamentosProcessando.size}
               </Badge>
             )}
           </div>
@@ -1029,14 +1119,6 @@ export const LiberarPage = () => {
                 <span className="text-gray-500">
                   {' '}(filtrados de {agendadosBase.length} total)
                 </span>
-              )}
-              {agendamentosProcessando.size > 0 && (
-                <div className="flex items-center gap-2 mt-1 text-blue-600">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  <span className="text-xs">
-                    {agendamentosProcessando.size} {agendamentosProcessando.size > 1 ? 'webhooks' : 'webhook'} em processamento
-                  </span>
-                </div>
               )}
             </div>
           </div>

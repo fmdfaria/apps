@@ -323,7 +323,7 @@ export default function EvolucaoPacientesModal({
                   setFormError('');
                 }}
                 disabled={formLoading}
-                rows={5}
+                rows={10}
                 className="resize-none"
               />
               <div className="text-xs text-gray-500">

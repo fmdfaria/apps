@@ -721,29 +721,17 @@ export const AtenderPage = () => {
                   Serviço
                 </div>
               </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">📝</span>
-                  Evolução
-                </div>
+              <TableHead className="py-3 text-xs font-semibold text-gray-700 text-center w-20">
+                <span>Evolução</span>
               </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">✅</span>
-                  Compareceu?
-                </div>
+              <TableHead className="py-3 text-xs font-semibold text-gray-700 text-center w-20">
+                <span>Compareceu</span>
               </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">✍️</span>
-                  Paciente Assinou?
-                </div>
+              <TableHead className="py-3 text-xs font-semibold text-gray-700 text-center w-24">
+                <span>Pac. Assinou</span>
               </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">👨‍⚕️</span>
-                  Profissional Assinou?
-                </div>
+              <TableHead className="py-3 text-xs font-semibold text-gray-700 text-center w-24">
+                <span>Prof. Assinou</span>
               </TableHead>
               <TableHead className="py-3 text-sm font-semibold text-gray-700">
                 <div className="flex items-center gap-2">
@@ -794,8 +782,8 @@ export const AtenderPage = () => {
                   <TableCell className="py-2">
                     <span className="text-sm">{agendamento.servicoNome}</span>
                   </TableCell>
-                  <TableCell className="py-2">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                  <TableCell className="py-1 text-center w-20">
+                    <span className={`text-xs px-1 py-0.5 rounded font-medium ${
                       evolucoesMap.get(agendamento.id) 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-red-100 text-red-800'
@@ -803,37 +791,37 @@ export const AtenderPage = () => {
                       {evolucoesMap.get(agendamento.id) ? 'SIM' : 'NÃO'}
                     </span>
                   </TableCell>
-                  <TableCell className="py-2">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                  <TableCell className="py-1 text-center w-20">
+                    <span className={`text-xs px-1 py-0.5 rounded font-medium ${
                       agendamento.compareceu === true
                         ? 'bg-green-100 text-green-800' 
                         : agendamento.compareceu === false
                         ? 'bg-red-100 text-red-800'
                         : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {agendamento.compareceu === true ? 'SIM' : agendamento.compareceu === false ? 'NÃO' : 'PENDENTE'}
+                      {agendamento.compareceu === true ? 'SIM' : agendamento.compareceu === false ? 'NÃO' : 'PEND'}
                     </span>
                   </TableCell>
-                  <TableCell className="py-2">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                  <TableCell className="py-1 text-center w-24">
+                    <span className={`text-xs px-1 py-0.5 rounded font-medium ${
                       agendamento.assinaturaPaciente === true
                         ? 'bg-green-100 text-green-800' 
                         : agendamento.assinaturaPaciente === false
                         ? 'bg-red-100 text-red-800'
                         : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {agendamento.assinaturaPaciente === true ? 'SIM' : agendamento.assinaturaPaciente === false ? 'NÃO' : 'PENDENTE'}
+                      {agendamento.assinaturaPaciente === true ? 'SIM' : agendamento.assinaturaPaciente === false ? 'NÃO' : 'PEND'}
                     </span>
                   </TableCell>
-                  <TableCell className="py-2">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                  <TableCell className="py-1 text-center w-24">
+                    <span className={`text-xs px-1 py-0.5 rounded font-medium ${
                       agendamento.assinaturaProfissional === true
                         ? 'bg-green-100 text-green-800' 
                         : agendamento.assinaturaProfissional === false
                         ? 'bg-red-100 text-red-800'
                         : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {agendamento.assinaturaProfissional === true ? 'SIM' : agendamento.assinaturaProfissional === false ? 'NÃO' : 'PENDENTE'}
+                      {agendamento.assinaturaProfissional === true ? 'SIM' : agendamento.assinaturaProfissional === false ? 'NÃO' : 'PEND'}
                     </span>
                   </TableCell>
                   <TableCell className="text-right py-2">

@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, User, Calendar, Clock, FileText, CreditCard } from 'lucide-react';
+import { CheckCircle, User, Calendar, Clock, FileText, CreditCard, UserCheck, Monitor, MapPin } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { liberarAgendamento } from '@/services/agendamentos';
 import { AppToast } from '@/services/toast';
@@ -27,14 +27,12 @@ export const LiberarAgendamentoModal: React.FC<LiberarAgendamentoModalProps> = (
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     codLiberacao: '',
-    statusCodLiberacao: '',
     dataCodLiberacao: new Date().toISOString().split('T')[0] // Data de hoje
   });
 
   const resetForm = () => {
     setFormData({
       codLiberacao: '',
-      statusCodLiberacao: '',
       dataCodLiberacao: new Date().toISOString().split('T')[0]
     });
   };
@@ -45,14 +43,21 @@ export const LiberarAgendamentoModal: React.FC<LiberarAgendamentoModalProps> = (
     if (!agendamento) return;
     
     // Validações
-    if (!formData.codLiberacao || !formData.statusCodLiberacao) {
-      AppToast.validation('Campos obrigatórios', 'Preencha todos os campos obrigatórios para continuar.');
+    if (!formData.codLiberacao) {
+      AppToast.validation('Campos obrigatórios', 'Preencha o código de liberação para continuar.');
       return;
     }
 
     setLoading(true);
     try {
-      await liberarAgendamento(agendamento.id, formData);
+      // Ajustar a data para evitar problemas de timezone
+      const dataLiberacao = new Date(formData.dataCodLiberacao + 'T12:00:00.000Z');
+      
+      await liberarAgendamento(agendamento.id, {
+        codLiberacao: formData.codLiberacao,
+        statusCodLiberacao: 'APROVADO', // Default status quando não especificado
+        dataCodLiberacao: dataLiberacao.toISOString()
+      });
       AppToast.updated('Agendamento', 'O agendamento foi liberado com sucesso!');
       resetForm();
       onSuccess();
@@ -90,146 +95,126 @@ export const LiberarAgendamentoModal: React.FC<LiberarAgendamentoModalProps> = (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <CheckCircle className="w-6 h-6 text-green-600" />
-            Liberação de Agendamento
+          <DialogTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2 text-xl">
+              <CheckCircle className="w-6 h-6 text-green-600" />
+              Liberação de Agendamento
+            </span>
+            <Badge className="bg-blue-100 text-blue-700 mr-8">
+              {agendamento.status}
+            </Badge>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Informações do Agendamento */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <FileText className="w-5 h-5" />
-                Informações do Agendamento
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium">Paciente:</span>
-                  <span>{agendamento.pacienteNome}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Profissional:</span>
-                  <span>{agendamento.profissionalNome}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium">Serviço:</span>
-                  <span>{agendamento.servicoNome}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium">Convênio:</span>
-                  <span>{agendamento.convenioNome}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium">Data:</span>
-                  <span>{data}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium">Horário:</span>
-                  <span>{hora}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Status:</span>
-                  <Badge className="bg-blue-100 text-blue-700">
-                    {agendamento.status}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Tipo:</span>
-                  <Badge variant="outline">
-                    {agendamento.tipoAtendimento}
-                  </Badge>
-                </div>
+          <div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Paciente:</span>
+                <span className="text-gray-700">{agendamento.pacienteNome}</span>
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Profissional:</span>
+                <span className="text-gray-700">{agendamento.profissionalNome}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Convênio:</span>
+                <span className="text-gray-700">{agendamento.convenioNome}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Serviço:</span>
+                <span className="text-gray-700">{agendamento.servicoNome}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Data:</span>
+                <span className="text-gray-700">{data}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Hora:</span>
+                <span className="text-gray-700">{hora}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Monitor className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Tipo:</span>
+                <Badge variant="outline" className="text-xs">
+                  {agendamento.tipoAtendimento}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Recurso:</span>
+                <span className="text-gray-700">{agendamento.recursoNome || '-'}</span>
+              </div>
+            </div>
+          </div>
 
           {/* Formulário de Liberação */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <CheckCircle className="w-5 h-5" />
-                Dados de Liberação
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Código de Liberação */}
-                  <div className="space-y-2">
-                    <Label htmlFor="codLiberacao">Código de Liberação *</Label>
-                    <Input
-                      id="codLiberacao"
-                      type="text"
-                      placeholder="Ex: LIB123456"
-                      value={formData.codLiberacao}
-                      onChange={(e) => setFormData(prev => ({ ...prev, codLiberacao: e.target.value.toUpperCase() }))}
-                      required
-                    />
-                  </div>
-
-                  {/* Status da Liberação */}
-                  <div className="space-y-2">
-                    <Label htmlFor="statusCodLiberacao">Status da Liberação *</Label>
-                    <Select 
-                      value={formData.statusCodLiberacao} 
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, statusCodLiberacao: value }))}
-                      required
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="APROVADO">APROVADO</SelectItem>
-                        <SelectItem value="PENDENTE">PENDENTE</SelectItem>
-                        <SelectItem value="EM_ANALISE">EM ANÁLISE</SelectItem>
-                        <SelectItem value="REPROVADO">REPROVADO</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Data da Liberação */}
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="dataCodLiberacao">Data da Liberação *</Label>
-                    <Input
-                      id="dataCodLiberacao"
-                      type="date"
-                      value={formData.dataCodLiberacao}
-                      onChange={(e) => setFormData(prev => ({ ...prev, dataCodLiberacao: e.target.value }))}
-                      required
-                      max={new Date().toISOString().split('T')[0]}
-                    />
-                  </div>
+          <div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                {/* Código de Liberação */}
+                <div className="space-y-2">
+                  <Label htmlFor="codLiberacao">Código de Liberação *</Label>
+                  <Input
+                    id="codLiberacao"
+                    type="text"
+                    placeholder="Ex: LIB123456"
+                    value={formData.codLiberacao}
+                    onChange={(e) => setFormData(prev => ({ ...prev, codLiberacao: e.target.value.toUpperCase() }))}
+                  />
                 </div>
 
-                <DialogFooter className="gap-2 mt-6">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={handleClose}
+                {/* Data da Liberação */}
+                <div className="space-y-2">
+                  <Label htmlFor="dataCodLiberacao">Data da Liberação *</Label>
+                  <Input
+                    id="dataCodLiberacao"
+                    type="date"
+                    value={formData.dataCodLiberacao}
+                    onChange={(e) => setFormData(prev => ({ ...prev, dataCodLiberacao: e.target.value }))}
+                    max={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+              </div>
+              <DialogFooter className="mt-6">
+                <DialogClose asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
                     disabled={loading}
+                    className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
                   >
+                    <span className="mr-2">🔴</span>
                     Cancelar
                   </Button>
-                  <Button 
-                    type="submit" 
-                    className="bg-green-600 hover:bg-green-700"
-                    disabled={loading}
-                  >
-                    {loading ? 'Liberando...' : 'Confirmar Liberação'}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </CardContent>
-          </Card>
+                </DialogClose>
+              <Button 
+                type="submit" 
+                disabled={loading}
+                className={`bg-gradient-to-r from-orange-600 to-red-600 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200`}
+              >
+                {loading ? (
+                  <>
+                    <span className="mr-2">⏳</span>
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-2">🟢</span>
+                    Liberar
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+            </form>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

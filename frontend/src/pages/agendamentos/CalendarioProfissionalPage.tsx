@@ -74,6 +74,7 @@ export const CalendarioProfissionalPage = () => {
   const [disponibilidades, setDisponibilidades] = useState<DisponibilidadeProfissional[]>([]);
   const [loading, setLoading] = useState(true);
   const [userProfissional, setUserProfissional] = useState<Profissional | null>(null);
+  const [loadingError, setLoadingError] = useState<string | null>(null);
 
   // Estados para modais de agendamento (apenas duplo clique)
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
@@ -216,13 +217,21 @@ export const CalendarioProfissionalPage = () => {
     setShowDetalhesAgendamento(true);
   };
 
-  // Carregamento de dados
+  // Carregamento inicial do usuário profissional
   useEffect(() => {
-    carregarDados();
     carregarUsuarioProfissional();
+    
+    // Timeout de 10 segundos para evitar loading infinito
+    const timeout = setTimeout(() => {
+      if (!userProfissional && !loadingError) {
+        setLoadingError('Timeout: Não foi possível carregar os dados do profissional.');
+      }
+    }, 10000);
+    
+    return () => clearTimeout(timeout);
   }, []);
 
-  // Recarregar dados quando a semana mudar
+  // Recarregar dados quando o profissional for carregado ou a semana mudar
   useEffect(() => {
     if (userProfissional) {
       carregarDados();
@@ -273,21 +282,42 @@ export const CalendarioProfissionalPage = () => {
 
   const carregarUsuarioProfissional = async () => {
     try {
+      setLoadingError(null);
+      console.log('Iniciando carregamento do usuário...');
       const response = await api.get('/users/me');
       const userData = response.data;
+      console.log('Dados do usuário:', userData);
       
       if (userData.profissionalId) {
+        console.log('Carregando profissionais...');
         const profissionaisData = await getProfissionais();
+        console.log('Profissionais carregados:', profissionaisData);
         const profissional = profissionaisData.find(p => p.id === userData.profissionalId);
-        setUserProfissional(profissional || null);
+        console.log('Profissional encontrado:', profissional);
+        
+        if (profissional) {
+          setUserProfissional(profissional);
+        } else {
+          setLoadingError('Profissional não encontrado na base de dados.');
+          setUserProfissional(null);
+        }
+      } else {
+        console.log('Usuário não tem profissionalId');
+        setLoadingError('Usuário não está vinculado a um profissional.');
+        setUserProfissional(null);
       }
     } catch (error) {
       console.error('Erro ao carregar dados do usuário profissional:', error);
+      setLoadingError('Erro ao carregar dados do profissional. Verifique sua conexão.');
+      setUserProfissional(null);
     }
   };
 
   const carregarDados = async () => {
-    if (!userProfissional) return;
+    if (!userProfissional) {
+      console.log('Aguardando carregamento do profissional...');
+      return;
+    }
     
     setLoading(true);
     try {
@@ -539,24 +569,27 @@ export const CalendarioProfissionalPage = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="pt-2 pl-6 pr-6 h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-          <p className="text-gray-500">Carregando calendário...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!userProfissional) {
+  if (loadingError) {
     return (
       <div className="pt-2 pl-6 pr-6 h-full flex items-center justify-center">
         <div className="text-center">
           <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-700 mb-2">Acesso Restrito</h2>
-          <p className="text-gray-500">Esta página é exclusiva para profissionais.</p>
+          <p className="text-gray-500 mb-4">{loadingError}</p>
+          <p className="text-sm text-gray-400">Esta página é exclusiva para profissionais.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading || !userProfissional) {
+    return (
+      <div className="pt-2 pl-6 pr-6 h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <p className="text-gray-500">
+            {!userProfissional ? 'Carregando dados do profissional...' : 'Carregando calendário...'}
+          </p>
         </div>
       </div>
     );

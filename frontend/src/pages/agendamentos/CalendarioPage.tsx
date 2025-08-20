@@ -304,19 +304,6 @@ export const CalendarioPage = () => {
     // PASSO 3: Se não há configuração específica nem semanal para este horário
     return 'nao_configurado';
   };
-  
-  /* 
-   * FLUXO DA VERIFICAÇÃO DE DISPONIBILIDADE (LÓGICA ACUMULATIVA):
-   * 1. Primeiro: Verifica se existe dataEspecifica que cobre o horário específico consultado
-   * 2. Se NÃO há dataEspecifica para aquele horário: usa configuração semanal (diaSemana) como fallback
-   * 3. Se nenhuma configuração cobre o horário: retorna 'nao_configurado'
-   * 
-   * EXEMPLOS DE USO:
-   * - Segunda-feira normal: usa configuração de diaSemana=1 (08:00-17:00 disponível)
-   * - Segunda-feira com plantão matinal: dataEspecifica (06:00-08:00 disponível) + diaSemana (08:00-17:00 disponível)
-   * - Segunda-feira com folga almoço especial: diaSemana (08:00-12:00 disponível) + dataEspecifica (12:00-14:00 folga) + diaSemana (14:00-17:00 disponível)
-   * - Domingo com plantão: apenas dataEspecifica (08:00-14:00 disponível), resto 'nao_configurado'
-   */
 
   // Função para verificar se um horário está disponível para um profissional (mantida para compatibilidade)
   const verificarDisponibilidade = (profissionalId: string, data: Date, horario: string): boolean => {

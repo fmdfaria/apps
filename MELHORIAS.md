@@ -15,11 +15,4 @@
 
 ### Funcionalidade Online
 
-### CalendarioProfissionalPage
-- Deixar o grid da pagina CalendarioProfissionalPage igual a estilização da CalendarioPage... cores, linhas, bordas.. etc 
-
-### Melhoria sugerida:
-- Para FormularioPorData e FormularioPorProfissional
-ao fazer o agendamento, já vim selecionado o convênio automaticamente que está vinculado paciente.
-- Deixar possibilidade de alterar o convênio.
 
