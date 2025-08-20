@@ -66,7 +66,6 @@ export const useMenuPermissions = () => {
       // Remover override do Dashboard - deve respeitar permissões de rota
       // userPermissions['dashboard'] = true; // REMOVIDO: deve seguir permissões normais
       
-      console.log('🔐 Permissões do menu calculadas:', userPermissions);
       setPermissions(userPermissions);
       
     } catch (error) {

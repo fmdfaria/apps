@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Paperclip, Building2, Phone, History, RotateCcw } from 'lucide-react';
+import { Plus, Edit, Trash2, Paperclip, Building2, Phone, History, RotateCcw, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,8 @@ import EditarPacienteModal from './EditarPacienteModal';
 import AnexoPacientesModal from './AnexoPacientesModal';
 import ConvenioModal from './ConvenioModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import ConfirmacaoModal from '@/components/ConfirmacaoModal';
+import { AgendamentoModal } from '@/components/agendamentos';
 
 import { 
   PageContainer, 
@@ -116,6 +118,11 @@ export const PacientesPage = () => {
   
   const [excluindo, setExcluindo] = useState<Paciente | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Estados para confirmação de agendamento após criação de paciente
+  const [showConfirmAgendamento, setShowConfirmAgendamento] = useState(false);
+  const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
+  const [pacienteCriado, setPacienteCriado] = useState<Paciente | null>(null);
 
   // Máscara passou a ser responsabilidade do componente WhatsAppInput nos modais
 
@@ -627,6 +634,28 @@ export const PacientesPage = () => {
     setFormConvenio(f => ({ ...f, ...updates }));
   };
 
+  // Handlers para confirmação de agendamento
+  const handleConfirmarAgendamento = () => {
+    setShowConfirmAgendamento(false);
+    setShowAgendamentoModal(true);
+  };
+
+  const handleRecusarAgendamento = () => {
+    setShowConfirmAgendamento(false);
+    setPacienteCriado(null);
+  };
+
+  const handleFecharAgendamentoModal = () => {
+    setShowAgendamentoModal(false);
+    setPacienteCriado(null);
+  };
+
+  const handleSuccessAgendamento = () => {
+    setShowAgendamentoModal(false);
+    setPacienteCriado(null);
+    // Opcionalmente recarregar dados se necessário
+  };
+
   // Renderização do card
   const renderCard = (paciente: Paciente) => (
     <Card className="h-full hover:shadow-md transition-shadow">
@@ -1003,10 +1032,14 @@ export const PacientesPage = () => {
           };
 
           try {
-            await createPaciente(pacientePayload);
+            const novoPaciente = await createPaciente(pacientePayload);
             AppToast.created('Paciente', 'O novo paciente foi cadastrado com sucesso.');
             await fetchData();
             fecharCriarModal();
+            
+            // Mostrar confirmação para agendar
+            setPacienteCriado(novoPaciente);
+            setShowConfirmAgendamento(true);
           } catch (err: any) {
             let msg = 'Erro ao salvar paciente.';
             if (err?.response?.data?.message) msg = err.response.data.message;
@@ -1261,6 +1294,32 @@ export const PacientesPage = () => {
         isLoading={deleteLoading}
         loadingText="Excluindo paciente..."
         confirmText="Excluir Paciente"
+      />
+
+      {/* Modal de confirmação para agendar */}
+      <ConfirmacaoModal
+        open={showConfirmAgendamento}
+        onClose={handleRecusarAgendamento}
+        onConfirm={handleConfirmarAgendamento}
+        onCancel={handleRecusarAgendamento}
+        title="Paciente Cadastrado!"
+        description={`O paciente "${pacienteCriado?.nomeCompleto}" foi cadastrado com sucesso. Deseja criar um agendamento para este paciente agora?`}
+        confirmText="Sim, Agendar"
+        cancelText="Não, Continuar"
+        variant="default"
+        icon={<Calendar className="w-6 h-6" />}
+      />
+
+      {/* Modal de agendamento */}
+      <AgendamentoModal
+        isOpen={showAgendamentoModal}
+        onClose={handleFecharAgendamentoModal}
+        onSuccess={handleSuccessAgendamento}
+        preenchimentoInicial={pacienteCriado ? {
+          pacienteId: pacienteCriado.id,
+          convenioId: pacienteCriado.convenioId || undefined,
+          tipoFluxo: 'por-profissional'
+        } : undefined}
       />
     </PageContainer>
   );

@@ -509,6 +509,25 @@ export const useAgendamentoForm = ({
     }
   }, [formData.servicoId, formData.convenioId, servicos]);
 
+  // Effect para garantir pré-preenchimento do convênio após carregamento dos dados
+  useEffect(() => {
+    if (isOpen && preenchimentoInicial?.convenioId && convenios.length > 0 && !formData.convenioId) {
+      // Verificar se o convênio do preenchimento inicial existe na lista carregada
+      const convenioExiste = convenios.find(c => c.id === preenchimentoInicial.convenioId);
+      if (convenioExiste) {
+        console.log('🔗 Aplicando pré-preenchimento do convênio após carregamento:', {
+          convenioId: preenchimentoInicial.convenioId,
+          convenioNome: convenioExiste.nome
+        });
+        
+        setFormData(prev => ({
+          ...prev,
+          convenioId: preenchimentoInicial.convenioId!
+        }));
+      }
+    }
+  }, [isOpen, preenchimentoInicial?.convenioId, convenios, formData.convenioId]);
+
   // Funções de atualização
   const updateFormData = useCallback((data: Partial<CreateAgendamentoData>) => {
     // Se o recurso está sendo alterado, marcar como seleção manual

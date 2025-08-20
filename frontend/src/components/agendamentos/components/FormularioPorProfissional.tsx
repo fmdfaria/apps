@@ -314,12 +314,17 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                   } : null}
                   onChange={(selected) => {
                     const pacienteId = selected?.id || '';
+                    const pacienteSelecionado = pacientes.find(p => p.id === pacienteId);
+                    
+                    // Auto-selecionar convênio do paciente se existir
+                    const convenioIdAutoSelecionado = pacienteSelecionado?.convenioId || '';
                     
                     // Só limpar servicoId se não havia um já selecionado (evita limpar pré-preenchimento)
                     const shouldClearServico = !formData.servicoId;
                     
                     updateFormData({ 
                       pacienteId,
+                      convenioId: convenioIdAutoSelecionado, // Auto-selecionar convênio do paciente
                       ...(shouldClearServico && { servicoId: '' }) // Só limpar se não havia serviço pré-selecionado
                     });
                   }}
@@ -362,7 +367,7 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                       });
                     }}
                     placeholder={!formData.pacienteId ? "Selecione um paciente primeiro..." : loadingData ? "Carregando convênios..." : "Buscar convênio..."}
-                    headerText={formData.pacienteId ? "Convênio do paciente" : "Convênios disponíveis"}
+                    headerText={formData.pacienteId ? "Convênio (auto-selecionado, pode alterar)" : "Convênios disponíveis"}
                     formatOption={(option) => option.nome}
                     disabled={!formData.pacienteId || loadingData}
                   />
