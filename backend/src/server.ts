@@ -23,6 +23,7 @@ import { adendosContratosRoutes } from './infra/http/routes/adendos-contratos.ro
 import { anexosRoutes } from './infra/http/routes/anexos.routes';
 import { agendamentosRoutes } from './infra/http/routes/agendamentos.routes';
 import { evolucoesPacientesRoutes } from './infra/http/routes/evolucoes-pacientes.routes';
+import { pacientesPedidosRoutes } from './infra/http/routes/pacientes-pedidos.routes';
 import { authRoutes } from './infra/http/routes/auth.routes';
 import { usersRoutes } from './infra/http/routes/users.routes';
 import { bancosRoutes } from './infra/http/routes/bancos.routes';
@@ -63,6 +64,7 @@ app.register(adendosContratosRoutes);
 app.register(anexosRoutes);
 app.register(agendamentosRoutes);
 app.register(evolucoesPacientesRoutes);
+app.register(pacientesPedidosRoutes, { prefix: '/pacientes' });
 app.register(authRoutes);
 app.register(usersRoutes);
 app.register(bancosRoutes);

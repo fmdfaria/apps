@@ -15,13 +15,7 @@ interface IRequest {
   dataNascimento?: Date | null;
   convenioId?: string | null;
   numeroCarteirinha?: string | null;
-  dataPedidoMedico?: Date | null;
-  crm?: string | null;
-  cbo?: string | null;
-  cid?: string | null;
   userId?: string | null;
-  autoPedidos?: boolean | null;
-  descricao?: string | null;
 }
 
 @injectable()
@@ -66,13 +60,7 @@ export class UpdatePacienteUseCase {
     paciente.dataNascimento = data.dataNascimento;
     paciente.convenioId = data.convenioId;
     paciente.numeroCarteirinha = data.numeroCarteirinha;
-    paciente.dataPedidoMedico = data.dataPedidoMedico;
-    paciente.crm = data.crm;
-    paciente.cbo = data.cbo;
-    paciente.cid = data.cid;
     paciente.userId = data.userId;
-    paciente.autoPedidos = data.autoPedidos;
-    paciente.descricao = data.descricao;
 
     // Remove a propriedade do objeto aninhado para evitar o erro do Prisma
     delete (paciente as any).convenio;

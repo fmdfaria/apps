@@ -11,13 +11,7 @@ export interface Paciente {
   dataNascimento?: string | null;
   convenioId?: string | null;
   numeroCarteirinha?: string | null;
-  dataPedidoMedico?: string | null;
-  crm?: string | null;
-  cbo?: string | null;
-  cid?: string | null;
   userId?: string | null;
   ativo?: boolean;
-  autoPedidos?: boolean | null;
-  descricao?: string | null;
   convenio?: Convenio | null;
 } 

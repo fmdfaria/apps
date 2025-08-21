@@ -83,14 +83,8 @@ model Paciente {
   tipoServico         String?                      @map("tipo_servico") @db.VarChar(20)
   convenioId          String?                      @map("convenio_id") @db.Uuid
   numeroCarteirinha   String?                      @map("numero_carteirinha") @db.VarChar(50)
-  dataPedidoMedico    DateTime?                    @map("data_pedido_medico") @db.Date
-  crm                 String?                      @db.VarChar(100)
-  cbo                 String?                      @db.VarChar(100)
-  cid                 String?                      @db.VarChar(255)
   userId              String?                      @map("user_id") @db.Uuid
   ativo               Boolean?                     @default(true)
-  autoPedidos         Boolean?                     @default(true) @map("auto_pedidos")
-  descricao           String?                      @db.Text
   createdAt           DateTime?                    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime?                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   agendamentos        Agendamento[]
@@ -98,6 +92,7 @@ model Paciente {
   evolucoes           EvolucaoPaciente[]
   convenio            Convenio?                    @relation(fields: [convenioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   precosParticulares  PrecosParticulares[]
+  pedidos             PacientePedido[]
 
   @@index([cpf], map: "idx_pacientes_cpf")
   @@index([email], map: "idx_pacientes_email")
@@ -148,6 +143,7 @@ model Servico {
   precosParticulares              PrecosParticulares[]
   precosProfissionais             PrecosServicosProfissionais[]
   profissionais                   ProfissionaisServicos[]
+  pedidos                         PacientePedido[]
 
   @@unique([nome, duracaoMinutos])
   @@map("servicos")
@@ -454,5 +450,25 @@ model RoleRoute {
   @@index([roleId], map: "idx_role_routes_role_id")
   @@index([routeId], map: "idx_role_routes_route_id")
   @@map("role_routes")
+}
+
+model PacientePedido {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dataPedidoMedico  DateTime? @map("data_pedido_medico") @db.Date
+  crm               String?   @db.VarChar(100)
+  cbo               String?   @db.VarChar(100)
+  cid               String?   @db.VarChar(255)
+  autoPedidos       Boolean?  @default(true) @map("auto_pedidos")
+  descricao         String?   @db.Text
+  servicoId         String?   @map("servico_id") @db.Uuid
+  pacienteId        String    @map("paciente_id") @db.Uuid
+  createdAt         DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  paciente          Paciente  @relation(fields: [pacienteId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  servico           Servico?  @relation(fields: [servicoId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([pacienteId], map: "idx_pacientes_pedidos_paciente_id")
+  @@index([servicoId], map: "idx_pacientes_pedidos_servico_id")
+  @@map("pacientes_pedidos")
 }
 

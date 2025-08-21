@@ -246,7 +246,7 @@ export default function EditarPacienteModal({
                 ) : (
                   <>
                     <span className="mr-2">🟢</span>
-                    Salvar Alterações
+                    Atualizar
                   </>
                 )}
               </Button>

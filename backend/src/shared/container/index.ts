@@ -67,6 +67,12 @@ import { DeleteAgendamentoUseCase } from '../../core/application/use-cases/agend
 
 import { PrismaEvolucoesPacientesRepository } from '../../infra/database/prisma/repositories/PrismaEvolucoesPacientesRepository';
 import { IEvolucoesPacientesRepository } from '../../core/domain/repositories/IEvolucoesPacientesRepository';
+import { IPacientesPedidosRepository } from '../../core/domain/repositories/IPacientesPedidosRepository';
+import { PrismaPacientesPedidosRepository } from '../../infra/database/prisma/repositories/PrismaPacientesPedidosRepository';
+import { CreatePacientePedidoUseCase } from '../../core/application/use-cases/paciente-pedido/CreatePacientePedidoUseCase';
+import { ListPacientesPedidosUseCase } from '../../core/application/use-cases/paciente-pedido/ListPacientesPedidosUseCase';
+import { UpdatePacientePedidoUseCase } from '../../core/application/use-cases/paciente-pedido/UpdatePacientePedidoUseCase';
+import { DeletePacientePedidoUseCase } from '../../core/application/use-cases/paciente-pedido/DeletePacientePedidoUseCase';
 
 import { IUsersRepository } from '../../core/domain/repositories/IUsersRepository';
 import { PrismaUsersRepository } from '../../infra/database/prisma/repositories/PrismaUsersRepository';
@@ -230,6 +236,13 @@ container.register('UpdateAgendamentoUseCase', UpdateAgendamentoUseCase);
 container.register('DeleteAgendamentoUseCase', DeleteAgendamentoUseCase);
 
 container.registerSingleton<IEvolucoesPacientesRepository>('EvolucoesPacientesRepository', PrismaEvolucoesPacientesRepository);
+
+container.registerSingleton<IPacientesPedidosRepository>('PacientesPedidosRepository', PrismaPacientesPedidosRepository);
+
+container.register('CreatePacientePedidoUseCase', CreatePacientePedidoUseCase);
+container.register('ListPacientesPedidosUseCase', ListPacientesPedidosUseCase);
+container.register('UpdatePacientePedidoUseCase', UpdatePacientePedidoUseCase);
+container.register('DeletePacientePedidoUseCase', DeletePacientePedidoUseCase);
 
 container.registerSingleton<IUsersRepository>(
   'UsersRepository',

@@ -7,8 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { AppToast } from '@/services/toast';
 import { getPacientes, createPaciente, updatePaciente, deletePaciente, togglePacienteStatus } from '@/services/pacientes';
 import { getConvenios } from '@/services/convenios';
+import { getServicos } from '@/services/servicos';
 import type { Paciente } from '@/types/Paciente';
 import type { Convenio } from '@/types/Convenio';
+import type { Servico } from '@/types/Servico';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -17,7 +19,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import CriarPacienteModal from './CriarPacienteModal';
 import EditarPacienteModal from './EditarPacienteModal';
 import AnexoPacientesModal from './AnexoPacientesModal';
-import ConvenioModal from './ConvenioModal';
+import PedidosMedicosModal from './PedidosMedicosModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import { AgendamentoModal } from '@/components/agendamentos';
@@ -74,6 +76,7 @@ export const PacientesPage = () => {
   const [canViewEvolucoes, setCanViewEvolucoes] = useState(true);
   const [canViewAnexos, setCanViewAnexos] = useState(true);
   const [convenios, setConvenios] = useState<Convenio[]>([]);
+  const [servicos, setServicos] = useState<Servico[]>([]);
 
   // Estados dos modais existentes
   const [showCriarModal, setShowCriarModal] = useState(false);
@@ -103,21 +106,9 @@ export const PacientesPage = () => {
   const [deletingAnexo, setDeletingAnexo] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Estados para modal de convênio
-  const [showConvenioModal, setShowConvenioModal] = useState(false);
-  const [pacienteConvenio, setPacienteConvenio] = useState<Paciente | null>(null);
-  const [formConvenio, setFormConvenio] = useState({
-    convenioId: '',
-    numeroCarteirinha: '',
-    dataPedidoMedico: '',
-    crm: '',
-    cbo: '',
-    cid: '',
-    autoPedidos: true,
-    descricao: '',
-  });
-  const [formConvenioError, setFormConvenioError] = useState('');
-  const [formConvenioLoading, setFormConvenioLoading] = useState(false);
+  // Estados para modal de pedidos médicos
+  const [showPedidosModal, setShowPedidosModal] = useState(false);
+  const [pacientePedidos, setPacientePedidos] = useState<Paciente | null>(null);
   
   const [excluindo, setExcluindo] = useState<Paciente | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -327,36 +318,16 @@ export const PacientesPage = () => {
             </Tooltip>
           )}
           
-          {/* Botão Convênio - exige PUT /pacientes/:id e paciente de convênio */}
-          {item.tipoServico === 'Convênio' ? (
-            canUpdate ? (
-              <ActionButton
-                variant="view"
-                module="pacientes"
-                onClick={() => abrirModalConvenio(item)}
-                title="Dados do convênio"
-              >
-                <Building2 className="w-4 h-4" />
-              </ActionButton>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-block">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
-                      disabled
-                    >
-                      <Building2 className="w-4 h-4" />
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Você não tem permissão para editar dados do convênio</p>
-                </TooltipContent>
-              </Tooltip>
-            )
+          {/* Botão Pedidos Médicos */}
+          {canUpdate ? (
+            <ActionButton
+              variant="view"
+              module="pacientes"
+              onClick={() => abrirModalPedidos(item)}
+              title="Pedidos médicos"
+            >
+              <Building2 className="w-4 h-4" />
+            </ActionButton>
           ) : (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -372,7 +343,7 @@ export const PacientesPage = () => {
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Disponível apenas para pacientes com convênio</p>
+                <p>Você não tem permissão para editar pedidos médicos</p>
               </TooltipContent>
             </Tooltip>
           )}
@@ -573,13 +544,15 @@ export const PacientesPage = () => {
     setAccessDenied(false);
     setPacientes([]); // Limpa dados para evitar mostrar dados antigos
     try {
-      const [pacientesData, conveniosData] = await Promise.all([
+      const [pacientesData, conveniosData, servicosData] = await Promise.all([
         getPacientes(),
-        getConvenios()
+        getConvenios(),
+        getServicos()
       ]);
       
       setPacientes(pacientesData);
       setConvenios(conveniosData);
+      setServicos(servicosData);
     } catch (error: any) {
       if (error?.response?.status === 403) {
         setAccessDenied(true);
@@ -680,40 +653,14 @@ export const PacientesPage = () => {
     setAnexos([]);
   };
 
-  const abrirModalConvenio = async (p: Paciente) => {
-    setPacienteConvenio(p);
-    setFormConvenio({
-      convenioId: p.convenioId || '',
-      numeroCarteirinha: p.numeroCarteirinha || '',
-      dataPedidoMedico: p.dataPedidoMedico ? p.dataPedidoMedico.substring(0, 10) : '',
-      crm: p.crm || '',
-      cbo: p.cbo || '',
-      cid: p.cid || '',
-      autoPedidos: p.autoPedidos ?? true,
-      descricao: p.descricao || '',
-    });
-    setFormConvenioError('');
-    setShowConvenioModal(true);
+  const abrirModalPedidos = async (p: Paciente) => {
+    setPacientePedidos(p);
+    setShowPedidosModal(true);
   };
 
-  const fecharModalConvenio = () => {
-    setShowConvenioModal(false);
-    setPacienteConvenio(null);
-    setFormConvenio({
-      convenioId: '',
-      numeroCarteirinha: '',
-      dataPedidoMedico: '',
-      crm: '',
-      cbo: '',
-      cid: '',
-      autoPedidos: true,
-      descricao: '',
-    });
-    setFormConvenioError('');
-  };
-
-  const handleFormConvenioChange = (updates: Partial<typeof formConvenio>) => {
-    setFormConvenio(f => ({ ...f, ...updates }));
+  const fecharModalPedidos = () => {
+    setShowPedidosModal(false);
+    setPacientePedidos(null);
   };
 
   // Handlers para confirmação de agendamento
@@ -857,35 +804,15 @@ export const PacientesPage = () => {
             </TooltipContent>
           </Tooltip>
         )}
-        {paciente.tipoServico === 'Convênio' ? (
-          canUpdate ? (
-            <ActionButton
-              variant="view"
-              module="pacientes"
-              onClick={() => abrirModalConvenio(paciente)}
-              title="Dados do convênio"
-            >
-              <Building2 className="w-4 h-4" />
-            </ActionButton>
-          ) : (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-block">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
-                    disabled
-                  >
-                    <Building2 className="w-4 h-4" />
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Você não tem permissão para editar dados do convênio</p>
-              </TooltipContent>
-            </Tooltip>
-          )
+        {canUpdate ? (
+          <ActionButton
+            variant="view"
+            module="pacientes"
+            onClick={() => abrirModalPedidos(paciente)}
+            title="Pedidos médicos"
+          >
+            <Building2 className="w-4 h-4" />
+          </ActionButton>
         ) : (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -901,7 +828,7 @@ export const PacientesPage = () => {
               </span>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Disponível apenas para pacientes com convênio</p>
+              <p>Você não tem permissão para editar pedidos médicos</p>
             </TooltipContent>
           </Tooltip>
         )}
@@ -1330,132 +1257,11 @@ export const PacientesPage = () => {
         onDeletingAnexoChange={setDeletingAnexo}
       />
       
-      <ConvenioModal
-        showModal={showConvenioModal}
-        paciente={pacienteConvenio}
-        form={formConvenio}
-        formError={formConvenioError}
-        formLoading={formConvenioLoading}
-        convenios={convenios}
-        onClose={fecharModalConvenio}
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (!pacienteConvenio) return;
-          
-          // Validação
-          if (!formConvenio.convenioId.trim()) {
-            setFormConvenioError('Selecione um convênio.');
-            AppToast.error('Campo obrigatório', {
-              description: 'Selecione um convênio.'
-            });
-            return;
-          }
-          // Função para validar campos obrigatórios baseado no convênio
-          const convenioSelecionado = convenios.find(c => c.id === formConvenio.convenioId);
-          const nomeConvenio = convenioSelecionado?.nome?.toLowerCase() || '';
-          
-          const isFieldRequired = (field: string) => {
-            if (!nomeConvenio) return false;
-            
-            switch (field) {
-              case 'numeroCarteirinha':
-                // Sempre obrigatório para todos os convênios (regra geral)
-                return true;
-              
-              case 'dataPedidoMedico':
-              case 'crm':
-              case 'cbo':
-                // Obrigatório apenas para convênios específicos
-                return nomeConvenio === 'amil' || 
-                       nomeConvenio === 'mediservice' || 
-                       nomeConvenio === 'bradesco';
-              
-              case 'cid':
-                // CID obrigatório apenas para Bradesco (todos os campos)
-                return nomeConvenio === 'bradesco';
-                
-              default:
-                // Regra geral: qualquer campo não especificado é opcional
-                return false;
-            }
-          };
-
-          // Validações dinâmicas
-          if (isFieldRequired('numeroCarteirinha') && !formConvenio.numeroCarteirinha.trim()) {
-            setFormConvenioError('Número da carteirinha é obrigatório.');
-            AppToast.error('Campo obrigatório', {
-              description: 'Número da carteirinha é obrigatório.'
-            });
-            return;
-          }
-          
-          if (isFieldRequired('dataPedidoMedico') && !formConvenio.dataPedidoMedico) {
-            setFormConvenioError('Data do pedido médico é obrigatória.');
-            AppToast.error('Campo obrigatório', {
-              description: 'Data do pedido médico é obrigatória.'
-            });
-            return;
-          }
-          
-          if (isFieldRequired('crm') && !formConvenio.crm.trim()) {
-            setFormConvenioError('CRM é obrigatório.');
-            AppToast.error('Campo obrigatório', {
-              description: 'CRM é obrigatório.'
-            });
-            return;
-          }
-          
-          if (isFieldRequired('cbo') && !formConvenio.cbo.trim()) {
-            setFormConvenioError('CBO é obrigatório.');
-            AppToast.error('Campo obrigatório', {
-              description: 'CBO é obrigatório.'
-            });
-            return;
-          }
-          
-          if (isFieldRequired('cid') && !formConvenio.cid.trim()) {
-            setFormConvenioError('CID é obrigatório.');
-            AppToast.error('Campo obrigatório', {
-              description: 'CID é obrigatório.'
-            });
-            return;
-          }
-
-          setFormConvenioLoading(true);
-          setFormConvenioError('');
-
-          const convenioPayload = {
-            nomeCompleto: pacienteConvenio.nomeCompleto,
-            cpf: pacienteConvenio.cpf,
-            email: pacienteConvenio.email,
-            whatsapp: pacienteConvenio.whatsapp,
-            dataNascimento: pacienteConvenio.dataNascimento,
-            tipoServico: pacienteConvenio.tipoServico,
-            convenioId: formConvenio.convenioId,
-            numeroCarteirinha: formConvenio.numeroCarteirinha,
-            dataPedidoMedico: formConvenio.dataPedidoMedico.trim() || null,
-            crm: formConvenio.crm.trim() || null,
-            cbo: formConvenio.cbo.trim() || null,
-            cid: formConvenio.cid.trim() || null,
-            autoPedidos: formConvenio.autoPedidos,
-            descricao: formConvenio.descricao.trim() || null,
-          };
-
-          try {
-            await updatePaciente(pacienteConvenio.id, convenioPayload);
-            AppToast.success('Dados do convênio atualizados', { description: 'Os dados do convênio foram atualizados com sucesso.' });
-            await fetchData();
-            fecharModalConvenio();
-          } catch (err: any) {
-            let msg = 'Erro ao salvar dados do convênio.';
-            if (err?.response?.data?.message) msg = err.response.data.message;
-            else if (err?.response?.data?.error) msg = err.response.data.error;
-            setFormConvenioError(msg);
-          } finally {
-            setFormConvenioLoading(false);
-          }
-        }}
-        onFormChange={handleFormConvenioChange}
+      <PedidosMedicosModal
+        showModal={showPedidosModal}
+        paciente={pacientePedidos}
+        servicos={servicos}
+        onClose={fecharModalPedidos}
       />
       
       {/* Modal de confirmação de exclusão */}

@@ -17,14 +17,7 @@ const bodySchema = z.object({
   dataNascimento: z.coerce.date().optional().nullable(),
   convenioId: z.string().uuid().optional().nullable(),
   numeroCarteirinha: z.string().optional().nullable(),
-  dataPedidoMedico: z.coerce.date().optional().nullable(),
-  crm: z.string().optional().nullable(),
-  cbo: z.string().optional().nullable(),
-  cid: z.string().optional().nullable(),
-  pedidoMedicoArquivo: z.string().optional().nullable(),
   userId: z.string().uuid().optional().nullable(),
-  autoPedidos: z.boolean().optional().nullable(),
-  descricao: z.string().optional().nullable(),
 });
 
 export class PacientesController {
