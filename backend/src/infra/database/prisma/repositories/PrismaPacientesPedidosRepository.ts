@@ -1,9 +1,11 @@
+import { injectable, inject } from 'tsyringe';
 import { PrismaClient } from '@prisma/client';
 import { PacientePedido } from '../../../../core/domain/entities/PacientePedido';
 import { IPacientesPedidosRepository } from '../../../../core/domain/repositories/IPacientesPedidosRepository';
 
+@injectable()
 export class PrismaPacientesPedidosRepository implements IPacientesPedidosRepository {
-  constructor(private prisma: PrismaClient) {}
+  constructor(@inject('PrismaClient') private prisma: PrismaClient) {}
 
   async create(pedido: PacientePedido): Promise<PacientePedido> {
     const createdPedido = await this.prisma.pacientePedido.create({
