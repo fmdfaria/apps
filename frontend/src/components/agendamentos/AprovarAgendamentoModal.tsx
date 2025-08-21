@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ClipboardCheck, XCircle, User, Calendar, Clock, FileText, CreditCard, CheckCircle2, Stethoscope } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
-import { aprovarAgendamento, cancelarAgendamento } from '@/services/agendamentos';
+import { aprovarAgendamento, updateAgendamento } from '@/services/agendamentos';
+import { useAuth } from '@/hooks/useAuth';
 import { AppToast } from '@/services/toast';
 
 interface AprovarAgendamentoModalProps {
@@ -24,6 +25,7 @@ export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = (
   onClose,
   onSuccess
 }) => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [acao, setAcao] = useState<'APROVAR' | 'REPROVAR' | null>(null);
   const [formData, setFormData] = useState({
@@ -62,16 +64,20 @@ export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = (
       if (acao === 'APROVAR') {
         await aprovarAgendamento(agendamento.id, {
           dataAprovacao,
-          aprovadoPor: formData.aprovadoPor
+          aprovadoPor: formData.aprovadoPor,
+          avaliadoPorId: user?.id
         });
         AppToast.updated('Agendamento', 'O agendamento foi aprovado com sucesso!');
       } else {
-        await cancelarAgendamento(agendamento.id, {
+        await updateAgendamento(agendamento.id, {
           dataAprovacao,
           aprovadoPor: formData.aprovadoPor,
-          motivoCancelamento: formData.motivoCancelamento
+          motivoCancelamento: formData.motivoCancelamento,
+          avaliadoPorId: user?.id,
+          motivoReprovacao: formData.motivoCancelamento,
+          status: 'PENDENTE'
         });
-        AppToast.updated('Agendamento', 'O agendamento foi reprovado.');
+        AppToast.updated('Agendamento', 'O agendamento foi marcado como PENDENTE.');
       }
       
       resetForm();

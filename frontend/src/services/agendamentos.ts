@@ -283,6 +283,9 @@ export interface UpdateAgendamentoData {
   dataAprovacao?: string;
   motivoCancelamento?: string;
   aprovadoPor?: string;
+  // Novos campos
+  avaliadoPorId?: string;
+  motivoReprovacao?: string;
   
   // Gestão de pagamentos
   recebimento?: boolean;
@@ -458,6 +461,7 @@ export const atenderAgendamento = async (id: string, dadosAtendimento: {
 export const aprovarAgendamento = async (id: string, dadosAprovacao: {
   observacoes?: string;
   resultadoConsulta?: string;
+  avaliadoPorId?: string;
 }): Promise<Agendamento> => {
   // Usar a nova rota específica para conclusão
   const response = await api.put(`/agendamentos-concluir/${id}`, {

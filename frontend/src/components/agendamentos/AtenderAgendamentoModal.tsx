@@ -2,11 +2,8 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Stethoscope, User, Calendar, Clock, FileText, CreditCard, CheckCircle2 } from 'lucide-react';
+import { Stethoscope, User, Calendar, Clock, FileText, CreditCard, CheckCircle2, UserCheck, Monitor, MapPin } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { atenderAgendamento } from '@/services/agendamentos';
 import { AppToast } from '@/services/toast';
@@ -25,15 +22,13 @@ export const AtenderAgendamentoModal: React.FC<AtenderAgendamentoModalProps> = (
   onSuccess
 }) => {
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    dataAtendimento: new Date().toISOString().split('T')[0], // Data de hoje
-    observacoesAtendimento: ''
+  const [formData, setFormData] = useState<{ dataHoraInicio: string; observacoes?: string}>({
+    dataHoraInicio: new Date().toISOString().split('T')[0]
   });
 
   const resetForm = () => {
     setFormData({
-      dataAtendimento: new Date().toISOString().split('T')[0],
-      observacoesAtendimento: ''
+      dataHoraInicio: new Date().toISOString().split('T')[0]
     });
   };
 
@@ -43,7 +38,7 @@ export const AtenderAgendamentoModal: React.FC<AtenderAgendamentoModalProps> = (
     if (!agendamento) return;
     
     // Validações
-    if (!formData.dataAtendimento) {
+    if (!formData.dataHoraInicio) {
       AppToast.validation('Data obrigatória', 'A data de atendimento é obrigatória.');
       return;
     }
@@ -87,166 +82,155 @@ export const AtenderAgendamentoModal: React.FC<AtenderAgendamentoModalProps> = (
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <Stethoscope className="w-6 h-6 text-blue-600" />
+        <DialogHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 -mx-6 -mt-6 px-6 pt-6 pb-4 border-b border-gray-200">
+          <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
+            <span className="text-2xl">🩺</span>
             Registrar Atendimento
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="mt-6 space-y-6">
           {/* Informações do Agendamento */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <FileText className="w-5 h-5" />
-                Informações do Agendamento
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium">Paciente:</span>
-                  <span>{agendamento.pacienteNome}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Profissional:</span>
-                  <span>{agendamento.profissionalNome}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium">Serviço:</span>
-                  <span>{agendamento.servicoNome}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium">Convênio:</span>
-                  <span>{agendamento.convenioNome}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium">Data:</span>
-                  <span>{data}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium">Horário:</span>
-                  <span>{hora}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Status:</span>
-                  <Badge className="bg-green-100 text-green-700">
-                    {agendamento.status}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Tipo:</span>
-                  <Badge variant="outline">
-                    {agendamento.tipoAtendimento}
-                  </Badge>
-                </div>
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-blue-600" />
+              Informações do Agendamento
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm bg-gray-50 p-4 rounded-lg border">
+              <div className="flex items-center gap-3">
+                <User className="w-4 h-4 text-blue-500" />
+                <span className="font-medium text-gray-600">Paciente:</span>
+                <span className="text-gray-800 font-medium">{agendamento.pacienteNome}</span>
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex items-center gap-3">
+                <UserCheck className="w-4 h-4 text-blue-500" />
+                <span className="font-medium text-gray-600">Profissional:</span>
+                <span className="text-gray-800 font-medium">{agendamento.profissionalNome}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <CreditCard className="w-4 h-4 text-blue-500" />
+                <span className="font-medium text-gray-600">Convênio:</span>
+                <span className="text-gray-800">{agendamento.convenioNome}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <FileText className="w-4 h-4 text-blue-500" />
+                <span className="font-medium text-gray-600">Serviço:</span>
+                <span className="text-gray-800">{agendamento.servicoNome}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Calendar className="w-4 h-4 text-blue-500" />
+                <span className="font-medium text-gray-600">Data:</span>
+                <span className="text-gray-800 font-medium">{data}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Clock className="w-4 h-4 text-blue-500" />
+                <span className="font-medium text-gray-600">Hora:</span>
+                <span className="text-gray-800 font-medium">{hora}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Monitor className="w-4 h-4 text-blue-500" />
+                <span className="font-medium text-gray-600">Tipo:</span>
+                <Badge variant="outline" className="text-xs border-blue-200 text-blue-700">
+                  {agendamento.tipoAtendimento}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-3">
+                <MapPin className="w-4 h-4 text-blue-500" />
+                <span className="font-medium text-gray-600">Recurso:</span>
+                <span className="text-gray-800">{agendamento.recursoNome || '-'}</span>
+              </div>
+            </div>
+          </div>
 
           {/* Dados de Liberação */}
           {agendamento.codLiberacao && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  Dados da Liberação
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">Código:</span>
-                    <span className="font-mono bg-gray-100 px-2 py-1 rounded text-sm">
-                      {agendamento.codLiberacao}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">Status:</span>
-                    <Badge 
-                      className={agendamento.statusCodLiberacao === 'APROVADO' 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-yellow-100 text-yellow-700'
-                      }
-                    >
-                      {agendamento.statusCodLiberacao}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">Data:</span>
-                    <span>{agendamento.dataCodLiberacao ? new Date(agendamento.dataCodLiberacao).toLocaleDateString('pt-BR') : '-'}</span>
-                  </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-green-600" />
+                Dados da Liberação
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm bg-green-50 p-4 rounded-lg border border-green-200">
+                <div className="flex items-center gap-3">
+                  <span className="font-medium text-gray-600">Código:</span>
+                  <span className="font-mono bg-white px-3 py-1 rounded border text-green-800 font-medium">
+                    {agendamento.codLiberacao}
+                  </span>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex items-center gap-3">
+                  <span className="font-medium text-gray-600">Status:</span>
+                  <Badge 
+                    className={`text-xs ${agendamento.statusCodLiberacao === 'APROVADO' 
+                      ? 'bg-green-100 text-green-700 border-green-300' 
+                      : 'bg-yellow-100 text-yellow-700 border-yellow-300'
+                    }`}
+                  >
+                    {agendamento.statusCodLiberacao}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-medium text-gray-600">Data:</span>
+                  <span className="text-gray-800 font-medium">{agendamento.dataCodLiberacao ? new Date(agendamento.dataCodLiberacao).toLocaleDateString('pt-BR') : '-'}</span>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Formulário de Atendimento */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Stethoscope className="w-5 h-5" />
-                Registro do Atendimento
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Data do Atendimento */}
-                <div className="space-y-2">
-                  <Label htmlFor="dataAtendimento">Data do Atendimento *</Label>
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Stethoscope className="w-5 h-5 text-blue-600" />
+              Registro do Atendimento
+            </h3>
+            <form onSubmit={handleSubmit}>
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-4 text-sm">
+                  <Calendar className="w-5 h-5 text-blue-600" />
+                  <span className="font-medium text-gray-700 min-w-fit">Data do Atendimento:</span>
                   <Input
                     id="dataAtendimento"
                     type="date"
-                    value={formData.dataAtendimento}
-                    onChange={(e) => setFormData(prev => ({ ...prev, dataAtendimento: e.target.value }))}
+                    value={formData.dataHoraInicio}
+                    onChange={(e) => setFormData(prev => ({ ...prev, dataHoraInicio: e.target.value }))}
                     required
                     max={new Date().toISOString().split('T')[0]}
+                    className="w-auto border-2 border-blue-200 focus:border-blue-500 bg-white"
                   />
                 </div>
-
-                {/* Observações */}
-                <div className="space-y-2">
-                  <Label htmlFor="observacoesAtendimento">Observações do Atendimento</Label>
-                  <Textarea
-                    id="observacoesAtendimento"
-                    placeholder="Descreva como foi o atendimento, se houve intercorrências, etc..."
-                    value={formData.observacoesAtendimento}
-                    onChange={(e) => setFormData(prev => ({ ...prev, observacoesAtendimento: e.target.value }))}
-                    rows={4}
-                    className="resize-none"
-                  />
-                  <p className="text-sm text-gray-500">
-                    Registre informações importantes sobre o atendimento realizado.
-                  </p>
-                </div>
-
-                <DialogFooter className="gap-2 mt-6">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={handleClose}
-                    disabled={loading}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    className="bg-blue-600 hover:bg-blue-700"
-                    disabled={loading}
-                  >
-                    {loading ? 'Registrando...' : 'Registrar Atendimento'}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </CardContent>
-          </Card>
+              </div>
+            </form>
+          </div>
         </div>
+
+        <DialogFooter className="gap-2 mt-6">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={handleClose}
+            disabled={loading}
+            className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
+          >
+            <span className="mr-2">🔴</span>
+            Cancelar
+          </Button>
+          <Button 
+            type="submit" 
+            onClick={handleSubmit}
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <span className="mr-2">⏳</span>
+                Registrando...
+              </>
+            ) : (
+              <>
+                <span className="mr-2">✅</span>
+                Registrar
+              </>
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -47,6 +47,9 @@ export interface Agendamento {
   dataAprovacao?: string;
   motivoCancelamento?: string;
   aprovadoPor?: string;
+  // Novos campos
+  avaliadoPorId?: string;
+  motivoReprovacao?: string;
   
   // Campos gerais
   status: StatusAgendamento;

@@ -111,9 +111,10 @@ export class AgendamentosController {
     
     // Schema específico para atendimento - apenas campos permitidos para atendimento
     const atenderBodySchema = z.object({
-      status: z.literal('ATENDIDO'), // Força o status para ATENDIDO
-      dataHoraInicio: z.coerce.date().optional(), // Permite ajustar horário de início
-      observacoes: z.string().optional() // Campo para observações do atendimento
+      status: z.literal('ATENDIDO'),
+      dataHoraInicio: z.coerce.date().optional(),
+      observacoes: z.string().optional(),
+      avaliadoPorId: z.string().uuid().optional(),
     });
     
     const data = atenderBodySchema.parse(request.body);
@@ -128,9 +129,10 @@ export class AgendamentosController {
     
     // Schema específico para conclusão - apenas campos permitidos para conclusão
     const concluirBodySchema = z.object({
-      status: z.literal('FINALIZADO'), // Força o status para FINALIZADO
-      observacoes: z.string().optional(), // Campo para observações finais
-      resultadoConsulta: z.string().optional() // Campo para resultado da consulta
+      status: z.literal('FINALIZADO'),
+      observacoes: z.string().optional(),
+      resultadoConsulta: z.string().optional(),
+      avaliadoPorId: z.string().uuid().optional(),
     });
     
     const data = concluirBodySchema.parse(request.body);

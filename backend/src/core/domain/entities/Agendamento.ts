@@ -19,6 +19,8 @@ export class Agendamento {
   statusCodLiberacao?: string | null;
   dataCodLiberacao?: Date | null;
   status!: string;
+  avaliadoPorId?: string | null;
+  motivoReprovacao?: string | null;
   recebimento?: boolean;
   pagamento?: boolean;
   createdAt!: Date;

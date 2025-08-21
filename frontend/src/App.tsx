@@ -29,6 +29,7 @@ import { AgendamentosPage } from '@/pages/agendamentos/AgendamentosPage';
 import { LiberarPage } from '@/pages/agendamentos/LiberarPage';
 import { AtenderPage } from '@/pages/agendamentos/AtenderPage';
 import { AprovarPage } from '@/pages/agendamentos/AprovarPage';
+import PendenciaPage from '@/pages/agendamentos/PendenciaPage';
 import { FechamentoPage } from '@/pages/agendamentos/FechamentoPage';
 import { PagamentosPage } from '@/pages/agendamentos/PagamentosPage';
 import { CalendarioPage } from '@/pages/agendamentos/CalendarioPage';
@@ -95,6 +96,7 @@ export default function App() {
             <Route path="agendamentos/liberacao" element={<LiberarPage />} />
             <Route path="agendamentos/atendimento" element={<AtenderPage />} />
             <Route path="agendamentos/conclusao" element={<AprovarPage />} />
+            <Route path="agendamentos/pendencias" element={<PendenciaPage />} />
             <Route path="agendamentos/fechamento" element={<FechamentoPage />} />
             <Route path="agendamentos/pagamentos" element={<PagamentosPage />} />
             <Route path="calendario" element={<CalendarioPage />} />

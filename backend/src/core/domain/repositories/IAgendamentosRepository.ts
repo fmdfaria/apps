@@ -25,6 +25,11 @@ export interface ICreateAgendamentoDTO {
 }
 
 export interface IUpdateAgendamentoDTO extends Partial<ICreateAgendamentoDTO> {}
+// Estender o DTO para novos campos opcionais
+export interface IUpdateAgendamentoDTO extends Partial<ICreateAgendamentoDTO> {
+  avaliadoPorId?: string | null;
+  motivoReprovacao?: string | null;
+}
 
 export interface IAgendamentosRepository {
   create(data: ICreateAgendamentoDTO): Promise<Agendamento>;
