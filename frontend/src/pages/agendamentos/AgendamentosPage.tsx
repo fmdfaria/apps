@@ -19,7 +19,6 @@ import {
   Archive,
   LayoutGrid,
   List,
-  CreditCard,
   Activity,
   X,
   Filter,
@@ -374,42 +373,10 @@ export const AgendamentosPage = () => {
     }
   };
 
-  const estatisticas = [
-    { label: 'Agendados', valor: contarPorStatus('AGENDADO'), icon: Calendar, cor: 'bg-blue-500', status: 'AGENDADO' as StatusAgendamento },
-    { label: 'Solicitados', valor: contarPorStatus('SOLICITADO'), icon: Clock, cor: 'bg-orange-500', status: 'SOLICITADO' as StatusAgendamento },
-    { label: 'Liberados', valor: contarPorStatus('LIBERADO'), icon: CheckCircle, cor: 'bg-green-500', status: 'LIBERADO' as StatusAgendamento },
-    { label: 'Atendidos', valor: contarPorStatus('ATENDIDO'), icon: Stethoscope, cor: 'bg-yellow-500', status: 'ATENDIDO' as StatusAgendamento },
-    { label: 'Finalizados', valor: contarPorStatus('FINALIZADO'), icon: ClipboardCheck, cor: 'bg-emerald-500', status: 'FINALIZADO' as StatusAgendamento },
-  ];
+  // Removidos cards de estatísticas na visão de cards
 
   const renderCardView = () => (
     <div className="space-y-6">
-      {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {estatisticas.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={stat.label} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded ${stat.cor}`}>
-                      <Icon className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-600">{stat.label}</p>
-                    </div>
-                  </div>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${stat.cor}`}>
-                    <span className="text-sm font-bold text-white">{stat.valor}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
       {/* Cards dos Agendamentos */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
         {agendamentosPaginados.length === 0 ? (
@@ -463,10 +430,7 @@ export const AgendamentosPage = () => {
                         <span>{hora}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-600">
-                      <CreditCard className="w-3 h-3" />
-                      <span className="truncate">{agendamento.convenioNome}</span>
-                    </div>
+                    
                     <div className="flex items-center justify-between">
                       <Badge variant="outline" className="text-xs px-1 py-0">
                         {agendamento.tipoAtendimento}
@@ -474,65 +438,68 @@ export const AgendamentosPage = () => {
                     </div>
                   </div>
                   
-                  <div className="flex gap-1">
+                  <div className="flex gap-1.5">
                     {canRead ? (
-                      <Button 
-                        size="sm" 
+                      <Button
                         variant="default"
-                        className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                        size="sm"
+                        className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                         onClick={() => handleVerDetalhes(agendamento)}
                         title="Visualizar Agendamento"
                       >
-                        Visualizar
+                        <Eye className="w-4 h-4" />
                       </Button>
                     ) : (
-                      <Button 
-                        size="sm" 
+                      <Button
+                        variant="default"
+                        size="sm"
                         disabled={true}
-                        className="flex-1 h-7 text-xs bg-gray-400 cursor-not-allowed"
+                        className="bg-gray-400 cursor-not-allowed h-8 w-8 p-0"
                         title="Você não tem permissão para visualizar agendamentos"
                       >
-                        Visualizar
+                        <Eye className="w-4 h-4" />
                       </Button>
                     )}
                     {canUpdate ? (
-                      <Button 
-                        size="sm" 
+                      <Button
                         variant="outline"
-                        className="flex-1 h-7 text-xs border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white"
+                        size="sm"
+                        className="group border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                         onClick={() => handleEditarAgendamento(agendamento)}
                         title="Editar Agendamento"
                       >
-                        Editar
+                        <Edit className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
                       </Button>
                     ) : (
-                      <Button 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         disabled={true}
-                        className="flex-1 h-7 text-xs border-gray-300 text-gray-400 cursor-not-allowed"
+                        className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
                         title="Você não tem permissão para editar agendamentos"
                       >
-                        Editar
+                        <Edit className="w-4 h-4" />
                       </Button>
                     )}
                     {canDelete ? (
-                      <Button 
-                        size="sm" 
+                      <Button
                         variant="outline"
-                        className="flex-1 h-7 text-xs border-red-300 text-red-600 hover:bg-red-600 hover:text-white"
+                        size="sm"
+                        className="group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                         onClick={() => confirmarExclusao(agendamento)}
                         title="Excluir Agendamento"
                       >
-                        Excluir
+                        <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
                       </Button>
                     ) : (
-                      <Button 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         disabled={true}
-                        className="flex-1 h-7 text-xs border-gray-300 text-gray-400 cursor-not-allowed"
+                        className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
                         title="Você não tem permissão para excluir agendamentos"
                       >
-                        Excluir
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     )}
                   </div>
@@ -582,12 +549,6 @@ export const AgendamentosPage = () => {
             </TableHead>
             <TableHead className="py-3 text-sm font-semibold text-gray-700">
               <div className="flex items-center gap-2">
-                <span className="text-lg">🏥</span>
-                Convênio
-              </div>
-            </TableHead>
-            <TableHead className="py-3 text-sm font-semibold text-gray-700">
-              <div className="flex items-center gap-2">
                 <span className="text-lg">🏷️</span>
                 Tipo
               </div>
@@ -609,7 +570,7 @@ export const AgendamentosPage = () => {
         <TableBody>
           {agendamentosPaginados.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="py-12 text-center">
+              <TableCell colSpan={8} className="py-12 text-center">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                     <span className="text-3xl">📅</span>
@@ -649,9 +610,6 @@ export const AgendamentosPage = () => {
                   </TableCell>
                   <TableCell className="py-2">
                     <span className="text-sm">{agendamento.servicoNome}</span>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <span className="text-sm">{agendamento.convenioNome}</span>
                   </TableCell>
                   <TableCell className="py-2">
                     <span className={`text-sm px-3 py-1 rounded-full font-medium ${
@@ -777,7 +735,7 @@ export const AgendamentosPage = () => {
   }
 
   return (
-    <div className="pt-2 pl-6 pr-6 h-full flex flex-col">
+    <div className="pt-2 pl-6 pr-6 h-full min-h-0 flex flex-col">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
         <div>
@@ -1030,36 +988,16 @@ export const AgendamentosPage = () => {
         </div>
       )}
 
-      {/* Cards de Estatísticas para visualização de cards */}
-      {visualizacao === 'cards' && (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          {estatisticas.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <Card key={stat.label} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded ${stat.cor}`}>
-                        <Icon className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium text-gray-600">{stat.label}</p>
-                      </div>
-                    </div>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${stat.cor}`}>
-                      <span className="text-sm font-bold text-white">{stat.valor}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+      
 
       {/* Conteúdo */}
-      {visualizacao === 'cards' ? renderCardView() : renderTableView()}
+      {visualizacao === 'cards' ? (
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          {renderCardView()}
+        </div>
+      ) : (
+        renderTableView()
+      )}
 
       {/* Paginação */}
       {agendamentosFiltrados.length > 0 && (

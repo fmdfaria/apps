@@ -25,6 +25,7 @@ import {
   UserCheck2,
   AlertCircle
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Agendamento } from '@/types/Agendamento';
 import { getAgendamentos, updateCompareceu, updateAssinaturaPaciente, updateAssinaturaProfissional } from '@/services/agendamentos';
 import { AtenderAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
@@ -46,6 +47,10 @@ export const AtenderPage = () => {
   // Estados para controle de permissões RBAC
   const [accessDenied, setAccessDenied] = useState(false);
   const [canAtender, setCanAtender] = useState(true);
+  const [canViewEvolucoes, setCanViewEvolucoes] = useState(true);
+  const [canCreateEvolucoes, setCanCreateEvolucoes] = useState(true);
+  const [canUpdateEvolucoes, setCanUpdateEvolucoes] = useState(true);
+  const [canDeleteEvolucoes, setCanDeleteEvolucoes] = useState(true);
   const [busca, setBusca] = useState('');
   const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
   const [showAtenderAgendamento, setShowAtenderAgendamento] = useState(false);
@@ -103,7 +108,28 @@ export const AtenderPage = () => {
         return route.path === '/agendamentos-atender/:id' && route.method.toLowerCase() === 'put';
       });
       
+      // Verificar permissões de evolução
+      const canViewEvolucoes = allowedRoutes.some((route: any) => {
+        return route.path === '/evolucoes' && route.method.toLowerCase() === 'get';
+      });
+      
+      const canCreateEvolucoes = allowedRoutes.some((route: any) => {
+        return route.path === '/evolucoes' && route.method.toLowerCase() === 'post';
+      });
+      
+      const canUpdateEvolucoes = allowedRoutes.some((route: any) => {
+        return route.path === '/evolucoes/:id' && route.method.toLowerCase() === 'put';
+      });
+      
+      const canDeleteEvolucoes = allowedRoutes.some((route: any) => {
+        return route.path === '/evolucoes/:id' && route.method.toLowerCase() === 'delete';
+      });
+      
       setCanAtender(canAtender);
+      setCanViewEvolucoes(canViewEvolucoes);
+      setCanCreateEvolucoes(canCreateEvolucoes);
+      setCanUpdateEvolucoes(canUpdateEvolucoes);
+      setCanDeleteEvolucoes(canDeleteEvolucoes);
       
       // Se não tem permissão de atendimento, marca como access denied
       if (!canAtender) {
@@ -113,6 +139,10 @@ export const AtenderPage = () => {
     } catch (error: any) {
       // Em caso de erro, desabilita tudo por segurança
       setCanAtender(false);
+      setCanViewEvolucoes(false);
+      setCanCreateEvolucoes(false);
+      setCanUpdateEvolucoes(false);
+      setCanDeleteEvolucoes(false);
       
       // Se retornar 401/403 no endpoint de permissões, considera acesso negado
       if (error?.response?.status === 401 || error?.response?.status === 403) {
@@ -621,15 +651,38 @@ export const AtenderPage = () => {
                     >
                       <Eye className="w-4 h-4" />
                     </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                      onClick={() => handleAbrirProntuario(agendamento)}
-                      title="Prontuário"
-                    >
-                      <ClipboardList className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
-                    </Button>
+                    {canViewEvolucoes ? (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleAbrirProntuario(agendamento)}
+                        title="Prontuário"
+                      >
+                        <ClipboardList className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
+                      </Button>
+                    ) : (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-block">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="h-8 w-8 p-0 border-gray-300 text-gray-400 opacity-50 cursor-not-allowed"
+                                disabled={true}
+                                title="Sem permissão para visualizar evoluções"
+                              >
+                                <ClipboardList className="w-4 h-4" />
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Você não tem permissão para visualizar evoluções de pacientes</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
                     <Button 
                       size="sm" 
                       variant="outline"
@@ -835,15 +888,38 @@ export const AtenderPage = () => {
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                        onClick={() => handleAbrirProntuario(agendamento)}
-                        title="Prontuário"
-                      >
-                        <ClipboardList className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
-                      </Button>
+                      {canViewEvolucoes ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                          onClick={() => handleAbrirProntuario(agendamento)}
+                          title="Evolução"
+                        >
+                          <ClipboardList className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
+                        </Button>
+                      ) : (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-block">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 border-gray-300 text-gray-400 opacity-50 cursor-not-allowed"
+                                  disabled={true}
+                                  title="Sem permissão para visualizar evoluções"
+                                >
+                                  <ClipboardList className="w-4 h-4" />
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Você não tem permissão para visualizar evoluções de pacientes</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
@@ -1283,6 +1359,9 @@ export const AtenderPage = () => {
         pacientes={pacientes}
         evolucaoParaEditar={evolucaoExistente}
         agendamentoInicial={agendamentoParaEvolucao}
+        canCreate={canCreateEvolucoes}
+        canUpdate={canUpdateEvolucoes}
+        canDelete={canDeleteEvolucoes}
       />
 
       {/* Modais de confirmação para os novos campos */}

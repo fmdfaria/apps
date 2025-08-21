@@ -24,8 +24,10 @@ export const uploadAnexo = async ({ file, descricao, entidadeId, modulo, categor
   return data;
 };
 
-export const getAnexos = async (entidadeId: string): Promise<Anexo[]> => {
-  const { data } = await api.get('/anexos', { params: { entidadeId } });
+export const getAnexos = async (entidadeId: string, modulo?: string): Promise<Anexo[]> => {
+  const params: Record<string, string> = { entidadeId };
+  if (modulo) params.modulo = modulo;
+  const { data } = await api.get('/anexos', { params });
   return data;
 };
 

@@ -348,8 +348,11 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
       {/* Lista de intervalos existentes */}
       {horario.ativo && (
         <div className="space-y-3">
-          {ordenarIntervalos(horario.intervalos).map((intervalo) => (
-            <div key={intervalo.id} className={`border rounded-lg p-3 ${getTipoColor(intervalo.tipo)}`}>
+          {ordenarIntervalos(horario.intervalos).map((intervalo, index) => (
+            <div
+              key={`${intervalo.id ?? 'noid'}-${intervalo.horaInicio}-${intervalo.horaFim}-${intervalo.recursoId ?? 'none'}-${index}`}
+              className={`border rounded-lg p-3 ${getTipoColor(intervalo.tipo)}`}
+            >
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0 flex-wrap">
                   <Clock className="w-4 h-4 flex-shrink-0" />

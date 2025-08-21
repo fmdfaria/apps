@@ -50,10 +50,11 @@ export class PrismaPacientesRepository implements IPacientesRepository {
     return paciente as Paciente;
   }
   async findByNomeCompleto(nomeCompleto: string): Promise<Paciente | null> {
+    const normalized = nomeCompleto.trim().replace(/\s+/g, ' ');
     const paciente = await this.prisma.paciente.findFirst({
       where: { 
         nomeCompleto: {
-          equals: nomeCompleto,
+          equals: normalized,
           mode: 'insensitive'
         }
       },

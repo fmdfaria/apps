@@ -219,14 +219,22 @@ export const CalendarioProfissionalPage = () => {
 
   // Carregamento inicial do usuário profissional
   useEffect(() => {
-    carregarUsuarioProfissional();
+    let timeoutCleared = false;
     
-    // Timeout de 10 segundos para evitar loading infinito
+    const loadProfissional = async () => {
+      await carregarUsuarioProfissional();
+      timeoutCleared = true; // Marca que o carregamento foi concluído
+    };
+    
+    loadProfissional();
+    
+    // Timeout de 15 segundos para evitar loading infinito
     const timeout = setTimeout(() => {
-      if (!userProfissional && !loadingError) {
-        setLoadingError('Timeout: Não foi possível carregar os dados do profissional.');
+      if (!timeoutCleared) {
+        console.error('⏰ Timeout atingido - 15 segundos sem concluir o carregamento');
+        setLoadingError('Timeout: Não foi possível carregar os dados do profissional dentro do tempo esperado.');
       }
-    }, 10000);
+    }, 15000);
     
     return () => clearTimeout(timeout);
   }, []);
@@ -283,39 +291,39 @@ export const CalendarioProfissionalPage = () => {
   const carregarUsuarioProfissional = async () => {
     try {
       setLoadingError(null);
-      console.log('Iniciando carregamento do usuário...');
       const response = await api.get('/users/me');
       const userData = response.data;
-      console.log('Dados do usuário:', userData);
       
       if (userData.profissionalId) {
-        console.log('Carregando profissionais...');
         const profissionaisData = await getProfissionais();
-        console.log('Profissionais carregados:', profissionaisData);
+        
+        // Buscar o profissional correspondente
         const profissional = profissionaisData.find(p => p.id === userData.profissionalId);
-        console.log('Profissional encontrado:', profissional);
         
         if (profissional) {
           setUserProfissional(profissional);
         } else {
-          setLoadingError('Profissional não encontrado na base de dados.');
+          const errorMsg = `Profissional não encontrado na base de dados. ID procurado: ${userData.profissionalId}`;
+          console.error('❌', errorMsg);
+          setLoadingError(errorMsg);
           setUserProfissional(null);
         }
       } else {
-        console.log('Usuário não tem profissionalId');
-        setLoadingError('Usuário não está vinculado a um profissional.');
+        const errorMsg = 'Usuário não está vinculado a um profissional (profissionalId não encontrado).';
+        console.error('❌', errorMsg);
+        setLoadingError(errorMsg);
         setUserProfissional(null);
       }
-    } catch (error) {
-      console.error('Erro ao carregar dados do usuário profissional:', error);
-      setLoadingError('Erro ao carregar dados do profissional. Verifique sua conexão.');
+    } catch (error: any) {
+      const errorMsg = `Erro ao carregar dados do profissional: ${error.message || error}`;
+      console.error('❌ Erro ao carregar dados do usuário profissional:', error);
+      setLoadingError(errorMsg);
       setUserProfissional(null);
     }
   };
 
   const carregarDados = async () => {
     if (!userProfissional) {
-      console.log('Aguardando carregamento do profissional...');
       return;
     }
     

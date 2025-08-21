@@ -10,6 +10,8 @@ interface FileUploadProps {
   acceptedTypes?: string;
   maxFiles?: number;
   label?: string;
+  disabled?: boolean;
+  disabledTooltip?: string;
 }
 
 export const FileUpload = ({ 
@@ -17,7 +19,9 @@ export const FileUpload = ({
   onFilesChange, 
   acceptedTypes = '.pdf,.jpg,.jpeg,.png',
   maxFiles = 5,
-  label = 'Arquivos'
+  label = 'Arquivos',
+  disabled = false,
+  disabledTooltip,
 }: FileUploadProps) => {
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -25,6 +29,7 @@ export const FileUpload = ({
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (disabled) return;
     if (e.type === 'dragenter' || e.type === 'dragover') {
       setDragActive(true);
     } else if (e.type === 'dragleave') {
@@ -36,7 +41,7 @@ export const FileUpload = ({
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-
+    if (disabled) return;
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFiles(e.dataTransfer.files);
     }
@@ -44,6 +49,7 @@ export const FileUpload = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
+    if (disabled) return;
     if (e.target.files && e.target.files[0]) {
       handleFiles(e.target.files);
     }
@@ -63,6 +69,7 @@ export const FileUpload = ({
   };
 
   const onButtonClick = () => {
+    if (disabled) return;
     inputRef.current?.click();
   };
 
@@ -86,20 +93,46 @@ export const FileUpload = ({
           onChange={handleChange}
           accept={acceptedTypes}
           className="hidden"
+          disabled={disabled}
         />
         
         <Upload className="w-8 h-8 text-gray-400 mx-auto mb-4" />
         <div className="flex justify-center gap-2">
-          <Button
-            type="button"
-            onClick={onButtonClick}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <Upload className="w-4 h-4" />
-            Selecionar Arquivo
-          </Button>
+          {disabled ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button
+                      type="button"
+                      onClick={onButtonClick}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2 cursor-not-allowed"
+                      disabled
+                    >
+                      <Upload className="w-4 h-4" />
+                      Selecionar Arquivo
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{disabledTooltip || 'Você não tem permissão para selecionar arquivos'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <Button
+              type="button"
+              onClick={onButtonClick}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              Selecionar Arquivo
+            </Button>
+          )}
         </div>
         <p className="text-sm text-gray-400">
           Formatos aceitos: {acceptedTypes.replace(/\./g, '').toUpperCase()}

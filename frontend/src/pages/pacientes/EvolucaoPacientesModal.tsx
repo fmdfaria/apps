@@ -19,6 +19,7 @@ import {
   Save,
   X
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 
 interface EvolucaoPacientesModalProps {
@@ -29,6 +30,9 @@ interface EvolucaoPacientesModalProps {
   pacientes: Paciente[];
   evolucaoParaEditar?: EvolucaoPaciente | null;
   agendamentoInicial?: Agendamento | null;
+  canCreate?: boolean;
+  canUpdate?: boolean;
+  canDelete?: boolean;
 }
 
 export default function EvolucaoPacientesModal({ 
@@ -38,7 +42,10 @@ export default function EvolucaoPacientesModal({
   onDeleted,
   pacientes, 
   evolucaoParaEditar,
-  agendamentoInicial
+  agendamentoInicial,
+  canCreate = true,
+  canUpdate = true,
+  canDelete = true
 }: EvolucaoPacientesModalProps) {
   const [form, setForm] = useState<CreateEvolucaoPacienteData>({
     pacienteId: '',
@@ -347,32 +354,78 @@ export default function EvolucaoPacientesModal({
               </Button>
             </DialogClose>
             {isEditing && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDeleteOpen(true)}
+              !canDelete ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-block order-first">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={true}
+                          className="flex items-center gap-2 border-2 border-gray-300 text-gray-400 cursor-not-allowed opacity-50"
+                          title="Você não tem permissão para excluir evoluções"
+                        >
+                          Excluir
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Você não tem permissão para excluir evoluções</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDeleteOpen(true)}
+                  disabled={formLoading}
+                  className="flex items-center gap-2 border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 order-first"
+                  title="Excluir evolução"
+                >
+                  Excluir
+                </Button>
+              )
+            )}
+            {(isEditing ? !canUpdate : !canCreate) ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-block">
+                      <Button 
+                        type="button" 
+                        disabled={true}
+                        className="bg-gray-400 cursor-not-allowed flex items-center gap-2 opacity-50"
+                        title={`Você não tem permissão para ${isEditing ? 'atualizar' : 'criar'} evoluções`}
+                      >
+                        <Save className="w-4 h-4" />
+                        {isEditing ? 'Atualizar Evolução' : 'Salvar Evolução'}
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Você não tem permissão para {isEditing ? 'atualizar' : 'criar'} evoluções</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <Button 
+                type="submit" 
                 disabled={formLoading}
-                className="flex items-center gap-2 border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 order-first"
-                title="Excluir evolução"
+                className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
               >
-                Excluir
+                {formLoading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {formLoading 
+                  ? (isEditing ? 'Atualizando...' : 'Salvando...') 
+                  : (isEditing ? 'Atualizar Evolução' : 'Salvar Evolução')
+                }
               </Button>
             )}
-            <Button 
-              type="submit" 
-              disabled={formLoading}
-              className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
-            >
-              {formLoading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              {formLoading 
-                ? (isEditing ? 'Atualizando...' : 'Salvando...') 
-                : (isEditing ? 'Atualizar Evolução' : 'Salvar Evolução')
-              }
-            </Button>
             </DialogFooter>
           </form>
         </DialogContent>

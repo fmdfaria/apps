@@ -7,7 +7,7 @@ import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Calendar, Clock, Save, X, ArrowLeft, Repeat, AlertTriangle, User, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, Clock, Save, X, ArrowLeft, Repeat, AlertTriangle, User, FileText, CheckCircle, XCircle, UserCheck, CreditCard, Monitor, MapPin } from 'lucide-react';
 import { OPCOES_HORARIOS } from '../utils/agendamento-constants';
 import { useVerificacaoAgendamento } from '@/hooks/useVerificacaoAgendamento';
 import { verificarConflitosRecorrencia, type ConflitosRecorrencia } from '@/services/verificacao-disponibilidade-recorrencia';
@@ -307,120 +307,92 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
     <>
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 -mx-6 -mt-6 px-6 pt-6 pb-4 border-b border-gray-200">
-          <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
-            <span className="text-2xl">✏️</span>
-            Editar Agendamento
-            {saving && (
-              <div className="ml-auto flex items-center gap-2 text-sm text-gray-500">
-                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                Salvando...
-              </div>
-            )}
-          </DialogTitle>
-          <p className="text-sm text-gray-600 mt-2">
-            Altere apenas a data e hora do agendamento
-          </p>
-        </DialogHeader>
-
-        <div className="mt-4 space-y-6">
-          {/* Informações do Agendamento (Read-only) */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-200">
-            <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">📋</span>
-                Informações do Agendamento
-              </div>
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2 text-xl">
+              <span className="text-2xl">✏️</span>
+              Editar Agendamento
+            </span>
+            <div className="flex items-center gap-3 mr-8">
               <Badge className={`${getStatusColor(agendamento.status)} flex items-center gap-1 text-xs`}>
                 {getStatusIcon(agendamento.status)}
                 {agendamento.status}
               </Badge>
-            </h3>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Coluna 1: Pessoas */}
-              <div className="space-y-2">
-                <h4 className="font-semibold text-gray-700 text-sm flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  Pessoas
-                </h4>
-                <div className="space-y-1 text-sm">
-                  <div>
-                    <span className="text-gray-600">Paciente:</span>
-                    <p className="font-medium text-gray-800">{agendamento.pacienteNome}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Profissional:</span>
-                    <p className="font-medium text-gray-800">{agendamento.profissionalNome}</p>
-                  </div>
+              {saving && (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  Salvando...
                 </div>
-              </div>
+              )}
+            </div>
+          </DialogTitle>
+        </DialogHeader>
 
-              {/* Coluna 2: Serviço e Local */}
-              <div className="space-y-2">
-                <h4 className="font-semibold text-gray-700 text-sm flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Serviço
-                </h4>
-                <div className="space-y-1 text-sm">
-                  <div>
-                    <span className="text-gray-600">Tipo:</span>
-                    <p className="font-medium text-gray-800">{agendamento.servicoNome}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Local:</span>
-                    <p className="font-medium text-gray-800 flex items-center gap-1">
-                      {agendamento.tipoAtendimento === 'online' ? '💻' : '🏥'}
-                      {agendamento.recursoNome || agendamento.tipoAtendimento}
-                    </p>
-                  </div>
-                </div>
+        <div className="space-y-4">
+          {/* Informações do Agendamento - Layout compacto similar ao DetalhesModal */}
+          <div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Paciente:</span>
+                <span className="text-gray-700">{agendamento.pacienteNome}</span>
               </div>
-
-              {/* Coluna 3: Data e Convênio */}
-              <div className="space-y-2">
-                <h4 className="font-semibold text-gray-700 text-sm flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Detalhes
-                </h4>
-                <div className="space-y-1 text-sm">
-                  <div>
-                    <span className="text-gray-600">Data Atual:</span>
-                    <p className="font-medium text-gray-800">
-                      {new Date(agendamento.dataHoraInicio).toLocaleDateString('pt-BR')}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Horário Atual:</span>
-                    <p className="font-medium text-gray-800">
-                      {new Date(agendamento.dataHoraInicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Convênio:</span>
-                    <p className="font-medium text-gray-800">{agendamento.convenioNome}</p>
-                  </div>
-                </div>
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Profissional:</span>
+                <span className="text-gray-700">{agendamento.profissionalNome}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Convênio:</span>
+                <span className="text-gray-700">{agendamento.convenioNome}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Serviço:</span>
+                <span className="text-gray-700">{agendamento.servicoNome}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Data Atual:</span>
+                <span className="text-gray-700">{new Date(agendamento.dataHoraInicio).toLocaleDateString('pt-BR')}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Hora Atual:</span>
+                <span className="text-gray-700">{new Date(agendamento.dataHoraInicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Monitor className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Tipo:</span>
+                <Badge variant="outline" className="text-xs">
+                  {agendamento.tipoAtendimento}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Recurso:</span>
+                <span className="text-gray-700">{agendamento.recursoNome || '-'}</span>
               </div>
             </div>
           </div>
 
-          {/* Layout Otimizado: Recorrência (40%) e Data/Hora (60%) na mesma linha */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            {/* Opções de Edição (sempre mostrar) - 40% */}
-            <div className="lg:col-span-2 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-200">
-              <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                <Repeat className="w-5 h-5" />
-                Editar Recorrência
-              </h3>
+          {/* Layout em duas colunas: Opções de Edição + Nova Data/Hora */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Coluna 1: Opções de Edição */}
+            <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Repeat className="w-4 h-4" />
+                Opções de Edição
+              </h4>
               
               {agendamentosRelacionados.length > 0 ? (
                 <>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Encontramos {agendamentosRelacionados.length} agendamento(s) futuro(s) com as mesmas características.
+                  <p className="text-xs text-gray-600 mb-3">
+                    {agendamentosRelacionados.length + 1} agendamentos encontrados
                   </p>
                   
-                  <RadioGroup value={tipoEdicao} onValueChange={(value: 'individual' | 'serie') => setTipoEdicao(value)}>
+                  <RadioGroup value={tipoEdicao} onValueChange={(value: 'individual' | 'serie') => setTipoEdicao(value)} className="space-y-2">
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="individual" id="individual" />
                       <Label htmlFor="individual" className="text-sm">
@@ -428,17 +400,14 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem 
-                        value="serie" 
-                        id="serie" 
-                        disabled={isAgendamentoPassado}
-                      />
-                      <Label 
-                        htmlFor="serie" 
-                        className={`text-sm ${isAgendamentoPassado ? 'text-gray-400 cursor-not-allowed' : ''}`}
-                        title={isAgendamentoPassado ? 'Não é permitido alterar recorrência de agendamentos passados' : ''}
-                      >
+                      <RadioGroupItem value="serie" id="serie" disabled={isAgendamentoPassado} />
+                      <Label htmlFor="serie" className={`text-sm ${isAgendamentoPassado ? 'text-gray-400 cursor-not-allowed' : ''}`}>
                         Toda a série ({agendamentosRelacionados.length + 1} agendamentos)
+                        {isAgendamentoPassado && (
+                          <div className="text-xs text-red-500 mt-1">
+                            Não permitido para agendamentos passados
+                          </div>
+                        )}
                       </Label>
                     </div>
                   </RadioGroup>
@@ -450,42 +419,40 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
               )}
             </div>
 
-            {/* Campos Editáveis - 60% */}
-            <div className="lg:col-span-3 bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
-              <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                <span className="text-xl">📅</span>
-                Alterar Data e Hora
-              </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Data */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Data <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="date"
-                  value={dataAgendamento}
-                  onChange={(e) => setDataAgendamento(e.target.value)}
-                  required
-                  min={new Date().toISOString().split('T')[0]}
-                  className="border-2 border-green-200 focus:border-green-500 focus:ring-green-100"
-                />
-              </div>
+            {/* Coluna 2: Nova Data e Hora */}
+            <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                Nova Data e Hora
+              </h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Data */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Data <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="date"
+                    value={dataAgendamento}
+                    onChange={(e) => setDataAgendamento(e.target.value)}
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                    className="border-2 border-green-200 focus:border-green-500"
+                  />
+                </div>
 
-              {/* Hora */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  Hora <span className="text-red-500">*</span>
-                  {carregandoHorarios && (
-                    <div className="ml-2 flex items-center gap-1 text-xs text-gray-500">
-                      <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-                      Verificando...
-                    </div>
-                  )}
-                </label>
-                <div className="w-full">
+                {/* Hora */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Hora <span className="text-red-500">*</span>
+                    {carregandoHorarios && (
+                      <span className="ml-2 text-xs text-gray-500">
+                        <div className="inline-block w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin mr-1"></div>
+                        Verificando...
+                      </span>
+                    )}
+                  </label>
                   <SingleSelectDropdown
                     options={horariosVerificados.length > 0 ? 
                       horariosVerificados.map(({ horario, verificacao }) => ({
@@ -503,7 +470,7 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
                     onChange={(selected) => {
                       setHoraAgendamento(selected?.id || '');
                     }}
-                    placeholder={carregandoHorarios ? "Verificando horários..." : dataAgendamento ? "Selecione um horário..." : "Selecione uma data primeiro..."}
+                    placeholder={carregandoHorarios ? "Verificando..." : "Selecione..."}
                     headerText="Horários disponíveis"
                     formatOption={(option) => option.nome}
                     getDotColor={(option) => {
@@ -517,36 +484,32 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
                       if (horariosVerificados.length > 0) {
                         const horarioInfo = horariosVerificados.find(h => h.horario === option.id);
                         const verificacao = horarioInfo?.verificacao;
-                        // Desabilitar apenas se for indisponível (vermelho) ou se estiver ocupado
                         return verificacao?.dotColor === 'red' || verificacao?.isOcupado === true;
                       }
                       return false;
                     }}
                   />
                 </div>
-                
-                {/* Legenda de status */}
-                {horariosVerificados.length > 0 && (
-                  <div className="mt-2 text-xs text-gray-600">
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span>Presencial</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span>Online</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                        <span>Indisponível</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
+              
+              {/* Legenda compacta fora do grid */}
+              {horariosVerificados.length > 0 && (
+                <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <span>Presencial</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>Online</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                    <span>Indisponível</span>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
           </div>
 
         </div>

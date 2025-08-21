@@ -11,7 +11,7 @@ import type { Paciente } from '@/types/Paciente';
 import type { Anexo } from '@/types/Anexo';
 import { uploadAnexo, getAnexos, deleteAnexo } from '@/services/anexos';
 
-interface AnexoPacientesModalProps {
+interface AnexoEvolucoesPacientesModalProps {
   showModal: boolean;
   paciente: Paciente | null;
   anexoFiles: File[];
@@ -31,7 +31,7 @@ interface AnexoPacientesModalProps {
   onDeletingAnexoChange: (deleting: boolean) => void;
 }
 
-export default function AnexoPacientesModal({
+export default function AnexoEvolucoesPacientesModal({
   showModal,
   paciente,
   anexoFiles,
@@ -49,14 +49,14 @@ export default function AnexoPacientesModal({
   onSavingChange,
   onAnexoToDeleteChange,
   onDeletingAnexoChange
-}: AnexoPacientesModalProps) {
+}: AnexoEvolucoesPacientesModalProps) {
 
   const { hasPermission } = usePermissions();
+  const canPostEvolucoes = hasPermission('/evolucoes', 'POST');
   const canPostAnexo = hasPermission('/anexos', 'POST');
-  const canPutPaciente = paciente ? hasPermission(`/pacientes/${paciente.id}`, 'PUT') : false;
-  const canUpload = canPostAnexo && canPutPaciente;
-  const canPostPaciente = hasPermission('/pacientes', 'POST');
-  const canDeleteAnexoForId = (id: string) => canPostPaciente && hasPermission(`/anexos/${id}`, 'DELETE');
+  const canUpload = canPostEvolucoes && canPostAnexo;
+  const canDeleteAnexoForId = (id: string) => canPostEvolucoes && hasPermission(`/anexos/${id}`, 'DELETE');
+
   const handleSalvarAnexo = async () => {
     if (!canUpload) {
       AppToast.error('Permissão negada', { description: 'Você não tem permissão para enviar anexos.' });
@@ -81,13 +81,13 @@ export default function AnexoPacientesModal({
         file: anexoFiles[0],
         descricao: anexoDescricao,
         entidadeId: paciente.id,
-        modulo: 'pacientes',
+        modulo: 'evolucoes',
         categoria: 'documentos',
       });
 
-      // Atualizar lista de anexos após upload
-      const anexosDb = await getAnexos(paciente.id, 'pacientes');
-      onAnexosChange(Array.isArray(anexosDb) ? anexosDb.filter((a: any) => !a.bucket || a.bucket === 'pacientes') : []);
+      // Atualizar lista de anexos após upload (filtrando por módulo evolucoes)
+      const anexosDb = await getAnexos(paciente.id, 'evolucoes');
+      onAnexosChange(Array.isArray(anexosDb) ? anexosDb.filter((a: any) => a.bucket === 'evolucoes') : []);
       onAnexoFilesChange([]);
       onAnexoDescricaoChange('');
 
@@ -110,10 +110,10 @@ export default function AnexoPacientesModal({
           <DialogHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 -mx-6 -mt-6 px-6 pt-6 pb-4 border-b border-gray-200">
             <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
               <span className="text-2xl">📎</span>
-              Anexos - {paciente?.nomeCompleto}
+              Anexos da Evolução - {paciente?.nomeCompleto}
             </DialogTitle>
             <DialogDescription className="text-gray-600">
-              Envie novos arquivos e gerencie os anexos deste paciente.
+              Envie arquivos e gerencie os anexos relacionados às evoluções deste paciente.
             </DialogDescription>
           </DialogHeader>
 
@@ -151,11 +151,9 @@ export default function AnexoPacientesModal({
                       disabled={saving}
                     />
                   </div>
-  
-  
                 </div>
               </div>
-  
+ 
               {/* Lista de anexos existentes */}
               <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-3 border border-gray-200">
                 <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
@@ -376,3 +374,5 @@ export default function AnexoPacientesModal({
     </>
   );
 }
+
+

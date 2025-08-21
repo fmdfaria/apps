@@ -41,6 +41,7 @@ import type { FilterConfig } from '@/types/filters';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
 import { useTableFilters } from '@/hooks/useTableFilters';
+import { useMenuPermissions } from '@/hooks/useMenuPermissions';
 import { getModuleTheme } from '@/types/theme';
 import { formatWhatsAppDisplay, isValidWhatsApp } from '@/utils/whatsapp';
 import { getAnexos } from '@/services/anexos';
@@ -70,6 +71,8 @@ export const PacientesPage = () => {
   const [canUpdate, setCanUpdate] = useState(true);
   const [canDelete, setCanDelete] = useState(true);
   const [canToggle, setCanToggle] = useState(true);
+  const [canViewEvolucoes, setCanViewEvolucoes] = useState(true);
+  const [canViewAnexos, setCanViewAnexos] = useState(true);
   const [convenios, setConvenios] = useState<Convenio[]>([]);
 
   // Estados dos modais existentes
@@ -128,6 +131,10 @@ export const PacientesPage = () => {
 
   // Hooks responsivos
   const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'pacientes-view' });
+  
+  
+  // Hook de permissões
+  const { hasPermission } = useMenuPermissions();
   
   // Configuração das colunas da tabela
   const columns: TableColumn<Paciente>[] = [
@@ -230,107 +237,177 @@ export const PacientesPage = () => {
       render: (item) => {
         return (
         <div className="flex gap-1.5">
+          {/* Botão Editar */}
           {canUpdate ? (
-            <>
-              <ActionButton
-                variant="view"
-                module="pacientes"
-                onClick={() => abrirModalEditar(item)}
-                title="Editar dados do paciente"
-              >
-                <Edit className="w-4 h-4" />
-              </ActionButton>
-              <ActionButton
-                variant="view"
-                module="pacientes"
-                onClick={() => abrirModalAnexo(item)}
-                title="Gerenciar anexos"
-              >
-                <Paperclip className="w-4 h-4" />
-              </ActionButton>
-              {item.tipoServico === 'Convênio' ? (
-                <ActionButton
-                  variant="view"
-                  module="pacientes"
-                  onClick={() => abrirModalConvenio(item)}
-                  title="Dados do convênio"
-                >
-                  <Building2 className="w-4 h-4" />
-                </ActionButton>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
-                  disabled
-                  title="Paciente particular"
-                >
-                  <Building2 className="w-4 h-4" />
-                </Button>
-              )}
-              <ActionButton
-                variant="view"
-                module="pacientes"
-                onClick={() => navigate(`/pacientes/evolucoes/${item.id}`)}
-                title="Evolução do paciente"
-              >
-                <History className="w-4 h-4" />
-              </ActionButton>
-              {canToggle ? (
-                <ActionButton
-                  variant={item.ativo === true ? "delete" : "view"}
-                  module="pacientes"
-                  onClick={() => handleToggleStatus(item.id, !item.ativo)}
-                  title={item.ativo === true ? "Inativar paciente" : "Ativar paciente"}
-                >
-                  <RotateCcw className="w-4 h-4" />
-                </ActionButton>
-              ) : (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="inline-block">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-8 w-8 p-0 border-gray-300 text-gray-400 opacity-50 cursor-not-allowed"
-                          disabled={true}
-                          title="Sem permissão para alterar status"
-                        >
-                          <RotateCcw className="w-4 h-4" />
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Você não tem permissão para ativar/inativar pacientes</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </>
+            <ActionButton
+              variant="view"
+              module="pacientes"
+              onClick={() => abrirModalEditar(item)}
+              title="Editar dados do paciente"
+            >
+              <Edit className="w-4 h-4" />
+            </ActionButton>
           ) : (
-            <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
+                    disabled
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para editar pacientes</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          
+          {/* Botão Anexos - exige GET /pacientes */}
+          {canViewAnexos ? (
+            <ActionButton
+              variant="view"
+              module="pacientes"
+              onClick={() => abrirModalAnexo(item)}
+              title="Gerenciar anexos"
+            >
+              <Paperclip className="w-4 h-4" />
+            </ActionButton>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
+                    disabled
+                  >
+                    <Paperclip className="w-4 h-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para visualizar anexos</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          
+          {/* Botão Evolução - sempre visível */}
+          {canViewEvolucoes ? (
+            <ActionButton
+              variant="view"
+              module="pacientes"
+              onClick={() => navigate(`/pacientes/evolucoes/${item.id}`)}
+              title="Evolução do paciente"
+            >
+              <History className="w-4 h-4" />
+            </ActionButton>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
+                    disabled
+                  >
+                    <History className="w-4 h-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para visualizar evoluções</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          
+          {/* Botão Convênio - exige PUT /pacientes/:id e paciente de convênio */}
+          {item.tipoServico === 'Convênio' ? (
+            canUpdate ? (
+              <ActionButton
+                variant="view"
+                module="pacientes"
+                onClick={() => abrirModalConvenio(item)}
+                title="Dados do convênio"
+              >
+                <Building2 className="w-4 h-4" />
+              </ActionButton>
+            ) : (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-block">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 w-8 p-0 border-orange-300 text-orange-600 opacity-50 cursor-not-allowed"
-                      disabled={true}
-                      title="Sem permissão para editar"
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
+                      disabled
                     >
-                      <Edit className="w-4 h-4" />
+                      <Building2 className="w-4 h-4" />
                     </Button>
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Você não tem permissão para editar pacientes</p>
+                  <p>Você não tem permissão para editar dados do convênio</p>
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
+            )
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
+                    disabled
+                  >
+                    <Building2 className="w-4 h-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Disponível apenas para pacientes com convênio</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          
+          {/* Botão Toggle - sempre visível */}
+          {canToggle ? (
+            <ActionButton
+              variant={item.ativo === true ? "delete" : "view"}
+              module="pacientes"
+              onClick={() => handleToggleStatus(item.id, !item.ativo)}
+              title={item.ativo === true ? "Inativar paciente" : "Ativar paciente"}
+            >
+              <RotateCcw className="w-4 h-4" />
+            </ActionButton>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
+                    disabled
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para alterar status</p>
+              </TooltipContent>
+            </Tooltip>
           )}
 
+          {/* Botão Delete - sempre visível */}
           {canDelete ? (
             <ActionButton
               variant="delete"
@@ -341,26 +418,23 @@ export const PacientesPage = () => {
               <Trash2 className="w-4 h-4" />
             </ActionButton>
           ) : (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-block">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 w-8 p-0 border-red-300 text-red-600 opacity-50 cursor-not-allowed"
-                      disabled={true}
-                      title="Sem permissão para excluir"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Você não tem permissão para excluir pacientes</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
+                    disabled
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para excluir pacientes</p>
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
         );
@@ -461,11 +535,17 @@ export const PacientesPage = () => {
       const canDelete = allowedRoutes.some((route: any) => {
         return route.path === '/pacientes/:id' && route.method.toLowerCase() === 'delete';
       });
+
+      const canViewEvolucoes = allowedRoutes.some((route: any) => {
+        return route.path === '/evolucoes' && route.method.toLowerCase() === 'get';
+      });
       
       setCanCreate(canCreate);
       setCanUpdate(canUpdate);
       setCanToggle(canToggle);
       setCanDelete(canDelete);
+      setCanViewEvolucoes(canViewEvolucoes);
+      setCanViewAnexos(canRead);
       
       // Se não tem nem permissão de leitura, marca como access denied
       if (!canRead) {
@@ -478,6 +558,8 @@ export const PacientesPage = () => {
       setCanUpdate(false);
       setCanToggle(false);
       setCanDelete(false);
+      setCanViewEvolucoes(false);
+      setCanViewAnexos(false);
       
       // Se retornar 401/403 no endpoint de permissões, considera acesso negado
       if (error?.response?.status === 401 || error?.response?.status === 403) {
@@ -582,8 +664,8 @@ export const PacientesPage = () => {
     setShowAnexoModal(true);
     // Buscar anexos reais
     try {
-      const anexosDb = await getAnexos(p.id);
-      setAnexos(anexosDb);
+      const anexosDb = await getAnexos(p.id, 'pacientes');
+      setAnexos(Array.isArray(anexosDb) ? anexosDb.filter((a: any) => !a.bucket || a.bucket === 'pacientes') : []);
     } catch (e) {
       setAnexos([]);
     }
@@ -719,42 +801,110 @@ export const PacientesPage = () => {
         >
           <Edit className="w-4 h-4" />
         </ActionButton>
-        <ActionButton
-          variant="view"
-          module="pacientes"
-          onClick={() => abrirModalAnexo(paciente)}
-          title="Gerenciar anexos"
-        >
-          <Paperclip className="w-4 h-4" />
-        </ActionButton>
-        {paciente.tipoServico === 'Convênio' ? (
+        {canViewAnexos ? (
           <ActionButton
             variant="view"
             module="pacientes"
-            onClick={() => abrirModalConvenio(paciente)}
-            title="Dados do convênio"
+            onClick={() => abrirModalAnexo(paciente)}
+            title="Gerenciar anexos"
           >
-            <Building2 className="w-4 h-4" />
+            <Paperclip className="w-4 h-4" />
           </ActionButton>
         ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
-            disabled
-            title="Paciente particular"
-          >
-            <Building2 className="w-4 h-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-block">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
+                  disabled
+                >
+                  <Paperclip className="w-4 h-4" />
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Você não tem permissão para visualizar anexos</p>
+            </TooltipContent>
+          </Tooltip>
         )}
-        <ActionButton
-          variant="view"
-          module="pacientes"
-          onClick={() => navigate(`/pacientes/evolucoes/${paciente.id}`)}
-          title="Evolução do paciente"
-        >
-          <History className="w-4 h-4" />
-        </ActionButton>
+        {canViewEvolucoes ? (
+          <ActionButton
+            variant="view"
+            module="pacientes"
+            onClick={() => navigate(`/pacientes/evolucoes/${paciente.id}`)}
+            title="Evolução do paciente"
+          >
+            <History className="w-4 h-4" />
+          </ActionButton>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-block">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
+                  disabled
+                >
+                  <History className="w-4 h-4" />
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Você não tem permissão para visualizar evoluções</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+        {paciente.tipoServico === 'Convênio' ? (
+          canUpdate ? (
+            <ActionButton
+              variant="view"
+              module="pacientes"
+              onClick={() => abrirModalConvenio(paciente)}
+              title="Dados do convênio"
+            >
+              <Building2 className="w-4 h-4" />
+            </ActionButton>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
+                    disabled
+                  >
+                    <Building2 className="w-4 h-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para editar dados do convênio</p>
+              </TooltipContent>
+            </Tooltip>
+          )
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-block">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
+                  disabled
+                >
+                  <Building2 className="w-4 h-4" />
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Disponível apenas para pacientes com convênio</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
         {canToggle ? (
           <ActionButton
             variant={paciente.ativo === true ? "delete" : "view"}
@@ -765,17 +915,25 @@ export const PacientesPage = () => {
             <RotateCcw className="w-4 h-4" />
           </ActionButton>
         ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
-            disabled
-            title="Sem permissão"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-block">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
+                  disabled
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Você não tem permissão para alterar status</p>
+            </TooltipContent>
+          </Tooltip>
         )}
-        {canDelete && (
+        {canDelete ? (
           <ActionButton
             variant="delete"
             module="pacientes"
@@ -784,6 +942,24 @@ export const PacientesPage = () => {
           >
             <Trash2 className="w-4 h-4" />
           </ActionButton>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-block">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
+                  disabled
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Você não tem permissão para excluir pacientes</p>
+            </TooltipContent>
+          </Tooltip>
         )}
       </ResponsiveCardFooter>
     </Card>
@@ -834,6 +1010,7 @@ export const PacientesPage = () => {
   }
 
   return (
+    <TooltipProvider>
     <PageContainer>
       {/* Header da página */}
       <PageHeader title="Pacientes" module="pacientes" icon="👥">
@@ -867,24 +1044,22 @@ export const PacientesPage = () => {
             Novo Paciente
           </Button>
         ) : (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-block">
-                  <Button 
-                    className={`!h-10 bg-gradient-to-r ${getModuleTheme('pacientes').primaryButton} ${getModuleTheme('pacientes').primaryButtonHover} shadow-lg hover:shadow-xl transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed`}
-                    disabled={true}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Novo Paciente
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Você não tem permissão para criar pacientes</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-block">
+                <Button 
+                  className={`!h-10 bg-gradient-to-r ${getModuleTheme('pacientes').primaryButton} ${getModuleTheme('pacientes').primaryButtonHover} shadow-lg hover:shadow-xl transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed`}
+                  disabled={true}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Novo Paciente
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Você não tem permissão para criar pacientes</p>
+            </TooltipContent>
+          </Tooltip>
         )}
       </PageHeader>
 
@@ -1021,7 +1196,7 @@ export const PacientesPage = () => {
           setFormError('');
           const whatsappNumeros = form.whatsapp.replace(/\D/g, '');
           const pacientePayload: any = {
-            nomeCompleto: form.nomeCompleto,
+            nomeCompleto: form.nomeCompleto.trim().replace(/\s+/g, ' '),
             nomeResponsavel: form.nomeResponsavel.trim() || null,
             cpf: form.cpf.trim() || null,
             email: form.email.trim() || null,
@@ -1105,7 +1280,7 @@ export const PacientesPage = () => {
           setFormError('');
           const whatsappNumeros = form.whatsapp.replace(/\D/g, '');
           const pacientePayload: any = {
-            nomeCompleto: form.nomeCompleto,
+            nomeCompleto: form.nomeCompleto.trim().replace(/\s+/g, ' '),
             nomeResponsavel: form.nomeResponsavel.trim() || null,
             cpf: form.cpf.trim() || null,
             email: form.email.trim() || null,
@@ -1322,5 +1497,6 @@ export const PacientesPage = () => {
         } : undefined}
       />
     </PageContainer>
+    </TooltipProvider>
   );
 };

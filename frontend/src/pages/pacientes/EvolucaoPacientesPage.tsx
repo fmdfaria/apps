@@ -3,13 +3,16 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, ArrowLeft, User, FileText, Phone, Building2, IdCard } from 'lucide-react';
+import { Calendar, ArrowLeft, User, FileText, Phone, Building2, IdCard, Paperclip } from 'lucide-react';
 import { getEvolucoes } from '@/services/evolucoes';
 import { getPacientes } from '@/services/pacientes';
 import { getConvenios } from '@/services/convenios';
 import type { EvolucaoPaciente } from '@/types/EvolucaoPaciente';
 import type { Paciente } from '@/types/Paciente';
 import type { Convenio } from '@/types/Convenio';
+import AnexoEvolucoesPacientesModal from './AnexoEvolucoesPacientesModal';
+import { getAnexos } from '@/services/anexos';
+import type { Anexo } from '@/types/Anexo';
 
 export const EvolucaoPacientesPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +22,15 @@ export const EvolucaoPacientesPage: React.FC = () => {
   const [evolucoes, setEvolucoes] = useState<EvolucaoPaciente[]>([]);
   const [paciente, setPaciente] = useState<Paciente | null>(null);
   const [convenios, setConvenios] = useState<Convenio[]>([]);
+  // Estado do modal de anexos
+  const [showAnexoModal, setShowAnexoModal] = useState(false);
+  const [anexoFiles, setAnexoFiles] = useState<File[]>([]);
+  const [anexoDescricao, setAnexoDescricao] = useState('');
+  const [anexos, setAnexos] = useState<Anexo[]>([]);
+  const [anexoError, setAnexoError] = useState('');
+  const [anexoToDelete, setAnexoToDelete] = useState<Anexo | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deletingAnexo, setDeletingAnexo] = useState(false);
 
   useEffect(() => {
     const carregar = async () => {
@@ -111,6 +123,32 @@ export const EvolucaoPacientesPage: React.FC = () => {
     return convenios.find(c => c.id === paciente.convenioId)?.nome;
   }, [paciente?.convenioId, convenios]);
 
+  const abrirModalAnexos = async () => {
+    if (!paciente) return;
+    setShowAnexoModal(true);
+    setAnexoFiles([]);
+    setAnexoDescricao('');
+    setAnexoError('');
+    setAnexos([]);
+    try {
+      const anexosDb = await getAnexos(paciente.id, 'evolucoes');
+      setAnexos(Array.isArray(anexosDb) ? anexosDb.filter((a: any) => a.bucket === 'evolucoes') : []);
+    } catch {
+      setAnexos([]);
+    }
+  };
+
+  const fecharModalAnexo = () => {
+    setShowAnexoModal(false);
+    setAnexoFiles([]);
+    setAnexoDescricao('');
+    setAnexoError('');
+    setAnexos([]);
+    setAnexoToDelete(null);
+    setSaving(false);
+    setDeletingAnexo(false);
+  };
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center">
@@ -140,9 +178,14 @@ export const EvolucaoPacientesPage: React.FC = () => {
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
             Evoluções do Paciente
           </h1>
-          <Button variant="outline" onClick={() => navigate('/pacientes')} className="gap-2">
-            <ArrowLeft className="w-4 h-4" /> Voltar
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="default" onClick={abrirModalAnexos} className="gap-2">
+              <Paperclip className="w-4 h-4" /> Anexar Arquivos
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/pacientes')} className="gap-2">
+              <ArrowLeft className="w-4 h-4" /> Voltar
+            </Button>
+          </div>
         </div>
         <Card>
           <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -229,6 +272,27 @@ export const EvolucaoPacientesPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Modal de Anexos de Evoluções */}
+      <AnexoEvolucoesPacientesModal
+        showModal={showAnexoModal}
+        paciente={paciente}
+        anexoFiles={anexoFiles}
+        anexoDescricao={anexoDescricao}
+        anexos={anexos}
+        anexoError={anexoError}
+        saving={saving}
+        anexoToDelete={anexoToDelete}
+        deletingAnexo={deletingAnexo}
+        onClose={fecharModalAnexo}
+        onAnexoFilesChange={setAnexoFiles}
+        onAnexoDescricaoChange={setAnexoDescricao}
+        onAnexosChange={setAnexos}
+        onAnexoErrorChange={setAnexoError}
+        onSavingChange={setSaving}
+        onAnexoToDeleteChange={setAnexoToDelete}
+        onDeletingAnexoChange={setDeletingAnexo}
+      />
     </div>
   );
 };

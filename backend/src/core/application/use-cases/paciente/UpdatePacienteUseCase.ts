@@ -42,7 +42,7 @@ export class UpdatePacienteUseCase {
 
     if (data.nomeCompleto !== paciente.nomeCompleto) {
       const pacienteExists = await this.pacientesRepository.findByNomeCompleto(data.nomeCompleto);
-      if (pacienteExists) {
+      if (pacienteExists && pacienteExists.id !== paciente.id) {
         throw new AppError('Já existe um paciente com este nome.');
       }
     }
