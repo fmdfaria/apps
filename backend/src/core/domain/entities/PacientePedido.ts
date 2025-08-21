@@ -10,6 +10,7 @@ export class PacientePedido {
   pacienteId: string;
   createdAt?: Date | null;
   updatedAt?: Date | null;
+  servico?: any; // Relação com serviço
 
   constructor() {
     this.id = '';

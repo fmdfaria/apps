@@ -91,6 +91,7 @@ export const PacientesPage = () => {
     dataNascimento: '',
     tipoServico: '',
     convenioId: '',
+    numeroCarteirinha: '',
   });
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
@@ -589,7 +590,7 @@ export const PacientesPage = () => {
   // Funções dos modais existentes
   const abrirModalNovo = () => {
     setEditando(null);
-    setForm({ nomeCompleto: '', nomeResponsavel: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '', convenioId: '' });
+    setForm({ nomeCompleto: '', nomeResponsavel: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '', convenioId: '', numeroCarteirinha: '' });
     setFormError('');
     setShowCriarModal(true);
   };
@@ -605,6 +606,7 @@ export const PacientesPage = () => {
       dataNascimento: p.dataNascimento ? p.dataNascimento.substring(0, 10) : '',
       tipoServico: p.tipoServico || 'Particular',
       convenioId: p.convenioId || '',
+      numeroCarteirinha: p.numeroCarteirinha || '',
     });
     setFormError('');
     setShowEditarModal(true);
@@ -613,14 +615,14 @@ export const PacientesPage = () => {
   const fecharCriarModal = () => {
     setShowCriarModal(false);
     setEditando(null);
-    setForm({ nomeCompleto: '', nomeResponsavel: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '', convenioId: '' });
+    setForm({ nomeCompleto: '', nomeResponsavel: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '', convenioId: '', numeroCarteirinha: '' });
     setFormError('');
   };
 
   const fecharEditarModal = () => {
     setShowEditarModal(false);
     setEditando(null);
-    setForm({ nomeCompleto: '', nomeResponsavel: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '', convenioId: '' });
+    setForm({ nomeCompleto: '', nomeResponsavel: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '', convenioId: '', numeroCarteirinha: '' });
     setFormError('');
   };
 
@@ -1131,6 +1133,7 @@ export const PacientesPage = () => {
             dataNascimento: form.dataNascimento || null,
             tipoServico: form.tipoServico,
             convenioId: form.convenioId.trim() || null,
+            numeroCarteirinha: form.numeroCarteirinha.trim() || null,
           };
 
           try {
@@ -1215,6 +1218,7 @@ export const PacientesPage = () => {
             dataNascimento: form.dataNascimento || null,
             tipoServico: form.tipoServico,
             convenioId: form.convenioId.trim() || null,
+            numeroCarteirinha: form.numeroCarteirinha.trim() || null,
           };
 
           try {

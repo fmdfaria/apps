@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
@@ -68,6 +68,7 @@ export default function PedidosMedicosModal({
     setLoading(true);
     try {
       const pedidosData = await getPacientesPedidos(paciente.id);
+      console.log('Pedidos carregados:', pedidosData);
       setPedidos(pedidosData);
     } catch (error: any) {
       console.error('Erro ao carregar pedidos:', error);
@@ -173,29 +174,30 @@ export default function PedidosMedicosModal({
 
   return (
     <Dialog open={showModal} onOpenChange={fecharModal}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="bg-gradient-to-r from-teal-50 to-emerald-50 -mx-6 -mt-6 px-6 pt-6 pb-4 border-b border-gray-200">
-          <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
-            <span className="text-2xl">📋</span>
-            Pedidos Médicos - {paciente.nomeCompleto}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
+              <span className="text-2xl">📋</span>
+              {paciente.nomeCompleto}
+            </DialogTitle>
+            {!showForm && (
+              <Button 
+                onClick={abrirFormNovo}
+                className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 mr-6"
+                size="sm"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Pedido
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         <div className="mt-4">
           {!showForm ? (
             // Lista de pedidos
             <div>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">Pedidos Médicos</h3>
-                <Button 
-                  onClick={abrirFormNovo}
-                  className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Novo Pedido
-                </Button>
-              </div>
-
               {loading ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto mb-2"></div>
@@ -208,107 +210,84 @@ export default function PedidosMedicosModal({
                   <p className="text-gray-400">Clique em "Novo Pedido" para adicionar o primeiro pedido</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {pedidos.map((pedido) => (
-                    <div key={pedido.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {pedido.dataPedidoMedico && (
-                              <div className="flex items-center gap-2">
-                                <Calendar className="w-4 h-4 text-gray-500" />
-                                <span className="text-sm">
-                                  <strong>Data:</strong> {new Date(pedido.dataPedidoMedico).toLocaleDateString('pt-BR')}
-                                </span>
-                              </div>
-                            )}
-                            {pedido.servico && (
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm">
-                                  <strong>Serviço:</strong> {pedido.servico.nome}
-                                </span>
-                              </div>
-                            )}
-                            {pedido.crm && (
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm">
-                                  <strong>CRM:</strong> {pedido.crm}
-                                </span>
-                              </div>
-                            )}
-                            {pedido.cbo && (
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm">
-                                  <strong>CBO:</strong> {pedido.cbo}
-                                </span>
-                              </div>
-                            )}
-                            {pedido.cid && (
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm">
-                                  <strong>CID:</strong> {pedido.cid}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          {pedido.descricao && (
-                            <div className="mt-2">
-                              <p className="text-sm text-gray-600">
-                                <strong>Descrição:</strong> {pedido.descricao}
-                              </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b-2 border-gray-200 bg-gray-50">
+                        <th className="text-left py-3 px-3 font-semibold text-gray-700">Serviço</th>
+                        <th className="text-left py-3 px-3 font-semibold text-gray-700">Data</th>
+                        <th className="text-left py-3 px-3 font-semibold text-gray-700">CRM</th>
+                        <th className="text-left py-3 px-3 font-semibold text-gray-700">CBO</th>
+                        <th className="text-left py-3 px-3 font-semibold text-gray-700">CID</th>
+                        <th className="text-center py-3 px-3 font-semibold text-gray-700">Auto</th>
+                        <th className="text-center py-3 px-3 font-semibold text-gray-700">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pedidos.map((pedido) => (
+                        <tr key={pedido.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                          <td className="py-3 px-3">
+                            <div className="max-w-[150px]">
+                              <span className="text-sm font-medium block truncate">
+                                { pedido.servico?.nome || '-'}
+                              </span>
                             </div>
-                          )}
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className="text-xs">Auto Pedidos:</span>
-                            <span className={`text-xs px-2 py-1 rounded-full ${pedido.autoPedidos ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                              {pedido.autoPedidos ? 'Ativo' : 'Inativo'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 ml-4">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => abrirFormEditar(pedido)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDelete(pedido)}
-                            className="text-red-600 hover:text-red-700 hover:border-red-300"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                          </td>
+                          <td className="py-3 px-3 text-sm">
+                            {pedido.dataPedidoMedico ? new Date(pedido.dataPedidoMedico).toLocaleDateString('pt-BR') : '-'}
+                          </td>
+                          <td className="py-3 px-3 text-sm">{pedido.crm || '-'}</td>
+                          <td className="py-3 px-3 text-sm">{pedido.cbo || '-'}</td>
+                          <td className="py-3 px-3 text-sm">{pedido.cid || '-'}</td>
+                          <td className="py-3 px-3 text-center">
+                            {pedido.autoPedidos ? (
+                              <span className="inline-block text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">
+                                Sim
+                              </span>
+                            ) : (
+                              <span className="inline-block text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">
+                                Não
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-3">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => abrirFormEditar(pedido)}
+                                className="h-8 w-8 p-0 bg-gradient-to-r from-teal-600 to-emerald-600 text-white hover:from-teal-700 hover:to-emerald-700 focus:ring-4 focus:ring-teal-300 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform border-0"
+                                title="Editar"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDelete(pedido)}
+                                className="h-8 w-8 p-0 group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform mr-3"
+                                title="Excluir"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
           ) : (
             // Formulário
             <div>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">
-                  {editando ? 'Editar' : 'Novo'} Pedido Médico
-                </h3>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowForm(false)}
-                >
-                  Voltar
-                </Button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Linha 1: Serviço + Data Pedido Médico */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <form id="pedido-form" onSubmit={handleSubmit} className="space-y-4">
+                {/* Linha 1: Serviço | Data Pedido Médico | CRM */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                      <span className="text-lg">🏥</span>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
+                      <span className="text-base">🏥</span>
                       Serviço
                     </label>
                     <SingleSelectDropdown
@@ -333,132 +312,145 @@ export default function PedidosMedicosModal({
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                      <span className="text-lg">📅</span>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
+                      <span className="text-base">📅</span>
                       Data Pedido Médico
                     </label>
                     <input
                       type="date"
                       value={form.dataPedidoMedico}
                       onChange={e => handleFormChange({ dataPedidoMedico: e.target.value })}
-                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
+                      className="w-full h-[42px] border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
                       disabled={formLoading}
                     />
                   </div>
-                </div>
-
-                {/* Linha 2: CRM + CBO */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                      <span className="text-lg">👨‍⚕️</span>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
+                      <span className="text-base">👨‍⚕️</span>
                       CRM
                     </label>
                     <input
                       type="text"
                       value={form.crm}
                       onChange={e => handleFormChange({ crm: e.target.value })}
-                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
+                      className="w-full h-[42px] border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
                       disabled={formLoading}
                     />
                   </div>
-                  
+                </div>
+
+                {/* Linha 2: CBO | CID | Auto Pedidos */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                      <span className="text-lg">🩺</span>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
+                      <span className="text-base">🩺</span>
                       CBO
                     </label>
                     <input
                       type="text"
                       value={form.cbo}
                       onChange={e => handleFormChange({ cbo: e.target.value })}
-                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
+                      className="w-full h-[42px] border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
                       disabled={formLoading}
                     />
                   </div>
-                </div>
-
-                {/* Linha 3: CID */}
-                <div className="grid grid-cols-1 gap-4">
+                  
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                      <span className="text-lg">📋</span>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
+                      <span className="text-base">📋</span>
                       CID
                     </label>
                     <input
                       type="text"
                       value={form.cid}
                       onChange={e => handleFormChange({ cid: e.target.value })}
-                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
+                      className="w-full h-[42px] border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
                       disabled={formLoading}
                     />
                   </div>
-                </div>
-
-                {/* Linha 4: Auto Pedidos */}
-                <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-200">
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg">🔄</span>
-                    <div>
-                      <label className="text-sm font-semibold text-gray-700">
-                        Auto Pedidos
-                      </label>
-                      <p className="text-xs text-gray-500">
-                        Envia WhatsApp automaticamente quando a data do pedido estiver próxima do vencimento.
-                      </p>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
+                      <span className="text-base">🔄</span>
+                      Auto Pedidos
+                    </label>
+                    <div className="flex items-center h-[42px] px-3 bg-blue-50 rounded-xl border-2 border-blue-200">
+                      <div className="flex items-center justify-between w-full">
+                        <span className="text-sm text-gray-700">
+                          WhatsApp automático
+                        </span>
+                        <Switch
+                          checked={form.autoPedidos}
+                          onCheckedChange={(checked) => handleFormChange({ autoPedidos: checked })}
+                          disabled={formLoading}
+                        />
+                      </div>
                     </div>
                   </div>
-                  <Switch
-                    checked={form.autoPedidos}
-                    onCheckedChange={(checked) => handleFormChange({ autoPedidos: checked })}
-                    disabled={formLoading}
-                  />
                 </div>
 
-                {/* Linha 5: Descrição */}
+                {/* Linha 3: Descrição */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <span className="text-lg">📝</span>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
+                    <span className="text-base">📝</span>
                     Descrição
                   </label>
                   <Textarea
                     value={form.descricao}
                     onChange={(e) => handleFormChange({ descricao: e.target.value })}
                     placeholder="Digite observações adicionais sobre o pedido médico..."
-                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300 min-h-[100px] resize-vertical"
+                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300 min-h-[80px] resize-vertical"
                     disabled={formLoading}
                   />
-                </div>
-
-                <div className="flex gap-3 justify-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowForm(false)}
-                    disabled={formLoading}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={formLoading}
-                    className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700"
-                  >
-                    {formLoading ? 'Salvando...' : editando ? 'Atualizar' : 'Salvar'}
-                  </Button>
                 </div>
               </form>
             </div>
           )}
         </div>
 
-        <DialogFooter className="mt-6">
-          <DialogClose asChild>
-            <Button variant="outline" onClick={fecharModal}>
-              Fechar
+        {showForm && (
+          <DialogFooter className="mt-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowForm(false)}
+              disabled={formLoading}
+              className="border-2 border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 font-semibold px-6 transition-all duration-200"
+            >
+              <span className="mr-2">⬅️</span>
+              Voltar
             </Button>
-          </DialogClose>
-        </DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={fecharModal}
+              disabled={formLoading}
+              className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
+            >
+              <span className="mr-2">🔴</span>
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              form="pedido-form"
+              disabled={formLoading}
+              className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200"
+            >
+              {formLoading ? (
+                <>
+                  <span className="mr-2">⏳</span>
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <span className="mr-2">🟢</span>
+                  {editando ? 'Atualizar' : 'Salvar'}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

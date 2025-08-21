@@ -18,6 +18,7 @@ interface FormPaciente {
   dataNascimento: string;
   tipoServico: string;
   convenioId: string;
+  numeroCarteirinha: string;
 }
 
 interface CriarPacienteModalProps {
@@ -180,8 +181,8 @@ export default function CriarPacienteModal({
               </div>
             </div>
 
-            {/* Linha 3: Tipo de Serviço | Convênio */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Linha 3: Tipo de Serviço | Convênio | N° Carteirinha */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">🏥</span>
@@ -238,6 +239,20 @@ export default function CriarPacienteModal({
                     }
                   />
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <span className="text-lg">🎫</span>
+                  N° Carteirinha
+                </label>
+                <input
+                  type="text"
+                  value={form.numeroCarteirinha}
+                  onChange={e => onFormChange({ numeroCarteirinha: e.target.value })}
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2 focus:ring-4 focus:ring-teal-100 focus:border-teal-500 transition-all duration-200 hover:border-teal-300"
+                  placeholder="Número da carteirinha"
+                  disabled={formLoading}
+                />
               </div>
             </div>
 

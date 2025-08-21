@@ -37,6 +37,11 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
     domainPedido.pacienteId = createdPedido.pacienteId;
     domainPedido.createdAt = createdPedido.createdAt;
     domainPedido.updatedAt = createdPedido.updatedAt;
+    
+    // Incluir dados do serviço se estiver disponível
+    if (createdPedido.servico) {
+      domainPedido.servico = createdPedido.servico;
+    }
 
     return domainPedido;
   }
@@ -66,11 +71,22 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
     domainPedido.pacienteId = pedido.pacienteId;
     domainPedido.createdAt = pedido.createdAt;
     domainPedido.updatedAt = pedido.updatedAt;
+    
+    // Incluir dados do serviço se estiver disponível
+    if (pedido.servico) {
+      domainPedido.servico = pedido.servico;
+    }
 
     return domainPedido;
   }
 
   async findByPacienteId(pacienteId: string): Promise<PacientePedido[]> {
+    // Primeiro vamos verificar se o serviço existe
+    const servicoTest = await this.prisma.servico.findUnique({
+      where: { id: "0e49ec64-330d-45c5-a63b-d0c0c4a5f736" }
+    });
+    console.log('Teste serviço existe:', servicoTest);
+
     const pedidos = await this.prisma.pacientePedido.findMany({
       where: { pacienteId },
       include: {
@@ -81,6 +97,8 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
         createdAt: 'desc',
       },
     });
+
+    console.log('Pedidos do Prisma (completos):', JSON.stringify(pedidos, null, 2));
 
     return pedidos.map((pedido) => {
       const domainPedido = new PacientePedido();
@@ -95,6 +113,15 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
       domainPedido.pacienteId = pedido.pacienteId;
       domainPedido.createdAt = pedido.createdAt;
       domainPedido.updatedAt = pedido.updatedAt;
+      
+      // Incluir dados do serviço se estiver disponível
+      if (pedido.servico) {
+        console.log('Mapeando serviço:', pedido.servico);
+        domainPedido.servico = pedido.servico;
+      } else {
+        console.log('Serviço não encontrado para pedido:', pedido.id, 'servicoId:', pedido.servicoId);
+      }
+      
       return domainPedido;
     });
   }
@@ -129,6 +156,11 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
     domainPedido.pacienteId = updatedPedido.pacienteId;
     domainPedido.createdAt = updatedPedido.createdAt;
     domainPedido.updatedAt = updatedPedido.updatedAt;
+    
+    // Incluir dados do serviço se estiver disponível
+    if (updatedPedido.servico) {
+      domainPedido.servico = updatedPedido.servico;
+    }
 
     return domainPedido;
   }
