@@ -31,6 +31,9 @@ const agendamentoBodySchema = z.object({
   recebimento: z.boolean().optional(),
   pagamento: z.boolean().optional(),
   recorrencia: recorrenciaSchema.optional(),
+  // Novos campos (avaliador e motivo de reprovação)
+  avaliadoPorId: z.string().uuid().optional().nullable(),
+  motivoReprovacao: z.string().optional().nullable(),
 });
 
 export class AgendamentosController {
@@ -74,8 +77,15 @@ export class AgendamentosController {
     const paramsSchema = z.object({ id: z.string().uuid() });
     const { id } = paramsSchema.parse(request.params);
     const data = agendamentoBodySchema.partial().parse(request.body);
+    // Garantir que reprovação registre avaliador e motivo, se não vierem do cliente
+    const userId = (request as any).user?.id as string | undefined;
+    const payload = { ...data } as any;
+    if (payload.status === 'PENDENTE') {
+      if (userId && !payload.avaliadoPorId) payload.avaliadoPorId = userId;
+      if (!payload.motivoReprovacao && payload.motivoCancelamento) payload.motivoReprovacao = payload.motivoCancelamento;
+    }
     const useCase = container.resolve(UpdateAgendamentoUseCase);
-    const agendamento = await useCase.execute(id, data);
+    const agendamento = await useCase.execute(id, payload);
     return reply.status(200).send(agendamento);
   }
 
