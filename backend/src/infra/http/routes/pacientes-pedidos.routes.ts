@@ -1,19 +1,16 @@
 import { FastifyInstance } from 'fastify';
 import { PacientesPedidosController } from '../controllers/PacientesPedidosController';
-import { authMiddleware } from '../middleware/authMiddleware';
-import { rbacMiddleware } from '../middleware/rbacMiddleware';
+import { ensureAuthenticated } from '../middlewares/ensureAuthenticated';
+import { ensureAuthorized } from '../middlewares/ensureAuthorized';
 
 export async function pacientesPedidosRoutes(fastify: FastifyInstance) {
   const controller = new PacientesPedidosController();
-
-  // Middleware de autenticação para todas as rotas
-  fastify.addHook('preHandler', authMiddleware);
 
   // POST /pacientes/:pacienteId/pedidos - Criar pedido médico
   fastify.post(
     '/:pacienteId/pedidos',
     {
-      preHandler: [rbacMiddleware],
+      preHandler: [ensureAuthenticated, ensureAuthorized('/pacientes/:pacienteId/pedidos', 'POST')],
     },
     controller.create
   );
@@ -22,7 +19,7 @@ export async function pacientesPedidosRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/:pacienteId/pedidos',
     {
-      preHandler: [rbacMiddleware],
+      preHandler: [ensureAuthenticated, ensureAuthorized('/pacientes/:pacienteId/pedidos', 'GET')],
     },
     controller.list
   );
@@ -31,7 +28,7 @@ export async function pacientesPedidosRoutes(fastify: FastifyInstance) {
   fastify.put(
     '/:pacienteId/pedidos/:id',
     {
-      preHandler: [rbacMiddleware],
+      preHandler: [ensureAuthenticated, ensureAuthorized('/pacientes/:pacienteId/pedidos/:id', 'PUT')],
     },
     controller.update
   );
@@ -40,7 +37,7 @@ export async function pacientesPedidosRoutes(fastify: FastifyInstance) {
   fastify.delete(
     '/:pacienteId/pedidos/:id',
     {
-      preHandler: [rbacMiddleware],
+      preHandler: [ensureAuthenticated, ensureAuthorized('/pacientes/:pacienteId/pedidos/:id', 'DELETE')],
     },
     controller.delete
   );
