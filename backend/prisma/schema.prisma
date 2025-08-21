@@ -239,6 +239,9 @@ model Agendamento {
   assinaturaProfissional Boolean?       @map("assinatura_profissional")
   recebimento        Boolean?           @default(false)
   pagamento          Boolean?           @default(false)
+  // Novos campos de avaliação
+  avaliadoPorId      String?            @map("avaliado_por_id") @db.Uuid
+  motivoReprovacao   String?            @map("motivo_reprovacao")
   createdAt          DateTime?          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime?          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   convenio           Convenio           @relation(fields: [convenioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -246,11 +249,13 @@ model Agendamento {
   profissional       Profissional       @relation(fields: [profissionalId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   recurso            Recurso            @relation(fields: [recursoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   servico            Servico            @relation(fields: [servicoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  avaliadoPor        User?              @relation("UserAvaliador", fields: [avaliadoPorId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   evolucoes          EvolucaoPaciente[]
 
   @@index([dataHoraInicio], map: "idx_agendamentos_data_hora_inicio")
   @@index([pacienteId], map: "idx_agendamentos_paciente_id")
   @@index([profissionalId], map: "idx_agendamentos_profissional_id")
+  @@index([avaliadoPorId], map: "idx_agendamentos_avaliado_por_id")
   @@map("agendamentos")
 }
 
@@ -371,6 +376,8 @@ model User {
   avatarUrl              String?        @map("avatar_url") @db.VarChar(500)
   refreshTokens          RefreshToken[]
   userRoles              UserRole[]
+  // Relação inversa: agendamentos avaliados por este usuário
+  agendamentosAvaliados  Agendamento[]  @relation("UserAvaliador")
 
   @@index([email], map: "idx_users_email")
   @@map("users")

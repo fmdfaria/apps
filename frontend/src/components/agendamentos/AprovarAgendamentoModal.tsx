@@ -29,13 +29,11 @@ export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = (
   const [loading, setLoading] = useState(false);
   const [acao, setAcao] = useState<'APROVAR' | 'REPROVAR' | null>(null);
   const [formData, setFormData] = useState({
-    aprovadoPor: '',
     motivoCancelamento: ''
   });
 
   const resetForm = () => {
     setFormData({
-      aprovadoPor: '',
       motivoCancelamento: ''
     });
     setAcao(null);
@@ -46,12 +44,6 @@ export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = (
     
     if (!agendamento || !acao) return;
     
-    // Validações
-    if (!formData.aprovadoPor) {
-      AppToast.validation('Campo obrigatório', 'Informe quem está realizando a avaliação.');
-      return;
-    }
-
     if (acao === 'REPROVAR' && !formData.motivoCancelamento) {
       AppToast.validation('Motivo obrigatório', 'O motivo da reprovação é obrigatório.');
       return;
@@ -59,19 +51,13 @@ export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = (
 
     setLoading(true);
     try {
-      const dataAprovacao = new Date().toISOString();
-      
       if (acao === 'APROVAR') {
         await aprovarAgendamento(agendamento.id, {
-          dataAprovacao,
-          aprovadoPor: formData.aprovadoPor,
           avaliadoPorId: user?.id
         });
         AppToast.updated('Agendamento', 'O agendamento foi aprovado com sucesso!');
       } else {
         await updateAgendamento(agendamento.id, {
-          dataAprovacao,
-          aprovadoPor: formData.aprovadoPor,
           motivoCancelamento: formData.motivoCancelamento,
           avaliadoPorId: user?.id,
           motivoReprovacao: formData.motivoCancelamento,
@@ -97,6 +83,25 @@ export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = (
     if (!loading) {
       resetForm();
       onClose();
+    }
+  };
+
+  const handleConcluirDireto = async () => {
+    if (!agendamento) return;
+    setLoading(true);
+    try {
+      await aprovarAgendamento(agendamento.id, {
+        avaliadoPorId: user?.id
+      });
+      AppToast.updated('Agendamento', 'O agendamento foi aprovado com sucesso!');
+      resetForm();
+      onSuccess();
+      onClose();
+    } catch (error) {
+      console.error('Erro ao concluir atendimento:', error);
+      AppToast.error('Erro ao aprovar agendamento', { description: 'Não foi possível aprovar o agendamento. Tente novamente.' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -245,6 +250,7 @@ export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = (
           )}
 
           {/* Seleção de Ação */}
+          {/* Seleção de Ação - Concluir agora é automático, Reprovar abre formulário */}
           {!acao && (
             <Card>
               <CardHeader>
@@ -256,8 +262,9 @@ export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = (
               <CardContent>
                 <div className="flex gap-4 justify-center">
                   <Button
-                    onClick={() => setAcao('APROVAR')}
+                    onClick={handleConcluirDireto}
                     className="bg-green-600 hover:bg-green-700 flex items-center gap-2 px-8 py-4 text-lg"
+                    disabled={loading}
                   >
                     <ClipboardCheck className="w-5 h-5" />
                     Concluir Atendimento
@@ -276,53 +283,28 @@ export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = (
           )}
 
           {/* Formulário de Avaliação */}
-          {acao && (
+          {acao === 'REPROVAR' && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  {acao === 'APROVAR' ? (
-                    <>
-                      <ClipboardCheck className="w-5 h-5 text-green-600" />
-                      Concluir Atendimento
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="w-5 h-5 text-red-600" />
-                      Reprovar Atendimento
-                    </>
-                  )}
+                  <XCircle className="w-5 h-5 text-red-600" />
+                  Motivo da Reprovação
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Aprovado Por */}
+                  {/* Motivo da Reprovação - apenas se reprovar */}
                   <div className="space-y-2">
-                    <Label htmlFor="aprovadoPor">Avaliado por *</Label>
-                    <Input
-                      id="aprovadoPor"
-                      type="text"
-                      placeholder="Nome do responsável pela avaliação"
-                      value={formData.aprovadoPor}
-                      onChange={(e) => setFormData(prev => ({ ...prev, aprovadoPor: e.target.value }))}
+                    <Textarea
+                      id="motivoCancelamento"
+                      placeholder="Descreva detalhadamente o motivo da reprovação..."
+                      value={formData.motivoCancelamento}
+                      onChange={(e) => setFormData(prev => ({ ...prev, motivoCancelamento: e.target.value }))}
+                      rows={4}
+                      className="resize-none"
                       required
                     />
                   </div>
-
-                  {/* Motivo da Reprovação - apenas se reprovar */}
-                  {acao === 'REPROVAR' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="motivoCancelamento">Motivo da Reprovação *</Label>
-                      <Textarea
-                        id="motivoCancelamento"
-                        placeholder="Descreva detalhadamente o motivo da reprovação..."
-                        value={formData.motivoCancelamento}
-                        onChange={(e) => setFormData(prev => ({ ...prev, motivoCancelamento: e.target.value }))}
-                        rows={4}
-                        className="resize-none"
-                        required
-                      />
-                    </div>
-                  )}
 
                   <DialogFooter className="gap-2 mt-6">
                     <Button 
@@ -335,16 +317,10 @@ export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = (
                     </Button>
                     <Button 
                       type="submit" 
-                      className={acao === 'APROVAR' 
-                        ? 'bg-green-600 hover:bg-green-700' 
-                        : 'bg-red-600 hover:bg-red-700'
-                      }
+                      className={'bg-red-600 hover:bg-red-700'}
                       disabled={loading}
                     >
-                      {loading 
-                        ? (acao === 'APROVAR' ? 'Aprovando...' : 'Reprovando...') 
-                        : (acao === 'APROVAR' ? 'Confirmar Aprovação' : 'Confirmar Reprovação')
-                      }
+                      {loading ? 'Reprovando...' : 'Confirmar Reprovação'}
                     </Button>
                   </DialogFooter>
                 </form>

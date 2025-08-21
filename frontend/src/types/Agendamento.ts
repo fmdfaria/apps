@@ -5,7 +5,8 @@ export type StatusAgendamento =
   | 'ATENDIDO' 
   | 'FINALIZADO' 
   | 'CANCELADO'
-  | 'ARQUIVADO';
+  | 'ARQUIVADO'
+  | 'PENDENTE';
 
 export type TipoAtendimento = 'presencial' | 'online';
 
