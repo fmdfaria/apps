@@ -8,6 +8,7 @@ const pacientesController = new PacientesController();
 export async function pacientesRoutes(app: FastifyInstance) {
   app.post('/pacientes', { preHandler: [ensureAuthenticated, ensureAuthorized('/pacientes', 'POST')] }, pacientesController.create);
   app.get('/pacientes', { preHandler: [ensureAuthenticated, ensureAuthorized('/pacientes', 'GET')] }, pacientesController.list);
+  app.get('/pacientes/:id', { preHandler: [ensureAuthenticated, ensureAuthorized('/pacientes/:id', 'GET')] }, pacientesController.show.bind(pacientesController));
   app.put('/pacientes/:id', { preHandler: [ensureAuthenticated, ensureAuthorized('/pacientes/:id', 'PUT')] }, pacientesController.update);
   app.delete('/pacientes/:id', { preHandler: [ensureAuthenticated, ensureAuthorized('/pacientes/:id', 'DELETE')] }, pacientesController.delete);
   app.patch('/pacientes/:id/status', { preHandler: [ensureAuthenticated, ensureAuthorized('/pacientes/:id/status', 'PATCH')] }, pacientesController.updateStatus.bind(pacientesController));

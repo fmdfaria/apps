@@ -104,4 +104,15 @@ export class PacientesController {
     const paciente = await useCase.execute({ id, ativo });
     return reply.status(200).send(paciente);
   }
+
+  async show(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const paramsSchema = z.object({ id: z.string().uuid() });
+    const { id } = paramsSchema.parse(request.params);
+    const repo = container.resolve('PacientesRepository') as IPacientesRepository;
+    const paciente = await repo.findById(id);
+    if (!paciente) {
+      return reply.status(404).send({ message: 'Paciente não encontrado.' });
+    }
+    return reply.status(200).send(paciente);
+  }
 } 
