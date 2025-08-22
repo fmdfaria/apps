@@ -10,6 +10,7 @@ import { CheckCircle, User, Calendar, Clock, FileText, CreditCard, UserCheck, Mo
 import type { Agendamento } from '@/types/Agendamento';
 import { liberarAgendamento } from '@/services/agendamentos';
 import { AppToast } from '@/services/toast';
+import { formatarDataHoraLocal } from '@/utils/dateUtils';
 
 interface LiberarAgendamentoModalProps {
   isOpen: boolean;
@@ -79,13 +80,7 @@ export const LiberarAgendamentoModal: React.FC<LiberarAgendamentoModalProps> = (
     }
   };
 
-  const formatarDataHora = (dataISO: string) => {
-    const data = new Date(dataISO);
-    return {
-      data: data.toLocaleDateString('pt-BR'),
-      hora: data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    };
-  };
+  const formatarDataHora = formatarDataHoraLocal;
 
   if (!agendamento) return null;
 

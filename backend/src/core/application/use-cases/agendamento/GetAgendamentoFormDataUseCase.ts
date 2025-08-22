@@ -68,23 +68,39 @@ export class GetAgendamentoFormDataUseCase {
       const dataInicio = new Date(`${data}T00:00:00.000Z`);
       const dataFim = new Date(`${data}T23:59:59.999Z`);
 
-      // Buscar agendamentos da data
-      agendamentos = await this.agendamentosRepository.findAll({
-        dataHoraInicio: dataInicio
+      // Buscar agendamentos da data (usar range correto e extrair lista do retorno paginado)
+      const agendamentosResp = await this.agendamentosRepository.findAll({
+        dataInicio,
+        dataFim,
+        limit: 1000,
       });
+      agendamentos = Array.isArray((agendamentosResp as any)?.data)
+        ? (agendamentosResp as any).data
+        : Array.isArray(agendamentosResp as any)
+          ? (agendamentosResp as any)
+          : [];
 
       // Buscar disponibilidades (todos os profissionais)
       disponibilidades = await this.disponibilidadesRepository.findAll();
 
       // Calcular ocupação semanal para todos os profissionais
-      ocupacoesSemana = await this.calcularOcupacoesSemana(profissionais, data);
+      try {
+        ocupacoesSemana = await this.calcularOcupacoesSemana(profissionais, data);
+      } catch (error) {
+        console.error('Erro ao calcular ocupações semanais:', error);
+        ocupacoesSemana = [];
+      }
     }
 
     // Se profissionalId foi fornecido, filtrar dados específicos
     if (profissionalId) {
       // Filtrar dados relacionados ao profissional específico
-      disponibilidades = disponibilidades.filter(d => d.profissionalId === profissionalId);
-      agendamentos = agendamentos.filter(a => a.profissionalId === profissionalId);
+      disponibilidades = Array.isArray(disponibilidades)
+        ? disponibilidades.filter(d => d.profissionalId === profissionalId)
+        : [];
+      agendamentos = Array.isArray(agendamentos)
+        ? agendamentos.filter(a => a.profissionalId === profissionalId)
+        : [];
     }
 
     return {
@@ -113,11 +129,16 @@ export class GetAgendamentoFormDataUseCase {
     fimDaSemana.setDate(fimDaSemana.getDate() + 6);
     fimDaSemana.setHours(23, 59, 59, 999);
 
-    // Buscar disponibilidades e agendamentos da semana
-    const [disponibilidades, agendamentos] = await Promise.all([
+    // Buscar disponibilidades e agendamentos da semana (usar range e extrair lista do retorno paginado)
+    const [disponibilidades, agendamentosResp] = await Promise.all([
       this.disponibilidadesRepository.findAll(),
-      this.agendamentosRepository.findAll()
+      this.agendamentosRepository.findAll({ dataInicio: inicioDaSemana, dataFim: fimDaSemana, limit: 10000 })
     ]);
+    const agendamentos: any[] = Array.isArray((agendamentosResp as any)?.data)
+      ? (agendamentosResp as any).data
+      : Array.isArray(agendamentosResp as any)
+        ? (agendamentosResp as any)
+        : [];
 
     const ocupacoes: IOcupacaoSemanal[] = [];
 

@@ -43,12 +43,12 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
     }
   }, [formData.profissionalId, dataAgendamento, verificarHorarios]);
 
-  // Buscar ocupações quando profissional for selecionado (sempre usa período fixo: hoje + 7 dias)
+  // Buscar ocupações quando profissional e data forem selecionados (evita chamada precoce)
   useEffect(() => {
-    if (formData.profissionalId) {
-      buscarOcupacoes(formData.profissionalId);
+    if (formData.profissionalId && dataAgendamento) {
+      buscarOcupacoes(formData.profissionalId, dataAgendamento);
     }
-  }, [formData.profissionalId, buscarOcupacoes]);
+  }, [formData.profissionalId, dataAgendamento, buscarOcupacoes]);
 
   // Aplicar regra do tipo de atendimento quando recursoId já estiver preenchido (modal pré-carregado)
   useEffect(() => {

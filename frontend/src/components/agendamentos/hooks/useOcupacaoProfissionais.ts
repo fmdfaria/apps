@@ -10,15 +10,15 @@ export interface OcupacaoProfissional {
 export interface UseOcupacaoProfissionaisResult {
   ocupacoesSemana: { [profissionalId: string]: OcupacaoProfissional };
   carregandoOcupacoes: boolean;
-  buscarOcupacoes: (profissionalId?: string) => Promise<void>;
+  buscarOcupacoes: (profissionalId?: string, data?: string) => Promise<void>;
   limparOcupacoes: () => void;
 }
 
 /**
  * Hook centralizado para gerenciar cálculos de ocupação semanal dos profissionais.
  * 
- * Nova regra simplificada: Sempre calcula ocupação com base em "hoje + 7 dias".
- * Isso garante consistência total e informações mais úteis independente da data selecionada.
+ * Regra atualizada: só envia a "data" para a API quando o usuário selecioná-la no formulário.
+ * Antes disso, busca sem parâmetro de data (evita chamada precoce com data padrão).
  * 
  * @returns {UseOcupacaoProfissionaisResult} Objeto com dados e funções para ocupação
  */
@@ -31,16 +31,16 @@ export const useOcupacaoProfissionais = (): UseOcupacaoProfissionaisResult => {
    * Regra unificada para toda a aplicação, independente da data selecionada pelo usuário.
    * Opcionalmente pode filtrar por um profissional específico.
    */
-  const buscarOcupacoes = useCallback(async (profissionalId?: string) => {
+  const buscarOcupacoes = useCallback(async (profissionalId?: string, data?: string) => {
     setCarregandoOcupacoes(true);
     
     try {
-      // Usar sempre "hoje + 7 dias" como período de referência
-      const hoje = new Date();
-      const dataReferencia = hoje.toISOString().split('T')[0]; // YYYY-MM-DD
+      // Enviar parâmetros apenas quando necessário
+      const parametros: { data?: string; profissionalId?: string } = {};
+      if (data) parametros.data = data;
+      if (profissionalId) parametros.profissionalId = profissionalId;
       
-      const parametros = profissionalId ? { data: dataReferencia, profissionalId } : { data: dataReferencia };
-      const formData = await getAgendamentoFormData(parametros);
+      const formData = await getAgendamentoFormData(Object.keys(parametros).length ? parametros : undefined);
       
       // Converter ocupações para o formato do hook
       const ocupacoesMap = formData.ocupacoesSemana.reduce((acc, ocupacao) => {

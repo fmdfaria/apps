@@ -18,6 +18,7 @@ import {
   MapPin
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
+import { formatarDataHoraLocal, formatarApenasData } from '@/utils/dateUtils';
 
 interface DetalhesAgendamentoModalProps {
   isOpen: boolean;
@@ -32,26 +33,8 @@ export const DetalhesAgendamentoModal: React.FC<DetalhesAgendamentoModalProps> =
 }) => {
   if (!agendamento) return null;
 
-  const formatarDataHora = (dataISO: string) => {
-    const data = new Date(dataISO);
-    return {
-      data: data.toLocaleDateString('pt-BR'),
-      hora: data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    };
-  };
-
-  const formatarDataHoraCompleta = (dataISO: string) => {
-    if (!dataISO) return '';
-    
-    const data = new Date(dataISO);
-    
-    // Sempre mostrar apenas a data, sem horário
-    const dia = String(data.getDate()).padStart(2, '0');
-    const mes = String(data.getMonth() + 1).padStart(2, '0');
-    const ano = data.getFullYear();
-    
-    return `${dia}/${mes}/${ano}`;
-  };
+  const formatarDataHora = formatarDataHoraLocal;
+  const formatarDataHoraCompleta = formatarApenasData;
 
   const getStatusColor = (status: string) => {
     switch (status) {

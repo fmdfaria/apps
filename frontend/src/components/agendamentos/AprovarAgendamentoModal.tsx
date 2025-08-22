@@ -11,6 +11,7 @@ import type { Agendamento } from '@/types/Agendamento';
 import { aprovarAgendamento, updateAgendamento } from '@/services/agendamentos';
 import { useAuth } from '@/hooks/useAuth';
 import { AppToast } from '@/services/toast';
+import { formatarDataHoraLocal, formatarApenasData } from '@/utils/dateUtils';
 
 interface AprovarAgendamentoModalProps {
   isOpen: boolean;
@@ -105,13 +106,7 @@ export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = (
     }
   };
 
-  const formatarDataHora = (dataISO: string) => {
-    const data = new Date(dataISO);
-    return {
-      data: data.toLocaleDateString('pt-BR'),
-      hora: data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    };
-  };
+  const formatarDataHora = formatarDataHoraLocal;
 
   if (!agendamento) return null;
 
@@ -213,7 +208,7 @@ export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = (
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">Data:</span>
-                    <span>{agendamento.dataCodLiberacao ? new Date(agendamento.dataCodLiberacao).toLocaleDateString('pt-BR') : '-'}</span>
+                    <span>{agendamento.dataCodLiberacao ? formatarApenasData(agendamento.dataCodLiberacao) : '-'}</span>
                   </div>
                 </div>
               </CardContent>
@@ -234,7 +229,7 @@ export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = (
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-500" />
                     <span className="font-medium">Data do Atendimento:</span>
-                    <span>{new Date(agendamento.dataAtendimento).toLocaleDateString('pt-BR')}</span>
+                    <span>{formatarApenasData(agendamento.dataAtendimento)}</span>
                   </div>
                 </div>
                 {agendamento.observacoesAtendimento && (

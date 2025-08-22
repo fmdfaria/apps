@@ -38,6 +38,7 @@ import type { EvolucaoPaciente } from '@/types/EvolucaoPaciente';
 import api from '@/services/api';
 import { AppToast } from '@/services/toast';
 import { useAuthStore } from '@/store/auth';
+import { formatarDataHoraLocal } from '@/utils/dateUtils';
 
 export const AtenderPage = () => {
   const { user } = useAuthStore();
@@ -288,18 +289,7 @@ export const AtenderPage = () => {
     }
   }, [agendamentos, busca, filtros, paginaAtual, itensPorPagina]);
 
-  const formatarDataHora = (dataHoraISO: string) => {
-    // Parse da string sem conversão de timezone
-    // Formato esperado: "2025-08-04T10:00:00.000Z" 
-    const [datePart, timePart] = dataHoraISO.split('T');
-    const [ano, mes, dia] = datePart.split('-');
-    const [hora, minuto] = timePart.split(':');
-    
-    return {
-      data: `${dia}/${mes}/${ano}`,
-      hora: `${hora}:${minuto}`
-    };
-  };
+  const formatarDataHora = formatarDataHoraLocal;
 
   const handleVerDetalhes = (agendamento: Agendamento) => {
     setAgendamentoDetalhes(agendamento);

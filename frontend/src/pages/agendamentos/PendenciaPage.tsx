@@ -56,14 +56,21 @@ export const PendenciaPage = () => {
     dataFim: ''
   });
 
+  const [initialized, setInitialized] = useState(false);
+
+  // Inicialização única
   useEffect(() => {
     checkPermissions();
     carregarAgendamentos();
+    setInitialized(true);
   }, []);
 
+  // Recarregamento quando dependências mudam (mas apenas após inicialização)
   useEffect(() => {
-    carregarAgendamentos();
-  }, [paginaAtual, itensPorPagina, filtros]);
+    if (initialized) {
+      carregarAgendamentos();
+    }
+  }, [paginaAtual, itensPorPagina, filtros, initialized]);
 
   useEffect(() => {
     setPaginaAtual(1);
@@ -456,7 +463,10 @@ export const PendenciaPage = () => {
         <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-600 flex items-center gap-2"><span className="text-lg">📊</span>Exibir</span>
-            <select className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-yellow-100 focus:border-yellow-500 transition-all duration-200 hover:border-yellow-300" value={itensPorPagina} onChange={e => setItensPorPagina(Number(e.target.value))}>
+            <select className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-yellow-100 focus:border-yellow-500 transition-all duration-200 hover:border-yellow-300" value={itensPorPagina} onChange={e => {
+              setItensPorPagina(Number(e.target.value));
+              setPaginaAtual(1); // Resetar para primeira página
+            }}>
               {[10, 25, 50, 100].map(qtd => (<option key={qtd} value={qtd}>{qtd}</option>))}
             </select>
             <span className="text-sm text-gray-600">itens por página</span>

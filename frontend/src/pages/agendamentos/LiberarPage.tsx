@@ -33,6 +33,7 @@ import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
+import { formatarDataHoraLocal } from '@/utils/dateUtils';
 
 // Interface para item da fila de webhooks
 interface WebhookQueueItem {
@@ -371,18 +372,7 @@ export const LiberarPage = () => {
     paginaAtual * itensPorPagina
   );
 
-  const formatarDataHora = (dataHoraISO: string) => {
-    // Parse da string sem conversão de timezone
-    // Formato esperado: "2025-08-04T10:00:00.000Z" 
-    const [datePart, timePart] = dataHoraISO.split('T');
-    const [ano, mes, dia] = datePart.split('-');
-    const [hora, minuto] = timePart.split(':');
-    
-    return {
-      data: `${dia}/${mes}/${ano}`,
-      hora: `${hora}:${minuto}`
-    };
-  };
+  const formatarDataHora = formatarDataHoraLocal;
 
   const handleLiberar = (agendamento: Agendamento) => {
     setAgendamentoSelecionado(agendamento);

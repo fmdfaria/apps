@@ -70,10 +70,12 @@ export const FormularioPorData: React.FC<FormularioPorDataProps> = ({ context })
     }
   }, [formData.recursoId, recursos, formData.tipoAtendimento, updateFormData]);
 
-  // Buscar ocupações quando formulário carregar (independente da data selecionada)
+  // Buscar ocupações apenas quando a data for selecionada (evita chamada precoce)
   useEffect(() => {
-    buscarOcupacoes();
-  }, [buscarOcupacoes]);
+    if (dataAgendamento) {
+      buscarOcupacoes(undefined, dataAgendamento);
+    }
+  }, [dataAgendamento, buscarOcupacoes]);
 
   // Função para verificar disponibilidade dos recursos usando a nova API
   const verificarDisponibilidadeRecursos = async () => {

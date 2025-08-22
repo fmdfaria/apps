@@ -7,6 +7,7 @@ import { Stethoscope, User, Calendar, Clock, FileText, CreditCard, CheckCircle2,
 import type { Agendamento } from '@/types/Agendamento';
 import { atenderAgendamento } from '@/services/agendamentos';
 import { AppToast } from '@/services/toast';
+import { formatarDataHoraLocal, formatarApenasData } from '@/utils/dateUtils';
 
 interface AtenderAgendamentoModalProps {
   isOpen: boolean;
@@ -67,13 +68,7 @@ export const AtenderAgendamentoModal: React.FC<AtenderAgendamentoModalProps> = (
     }
   };
 
-  const formatarDataHora = (dataISO: string) => {
-    const data = new Date(dataISO);
-    return {
-      data: data.toLocaleDateString('pt-BR'),
-      hora: data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    };
-  };
+  const formatarDataHora = formatarDataHoraLocal;
 
   if (!agendamento) return null;
 
@@ -182,7 +177,7 @@ export const AtenderAgendamentoModal: React.FC<AtenderAgendamentoModalProps> = (
                   <span className={`font-medium ${
                     agendamento.dataCodLiberacao ? 'text-gray-800' : 'text-gray-500'
                   }`}>
-                    {agendamento.dataCodLiberacao ? new Date(agendamento.dataCodLiberacao).toLocaleDateString('pt-BR') : 'Aguardando'}
+                    {agendamento.dataCodLiberacao ? formatarApenasData(agendamento.dataCodLiberacao) : 'Aguardando'}
                   </span>
                 </div>
               </div>

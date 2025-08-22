@@ -28,7 +28,7 @@ import {
   Trash2
 } from 'lucide-react';
 import type { Agendamento, StatusAgendamento } from '@/types/Agendamento';
-import { getAgendamentos, deleteAgendamento } from '@/services/agendamentos';
+import { getAgendamentos, deleteAgendamento, IPaginatedAgendamentos } from '@/services/agendamentos';
 import { 
   AgendamentoModal,
   DetalhesAgendamentoModal
@@ -38,10 +38,14 @@ import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import api from '@/services/api';
 import { AppToast } from '@/services/toast';
 import { useAuthStore } from '@/store/auth';
+import { formatarDataHoraLocal } from '@/utils/dateUtils';
 
 export const AgendamentosPage = () => {
   const { user } = useAuthStore();
-  const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
+  const [paginatedData, setPaginatedData] = useState<IPaginatedAgendamentos>({
+    data: [],
+    pagination: { page: 1, limit: 10, total: 0, totalPages: 0 }
+  });
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
   const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
@@ -62,7 +66,7 @@ export const AgendamentosPage = () => {
   // Estados para edição de agendamento
   const [showEditarAgendamento, setShowEditarAgendamento] = useState(false);
   const [agendamentoEdicao, setAgendamentoEdicao] = useState<Agendamento | null>(null);
-  const [itensPorPagina, setItensPorPagina] = useState(12);
+  const [itensPorPagina, setItensPorPagina] = useState(10);
   const [paginaAtual, setPaginaAtual] = useState(1);
   
   // Filtros avançados por coluna
@@ -100,14 +104,26 @@ export const AgendamentosPage = () => {
   // Handlers de edição removidos
 
 
+  const [initialized, setInitialized] = useState(false);
+
+  // Inicialização única
   useEffect(() => {
     checkPermissions();
     carregarAgendamentos();
+    setInitialized(true);
   }, []);
+
+  // Recarregamento quando dependências mudam (mas apenas após inicialização)
+  useEffect(() => {
+    if (initialized) {
+      carregarAgendamentos();
+    }
+  }, [paginaAtual, itensPorPagina, filtroStatus, filtros, initialized]);
 
   useEffect(() => {
     setPaginaAtual(1);
-  }, [busca, itensPorPagina, filtroStatus, filtros]);
+    // Para busca textual, não recarregar da API, apenas resetar página
+  }, [busca]);
 
   const checkPermissions = async () => {
     try {
@@ -163,115 +179,86 @@ export const AgendamentosPage = () => {
     
     setLoading(true);
     setAccessDenied(false);
-    setAgendamentos([]); // Limpa agendamentos para evitar mostrar dados antigos
     try {
-      let dados = await getAgendamentos();
+      // Montar filtros para a API
+      const filtrosAPI: any = {
+        page: paginaAtual,
+        limit: itensPorPagina,
+      };
+
+      // Aplicar filtro de status se não for 'TODOS'
+      if (filtroStatus !== 'TODOS') {
+        filtrosAPI.status = filtroStatus;
+      }
+
+      // Aplicar outros filtros
+      if (filtros.paciente) filtrosAPI.pacienteNome = filtros.paciente;
+      if (filtros.profissional) filtrosAPI.profissionalNome = filtros.profissional;
+      if (filtros.servico) filtrosAPI.servicoNome = filtros.servico;
+      if (filtros.convenio) filtrosAPI.convenioNome = filtros.convenio;
+      if (filtros.tipoAtendimento) filtrosAPI.tipoAtendimento = filtros.tipoAtendimento;
+      if (filtros.status && filtros.status !== filtroStatus) filtrosAPI.status = filtros.status;
+      if (filtros.dataInicio) filtrosAPI.dataInicio = filtros.dataInicio;
+      if (filtros.dataFim) filtrosAPI.dataFim = filtros.dataFim;
       
       // Se o usuário for PROFISSIONAL, filtrar apenas os agendamentos dele
       if (user?.roles?.includes('PROFISSIONAL')) {
-        // Buscar o profissional associado ao usuário
         try {
           const profissionalResponse = await api.get('/profissionais/me');
-          const profissionalId = profissionalResponse.data.id;
-          
-          // Filtrar agendamentos apenas deste profissional
-          dados = dados.filter(agendamento => agendamento.profissionalId === profissionalId);
+          filtrosAPI.profissionalId = profissionalResponse.data.id;
         } catch (profissionalError) {
           console.error('Erro ao buscar dados do profissional:', profissionalError);
           AppToast.error('Erro ao carregar dados do profissional', {
             description: 'Não foi possível carregar os agendamentos do profissional.'
           });
-          dados = []; // Se não conseguir buscar o profissional, não mostra nenhum agendamento
+          setPaginatedData({ data: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } });
+          return;
         }
       }
       
-      setAgendamentos(dados);
+      const dados = await getAgendamentos(filtrosAPI);
+      setPaginatedData(dados);
     } catch (e: any) {
       if (e?.response?.status === 403) {
         setAccessDenied(true);
-        // Não mostra toast aqui pois o interceptor já cuida disso
       } else {
         AppToast.error('Erro ao carregar agendamentos', {
           description: 'Ocorreu um problema ao carregar a lista de agendamentos. Tente novamente.'
         });
       }
+      setPaginatedData({ data: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } });
     } finally {
       setLoading(false);
     }
   };
 
-  const agendamentosFiltrados = agendamentos
-    .filter(a => filtroStatus === 'TODOS' || a.status === filtroStatus)
-    .filter(a => 
-      !busca || 
-      a.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||
-      a.profissionalNome?.toLowerCase().includes(busca.toLowerCase()) ||
-      a.servicoNome?.toLowerCase().includes(busca.toLowerCase()) ||
-      a.convenioNome?.toLowerCase().includes(busca.toLowerCase()) ||
-      a.status?.toLowerCase().includes(busca.toLowerCase())
-    )
-    // Filtros avançados por coluna
-    .filter(a => !filtros.paciente || a.pacienteNome?.toLowerCase().includes(filtros.paciente.toLowerCase()))
-    .filter(a => !filtros.profissional || a.profissionalNome?.toLowerCase().includes(filtros.profissional.toLowerCase()))
-    .filter(a => !filtros.servico || a.servicoNome?.toLowerCase().includes(filtros.servico.toLowerCase()))
-    .filter(a => !filtros.convenio || a.convenioNome?.toLowerCase().includes(filtros.convenio.toLowerCase()))
-    .filter(a => !filtros.tipoAtendimento || a.tipoAtendimento === filtros.tipoAtendimento)
-    .filter(a => !filtros.status || a.status === filtros.status)
-    .filter(a => {
-      if (!filtros.dataInicio && !filtros.dataFim) return true;
-      
-      // Extrair apenas a data (YYYY-MM-DD) do agendamento, ignorando horário e timezone
-      const dataAgendamentoISO = a.dataHoraInicio.split('T')[0]; // '2024-02-12'
-      
-      // Comparar apenas as datas no formato YYYY-MM-DD
-      if (filtros.dataInicio && dataAgendamentoISO < filtros.dataInicio) return false;
-      if (filtros.dataFim && dataAgendamentoISO > filtros.dataFim) return false;
-      
-      return true;
-    })
-    .sort((a, b) => {
-      // Ordenação personalizada: Data > Hora > Paciente
-      
-      // 1. Extrair data e hora de cada agendamento
-      const [dataA, horaA] = a.dataHoraInicio.split('T');
-      const [dataB, horaB] = b.dataHoraInicio.split('T');
-      
-      // 2. Comparar primeiro por data
-      const comparacaoData = dataA.localeCompare(dataB);
-      if (comparacaoData !== 0) {
-        return comparacaoData;
-      }
-      
-      // 3. Se datas iguais, comparar por hora
-      const comparacaoHora = horaA.localeCompare(horaB);
-      if (comparacaoHora !== 0) {
-        return comparacaoHora;
-      }
-      
-      // 4. Se data e hora iguais, comparar por nome do paciente
-      return (a.pacienteNome || '').localeCompare(b.pacienteNome || '', 'pt-BR', { 
-        sensitivity: 'base' 
-      });
-    });
+  // Aplicar apenas filtro de busca textual no frontend (se necessário)
+  const agendamentosFiltrados = busca 
+    ? paginatedData.data.filter(a => 
+        a.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||
+        a.profissionalNome?.toLowerCase().includes(busca.toLowerCase()) ||
+        a.servicoNome?.toLowerCase().includes(busca.toLowerCase()) ||
+        a.convenioNome?.toLowerCase().includes(busca.toLowerCase()) ||
+        a.status?.toLowerCase().includes(busca.toLowerCase())
+      )
+    : paginatedData.data;
 
-  const totalPaginas = Math.ceil(agendamentosFiltrados.length / itensPorPagina);
-  const agendamentosPaginados = agendamentosFiltrados.slice(
-    (paginaAtual - 1) * itensPorPagina,
-    paginaAtual * itensPorPagina
-  );
+  // Para compatibilidade, mantemos a variável agendamentos referenciando os dados paginados
+  const agendamentos = paginatedData.data;
 
-  const formatarDataHora = (dataHoraISO: string) => {
-    // Parse da string sem conversão de timezone
-    // Formato esperado: "2025-08-04T10:00:00.000Z" 
-    const [datePart, timePart] = dataHoraISO.split('T');
-    const [ano, mes, dia] = datePart.split('-');
-    const [hora, minuto] = timePart.split(':');
-    
-    return {
-      data: `${dia}/${mes}/${ano}`,
-      hora: `${hora}:${minuto}`
-    };
-  };
+  // Para busca textual, usar paginação local. Para filtros avançados, usar server-side
+  const totalPaginas = busca 
+    ? Math.ceil(agendamentosFiltrados.length / itensPorPagina)
+    : paginatedData.pagination.totalPages;
+  
+  const agendamentosPaginados = busca
+    ? agendamentosFiltrados.slice(
+        (paginaAtual - 1) * itensPorPagina,
+        paginaAtual * itensPorPagina
+      )
+    : agendamentosFiltrados;
+
+  const formatarDataHora = formatarDataHoraLocal;
 
   const getStatusColor = (status: StatusAgendamento) => {
     const cores = {
@@ -1000,7 +987,7 @@ export const AgendamentosPage = () => {
       )}
 
       {/* Paginação */}
-      {agendamentosFiltrados.length > 0 && (
+      {(busca ? agendamentosFiltrados.length : paginatedData.pagination.total) > 0 && (
         <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-600 flex items-center gap-2">
@@ -1010,7 +997,10 @@ export const AgendamentosPage = () => {
           <select
             className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 hover:border-blue-300"
             value={itensPorPagina}
-            onChange={e => setItensPorPagina(Number(e.target.value))}
+            onChange={e => {
+              setItensPorPagina(Number(e.target.value));
+              setPaginaAtual(1); // Resetar para primeira página
+            }}
           >
             {[10, 25, 50, 100].map(qtd => (
               <option key={qtd} value={qtd}>{qtd}</option>
@@ -1021,7 +1011,7 @@ export const AgendamentosPage = () => {
         
         <div className="text-sm text-gray-600 flex items-center gap-2">
           <span className="text-lg">📈</span>
-          Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, agendamentosFiltrados.length)} de {agendamentosFiltrados.length} resultados
+          Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, busca ? agendamentosFiltrados.length : paginatedData.pagination.total)} de {busca ? agendamentosFiltrados.length : paginatedData.pagination.total} resultados
         </div>
 
         <div className="flex gap-2">
