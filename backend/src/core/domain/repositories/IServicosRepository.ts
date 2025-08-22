@@ -25,6 +25,8 @@ export interface IServicosRepository {
   findById(id: string): Promise<Servico | null>;
   findAll(): Promise<Servico[]>;
   findAllActive(): Promise<Servico[]>;
+  findByConvenioId(convenioId: string): Promise<Servico[]>;
+  findActiveByConvenioId(convenioId: string): Promise<Servico[]>;
   save(servico: Servico): Promise<Servico>;
   delete(id: string): Promise<void>;
 } 

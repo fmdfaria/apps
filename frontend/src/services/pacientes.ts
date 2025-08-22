@@ -7,7 +7,12 @@ export const getPacientes = async (): Promise<Paciente[]> => {
 };
 
 export const getPacientesAtivos = async (): Promise<Paciente[]> => {
-  const { data } = await api.get('/pacientes/ativos');
+  const { data } = await api.get('/pacientes?ativo=true');
+  return data;
+};
+
+export const getPacienteById = async (id: string): Promise<Paciente> => {
+  const { data } = await api.get(`/pacientes/${id}`);
   return data;
 };
 

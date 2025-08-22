@@ -325,16 +325,22 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                     const pacienteId = selected?.id || '';
                     const pacienteSelecionado = pacientes.find(p => p.id === pacienteId);
                     
-                    // Auto-selecionar convênio do paciente se existir
-                    const convenioIdAutoSelecionado = pacienteSelecionado?.convenioId || '';
+                    // Auto-selecionar convênio do paciente se existir e for válido para o profissional
+                    let convenioIdAutoSelecionado = pacienteSelecionado?.convenioId || '';
+                    if (formData.profissionalId && convenioIdAutoSelecionado) {
+                      const convenioValido = conveniosDoProfissional.some(c => c.id === convenioIdAutoSelecionado);
+                      if (!convenioValido) {
+                        convenioIdAutoSelecionado = '';
+                      }
+                    }
                     
                     // Só limpar servicoId se não havia um já selecionado (evita limpar pré-preenchimento)
                     const shouldClearServico = !formData.servicoId;
                     
                     updateFormData({ 
                       pacienteId,
-                      convenioId: convenioIdAutoSelecionado, // Auto-selecionar convênio do paciente
-                      ...(shouldClearServico && { servicoId: '' }) // Só limpar se não havia serviço pré-selecionado
+                      convenioId: convenioIdAutoSelecionado,
+                      ...(shouldClearServico && { servicoId: '' })
                     });
                   }}
                   placeholder={loadingData ? "Carregando pacientes..." : "Buscar paciente..."}
@@ -356,14 +362,14 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                 </label>
                 <div className="w-full">
                   <SingleSelectDropdown
-                    options={convenios.map(c => ({
+                    options={(formData.profissionalId ? conveniosDoProfissional : convenios).map(c => ({
                       id: c.id,
                       nome: c.nome,
                       sigla: undefined
                     }))}
-                    selected={convenios.find(c => c.id === formData.convenioId) ? {
+                    selected={(formData.profissionalId ? conveniosDoProfissional : convenios).find(c => c.id === formData.convenioId) ? {
                       id: formData.convenioId,
-                      nome: convenios.find(c => c.id === formData.convenioId)?.nome || '',
+                      nome: (formData.profissionalId ? conveniosDoProfissional : convenios).find(c => c.id === formData.convenioId)?.nome || '',
                       sigla: undefined
                     } : null}
                     onChange={(selected) => {

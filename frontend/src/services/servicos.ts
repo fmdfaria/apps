@@ -6,8 +6,11 @@ export const getServicos = async (): Promise<Servico[]> => {
   return data;
 };
 
-export const getServicosAtivos = async (): Promise<Servico[]> => {
-  const { data } = await api.get('/servicos/ativos');
+export const getServicosAtivos = async (params?: { convenioId?: string }): Promise<Servico[]> => {
+  const qs = new URLSearchParams();
+  qs.append('ativo', 'true');
+  if (params?.convenioId) qs.append('convenio', params.convenioId);
+  const { data } = await api.get(`/servicos?${qs.toString()}`);
   return data;
 };
 

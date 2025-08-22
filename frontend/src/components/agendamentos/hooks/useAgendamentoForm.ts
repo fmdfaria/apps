@@ -5,6 +5,11 @@ import type { TipoRecorrencia } from '@/types/Agendamento';
 import { getProfissionaisByServico, getServicosConveniosByProfissional, type ServicoConvenioProfissional } from '@/services/profissionais-servicos';
 import { getProfissionais } from '@/services/profissionais';
 import { createAgendamento, getAgendamentoFormData } from '@/services/agendamentos';
+import { getPacientesAtivos, getPacienteById } from '@/services/pacientes';
+import { getConvenios } from '@/services/convenios';
+import { getServicosAtivos } from '@/services/servicos';
+import { getRecursos } from '@/services/recursos';
+import { getDisponibilidadesProfissional } from '@/services/disponibilidades';
 import { verificarConflitosRecorrencia, type ConflitosRecorrencia } from '@/services/verificacao-disponibilidade-recorrencia';
 import { FORM_DATA_PADRAO, RECORRENCIA_PADRAO, OPCOES_HORARIOS } from '../utils/agendamento-constants';
 import type { 
@@ -305,9 +310,10 @@ export const useAgendamentoForm = ({
 
     // Combinar data e hora
     const dataHoraCombinada = `${dataAgendamento}T${horaAgendamento}`;
-    
+    const dataHoraComOffset = buildIsoWithLocalOffset(dataAgendamento, horaAgendamento);
+
     // Validação adicional: verificar se a data/hora não é no passado
-    const dataHoraSelecionada = new Date(dataHoraCombinada);
+    const dataHoraSelecionada = new Date(dataHoraComOffset);
     const agora = new Date();
     
     if (dataHoraSelecionada <= agora) {
@@ -329,7 +335,7 @@ export const useAgendamentoForm = ({
       // Preparar dados para envio
       const dadosParaEnvio = {
         ...formData,
-        dataHoraInicio: dataHoraCombinada,
+        dataHoraInicio: dataHoraComOffset,
         recorrencia: temRecorrencia ? {
           tipo: recorrencia.tipo,
           ...(recorrencia.repeticoes && { repeticoes: recorrencia.repeticoes }),
@@ -350,7 +356,7 @@ export const useAgendamentoForm = ({
     // Se chegou até aqui, o recurso está conforme - verificar conflitos de recorrência
     const dadosParaEnvio = {
       ...formData,
-      dataHoraInicio: dataHoraCombinada,
+      dataHoraInicio: dataHoraComOffset,
       recorrencia: temRecorrencia ? {
         tipo: recorrencia.tipo,
         ...(recorrencia.repeticoes && { repeticoes: recorrencia.repeticoes }),
@@ -585,6 +591,70 @@ export const useAgendamentoForm = ({
     setUserSelectedResource(false);
   }, []);
 
+  // Ao selecionar Data no fluxo Por Profissional, carregar disponibilidades do profissional (uma vez por data)
+  useEffect(() => {
+    const carregarDisp = async () => {
+      if (!isOpen) return;
+      if (tipoFluxo !== 'por-profissional') return;
+      if (!formData.profissionalId || !dataAgendamento) return;
+      try {
+        const lista = await getDisponibilidadesProfissional(formData.profissionalId);
+        setDisponibilidades(lista || []);
+      } catch (e) {
+        console.warn('Falha ao carregar disponibilidades do profissional:', e);
+        setDisponibilidades([]);
+      }
+    };
+    carregarDisp();
+  }, [isOpen, tipoFluxo, formData.profissionalId, dataAgendamento]);
+
+  // Após seleção da hora (com profissional e data selecionados), carregar listas e pré-seleções
+  useEffect(() => {
+    const carregarDadosPosHora = async () => {
+      if (!isOpen) return;
+      if (!formData.profissionalId || !dataAgendamento || !horaAgendamento) return;
+
+      setLoadingData(true);
+      try {
+        // 1) Pacientes ativos
+        const [pacientesAtivos, listaConvenios, listaRecursos] = await Promise.all([
+          getPacientesAtivos(),
+          getConvenios(),
+          getRecursos(),
+        ]);
+        setPacientes(pacientesAtivos);
+        setConvenios(listaConvenios);
+        setRecursos(listaRecursos);
+
+        // 2) Pré-selecionar convênio do paciente se já houver paciente selecionado
+        let convenioSelecionado = formData.convenioId || '';
+        if (formData.pacienteId && !convenioSelecionado) {
+          try {
+            const paciente = await getPacienteById(formData.pacienteId);
+            convenioSelecionado = paciente.convenioId || '';
+            if (convenioSelecionado) {
+              setFormData(prev => ({ ...prev, convenioId: convenioSelecionado }));
+            }
+          } catch {}
+        }
+
+        // 3) Serviços ativos do convênio selecionado
+        if (convenioSelecionado) {
+          const servicosAtivos = await getServicosAtivos({ convenioId: convenioSelecionado });
+          setServicos(servicosAtivos);
+        } else {
+          setServicos([]);
+        }
+
+        // 4) Não recarregar disponibilidades: já estão em estado; apenas manter recurso pré-selecionado pela disponibilidade
+        // (auto-seleção de recurso é tratada por outro effect já existente)
+      } finally {
+        setLoadingData(false);
+      }
+    };
+    carregarDadosPosHora();
+  }, [isOpen, formData.profissionalId, formData.pacienteId, formData.convenioId, dataAgendamento, horaAgendamento]);
+
   const updateTemRecorrencia = useCallback((tem: boolean) => {
     setTemRecorrencia(tem);
   }, []);
@@ -595,6 +665,16 @@ export const useAgendamentoForm = ({
 
   const updateTipoFluxo = useCallback((tipo: TipoFluxo | null) => {
     setTipoFluxo(tipo);
+  }, []);
+
+  // Monta ISO com offset local do navegador (ex.: 2025-08-27T07:30:00-03:00)
+  const buildIsoWithLocalOffset = useCallback((data: string, hora: string): string => {
+    const offsetMinutes = -new Date().getTimezoneOffset();
+    const sign = offsetMinutes >= 0 ? '+' : '-';
+    const abs = Math.abs(offsetMinutes);
+    const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+    const mm = String(abs % 60).padStart(2, '0');
+    return `${data}T${hora}:00${sign}${hh}:${mm}`;
   }, []);
 
   // Função para auto-selecionar recurso baseado nas disponibilidades e horário específico

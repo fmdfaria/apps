@@ -79,6 +79,33 @@ export class PrismaServicosRepository implements IServicosRepository {
     return servicos.map(toDomain);
   }
 
+  async findAllActive(): Promise<Servico[]> {
+    const servicos = await this.prisma.servico.findMany({
+      where: { ativo: true },
+      orderBy: { nome: 'asc' },
+      include: servicoInclude,
+    });
+    return servicos.map(toDomain);
+  }
+
+  async findByConvenioId(convenioId: string): Promise<Servico[]> {
+    const servicos = await this.prisma.servico.findMany({
+      where: { convenioId },
+      orderBy: { nome: 'asc' },
+      include: servicoInclude,
+    });
+    return servicos.map(toDomain);
+  }
+
+  async findActiveByConvenioId(convenioId: string): Promise<Servico[]> {
+    const servicos = await this.prisma.servico.findMany({
+      where: { convenioId, ativo: true },
+      orderBy: { nome: 'asc' },
+      include: servicoInclude,
+    });
+    return servicos.map(toDomain);
+  }
+
   async save(servico: Servico): Promise<Servico> {
     const { id, convenioId, ...data } = servico as any;
 

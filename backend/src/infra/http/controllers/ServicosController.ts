@@ -6,6 +6,7 @@ import { ListServicosUseCase } from '../../../core/application/use-cases/servico
 import { UpdateServicoUseCase } from '../../../core/application/use-cases/servico/UpdateServicoUseCase';
 import { DeleteServicoUseCase } from '../../../core/application/use-cases/servico/DeleteServicoUseCase';
 import { UpdateServicoStatusUseCase } from '../../../core/application/use-cases/servico/UpdateServicoStatusUseCase';
+import { IServicosRepository } from '../../../core/domain/repositories/IServicosRepository';
 
 export class ServicosController {
   async create(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
@@ -29,6 +30,32 @@ export class ServicosController {
   }
 
   async list(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const querySchema = z.object({
+      ativo: z.coerce.boolean().optional(),
+      convenio: z.string().uuid().optional(),
+    });
+    const { ativo, convenio } = querySchema.parse(request.query);
+
+    const repo = container.resolve('ServicosRepository') as IServicosRepository;
+
+    // Combinações de filtros
+    if (convenio && ativo === true) {
+      const servicos = await repo.findActiveByConvenioId(convenio);
+      return reply.status(200).send(servicos);
+    }
+    if (convenio) {
+      const servicos = await repo.findByConvenioId(convenio);
+      return reply.status(200).send(servicos);
+    }
+    if (ativo === true) {
+      if (typeof repo.findAllActive === 'function') {
+        const ativos = await (repo as any).findAllActive();
+        return reply.status(200).send(ativos);
+      }
+      const todos = await repo.findAll();
+      return reply.status(200).send(todos.filter((s: any) => s.ativo === true));
+    }
+
     const useCase = container.resolve(ListServicosUseCase);
     const servicos = await useCase.execute();
     return reply.status(200).send(servicos);
