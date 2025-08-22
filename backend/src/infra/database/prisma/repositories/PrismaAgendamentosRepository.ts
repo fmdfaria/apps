@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { inject, injectable } from 'tsyringe';
 import { Agendamento } from '../../../../core/domain/entities/Agendamento';
-import { IAgendamentosRepository, ICreateAgendamentoDTO, IUpdateAgendamentoDTO } from '../../../../core/domain/repositories/IAgendamentosRepository';
+import { IAgendamentosRepository, ICreateAgendamentoDTO, IUpdateAgendamentoDTO, IAgendamentoFilters, IPaginatedResponse } from '../../../../core/domain/repositories/IAgendamentosRepository';
 
 function toDomain(agendamento: any): Agendamento {
   return {
@@ -56,31 +56,64 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     return agendamento ? toDomain(agendamento) : null;
   }
 
-  async findAll(filters?: Partial<{ profissionalId: string; pacienteId: string; dataHoraInicio: Date; dataHoraFim: Date; status: string }>): Promise<Agendamento[]> {
+  async findAll(filters?: IAgendamentoFilters): Promise<IPaginatedResponse<Agendamento>> {
+    // Valores padrão para paginação
+    const page = filters?.page || 1;
+    const limit = Math.min(filters?.limit || 10, 100); // Máximo 100
+    const skip = (page - 1) * limit;
+    const orderBy = filters?.orderBy || 'dataHoraInicio';
+    const orderDirection = filters?.orderDirection || 'asc';
+
     const whereConditions: any = {};
     
-    // Adicionar filtros básicos
+    // Filtros básicos
     if (filters?.profissionalId) whereConditions.profissionalId = filters.profissionalId;
     if (filters?.pacienteId) whereConditions.pacienteId = filters.pacienteId;
     if (filters?.status) whereConditions.status = filters.status;
+    if (filters?.recursoId) whereConditions.recursoId = filters.recursoId;
+    if (filters?.convenioId) whereConditions.convenioId = filters.convenioId;
+    if (filters?.servicoId) whereConditions.servicoId = filters.servicoId;
+    if (filters?.tipoAtendimento) whereConditions.tipoAtendimento = filters.tipoAtendimento;
     
-    // Filtros de data - se ambos dataHoraInicio e dataHoraFim forem fornecidos, usar range
-    if (filters?.dataHoraInicio && filters?.dataHoraFim) {
-      whereConditions.dataHoraInicio = {
-        gte: filters.dataHoraInicio,
-        lte: filters.dataHoraFim,
-      };
-    } else if (filters?.dataHoraInicio) {
-      // Se apenas dataHoraInicio for fornecido, buscar apenas essa data específica
-      whereConditions.dataHoraInicio = filters.dataHoraInicio;
+    // Filtros de data - range
+    if (filters?.dataInicio || filters?.dataFim) {
+      whereConditions.dataHoraInicio = {};
+      if (filters.dataInicio) {
+        whereConditions.dataHoraInicio.gte = filters.dataInicio;
+      }
+      if (filters.dataFim) {
+        // Para dataFim, incluir todo o dia (até 23:59:59)
+        const endOfDay = new Date(filters.dataFim);
+        endOfDay.setHours(23, 59, 59, 999);
+        whereConditions.dataHoraInicio.lte = endOfDay;
+      }
     }
 
-    const agendamentos = await this.prisma.agendamento.findMany({
-      where: whereConditions,
-      include: { servico: true, paciente: true, profissional: true, recurso: true, convenio: true },
-      orderBy: { dataHoraInicio: 'asc' },
-    });
-    return agendamentos.map(toDomain);
+    // Executar consultas em paralelo
+    const [agendamentos, total] = await Promise.all([
+      this.prisma.agendamento.findMany({
+        where: whereConditions,
+        include: { servico: true, paciente: true, profissional: true, recurso: true, convenio: true },
+        orderBy: { [orderBy]: orderDirection },
+        skip,
+        take: limit,
+      }),
+      this.prisma.agendamento.count({
+        where: whereConditions,
+      })
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: agendamentos.map(toDomain),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    };
   }
 
   async findByProfissionalAndDataHoraInicio(profissionalId: string, dataHoraInicio: Date): Promise<Agendamento | null> {

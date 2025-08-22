@@ -142,38 +142,51 @@ export const AtenderAgendamentoModal: React.FC<AtenderAgendamentoModalProps> = (
             </div>
           </div>
 
-          {/* Dados de Liberação */}
-          {agendamento.codLiberacao && (
-            <div>
+          {/* Dados de Liberação - Sempre exibir */}
+          <div>
               <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-green-600" />
                 Dados da Liberação
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm bg-green-50 p-4 rounded-lg border border-green-200">
+              <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 text-sm p-4 rounded-lg border ${
+                agendamento.codLiberacao || agendamento.statusCodLiberacao || agendamento.dataCodLiberacao
+                  ? 'bg-green-50 border-green-200'
+                  : 'bg-gray-50 border-gray-200'
+              }`}>
                 <div className="flex items-center gap-3">
                   <span className="font-medium text-gray-600">Código:</span>
-                  <span className="font-mono bg-white px-3 py-1 rounded border text-green-800 font-medium">
-                    {agendamento.codLiberacao}
+                  <span className={`font-mono px-3 py-1 rounded border font-medium ${
+                    agendamento.codLiberacao 
+                      ? 'bg-white text-green-800' 
+                      : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {agendamento.codLiberacao || 'Aguardando'}
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-medium text-gray-600">Status:</span>
                   <Badge 
-                    className={`text-xs ${agendamento.statusCodLiberacao === 'APROVADO' 
-                      ? 'bg-green-100 text-green-700 border-green-300' 
-                      : 'bg-yellow-100 text-yellow-700 border-yellow-300'
+                    className={`text-xs ${
+                      agendamento.statusCodLiberacao === 'APROVADO'
+                        ? 'bg-green-100 text-green-700 border-green-300'
+                        : agendamento.statusCodLiberacao
+                        ? 'bg-yellow-100 text-yellow-700 border-yellow-300'
+                        : 'bg-gray-100 text-gray-500 border-gray-300'
                     }`}
                   >
-                    {agendamento.statusCodLiberacao}
+                    {agendamento.statusCodLiberacao || 'Pendente'}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-medium text-gray-600">Data:</span>
-                  <span className="text-gray-800 font-medium">{agendamento.dataCodLiberacao ? new Date(agendamento.dataCodLiberacao).toLocaleDateString('pt-BR') : '-'}</span>
+                  <span className={`font-medium ${
+                    agendamento.dataCodLiberacao ? 'text-gray-800' : 'text-gray-500'
+                  }`}>
+                    {agendamento.dataCodLiberacao ? new Date(agendamento.dataCodLiberacao).toLocaleDateString('pt-BR') : 'Aguardando'}
+                  </span>
                 </div>
               </div>
             </div>
-          )}
 
           {/* Formulário de Atendimento */}
           <div>

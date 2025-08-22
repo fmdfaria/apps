@@ -31,11 +31,40 @@ export interface IUpdateAgendamentoDTO extends Partial<ICreateAgendamentoDTO> {
   motivoReprovacao?: string | null;
 }
 
+export interface IAgendamentoFilters {
+  // Paginação
+  page?: number;
+  limit?: number;
+  orderBy?: string;
+  orderDirection?: 'asc' | 'desc';
+  
+  // Filtros
+  status?: string;
+  profissionalId?: string;
+  pacienteId?: string;
+  recursoId?: string;
+  convenioId?: string;
+  servicoId?: string;
+  dataInicio?: Date;
+  dataFim?: Date;
+  tipoAtendimento?: string;
+}
+
+export interface IPaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export interface IAgendamentosRepository {
   create(data: ICreateAgendamentoDTO): Promise<Agendamento>;
   update(id: string, data: IUpdateAgendamentoDTO): Promise<Agendamento>;
   findById(id: string): Promise<Agendamento | null>;
-  findAll(filters?: Partial<{ profissionalId: string; pacienteId: string; dataHoraInicio: Date; dataHoraFim: Date; status: string }>): Promise<Agendamento[]>;
+  findAll(filters?: IAgendamentoFilters): Promise<IPaginatedResponse<Agendamento>>;
   findByProfissionalAndDataHoraInicio(profissionalId: string, dataHoraInicio: Date): Promise<Agendamento | null>;
   findByRecursoAndDateRange(recursoId: string, dataInicio: Date, dataFim: Date): Promise<Agendamento[]>;
   delete(id: string): Promise<void>;

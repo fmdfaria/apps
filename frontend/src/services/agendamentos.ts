@@ -317,39 +317,81 @@ const transformApiAgendamento = (agendamento: any): Agendamento => {
     convenioNome: agendamento.convenio?.nome || '',
     servicoNome: agendamento.servico?.nome || '',
     recursoNome: agendamento.recurso?.nome || '',
+    // Garantir que os dados de liberação sejam preservados
+    codLiberacao: agendamento.codLiberacao || undefined,
+    statusCodLiberacao: agendamento.statusCodLiberacao || undefined,
+    dataCodLiberacao: agendamento.dataCodLiberacao || undefined,
   };
 };
 
-export const getAgendamentos = async (filtros?: {
+export interface IPaginatedAgendamentos {
+  data: Agendamento[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface IAgendamentoFilters {
+  // Paginação
+  page?: number;
+  limit?: number;
+  orderBy?: string;
+  orderDirection?: 'asc' | 'desc';
+  
+  // Filtros
   status?: StatusAgendamento;
   profissionalId?: string;
   pacienteId?: string;
+  recursoId?: string;
+  convenioId?: string;
+  servicoId?: string;
   dataInicio?: string;
   dataFim?: string;
-}): Promise<Agendamento[]> => {
+  tipoAtendimento?: string;
+}
+
+export const getAgendamentos = async (filtros?: IAgendamentoFilters): Promise<IPaginatedAgendamentos> => {
   try {
     const params = new URLSearchParams();
     if (filtros) {
+      // Paginação
+      if (filtros.page) params.append('page', filtros.page.toString());
+      if (filtros.limit) params.append('limit', filtros.limit.toString());
+      if (filtros.orderBy) params.append('orderBy', filtros.orderBy);
+      if (filtros.orderDirection) params.append('orderDirection', filtros.orderDirection);
+      
+      // Filtros
       if (filtros.status) params.append('status', filtros.status);
       if (filtros.profissionalId) params.append('profissionalId', filtros.profissionalId);
       if (filtros.pacienteId) params.append('pacienteId', filtros.pacienteId);
-      if (filtros.dataInicio) params.append('dataHoraInicio', filtros.dataInicio);
-      if (filtros.dataFim) params.append('dataHoraFim', filtros.dataFim);
+      if (filtros.recursoId) params.append('recursoId', filtros.recursoId);
+      if (filtros.convenioId) params.append('convenioId', filtros.convenioId);
+      if (filtros.servicoId) params.append('servicoId', filtros.servicoId);
+      if (filtros.dataInicio) params.append('dataInicio', filtros.dataInicio);
+      if (filtros.dataFim) params.append('dataFim', filtros.dataFim);
+      if (filtros.tipoAtendimento) params.append('tipoAtendimento', filtros.tipoAtendimento);
     }
+    
     const url = `/agendamentos${params.toString() ? `?${params.toString()}` : ''}`;
     const { data } = await api.get(url);
     
-    const agendamentos = data.map(transformApiAgendamento);
-    return agendamentos.sort((a: Agendamento, b: Agendamento) => 
-      new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()
-    );
+    return {
+      data: data.data.map(transformApiAgendamento),
+      pagination: data.pagination
+    };
     
   } catch (error) {
     console.warn('⚠️ Erro ao carregar agendamentos da API, usando dados mock como fallback:', error);
     
     // Fallback para dados mock em caso de erro
     let agendamentos = [...agendamentosMock];
+    const page = filtros?.page || 1;
+    const limit = filtros?.limit || 10;
     
+    // Aplicar filtros no mock
     if (filtros) {
       if (filtros.status) {
         agendamentos = agendamentos.filter(a => a.status === filtros.status);
@@ -360,19 +402,37 @@ export const getAgendamentos = async (filtros?: {
       if (filtros.pacienteId) {
         agendamentos = agendamentos.filter(a => a.pacienteId === filtros.pacienteId);
       }
-      if (filtros.dataInicio && filtros.dataFim) {
+      if (filtros.dataInicio || filtros.dataFim) {
         agendamentos = agendamentos.filter(a => {
           const dataAgendamento = new Date(a.dataHoraInicio);
-          const inicio = new Date(filtros.dataInicio!);
-          const fim = new Date(filtros.dataFim!);
-          return dataAgendamento >= inicio && dataAgendamento <= fim;
+          if (filtros.dataInicio && dataAgendamento < new Date(filtros.dataInicio)) return false;
+          if (filtros.dataFim && dataAgendamento > new Date(filtros.dataFim)) return false;
+          return true;
         });
       }
     }
     
-    return agendamentos.sort((a, b) => 
+    // Ordenar
+    agendamentos.sort((a, b) => 
       new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()
     );
+    
+    // Aplicar paginação no mock
+    const total = agendamentos.length;
+    const totalPages = Math.ceil(total / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedData = agendamentos.slice(startIndex, endIndex);
+    
+    return {
+      data: paginatedData,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages
+      }
+    };
   }
 };
 
@@ -546,8 +606,9 @@ export const getFechamentosConvenios = async (filtros?: {
   convenio?: string;
 }): Promise<FechamentoConvenio[]> => {
   try {
-    // Buscar agendamentos finalizados
-    const agendamentos = await getAgendamentos({ status: 'FINALIZADO' });
+    // Buscar agendamentos finalizados (todos - sem paginação para fechamento)
+    const result = await getAgendamentos({ status: 'FINALIZADO', limit: 1000 });
+    const agendamentos = result.data;
     
     // Filtrar por parâmetros adicionais se fornecidos
     let agendamentosFiltrados = agendamentos;
@@ -612,14 +673,44 @@ export const getFechamentosConvenios = async (filtros?: {
   }
 };
 
+// Funções convenience para facilitar uso comum
+export const getAgendamentosPendentes = async (page = 1, limit = 10): Promise<IPaginatedAgendamentos> => {
+  return getAgendamentos({ status: 'PENDENTE', page, limit });
+};
+
+export const getAgendamentosAgendados = async (page = 1, limit = 10): Promise<IPaginatedAgendamentos> => {
+  return getAgendamentos({ status: 'AGENDADO', page, limit });
+};
+
+export const getAgendamentosLiberados = async (page = 1, limit = 10): Promise<IPaginatedAgendamentos> => {
+  return getAgendamentos({ status: 'LIBERADO', page, limit });
+};
+
+export const getAgendamentosAtendidos = async (page = 1, limit = 10): Promise<IPaginatedAgendamentos> => {
+  return getAgendamentos({ status: 'ATENDIDO', page, limit });
+};
+
+export const getAgendamentosFinalizados = async (page = 1, limit = 10): Promise<IPaginatedAgendamentos> => {
+  return getAgendamentos({ status: 'FINALIZADO', page, limit });
+};
+
+export const getAgendamentosByProfissional = async (profissionalId: string, page = 1, limit = 10): Promise<IPaginatedAgendamentos> => {
+  return getAgendamentos({ profissionalId, page, limit });
+};
+
+export const getAgendamentosByPaciente = async (pacienteId: string, page = 1, limit = 10): Promise<IPaginatedAgendamentos> => {
+  return getAgendamentos({ pacienteId, page, limit });
+};
+
 export const getFechamentosParticulares = async (filtros?: {
   dataInicio?: string;
   dataFim?: string;
   paciente?: string;
 }): Promise<FechamentoParticular[]> => {
   try {
-    // Buscar agendamentos finalizados
-    const agendamentos = await getAgendamentos({ status: 'FINALIZADO' });
+    // Buscar agendamentos finalizados (todos - sem paginação para fechamento)
+    const result = await getAgendamentos({ status: 'FINALIZADO', limit: 1000 });
+    const agendamentos = result.data;
     
     // Filtrar apenas particulares
     let agendamentosParticulares = agendamentos.filter(a => 

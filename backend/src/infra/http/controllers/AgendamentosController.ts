@@ -46,16 +46,28 @@ export class AgendamentosController {
 
   async list(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const querySchema = z.object({
+      // Paginação
+      page: z.coerce.number().int().min(1).optional().default(1),
+      limit: z.coerce.number().int().min(1).max(100).optional().default(10),
+      orderBy: z.string().optional().default('dataHoraInicio'),
+      orderDirection: z.enum(['asc', 'desc']).optional().default('asc'),
+      
+      // Filtros
+      status: z.string().optional(),
       profissionalId: z.string().uuid().optional(),
       pacienteId: z.string().uuid().optional(),
-      dataHoraInicio: z.coerce.date().optional(),
-      dataHoraFim: z.coerce.date().optional(),
-      status: z.string().optional(),
+      recursoId: z.string().uuid().optional(),
+      convenioId: z.string().uuid().optional(),
+      servicoId: z.string().uuid().optional(),
+      dataInicio: z.coerce.date().optional(),
+      dataFim: z.coerce.date().optional(),
+      tipoAtendimento: z.string().optional(),
     });
+    
     const filters = querySchema.parse(request.query);
     const useCase = container.resolve(ListAgendamentosUseCase);
-    const agendamentos = await useCase.execute(filters);
-    return reply.status(200).send(agendamentos);
+    const result = await useCase.execute(filters);
+    return reply.status(200).send(result);
   }
 
   async getFormData(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {

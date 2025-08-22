@@ -145,17 +145,18 @@ export const DetalhesAgendamentoModal: React.FC<DetalhesAgendamentoModalProps> =
               <h3 className="font-semibold text-gray-900 mb-3">Informações Adicionais</h3>
               <div className="space-y-3 text-sm">
                 {agendamento.codLiberacao && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <span className="font-medium">Código de Liberação:</span>
-                      <span className="text-gray-700 ml-2 font-mono">{agendamento.codLiberacao}</span>
-                    </div>
-                    {agendamento.dataCodLiberacao && (
+                  <div>
+                    <h4 className="font-semibold text-gray-800 mb-2">Dados da Liberação</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
-                        <span className="font-medium">Data da Liberação:</span>
-                        <span className="text-gray-700 ml-2">{formatarDataHoraCompleta(agendamento.dataCodLiberacao)}</span>
+                        <span className="font-medium">Código:</span>
+                        <span className="text-gray-700 ml-2 font-mono">{agendamento.codLiberacao}</span>
                       </div>
-                    )}
+                      <div>
+                        <span className="font-medium">Data:</span>
+                        <span className="text-gray-700 ml-2">{agendamento.dataCodLiberacao ? formatarDataHoraCompleta(agendamento.dataCodLiberacao) : '-'}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
 

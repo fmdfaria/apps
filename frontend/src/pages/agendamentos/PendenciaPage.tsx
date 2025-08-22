@@ -19,21 +19,26 @@ import {
   CheckSquare
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
-import { getAgendamentos } from '@/services/agendamentos';
-import { AprovarAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
+import { getAgendamentos, aprovarAgendamento, IPaginatedAgendamentos } from '@/services/agendamentos';
+import { AtenderAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
+import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
 
 export const PendenciaPage = () => {
-  const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
+  const { user } = useAuth();
+  const [paginatedData, setPaginatedData] = useState<IPaginatedAgendamentos>({
+    data: [],
+    pagination: { page: 1, limit: 10, total: 0, totalPages: 0 }
+  });
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [canConcluir, setCanConcluir] = useState(true);
   const [busca, setBusca] = useState('');
   const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
-  const [showAprovarAgendamento, setShowAprovarAgendamento] = useState(false);
+  const [showAtenderAgendamento, setShowAtenderAgendamento] = useState(false);
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<Agendamento | null>(null);
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
@@ -57,8 +62,13 @@ export const PendenciaPage = () => {
   }, []);
 
   useEffect(() => {
+    carregarAgendamentos();
+  }, [paginaAtual, itensPorPagina, filtros]);
+
+  useEffect(() => {
     setPaginaAtual(1);
-  }, [busca, itensPorPagina, filtros]);
+    // Para busca textual, não recarregar da API, apenas resetar página
+  }, [busca]);
 
   const checkPermissions = async () => {
     try {
@@ -81,10 +91,46 @@ export const PendenciaPage = () => {
 
   const carregarAgendamentos = async () => {
     setLoading(true);
-    setAgendamentos([]);
     try {
-      const dados = await getAgendamentos();
-      setAgendamentos(dados);
+      // Montar filtros para a API
+      const filtrosAPI: any = {
+        status: 'PENDENTE',
+        page: paginaAtual,
+        limit: itensPorPagina,
+      };
+
+      // Aplicar filtros de busca
+      if (busca) {
+        // Para busca geral, não podemos usar todos os filtros de uma vez na API
+        // Vamos usar a busca textual no frontend após receber os dados
+      }
+
+      // Filtros específicos
+      if (filtros.paciente) filtrosAPI.pacienteNome = filtros.paciente;
+      if (filtros.profissional) filtrosAPI.profissionalNome = filtros.profissional;
+      if (filtros.servico) filtrosAPI.servicoNome = filtros.servico;
+      if (filtros.convenio) filtrosAPI.convenioNome = filtros.convenio;
+      if (filtros.tipoAtendimento) filtrosAPI.tipoAtendimento = filtros.tipoAtendimento;
+      if (filtros.dataInicio) filtrosAPI.dataInicio = filtros.dataInicio;
+      if (filtros.dataFim) filtrosAPI.dataFim = filtros.dataFim;
+
+      // Se o usuário for PROFISSIONAL, filtra apenas seus agendamentos
+      if (user?.roles?.includes('PROFISSIONAL')) {
+        try {
+          const profissionalResponse = await api.get('/profissionais/me');
+          filtrosAPI.profissionalId = profissionalResponse.data.id;
+        } catch (profissionalError) {
+          console.error('Erro ao buscar dados do profissional:', profissionalError);
+          AppToast.error('Erro ao carregar dados do profissional', {
+            description: 'Não foi possível carregar os agendamentos do profissional.'
+          });
+          setPaginatedData({ data: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } });
+          return;
+        }
+      }
+
+      const dados = await getAgendamentos(filtrosAPI);
+      setPaginatedData(dados);
     } catch (e: any) {
       if (e?.response?.status === 403) {
         setAccessDenied(true);
@@ -128,53 +174,40 @@ export const PendenciaPage = () => {
     return `${dia}/${mes}/${ano}`;
   };
 
-  const agendamentosFiltrados = agendamentos
-    .filter(a => a.status === 'PENDENTE')
-    .filter(a => 
-      !busca || 
-      a.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||
-      a.profissionalNome?.toLowerCase().includes(busca.toLowerCase()) ||
-      a.servicoNome?.toLowerCase().includes(busca.toLowerCase()) ||
-      a.convenioNome?.toLowerCase().includes(busca.toLowerCase())
-    )
-    .filter(a => !filtros.paciente || a.pacienteNome?.toLowerCase().includes(filtros.paciente.toLowerCase()))
-    .filter(a => !filtros.profissional || a.profissionalNome?.toLowerCase().includes(filtros.profissional.toLowerCase()))
-    .filter(a => !filtros.servico || a.servicoNome?.toLowerCase().includes(filtros.servico.toLowerCase()))
-    .filter(a => !filtros.convenio || a.convenioNome?.toLowerCase().includes(filtros.convenio.toLowerCase()))
-    .filter(a => !filtros.tipoAtendimento || a.tipoAtendimento === filtros.tipoAtendimento)
-    .filter(a => {
-      if (!filtros.dataInicio && !filtros.dataFim) return true;
-      const dataAgendamentoISO = a.dataHoraInicio.split('T')[0];
-      if (filtros.dataInicio && dataAgendamentoISO < filtros.dataInicio) return false;
-      if (filtros.dataFim && dataAgendamentoISO > filtros.dataFim) return false;
-      return true;
-    })
-    .sort((a, b) => {
-      const [dataA, horaA] = a.dataHoraInicio.split('T');
-      const [dataB, horaB] = b.dataHoraInicio.split('T');
-      const compData = dataA.localeCompare(dataB);
-      if (compData !== 0) return compData;
-      const compHora = horaA.localeCompare(horaB);
-      if (compHora !== 0) return compHora;
-      return (a.pacienteNome || '').localeCompare(b.pacienteNome || '', 'pt-BR', { sensitivity: 'base' });
-    });
+  // Aplicar apenas filtro de busca textual no frontend (se necessário)
+  const agendamentosFiltrados = busca 
+    ? paginatedData.data.filter(a => 
+        a.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||
+        a.profissionalNome?.toLowerCase().includes(busca.toLowerCase()) ||
+        a.servicoNome?.toLowerCase().includes(busca.toLowerCase()) ||
+        a.convenioNome?.toLowerCase().includes(busca.toLowerCase())
+      )
+    : paginatedData.data;
 
-  const totalPaginas = Math.ceil(agendamentosFiltrados.length / itensPorPagina);
-  const agendamentosPaginados = agendamentosFiltrados.slice(
-    (paginaAtual - 1) * itensPorPagina,
-    paginaAtual * itensPorPagina
-  );
+  // Para busca textual, usar paginação local. Para filtros avançados, usar server-side
+  const totalPaginas = busca 
+    ? Math.ceil(agendamentosFiltrados.length / itensPorPagina)
+    : paginatedData.pagination.totalPages;
+  
+  const agendamentosPaginados = busca
+    ? agendamentosFiltrados.slice(
+        (paginaAtual - 1) * itensPorPagina,
+        paginaAtual * itensPorPagina
+      )
+    : agendamentosFiltrados;
 
-  const formatarDataHora = (dataHoraISO: string) => {
-    const [datePart, timePart] = dataHoraISO.split('T');
-    const [ano, mes, dia] = datePart.split('-');
-    const [hora, minuto] = timePart.split(':');
-    return { data: `${dia}/${mes}/${ano}`, hora: `${hora}:${minuto}` };
+  const formatarDataHora = (dataISO: string) => {
+    if (!dataISO) return { data: '-', hora: '-' };
+    const data = new Date(dataISO);
+    return {
+      data: data.toLocaleDateString('pt-BR'),
+      hora: data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    };
   };
 
-  const handleAprovar = (agendamento: Agendamento) => {
+  const handleAvaliar = (agendamento: Agendamento) => {
     setAgendamentoSelecionado(agendamento);
-    setShowAprovarAgendamento(true);
+    setShowAtenderAgendamento(true);
   };
 
   const handleVerDetalhes = (agendamento: Agendamento) => {
@@ -230,7 +263,7 @@ export const PendenciaPage = () => {
                     </Button>
                   </div>
                   {canConcluir ? (
-                    <Button size="sm" variant="outline" className="w-full h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white" onClick={() => handleAprovar(agendamento)} title="Avaliar Atendimento">
+                    <Button size="sm" variant="outline" className="w-full h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white" onClick={() => handleAvaliar(agendamento)} title="Avaliar Atendimento">
                       Avaliar Atendimento
                     </Button>
                   ) : (
@@ -290,7 +323,7 @@ export const PendenciaPage = () => {
                       <Eye className="w-4 h-4" />
                     </Button>
                     {canConcluir ? (
-                      <Button variant="outline" size="sm" className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform" onClick={() => handleAprovar(agendamento)} title="Avaliar Atendimento">
+                      <Button variant="outline" size="sm" className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform" onClick={() => handleAvaliar(agendamento)} title="Avaliar Atendimento">
                         <CheckSquare className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
                       </Button>
                     ) : (
@@ -419,7 +452,7 @@ export const PendenciaPage = () => {
         {visualizacao === 'cards' ? renderCardView() : renderTableView()}
       </div>
 
-      {agendamentosFiltrados.length > 0 && (
+      {(busca ? agendamentosFiltrados.length : paginatedData.pagination.total) > 0 && (
         <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-600 flex items-center gap-2"><span className="text-lg">📊</span>Exibir</span>
@@ -428,7 +461,7 @@ export const PendenciaPage = () => {
             </select>
             <span className="text-sm text-gray-600">itens por página</span>
           </div>
-          <div className="text-sm text-gray-600 flex items-center gap-2"><span className="text-lg">📈</span>Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, agendamentosFiltrados.length)} de {agendamentosFiltrados.length} resultados</div>
+          <div className="text-sm text-gray-600 flex items-center gap-2"><span className="text-lg">📈</span>Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, busca ? agendamentosFiltrados.length : paginatedData.pagination.total)} de {busca ? agendamentosFiltrados.length : paginatedData.pagination.total} resultados</div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setPaginaAtual(p => Math.max(1, p - 1))} disabled={paginaAtual === 1 || totalPaginas === 1} className={(paginaAtual === 1 || totalPaginas === 1) ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50" : "border-2 border-gray-200 text-gray-700 hover:border-yellow-500 hover:bg-gradient-to-r hover:from-yellow-50 hover:to-amber-50 hover:text-yellow-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"}>
               <span className="mr-1 text-gray-600 group-hover:text-yellow-600 transition-colors">⬅️</span> Anterior
@@ -449,11 +482,22 @@ export const PendenciaPage = () => {
         </div>
       )}
 
-      <AprovarAgendamentoModal
-        isOpen={showAprovarAgendamento}
+      <AtenderAgendamentoModal
+        isOpen={showAtenderAgendamento}
         agendamento={agendamentoSelecionado}
-        onClose={() => { setShowAprovarAgendamento(false); setAgendamentoSelecionado(null); }}
-        onSuccess={carregarAgendamentos}
+        onClose={() => { setShowAtenderAgendamento(false); setAgendamentoSelecionado(null); }}
+        onSuccess={async () => {
+          try {
+            if (agendamentoSelecionado) {
+              await aprovarAgendamento(agendamentoSelecionado.id, {});
+            }
+          } catch (e) {
+            console.error('Erro ao finalizar agendamento após atendimento:', e);
+            AppToast.error('Erro ao finalizar agendamento', { description: 'O atendimento foi registrado, mas falhou ao finalizar. Tente concluir novamente.' });
+          } finally {
+            await carregarAgendamentos();
+          }
+        }}
       />
       <DetalhesAgendamentoModal
         isOpen={showDetalhesAgendamento}
