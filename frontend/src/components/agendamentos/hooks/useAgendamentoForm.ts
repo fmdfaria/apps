@@ -3,6 +3,7 @@ import { AppToast } from '@/services/toast';
 import type { CreateAgendamentoData, AgendamentoFormData } from '@/services/agendamentos';
 import type { TipoRecorrencia } from '@/types/Agendamento';
 import { getProfissionaisByServico, getServicosConveniosByProfissional, type ServicoConvenioProfissional } from '@/services/profissionais-servicos';
+import { getProfissionais } from '@/services/profissionais';
 import { createAgendamento, getAgendamentoFormData } from '@/services/agendamentos';
 import { verificarConflitosRecorrencia, type ConflitosRecorrencia } from '@/services/verificacao-disponibilidade-recorrencia';
 import { FORM_DATA_PADRAO, RECORRENCIA_PADRAO, OPCOES_HORARIOS } from '../utils/agendamento-constants';
@@ -55,6 +56,7 @@ export const useAgendamentoForm = ({
   const [conveniosDoProfissional, setConveniosDoProfissional] = useState<any[]>([]);
   const [servicosDoProfissional, setServicosDoProfissional] = useState<any[]>([]);
   const [disponibilidades, setDisponibilidades] = useState<any[]>([]);
+  const [agendamentosDoDia, setAgendamentosDoDia] = useState<any[]>([]);
 
   // Estados de loading
   const [loading, setLoading] = useState(false);
@@ -89,6 +91,11 @@ export const useAgendamentoForm = ({
       setServicos(formData.servicos);
       setRecursos(formData.recursos);
       setDisponibilidades(formData.disponibilidades || []);
+      if (filtros?.data && filtros?.profissionalId) {
+        setAgendamentosDoDia(formData.agendamentos || []);
+      } else {
+        setAgendamentosDoDia([]);
+      }
 
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -99,6 +106,24 @@ export const useAgendamentoForm = ({
       setLoadingData(false);
     }
   }, []);
+
+  // Carregar profissionais quando fluxo Por Profissional for selecionado
+  useEffect(() => {
+    if (!isOpen) return;
+    if (tipoFluxo === 'por-profissional' && profissionais.length === 0 && !loadingData) {
+      (async () => {
+        setLoadingData(true);
+        try {
+          const lista = await getProfissionais({ ativo: true });
+          setProfissionais(lista);
+        } catch (error) {
+          console.error('Erro ao carregar profissionais ativos:', error);
+        } finally {
+          setLoadingData(false);
+        }
+      })();
+    }
+  }, [isOpen, tipoFluxo, profissionais.length, loadingData]);
 
   // Função para carregar profissionais por serviço
   const carregarProfissionaisPorServico = useCallback(async (servicoId: string) => {
@@ -420,7 +445,8 @@ export const useAgendamentoForm = ({
   // Effect para carregar dados quando o modal abrir
   useEffect(() => {
     if (isOpen) {
-      // Se há preenchimento inicial com profissional e data, passar como filtros
+      // Se há preenchimento inicial com profissional e/ou data, carregar dados;
+      // Caso contrário, não chamar a API ainda (somente após seleção do fluxo)
       const filtros: { data?: string; profissionalId?: string } = {};
       
       if (preenchimentoInicial?.profissionalId) {
@@ -428,12 +454,13 @@ export const useAgendamentoForm = ({
       }
       
       if (preenchimentoInicial?.dataHoraInicio) {
-        // Extrair apenas a data (YYYY-MM-DD) do datetime
         const [data] = preenchimentoInicial.dataHoraInicio.split('T');
         filtros.data = data;
       }
       
-      carregarDados(Object.keys(filtros).length > 0 ? filtros : undefined);
+      if (Object.keys(filtros).length > 0) {
+        carregarDados(filtros);
+      }
     }
   }, [isOpen, carregarDados, preenchimentoInicial]);
 
@@ -482,12 +509,12 @@ export const useAgendamentoForm = ({
     }
   }, [formData.profissionalId, carregarDadosDoProfissional]);
 
-  // Effect para recarregar disponibilidades quando Profissional + Data forem definidos (suporta fluxo Por Data)
+  // Effect para recarregar dados somente no fluxo Por Data
   useEffect(() => {
-    if (formData.profissionalId && dataAgendamento) {
+    if (tipoFluxo === 'por-data' && formData.profissionalId && dataAgendamento) {
       carregarDados({ data: dataAgendamento, profissionalId: formData.profissionalId });
     }
-  }, [formData.profissionalId, dataAgendamento, carregarDados]);
+  }, [tipoFluxo, formData.profissionalId, dataAgendamento, carregarDados]);
 
   // Effect para auto-preencher convênio quando serviço está pré-preenchido
   useEffect(() => {

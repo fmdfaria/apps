@@ -36,6 +36,7 @@ export interface AgendamentoDataState {
   conveniosDoProfissional: Convenio[];
   servicosDoProfissional: Servico[];
   disponibilidades: any[];
+  agendamentosDoDia?: any[];
 }
 
 export interface AgendamentoLoadingState {

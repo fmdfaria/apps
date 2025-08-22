@@ -8,8 +8,9 @@ const allowedFields = [
   'userId', 'especialidadesIds', 'whatsapp'
 ];
 
-export async function getProfissionais(): Promise<Profissional[]> {
-  const { data } = await api.get('/profissionais');
+export async function getProfissionais(params?: { ativo?: boolean }): Promise<Profissional[]> {
+  const qs = params?.ativo ? '?ativo=true' : '';
+  const { data } = await api.get(`/profissionais${qs}`);
   return data;
 }
 

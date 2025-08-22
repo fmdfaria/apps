@@ -17,7 +17,7 @@ interface FormularioPorProfissionalProps {
 export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps> = ({ context }) => {
   const { state, dataState, loadingState, updateFormData, updateDataAgendamento, updateHoraAgendamento } = context;
   const { formData, dataAgendamento, horaAgendamento } = state;
-  const { profissionais, pacientes, convenios, servicos, recursos, conveniosDoProfissional, servicosDoProfissional } = dataState;
+  const { profissionais, pacientes, convenios, servicos, recursos, conveniosDoProfissional, servicosDoProfissional, disponibilidades } = dataState;
   const { loadingData } = loadingState;
 
   // Hook centralizado para ocupações dos profissionais
@@ -79,7 +79,7 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
     }
 
     try {
-      // Chamar a nova API que já retorna os recursos com seus agendamentos para a data
+      // Evitar nova ida ao backend aqui; use os dados já carregados (disponibilidades + agendamentos do dia via hook)
       const recursosComAgendamentos = await getRecursosByDate(dataAgendamento);
       
       // Parse do horário selecionado

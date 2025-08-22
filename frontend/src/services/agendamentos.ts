@@ -547,14 +547,36 @@ export const getAgendamentoFormData = async (filtros?: {
   profissionalId?: string;
 }): Promise<AgendamentoFormData> => {
   try {
-    const params = new URLSearchParams();
-    if (filtros?.data) params.append('data', filtros.data);
-    if (filtros?.profissionalId) params.append('profissionalId', filtros.profissionalId);
-    
-    const url = `/agendamentos/form-data${params.toString() ? `?${params.toString()}` : ''}`;
-    const { data } = await api.get(url);
-    
-    return data;
+    // Quando houver data, usar a nova rota /agendamentos para buscar os agendamentos filtrados
+    if (filtros?.data) {
+      const paramsForm = new URLSearchParams();
+      paramsForm.append('data', filtros.data);
+      if (filtros.profissionalId) paramsForm.append('profissionalId', filtros.profissionalId);
+
+      // Buscar dados base e ocupações pela rota form-data (para manter compatibilidade)
+      const formDataPromise = api.get(`/agendamentos/form-data?${paramsForm.toString()}`);
+
+      // Buscar agendamentos do dia pela rota paginada com filtros
+      const agendamentosPromise = getAgendamentos({
+        dataInicio: filtros.data,
+        dataFim: filtros.data,
+        ...(filtros.profissionalId ? { profissionalId: filtros.profissionalId } : {}),
+      });
+
+      const [{ data: formData }, agendamentosResult] = await Promise.all([
+        formDataPromise,
+        agendamentosPromise,
+      ]);
+
+      return {
+        ...formData,
+        agendamentos: agendamentosResult.data,
+      } as AgendamentoFormData;
+    }
+
+    // Sem data: buscar somente os dados base
+    const { data } = await api.get('/agendamentos/form-data');
+    return data as AgendamentoFormData;
   } catch (error) {
     console.error('Erro ao carregar dados do formulário da API:', error);
     throw error;

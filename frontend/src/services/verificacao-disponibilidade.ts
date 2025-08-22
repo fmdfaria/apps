@@ -1,5 +1,5 @@
 import { getAgendamentos } from './agendamentos';
-import { getAllDisponibilidades } from './disponibilidades';
+import { getDisponibilidadesProfissional } from './disponibilidades';
 import { parseDataLocal } from '@/lib/utils';
 import type { Agendamento } from '@/types/Agendamento';
 import type { DisponibilidadeProfissional } from '@/types/DisponibilidadeProfissional';
@@ -220,27 +220,20 @@ export const verificarHorariosProfissional = async (
   data: Date
 ): Promise<HorarioVerificado[]> => {
   try {
-    // Formatar data para busca (início e fim do dia)
-    const dataInicio = new Date(data);
-    dataInicio.setHours(0, 0, 0, 0);
-    
-    const dataFim = new Date(data);
-    dataFim.setHours(23, 59, 59, 999);
-
-    // Carregar dados necessários
-    const [disponibilidades, agendamentos] = await Promise.all([
-      getAllDisponibilidades(),
-      getAgendamentos({ 
-        profissionalId
-        // Buscar todos os agendamentos do profissional e filtrar depois
-      })
-    ]);
-
-    // Debug da data solicitada
+    // Formatar data YYYY-MM-DD
     const year = data.getFullYear();
     const month = (data.getMonth() + 1).toString().padStart(2, '0');
     const day = data.getDate().toString().padStart(2, '0');
-    const dataSolicitadaStr = `${year}-${month}-${day}`;
+    const dataStr = `${year}-${month}-${day}`;
+
+    // Carregar dados necessários com filtros específicos (evita chamadas desnecessárias)
+    const [disponibilidades, agendamentosResp] = await Promise.all([
+      getDisponibilidadesProfissional(profissionalId),
+      getAgendamentos({ profissionalId, dataInicio: dataStr, dataFim: dataStr })
+    ]);
+    const agendamentos = agendamentosResp.data;
+
+    const dataSolicitadaStr = dataStr;
     
     console.log('🔍 Debug de filtro de data:', {
       dataSelecionadaOriginal: data,
@@ -253,22 +246,8 @@ export const verificarHorariosProfissional = async (
       }))
     });
 
-    // Filtrar agendamentos apenas da data solicitada (usar parse manual igual ao CalendarioPage)
-    const agendamentosDaData = agendamentos.filter(agendamento => {
-      // Parse da string de data sem conversão de timezone (igual ao CalendarioPage)
-      const agendamentoDateStr = agendamento.dataHoraInicio.split('T')[0]; // "2025-08-04"
-      
-      const match = agendamentoDateStr === dataSolicitadaStr;
-      
-      console.log('🔍 Comparação de data:', {
-        agendamentoId: agendamento.id,
-        agendamentoDateStr,
-        dataSolicitadaStr,
-        match
-      });
-      
-      return match;
-    });
+    // Já vem filtrado pelo backend, mas manter fallback defensivo
+    const agendamentosDaData = agendamentos.filter(a => a.dataHoraInicio.split('T')[0] === dataSolicitadaStr);
 
     // Debug apenas se necessário
     if (agendamentosDaData.length > 0) {

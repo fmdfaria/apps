@@ -39,6 +39,17 @@ export class ProfissionaisController {
   }
 
   async list(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const querySchema = z.object({
+      ativo: z.coerce.boolean().optional(),
+    });
+    const { ativo } = querySchema.parse(request.query);
+
+    if (ativo === true) {
+      const repo = container.resolve('ProfissionaisRepository') as IProfissionaisRepository;
+      const profissionais = await repo.findAllActive();
+      return reply.status(200).send(profissionais);
+    }
+
     const useCase = container.resolve(ListProfissionaisUseCase);
     const profissionais = await useCase.execute();
     return reply.status(200).send(profissionais);

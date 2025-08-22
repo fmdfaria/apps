@@ -124,6 +124,14 @@ export class PrismaProfissionaisRepository implements IProfissionaisRepository {
     return profissionais.map(toDomain);
   }
 
+  async findAllActive(): Promise<Profissional[]> {
+    const profissionais = await this.prisma.profissional.findMany({
+      where: { ativo: true },
+      include: profissionalInclude,
+    });
+    return profissionais.map(toDomain);
+  }
+
   async update(
     id: string,
     data: IUpdateProfissionalDTO
