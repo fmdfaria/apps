@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar, Clock, User, Users, Stethoscope, CreditCard, MapPin, Smartphone } from 'lucide-react';
 import { OPCOES_HORARIOS } from '../utils/agendamento-constants';
 import { useVerificacaoAgendamento } from '@/hooks/useVerificacaoAgendamento';
-import { getRecursosByDate, type RecursoComAgendamentos } from '@/services/recursos';
+// Removido getRecursosByDate para evitar chamada extra; usaremos dados locais
 import { useOcupacaoProfissionais } from '../hooks/useOcupacaoProfissionais';
 import type { AgendamentoFormContext } from '../types/agendamento-form';
 import type { TipoAtendimento } from '@/types/Agendamento';
@@ -17,7 +17,7 @@ interface FormularioPorProfissionalProps {
 export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps> = ({ context }) => {
   const { state, dataState, loadingState, updateFormData, updateDataAgendamento, updateHoraAgendamento } = context;
   const { formData, dataAgendamento, horaAgendamento } = state;
-  const { profissionais, pacientes, convenios, servicos, recursos, conveniosDoProfissional, servicosDoProfissional, disponibilidades } = dataState;
+  const { profissionais, pacientes, convenios, servicos, recursos, conveniosDoProfissional, servicosDoProfissional, disponibilidades, agendamentosDoDia } = dataState;
   const { loadingData } = loadingState;
 
   // Hook centralizado para ocupações dos profissionais
@@ -43,12 +43,7 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
     }
   }, [formData.profissionalId, dataAgendamento, verificarHorarios]);
 
-  // Buscar ocupações quando profissional e data forem selecionados (evita chamada precoce)
-  useEffect(() => {
-    if (formData.profissionalId && dataAgendamento) {
-      buscarOcupacoes(formData.profissionalId, dataAgendamento);
-    }
-  }, [formData.profissionalId, dataAgendamento, buscarOcupacoes]);
+  // Removido no fluxo Por Profissional para evitar chamada a /agendamentos/form-data via hook de ocupações
 
   // Aplicar regra do tipo de atendimento quando recursoId já estiver preenchido (modal pré-carregado)
   useEffect(() => {
@@ -79,8 +74,22 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
     }
 
     try {
-      // Evitar nova ida ao backend aqui; use os dados já carregados (disponibilidades + agendamentos do dia via hook)
-      const recursosComAgendamentos = await getRecursosByDate(dataAgendamento);
+      // Evitar ida ao backend: usar agendamentosDoDia já carregados + recursos
+      const recursosComAgendamentos = recursos.map(r => ({
+        id: r.id,
+        nome: r.nome,
+        agendamentos: agendamentosDoDia
+          .filter(a => a.recursoId === r.id)
+          .map(a => {
+            const [horaStr, minutoStr] = a.dataHoraInicio.split('T')[1].split(':');
+            const inicio = `${horaStr}:${minutoStr}`;
+            // Supondo duração padrão de 30 min quando não há fim
+            const [h, m] = inicio.split(':').map(Number);
+            const fimDate = new Date(0, 0, 0, h, m + 30);
+            const fim = `${String(fimDate.getHours()).padStart(2, '0')}:${String(fimDate.getMinutes()).padStart(2, '0')}`;
+            return { horaInicio: inicio, horaFim: fim, profissionalNome: a.profissionalNome, status: a.status };
+          })
+      }));
       
       // Parse do horário selecionado
       const [hora, minuto] = horaAgendamento.split(':').map(Number);

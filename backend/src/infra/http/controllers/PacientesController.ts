@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { CreatePacienteUseCase } from '../../../core/application/use-cases/paciente/CreatePacienteUseCase';
 import { ListPacientesUseCase } from '../../../core/application/use-cases/paciente/ListPacientesUseCase';
 import { UpdatePacienteUseCase } from '../../../core/application/use-cases/paciente/UpdatePacienteUseCase';
+import { IPacientesRepository } from '../../../core/domain/repositories/IPacientesRepository';
 import { DeletePacienteUseCase } from '../../../core/application/use-cases/paciente/DeletePacienteUseCase';
 import { UpdatePacienteStatusUseCase } from '../../../core/application/use-cases/paciente/UpdatePacienteStatusUseCase';
 
@@ -45,6 +46,17 @@ export class PacientesController {
   }
 
   async list(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const querySchema = z.object({
+      ativo: z.coerce.boolean().optional(),
+    });
+    const { ativo } = querySchema.parse(request.query);
+
+    if (ativo === true) {
+      const repo = container.resolve('PacientesRepository') as IPacientesRepository;
+      const pacientes = await repo.findAllActive();
+      return reply.status(200).send(pacientes);
+    }
+
     const useCase = container.resolve(ListPacientesUseCase);
     const pacientes = await useCase.execute();
     return reply.status(200).send(pacientes);

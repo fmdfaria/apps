@@ -14,6 +14,14 @@ const profissionalInclude = {
   servicos: { include: { servico: true } },
 };
 
+function toMaybeNumber(value: any): number | null {
+  if (value === null || value === undefined) return null;
+  // Prisma Decimal has toNumber
+  if (typeof value?.toNumber === 'function') return value.toNumber();
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 function toDomain(
   profissional: Prisma.ProfissionalGetPayload<{
     include: typeof profissionalInclude;
@@ -22,15 +30,35 @@ function toDomain(
   return {
     ...profissional,
     cpf: profissional.cpf ?? '',
-    especialidades: profissional.especialidades.map((e) => e.especialidade),
+    ativo: (profissional as any).ativo === null ? undefined : (profissional as any).ativo,
+    createdAt: (profissional as any).createdAt || new Date(),
+    updatedAt: (profissional as any).updatedAt || new Date(),
+    especialidades: profissional.especialidades.map((e) => ({
+      ...e.especialidade,
+      // Garantir tipos Date, substituindo null por data atual
+      createdAt: (e.especialidade as any).createdAt || new Date(),
+      updatedAt: (e.especialidade as any).updatedAt || new Date(),
+    })),
     servicos: profissional.servicos.map((s) => ({
       ...s.servico,
       preco: s.servico.preco.toNumber(),
       percentualClinica: s.servico.percentualClinica?.toNumber() ?? null,
       percentualProfissional:
         s.servico.percentualProfissional?.toNumber() ?? null,
+      // Converter possíveis Decimal e garantir Date
+      valorClinica: toMaybeNumber((s.servico as any).valorClinica),
+      valorProfissional: toMaybeNumber((s.servico as any).valorProfissional),
+      ativo: (s.servico as any).ativo === null ? undefined : (s.servico as any).ativo,
+      createdAt: (s.servico as any).createdAt || new Date(),
+      updatedAt: (s.servico as any).updatedAt || new Date(),
     })),
-    conselho: profissional.conselho ?? undefined,
+    conselho: profissional.conselho
+      ? {
+          ...profissional.conselho,
+          createdAt: (profissional.conselho as any).createdAt || new Date(),
+          updatedAt: (profissional.conselho as any).updatedAt || new Date(),
+        }
+      : undefined,
   };
 }
 
@@ -212,7 +240,7 @@ export class PrismaProfissionaisRepository implements IProfissionaisRepository {
       servico: {
         ...ps.servico,
         preco: Number(ps.servico.preco),
-        convenio: ps.servico.convenio,
+        convenio: ps.servico.convenio || { id: '', nome: '' },
       },
     }));
   }
@@ -256,7 +284,7 @@ export class PrismaProfissionaisRepository implements IProfissionaisRepository {
       servico: {
         ...ps.servico,
         preco: Number(ps.servico.preco),
-        convenio: ps.servico.convenio,
+        convenio: ps.servico.convenio || { id: '', nome: '' },
       },
     }));
   }

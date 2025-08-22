@@ -854,7 +854,8 @@ export const useAgendamentoForm = ({
     recursos,
     conveniosDoProfissional,
     servicosDoProfissional,
-    disponibilidades
+    disponibilidades,
+    agendamentosDoDia
   };
 
   const loadingState: AgendamentoLoadingState = {
