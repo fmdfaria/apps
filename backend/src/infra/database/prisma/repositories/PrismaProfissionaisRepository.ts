@@ -119,6 +119,7 @@ export class PrismaProfissionaisRepository implements IProfissionaisRepository {
 
   async findAll(): Promise<Profissional[]> {
     const profissionais = await this.prisma.profissional.findMany({
+      orderBy: { nome: 'asc' },
       include: profissionalInclude,
     });
     return profissionais.map(toDomain);
@@ -127,6 +128,7 @@ export class PrismaProfissionaisRepository implements IProfissionaisRepository {
   async findAllActive(): Promise<Profissional[]> {
     const profissionais = await this.prisma.profissional.findMany({
       where: { ativo: true },
+      orderBy: { nome: 'asc' },
       include: profissionalInclude,
     });
     return profissionais.map(toDomain);
