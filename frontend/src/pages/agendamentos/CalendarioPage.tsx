@@ -80,6 +80,7 @@ export const CalendarioPage = () => {
   const [recursos, setRecursos] = useState<Recurso[]>([]);
   const [disponibilidades, setDisponibilidades] = useState<DisponibilidadeProfissional[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
   // Estados para modais de agendamento  
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
@@ -161,11 +162,19 @@ export const CalendarioPage = () => {
   };
 
 
-  // Carregamento de dados
+  // Carregamento inicial
   useEffect(() => {
     checkPermissions();
     carregarDados();
+    setInitialized(true);
   }, []);
+
+  // Recarregar dados quando a data muda
+  useEffect(() => {
+    if (initialized) {
+      carregarDados();
+    }
+  }, [currentDate, initialized]);
 
   const checkPermissions = async () => {
     try {
@@ -189,15 +198,21 @@ export const CalendarioPage = () => {
   const carregarDados = async () => {
     setLoading(true);
     try {
+      // Format current date for API call (YYYY-MM-DD)
+      const year = currentDate.getFullYear();
+      const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+      const day = currentDate.getDate().toString().padStart(2, '0');
+      const dataFormatada = `${year}-${month}-${day}`;
+
       const [agendamentosData, profissionaisData, conveniosData, recursosData, disponibilidadesData] = await Promise.all([
-        getAgendamentos(),
-        getProfissionais(),
+        getAgendamentos({ dataInicio: dataFormatada, dataFim: dataFormatada }),
+        getProfissionais({ ativo: true }),
         getConvenios(),
         getRecursos(),
         getAllDisponibilidades()
       ]);
       
-      setAgendamentos(agendamentosData);
+      setAgendamentos(agendamentosData.data);
       setProfissionais(profissionaisData);
       setConvenios(conveniosData);
       setRecursos(recursosData);

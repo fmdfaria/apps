@@ -46,6 +46,8 @@ export const AprovarPage = () => {
   
   const [itensPorPagina, setItensPorPagina] = useState(10);
   const [paginaAtual, setPaginaAtual] = useState(1);
+  const [totalResultados, setTotalResultados] = useState(0); // filtrado
+  const [totalGlobal, setTotalGlobal] = useState(0); // sem filtros adicionais
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
 
   // Filtros avançados por coluna
@@ -59,11 +61,24 @@ export const AprovarPage = () => {
     dataFim: ''
   });
 
+  // Estado para controle de inicialização (mesmo padrão da AgendamentosPage)
+  const [initialized, setInitialized] = useState(false);
+
+  // Inicialização única (mesmo padrão da AgendamentosPage)
   useEffect(() => {
     checkPermissions();
     carregarAgendamentos();
+    setInitialized(true);
   }, []);
 
+  // Recarregamento quando dependências mudam (mas apenas após inicialização)
+  useEffect(() => {
+    if (initialized) {
+      carregarAgendamentos();
+    }
+  }, [paginaAtual, itensPorPagina, filtros]);
+
+  // Reset de página quando busca/filtros/limite mudarem
   useEffect(() => {
     setPaginaAtual(1);
   }, [busca, itensPorPagina, filtros]);
@@ -101,8 +116,19 @@ export const AprovarPage = () => {
     setLoading(true);
     setAgendamentos([]); // Limpa agendamentos para evitar mostrar dados antigos
     try {
-      const dados = await getAgendamentos();
-      setAgendamentos(dados);
+      const dadosPromise = getAgendamentos({
+        page: paginaAtual,
+        limit: itensPorPagina,
+        status: 'ATENDIDO',
+        ...(filtros.dataInicio ? { dataInicio: filtros.dataInicio } : {}),
+        ...(filtros.dataFim ? { dataFim: filtros.dataFim } : {}),
+        ...(filtros.tipoAtendimento ? { tipoAtendimento: filtros.tipoAtendimento } : {}),
+      });
+      const globalPromise = getAgendamentos({ page: 1, limit: 1, status: 'ATENDIDO' });
+      const [dados, global] = await Promise.all([dadosPromise, globalPromise]);
+      setAgendamentos(dados.data);
+      setTotalResultados(dados.pagination.total || 0);
+      setTotalGlobal(global.pagination.total || 0);
     } catch (e: any) {
       if (e?.response?.status === 403) {
         setAccessDenied(true);
@@ -787,7 +813,7 @@ export const AprovarPage = () => {
         
         <div className="text-sm text-gray-600 flex items-center gap-2">
           <span className="text-lg">📈</span>
-          Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, agendamentosFiltrados.length)} de {agendamentosFiltrados.length} resultados
+          Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, totalResultados)} de {totalGlobal} resultados (filtrados de {totalResultados} total)
         </div>
 
         <div className="flex gap-2">

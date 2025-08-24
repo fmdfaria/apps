@@ -60,6 +60,8 @@ export const LiberarPage = () => {
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
   const [itensPorPagina, setItensPorPagina] = useState(10);
   const [paginaAtual, setPaginaAtual] = useState(1);
+  const [totalResultados, setTotalResultados] = useState(0); // filtrado
+  const [totalGlobal, setTotalGlobal] = useState(0); // sem filtros adicionais
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [agendamentosProcessando, setAgendamentosProcessando] = useState<Set<string>>(new Set());
   
@@ -71,6 +73,9 @@ export const LiberarPage = () => {
   const [webhookQueue, setWebhookQueue] = useState<WebhookQueueItem[]>([]);
   const [isProcessingWebhook, setIsProcessingWebhook] = useState(false);
   const webhookTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Estado para controle de inicialização (mesmo padrão da AgendamentosPage)
+  const [initialized, setInitialized] = useState(false);
 
   // Funções auxiliares para gerenciar processamento paralelo
   const adicionarProcessamento = (agendamentoId: string) => {
@@ -161,11 +166,21 @@ export const LiberarPage = () => {
     dataFim: ''
   });
 
+  // Inicialização única (mesmo padrão da AgendamentosPage)
   useEffect(() => {
     checkPermissions();
     carregarAgendamentos();
+    setInitialized(true);
   }, []);
 
+  // Recarregamento quando dependências mudam (mas apenas após inicialização)
+  useEffect(() => {
+    if (initialized) {
+      carregarAgendamentos();
+    }
+  }, [paginaAtual, itensPorPagina, filtros, busca]);
+
+  // Reset de página quando busca/filtros/limite mudarem
   useEffect(() => {
     setPaginaAtual(1);
   }, [busca, itensPorPagina, filtros]);
@@ -189,11 +204,11 @@ export const LiberarPage = () => {
     }, 600);
   };
 
-
-
-  // Sincronizar busca local quando busca externa muda
+  // Sincronizar busca local quando busca externa muda (apenas se diferente)
   useEffect(() => {
-    setBuscaLocal(busca);
+    if (buscaLocal !== busca) {
+      setBuscaLocal(busca);
+    }
   }, [busca]);
 
   // Effect para processar fila quando há itens e não está processando
@@ -256,8 +271,35 @@ export const LiberarPage = () => {
     setLoading(true);
     setAgendamentos([]); // Limpa agendamentos para evitar mostrar dados antigos
     try {
-      const dados = await getAgendamentos();
-      setAgendamentos(dados);
+      // Buscar duas listas paginadas por status relevantes para liberação
+      const [agendadosRes, solicitadosRes] = await Promise.all([
+        getAgendamentos({ 
+          page: paginaAtual, 
+          limit: itensPorPagina, 
+          status: 'AGENDADO',
+          ...(filtros.dataInicio ? { dataInicio: filtros.dataInicio } : {}),
+          ...(filtros.dataFim ? { dataFim: filtros.dataFim } : {}),
+          ...(filtros.tipoAtendimento ? { tipoAtendimento: filtros.tipoAtendimento } : {}),
+        }),
+        getAgendamentos({ 
+          page: paginaAtual, 
+          limit: itensPorPagina, 
+          status: 'SOLICITADO',
+          ...(filtros.dataInicio ? { dataInicio: filtros.dataInicio } : {}),
+          ...(filtros.dataFim ? { dataFim: filtros.dataFim } : {}),
+          ...(filtros.tipoAtendimento ? { tipoAtendimento: filtros.tipoAtendimento } : {}),
+        }),
+      ]);
+      const lista = [...agendadosRes.data, ...solicitadosRes.data];
+      setAgendamentos(lista);
+      const totalFiltrado = (agendadosRes.pagination?.total || 0) + (solicitadosRes.pagination?.total || 0);
+      setTotalResultados(totalFiltrado);
+      // Totais globais sem filtros adicionais
+      const [agGlobal, solGlobal] = await Promise.all([
+        getAgendamentos({ page: 1, limit: 1, status: 'AGENDADO' }),
+        getAgendamentos({ page: 1, limit: 1, status: 'SOLICITADO' }),
+      ]);
+      setTotalGlobal((agGlobal.pagination?.total || 0) + (solGlobal.pagination?.total || 0));
     } catch (e: any) {
       if (e?.response?.status === 403) {
         setAccessDenied(true);
@@ -1104,10 +1146,9 @@ export const LiberarPage = () => {
           <div className="text-sm text-gray-600 flex items-center gap-2">
             <span className="text-lg">📈</span>
             <div>
-              Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, agendamentosFiltrados.length)} de {agendamentosFiltrados.length} resultados
-              {(temFiltrosAtivos || busca) && (
+              Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, totalResultados)} de {totalGlobal} resultados {(temFiltrosAtivos || busca) && (
                 <span className="text-gray-500">
-                  {' '}(filtrados de {agendadosBase.length} total)
+                  {' '}(filtrados de {totalResultados} total)
                 </span>
               )}
             </div>

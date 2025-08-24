@@ -80,14 +80,23 @@ export const FechamentoPage = () => {
     dataFim: ''
   });
 
+  // Estado para controle de inicialização (mesmo padrão da AgendamentosPage)
+  const [initialized, setInitialized] = useState(false);
+
+  // Inicialização única (mesmo padrão da AgendamentosPage)
   useEffect(() => {
     checkPermissions();
     carregarAgendamentos();
     carregarPrecosParticulares();
+    setInitialized(true);
   }, []);
 
+  // Reset de página quando filtros mudarem
   useEffect(() => {
-    setPaginaAtual(1);
+    if (initialized) {
+      setPaginaAtual(1);
+      carregarAgendamentos(); // Recarregar quando filtros mudarem
+    }
   }, [busca, itensPorPagina, filtros, tipoVisualizacao, visualizacao]);
 
   const checkPermissions = async () => {
@@ -114,10 +123,20 @@ export const FechamentoPage = () => {
 
   const carregarAgendamentos = async () => {
     setLoading(true);
-    setAgendamentos([]);
+    setAgendamentos([]); // Inicializa como array vazio para evitar erro de filter
     try {
-      const dados = await getAgendamentos();
-      setAgendamentos(dados);
+      // Usar status LIBERADO (status FINALIZADO não existe no banco)
+      // Debug revelou status disponíveis: ['LIBERADO', 'AGENDADO']
+      const dados = await getAgendamentos({ 
+        status: 'LIBERADO', // Usando LIBERADO pois FINALIZADO não existe
+        page: 1,
+        // Removido limit para usar padrão da API (dados serão agrupados)
+        ...(filtros.dataInicio ? { dataInicio: filtros.dataInicio } : {}),
+        ...(filtros.dataFim ? { dataFim: filtros.dataFim } : {}),
+      });
+      
+      // A nova API retorna { data: [], pagination: {} }
+      setAgendamentos(dados.data || []);
     } catch (e: any) {
       if (e?.response?.status === 403) {
         setAccessDenied(true);
@@ -132,6 +151,8 @@ export const FechamentoPage = () => {
           description: 'Ocorreu um problema ao carregar a lista de agendamentos. Tente novamente.'
         });
       }
+      // Garantir que agendamentos sempre seja um array
+      setAgendamentos([]);
     } finally {
       setLoading(false);
     }
@@ -184,7 +205,7 @@ export const FechamentoPage = () => {
   // Função para verificar status geral de recebimento
   const verificarStatusRecebimento = (agendamentos: Agendamento[]) => {
     if (agendamentos.length === 0) return null;
-    const recebidos = agendamentos.filter(a => a.recebimento === true).length;
+    const recebidos = (Array.isArray(agendamentos) ? agendamentos : []).filter(a => a.recebimento === true).length;
     if (recebidos === agendamentos.length) return true; // Todos recebidos
     if (recebidos === 0) return false; // Nenhum recebido
     return null; // Parcial
@@ -193,7 +214,7 @@ export const FechamentoPage = () => {
   // Função para verificar status geral de pagamento
   const verificarStatusPagamento = (agendamentos: Agendamento[]) => {
     if (agendamentos.length === 0) return null;
-    const pagos = agendamentos.filter(a => a.pagamento === true).length;
+    const pagos = (Array.isArray(agendamentos) ? agendamentos : []).filter(a => a.pagamento === true).length;
     if (pagos === agendamentos.length) return true; // Todos pagos
     if (pagos === 0) return false; // Nenhum pago
     return null; // Parcial
@@ -222,9 +243,10 @@ export const FechamentoPage = () => {
     return precoServico;
   };
 
-  // Filtrar agendamentos FINALIZADOS
-  const agendamentosFiltrados = agendamentos
-    .filter(a => a.status === 'FINALIZADO')
+  // Filtrar agendamentos LIBERADOS (com proteção para array)
+  // Status FINALIZADO não existe - usando LIBERADO conforme disponível no banco
+  const agendamentosFiltrados = (Array.isArray(agendamentos) ? agendamentos : [])
+    .filter(a => a.status === 'LIBERADO')
     .filter(a => 
       !busca || 
       a.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||

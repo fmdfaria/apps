@@ -6,6 +6,24 @@ import { ListProfissionaisByServicoUseCase } from '../../../core/application/use
 
 export class ProfissionaisServicosController {
   async index(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const querySchema = z.object({
+      servico: z.string().uuid().optional(),
+    });
+
+    const { servico } = querySchema.parse(request.query);
+
+    // Se foi fornecido um filtro de serviço, usar o Use Case específico
+    if (servico) {
+      const listProfissionaisByServicoUseCase = container.resolve(ListProfissionaisByServicoUseCase);
+
+      const profissionaisServicos = await listProfissionaisByServicoUseCase.execute({
+        servicoId: servico,
+      });
+
+      return reply.status(200).send(profissionaisServicos);
+    }
+
+    // Senão, retornar todos os profissionais-serviços
     const listProfissionaisServicosUseCase = container.resolve(ListProfissionaisServicosUseCase);
 
     const profissionaisServicos = await listProfissionaisServicosUseCase.execute();

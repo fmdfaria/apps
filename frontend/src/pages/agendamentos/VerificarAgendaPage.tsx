@@ -132,6 +132,7 @@ export const VerificarAgendaPage: React.FC = () => {
   const [carregandoServicos, setCarregandoServicos] = useState(false);
   const [carregandoVerificacao, setCarregandoVerificacao] = useState(false);
   const [dadosOcupacao, setDadosOcupacao] = useState<OcupacaoProfissional[]>([]);
+  const [initialized, setInitialized] = useState(false);
 
   // Estados para modal de agendamento
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
@@ -159,10 +160,19 @@ export const VerificarAgendaPage: React.FC = () => {
   const endIndex = startIndex + itemsPerPage;
   const currentItems = slotsFiltrados.slice(startIndex, endIndex);
 
-  // Carregar dados ao montar componente
+  // Carregamento inicial
   useEffect(() => {
     carregarServicos();
+    setInitialized(true);
   }, []);
+
+  // Recarregar quando filtros relevantes mudam
+  useEffect(() => {
+    if (initialized && servicoSelecionado) {
+      // Pode executar verificação automatica ou aguardar ação do usuário
+      // Por enquanto, apenas logica se necessário
+    }
+  }, [servicoSelecionado, diaSelecionado, periodoSelecionado, tipoAgendamentoSelecionado, initialized]);
 
   const verificarAgenda = async () => {
     if (!servicoSelecionado || !diaSelecionado || !periodoSelecionado || !tipoAgendamentoSelecionado) {
@@ -175,14 +185,24 @@ export const VerificarAgendaPage: React.FC = () => {
       setErro(null);
       setSlotsDisponiveis([]);
       
-      // 1. Buscar todos os agendamentos
-      const agendamentos = await getAgendamentos();
+      // 1. Buscar agendamentos dos próximos 30 dias para otimização
+      const hoje = new Date();
+      const dataFim = new Date(hoje);
+      dataFim.setDate(hoje.getDate() + 30);
       
-      // 2. Buscar profissionais que prestam o serviço selecionado
-      const profissionaisServicos = await getProfissionaisServicos();
-      const profissionaisDoServico = profissionaisServicos.filter(
-        ps => ps.servicoId === servicoSelecionado.id
-      );
+      const dataInicioStr = hoje.toISOString().split('T')[0];
+      const dataFimStr = dataFim.toISOString().split('T')[0];
+      
+      const agendamentosResponse = await getAgendamentos({ 
+        dataInicio: dataInicioStr, 
+        dataFim: dataFimStr 
+      });
+      const agendamentos = agendamentosResponse.data;
+      
+      // 2. Buscar profissionais que prestam o serviço selecionado (otimizado com filtro de API)
+      const profissionaisDoServico = await getProfissionaisServicos({ 
+        servicoId: servicoSelecionado.id 
+      });
       
       // 3. Buscar disponibilidades dos profissionais
       const disponibilidades = await getAllDisponibilidades();
@@ -191,41 +211,14 @@ export const VerificarAgendaPage: React.FC = () => {
       const dadosOcupacaoCompletos = await getDadosOcupacao();
       setDadosOcupacao(dadosOcupacaoCompletos.ocupacoesProfissionais);
       
-      console.log('📊 Dados carregados:', {
-        totalAgendamentos: agendamentos.length,
-        totalProfissionaisServicos: profissionaisServicos.length,
-        profissionaisDoServico: profissionaisDoServico.length,
-        totalDisponibilidades: disponibilidades.length
-      });
-      
-      console.log('👥 Profissionais que prestam o serviço:', profissionaisDoServico.map(ps => ({
-        nome: ps.profissional.nome,
-        servicoNome: ps.servico.nome
-      })));
-      
-      console.log('📅 Disponibilidades cadastradas:', disponibilidades.map(d => ({
-        profissionalId: d.profissionalId,
-        diaSemana: d.diaSemana,
-        dataEspecifica: d.dataEspecifica?.toISOString().split('T')[0],
-        tipo: d.tipo,
-        horario: `${d.horaInicio.getHours()}:${d.horaInicio.getMinutes().toString().padStart(2, '0')} - ${d.horaFim.getHours()}:${d.horaFim.getMinutes().toString().padStart(2, '0')}`
-      })));
       
       // 4. Gerar slots disponíveis
       const slots: SlotDisponivel[] = [];
       const diaSemanaAPI = parseInt(diaSelecionado.id); // 1-6 (API: Segunda=1, Terça=2, etc.)
       const tipoAtendimento = tipoAgendamentoSelecionado.id as 'presencial' | 'online';
       
-      console.log('🔍 Filtros aplicados:', {
-        servico: servicoSelecionado.nome,
-        diaSemana: diaSelecionado.nome,
-        diaSemanaAPI,
-        periodo: periodoSelecionado.nome,
-        tipo: tipoAtendimento
-      });
       
       // Para os próximos 30 dias
-      const hoje = new Date();
       for (let dias = 0; dias < 30; dias++) {
         const dataAtual = new Date(hoje);
         dataAtual.setDate(hoje.getDate() + dias);
@@ -245,13 +238,6 @@ export const VerificarAgendaPage: React.FC = () => {
         const dia = dataAtual.getDate().toString().padStart(2, '0');
         const dataStr = `${ano}-${mes}-${dia}`;
         
-        console.log(`📅 Data encontrada para ${diaSelecionado.nome}:`, {
-          dataAtual: dataAtual.toLocaleDateString('pt-BR'),
-          dataStr,
-          diaSemanaJS,
-          diaSemanaAPICorrespondente,
-          diaSemanaAPI
-        });
         
         // Para cada profissional que presta o serviço
         for (const profServico of profissionaisDoServico) {
@@ -267,20 +253,7 @@ export const VerificarAgendaPage: React.FC = () => {
             
             const disponivel = mesmoProf && mesmoTipo && (temDisponibilidadeSemanal || temDataEspecifica);
             
-            if (disponivel) {
-              console.log(`✅ Disponibilidade encontrada:`, {
-                profissional: profServico.profissional.nome,
-                data: dataStr,
-                diaSemanaAPI: diaSemanaAPI,
-                diaSemanaJS: diaSemanaJS,
-                tipo: tipoAtendimento,
-                disponibilidade: {
-                  diaSemana: disp.diaSemana,
-                  dataEspecifica: disp.dataEspecifica?.toISOString().split('T')[0],
-                  hora: `${disp.horaInicio.getHours()}:${disp.horaInicio.getMinutes().toString().padStart(2, '0')} - ${disp.horaFim.getHours()}:${disp.horaFim.getMinutes().toString().padStart(2, '0')}`
-                }
-              });
-            }
+            // Disponibilidade verificada
             
             return disponivel;
           });
@@ -355,24 +328,7 @@ export const VerificarAgendaPage: React.FC = () => {
                 // Verificar sobreposição: slots se sobrepõem se um começar antes do outro terminar
                 const temSobreposicao = inicioSlot < fimAgendamento && fimSlot > inicioAgendamento;
                 
-                if (temSobreposicao) {
-                  console.log(`⚠️ Conflito de horário encontrado:`, {
-                    profissional: profServico.profissional.nome,
-                    data: dataStr,
-                    slotVerificado: {
-                      inicio: horaSlot,
-                      fim: `${Math.floor(fimSlot / 60).toString().padStart(2, '0')}:${(fimSlot % 60).toString().padStart(2, '0')}`,
-                      duracaoMin: duracaoServico
-                    },
-                    agendamentoExistente: {
-                      inicio: `${horaAgStr}:${minutoAgStr}`,
-                      fim: `${Math.floor(fimAgendamento / 60).toString().padStart(2, '0')}:${(fimAgendamento % 60).toString().padStart(2, '0')}`,
-                      status: ag.status,
-                      paciente: ag.pacienteNome,
-                      servicoNome: ag.servicoNome
-                    }
-                  });
-                }
+                // Conflito de horário detectado (slot ocupado)
                 
                 return temSobreposicao;
               });
@@ -383,14 +339,7 @@ export const VerificarAgendaPage: React.FC = () => {
                   ocp => ocp.profissionalId === profServico.profissionalId
                 );
                 
-                console.log(`✅ Slot disponível adicionado:`, {
-                  profissional: profServico.profissional.nome,
-                  data: dataStr,
-                  hora: horaSlot,
-                  servico: profServico.servico.nome,
-                  tipo: tipoAtendimento,
-                  duracaoMin: duracaoServico
-                });
+                // Slot disponível encontrado
                 
                 slots.push({
                   profissionalId: profServico.profissionalId,

@@ -1,4 +1,7 @@
 import api from './api';
+import { getAgendamentos } from './agendamentos';
+import { getProfissionais } from './profissionais';
+import { getRecursos } from './recursos';
 import type { Agendamento } from '@/types/Agendamento';
 import type { Paciente } from '@/types/Paciente';
 import type { Profissional } from '@/types/Profissional';
@@ -40,69 +43,51 @@ export interface DadosOcupacao {
 }
 
 /**
- * Busca dados completos de ocupação usando a API /agendamentos/form-data
+ * Busca dados completos de ocupação usando APIs individuais otimizadas
  */
 export const getDadosOcupacao = async (): Promise<DadosOcupacao> => {
   try {
-    // Usar a API existente que já retorna dados completos
-    const hoje = new Date().toISOString().split('T')[0];
-    const { data: formData } = await api.get(`/agendamentos/form-data?data=${hoje}`);
-    
-    const { 
-      pacientes, 
-      profissionais, 
-      agendamentos, 
-      recursos,
-      ocupacoesSemana 
-    }: {
-      pacientes: Paciente[];
-      profissionais: Profissional[];
-      agendamentos: Agendamento[];
-      recursos: Recurso[];
-      ocupacoesSemana: Array<{
-        profissionalId: string;
-        ocupados: number;
-        total: number;
-        percentual: number;
-      }>;
-    } = formData;
-
     // Calcular período de análise (próximos 7 dias)
-    const agora = new Date();
-    const inicioHoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
-    const fimHoje = new Date(inicioHoje);
-    fimHoje.setDate(fimHoje.getDate() + 1);
-    
+    const hoje = new Date();
+    const inicioHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
     const proximosSete = new Date(inicioHoje);
     proximosSete.setDate(proximosSete.getDate() + 7);
 
-    // Buscar todos os agendamentos para calcular corretamente os agendamentos por profissional/recurso
-    const { data: todosAgendamentos } = await api.get('/agendamentos');
+    const inicioStr = inicioHoje.toISOString().split('T')[0];
+    const fimStr = proximosSete.toISOString().split('T')[0];
 
-    // Filtrar agendamentos do período
+    // Buscar dados usando APIs individuais otimizadas (sem form-data)
+    const [profissionais, recursos, agendamentosResponse] = await Promise.all([
+      getProfissionais({ ativo: true }),
+      getRecursos(),
+      getAgendamentos({ dataInicio: inicioStr, dataFim: fimStr })
+    ]);
+
+    const todosAgendamentos = agendamentosResponse.data;
+
+    // Calcular períodos para filtragem
+    const fimHoje = new Date(inicioHoje);
+    fimHoje.setDate(fimHoje.getDate() + 1);
+
+    // Filtrar agendamentos por período específico
     const agendamentosHoje = todosAgendamentos.filter((ag: Agendamento) => {
       const dataAg = new Date(ag.dataHoraInicio);
       return dataAg >= inicioHoje && dataAg < fimHoje;
     });
 
-    const agendamentosProximosSete = todosAgendamentos.filter((ag: Agendamento) => {
-      const dataAg = new Date(ag.dataHoraInicio);
-      return dataAg >= inicioHoje && dataAg < proximosSete;
-    });
+    const agendamentosProximosSete = todosAgendamentos;
 
     // Calcular estatísticas gerais - todos os profissionais são considerados ativos
     const recursosDisponiveis = recursos;
 
-    // Processar ocupações dos profissionais com dados enriquecidos
+    // Processar ocupações dos profissionais com estimativa de slots
     const ocupacoesProfissionais: OcupacaoProfissional[] = profissionais.map(prof => {
-      const ocupacao = ocupacoesSemana.find(ocp => ocp.profissionalId === prof.id);
-      
       // Calcular agendamentos do profissional
       const agendamentosProfHoje = agendamentosHoje.filter((ag: Agendamento) => ag.profissionalId === prof.id);
       const agendamentosProfProx7 = agendamentosProximosSete.filter((ag: Agendamento) => ag.profissionalId === prof.id);
 
-      // Usar os agendamentos reais calculados no frontend
-      const totalSlots = ocupacao?.total || 0;
+      // Estimar total de slots disponíveis (8 slots/dia × 7 dias = 56 slots)
+      const totalSlots = 56;
       const ocupadosReais = agendamentosProfProx7.length;
       const percentualReal = totalSlots > 0 ? Math.round((ocupadosReais / totalSlots) * 100) : 0;
 

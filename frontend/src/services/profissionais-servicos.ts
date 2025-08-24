@@ -18,14 +18,21 @@ export interface ProfissionalServico {
   };
 }
 
-export const getProfissionaisServicos = async (): Promise<ProfissionalServico[]> => {
-  const response = await api.get('/profissionais-servicos');
+export const getProfissionaisServicos = async (params?: { servicoId?: string }): Promise<ProfissionalServico[]> => {
+  const searchParams = new URLSearchParams();
+  
+  if (params?.servicoId) {
+    searchParams.append('servico', params.servicoId);
+  }
+  
+  const url = `/profissionais-servicos${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+  const response = await api.get(url);
   return response.data;
 };
 
 export const getProfissionaisByServico = async (servicoId: string): Promise<ProfissionalServico[]> => {
-  const response = await api.get(`/profissionais-servicos/${servicoId}`);
-  return response.data;
+  // Usar o novo filtro query param em vez da rota específica
+  return getProfissionaisServicos({ servicoId });
 };
 
 export interface ServicoConvenioProfissional {

@@ -65,6 +65,8 @@ export const AtenderPage = () => {
   const [evolucoesMap, setEvolucoesMap] = useState<Map<string, boolean>>(new Map());
   const [itensPorPagina, setItensPorPagina] = useState(10);
   const [paginaAtual, setPaginaAtual] = useState(1);
+  const [totalResultados, setTotalResultados] = useState(0); // filtrado
+  const [totalGlobal, setTotalGlobal] = useState(0); // sem filtros adicionais
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
 
   // Estados para os modais de confirmação
@@ -89,12 +91,25 @@ export const AtenderPage = () => {
     dataFim: ''
   });
 
+  // Estado para controle de inicialização (mesmo padrão da AgendamentosPage)
+  const [initialized, setInitialized] = useState(false);
+
+  // Inicialização única (mesmo padrão da AgendamentosPage)
   useEffect(() => {
     checkPermissions();
     carregarAgendamentos();
     carregarPacientes();
+    setInitialized(true);
   }, []);
 
+  // Recarregamento quando dependências mudam (mas apenas após inicialização)
+  useEffect(() => {
+    if (initialized) {
+      carregarAgendamentos();
+    }
+  }, [paginaAtual, itensPorPagina, filtros]);
+
+  // Reset de página quando busca/filtros/limite mudarem
   useEffect(() => {
     setPaginaAtual(1);
   }, [busca, itensPorPagina, filtros]);
@@ -157,27 +172,41 @@ export const AtenderPage = () => {
     setLoading(true);
     setAgendamentos([]); // Limpa agendamentos para evitar mostrar dados antigos
     try {
-      let dados = await getAgendamentos();
-      
-      // Se o usuário for PROFISSIONAL, filtrar apenas os agendamentos dele
+      // Buscar pela API já paginada e filtrada por status
+      let profissionalIdFiltro: string | undefined;
       if (user?.roles?.includes('PROFISSIONAL')) {
-        // Buscar o profissional associado ao usuário
         try {
           const profissionalResponse = await api.get('/profissionais/me');
-          const profissionalId = profissionalResponse.data.id;
-          
-          // Filtrar agendamentos apenas deste profissional
-          dados = dados.filter(agendamento => agendamento.profissionalId === profissionalId);
+          profissionalIdFiltro = profissionalResponse.data.id;
         } catch (profissionalError) {
           console.error('Erro ao buscar dados do profissional:', profissionalError);
           AppToast.error('Erro ao carregar dados do profissional', {
             description: 'Não foi possível carregar os agendamentos do profissional.'
           });
-          dados = []; // Se não conseguir buscar o profissional, não mostra nenhum agendamento
         }
       }
-      
-      setAgendamentos(dados);
+
+      const dadosPromise = getAgendamentos({
+        page: paginaAtual,
+        limit: itensPorPagina,
+        status: 'LIBERADO',
+        ...(filtros.dataInicio ? { dataInicio: filtros.dataInicio } : {}),
+        ...(filtros.dataFim ? { dataFim: filtros.dataFim } : {}),
+        ...(filtros.tipoAtendimento ? { tipoAtendimento: filtros.tipoAtendimento } : {}),
+        ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
+      });
+      const globalPromise = getAgendamentos({
+        page: 1,
+        limit: 1,
+        status: 'LIBERADO',
+        ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
+      });
+
+      const [dados, global] = await Promise.all([dadosPromise, globalPromise]);
+
+      setAgendamentos(dados.data);
+      setTotalResultados(dados.pagination.total || 0);
+      setTotalGlobal(global.pagination.total || 0);
     } catch (e: any) {
       if (e?.response?.status === 403) {
         setAccessDenied(true);
@@ -1247,7 +1276,7 @@ export const AtenderPage = () => {
         
         <div className="text-sm text-gray-600 flex items-center gap-2">
           <span className="text-lg">📈</span>
-          Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, agendamentosFiltrados.length)} de {agendamentosFiltrados.length} resultados
+          Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, totalResultados)} de {totalGlobal} resultados (filtrados de {totalResultados} total)
         </div>
 
         <div className="flex gap-2">

@@ -118,7 +118,7 @@ export const AgendamentosPage = () => {
     if (initialized) {
       carregarAgendamentos();
     }
-  }, [paginaAtual, itensPorPagina, filtroStatus, filtros, initialized]);
+  }, [paginaAtual, itensPorPagina, filtroStatus, filtros]);
 
   useEffect(() => {
     setPaginaAtual(1);

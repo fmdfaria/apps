@@ -68,13 +68,22 @@ export const PagamentosPage = () => {
     dataFim: ''
   });
 
+  // Estado para controle de inicialização (mesmo padrão da AgendamentosPage)
+  const [initialized, setInitialized] = useState(false);
+
+  // Inicialização única (mesmo padrão da AgendamentosPage)
   useEffect(() => {
     checkPermissions();
     carregarDados();
+    setInitialized(true);
   }, []);
 
+  // Reset de página quando filtros mudarem
   useEffect(() => {
-    setPaginaAtual(1);
+    if (initialized) {
+      setPaginaAtual(1);
+      carregarDados(); // Recarregar quando filtros mudarem
+    }
   }, [busca, itensPorPagina, filtros]);
 
   const checkPermissions = async () => {
@@ -107,13 +116,23 @@ export const PagamentosPage = () => {
     if (accessDenied) return;
     
     setLoading(true);
+    setAgendamentos([]); // Inicializar como array vazio
     try {
       const [agendamentosData, precosData] = await Promise.all([
-        getAgendamentos(),
+        // Usar status LIBERADO (status FINALIZADO não existe no banco)
+        // Debug revelou status disponíveis: ['LIBERADO', 'AGENDADO']
+        getAgendamentos({ 
+          status: 'LIBERADO', // Usando LIBERADO pois FINALIZADO não existe
+          page: 1,
+          // Removido limit para usar padrão da API (dados serão agrupados)
+          ...(filtros.dataInicio ? { dataInicio: filtros.dataInicio } : {}),
+          ...(filtros.dataFim ? { dataFim: filtros.dataFim } : {}),
+        }),
         carregarPrecosServicoProfissional()
       ]);
       
-      setAgendamentos(agendamentosData);
+      // A nova API retorna { data: [], pagination: {} }
+      setAgendamentos(agendamentosData.data || []);
       setPrecosServicoProfissional(precosData);
     } catch (e: any) {
       if (e?.response?.status === 403) {
@@ -123,6 +142,8 @@ export const PagamentosPage = () => {
           description: 'Ocorreu um problema ao carregar os dados. Tente novamente.'
         });
       }
+      // Garantir que agendamentos sempre seja um array
+      setAgendamentos([]);
     } finally {
       setLoading(false);
     }
@@ -173,15 +194,16 @@ export const PagamentosPage = () => {
   // Função para verificar status geral de pagamento
   const verificarStatusPagamento = (agendamentos: Agendamento[]) => {
     if (agendamentos.length === 0) return null;
-    const pagos = agendamentos.filter(a => a.pagamento === true).length;
+    const pagos = (Array.isArray(agendamentos) ? agendamentos : []).filter(a => a.pagamento === true).length;
     if (pagos === agendamentos.length) return true; // Todos pagos
     if (pagos === 0) return false; // Nenhum pago
     return null; // Parcial
   };
 
-  // Filtrar agendamentos FINALIZADOS
-  const agendamentosFiltrados = agendamentos
-    .filter(a => a.status === 'FINALIZADO')
+  // Filtrar agendamentos LIBERADOS (com proteção para array)
+  // Status FINALIZADO não existe - usando LIBERADO conforme disponível no banco
+  const agendamentosFiltrados = (Array.isArray(agendamentos) ? agendamentos : [])
+    .filter(a => a.status === 'LIBERADO')
     .filter(a => 
       !busca || 
       a.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||
