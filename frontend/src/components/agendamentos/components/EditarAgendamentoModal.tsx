@@ -15,6 +15,7 @@ import ConfirmationDialog from '@/components/ui/confirmation-dialog';
 import type { Agendamento } from '@/types/Agendamento';
 import { AppToast } from '@/services/toast';
 import api from '@/services/api';
+import { formatarDatasEmMensagem } from '@/utils/dateUtils';
 
 interface EditarAgendamentoModalProps {
   isOpen: boolean;
@@ -99,11 +100,13 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
       // Suporta formato paginado (result.data) e formato antigo (array direto)
       const result = response.data as any;
       const lista: Agendamento[] = Array.isArray(result) ? result : (result?.data ?? []);
-
-      const agendamentos = lista.filter((ag: Agendamento) => 
-        ag.id !== agendamento.id && 
-        new Date(ag.dataHoraInicio) > new Date(agendamento.dataHoraInicio)
-      );
+      // Considerar recorrência apenas com MESMA HORA (HH:mm) do agendamento original
+      const horaChave = agendamento.dataHoraInicio.split('T')[1]?.substring(0,5);
+      const agendamentos = lista.filter((ag: Agendamento) => {
+        if (ag.id === agendamento.id) return false;
+        const mesmaHora = ag.dataHoraInicio.split('T')[1]?.substring(0,5) === horaChave;
+        return mesmaHora && new Date(ag.dataHoraInicio) > new Date(agendamento.dataHoraInicio);
+      });
       
       setAgendamentosRelacionados(agendamentos);
     } catch (error) {
@@ -298,8 +301,9 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
       onClose();
     } catch (error: any) {
       console.error('Erro ao atualizar agendamento:', error);
+      const backendMsg = error?.response?.data?.message;
       AppToast.error('Erro ao atualizar', {
-        description: error?.response?.data?.message || 'Ocorreu um erro ao atualizar o agendamento.'
+        description: formatarDatasEmMensagem(backendMsg || 'Ocorreu um erro ao atualizar o agendamento.')
       });
     } finally {
       setSaving(false);

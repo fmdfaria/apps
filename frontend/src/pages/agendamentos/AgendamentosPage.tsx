@@ -35,6 +35,7 @@ import {
 } from '@/components/agendamentos';
 import { EditarAgendamentoModal } from '@/components/agendamentos/components/EditarAgendamentoModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import ConfirmDeleteAgendamentoModal from '@/components/ConfirmDeleteAgendamentoModal';
 import api from '@/services/api';
 import { AppToast } from '@/services/toast';
 import { useAuthStore } from '@/store/auth';
@@ -86,6 +87,10 @@ export const AgendamentosPage = () => {
   // Estados para exclusão
   const [agendamentoExcluindo, setAgendamentoExcluindo] = useState<Agendamento | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [showDeleteSeriesModal, setShowDeleteSeriesModal] = useState(false);
+  const [showSimpleDeleteModal, setShowSimpleDeleteModal] = useState(false);
+  const [seriesCount, setSeriesCount] = useState(1);
+  const [relatedSeriesIds, setRelatedSeriesIds] = useState<string[]>([]);
 
 
   // Funções de controle do modal unificado
@@ -350,12 +355,50 @@ export const AgendamentosPage = () => {
   };
 
   // Funções de exclusão
-  const confirmarExclusao = (agendamento: Agendamento) => {
+  const confirmarExclusao = async (agendamento: Agendamento) => {
+    // Preparar estado
+    setShowSimpleDeleteModal(false);
+    setShowDeleteSeriesModal(false);
     setAgendamentoExcluindo(agendamento);
+    try {
+      // Buscar agendamentos FUTUROS para mesma combinação (paciente+profissional+serviço)
+      const [dataIso, horaIso] = agendamento.dataHoraInicio.split('T');
+      const horaChave = horaIso.substring(0, 5);
+      const result = await getAgendamentos({
+        pacienteId: agendamento.pacienteId,
+        profissionalId: agendamento.profissionalId,
+        servicoId: agendamento.servicoId,
+        dataInicio: dataIso,
+        orderBy: 'dataHoraInicio',
+        orderDirection: 'asc'
+      });
+      const relacionados = result.data
+        .filter(a => a.id !== agendamento.id)
+        .filter(a => a.dataHoraInicio.split('T')[1]?.substring(0,5) === horaChave)
+        .map(a => a.id);
+      setRelatedSeriesIds(relacionados);
+      const count = relacionados.length + 1;
+      setSeriesCount(count);
+      // Decidir qual modal abrir
+      if (count > 1) {
+        setShowDeleteSeriesModal(true);
+      } else {
+        setShowSimpleDeleteModal(true);
+      }
+    } catch (e) {
+      console.error('Falha ao identificar recorrência para exclusão:', e);
+      setRelatedSeriesIds([]);
+      setSeriesCount(1);
+      setShowSimpleDeleteModal(true);
+    } finally {
+      // Nada aqui: já decidimos qual modal abrir acima
+    }
   };
 
   const cancelarExclusao = () => {
     setAgendamentoExcluindo(null);
+    setShowDeleteSeriesModal(false);
+    setShowSimpleDeleteModal(false);
   };
 
   const handleDelete = async () => {
@@ -365,10 +408,29 @@ export const AgendamentosPage = () => {
     try {
       await deleteAgendamento(agendamentoExcluindo.id);
       setAgendamentoExcluindo(null);
+      setShowSimpleDeleteModal(false);
       carregarAgendamentos(); // Recarregar a lista após exclusão
     } catch (error) {
       console.error('Erro ao excluir agendamento:', error);
       // Aqui você pode adicionar um toast de erro se desejar
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleDeleteSeries = async () => {
+    if (!agendamentoExcluindo) return;
+    setDeleteLoading(true);
+    try {
+      // Excluir o selecionado + relacionados
+      const ids = [agendamentoExcluindo.id, ...relatedSeriesIds];
+      await Promise.all(ids.map(id => deleteAgendamento(id)));
+      setAgendamentoExcluindo(null);
+      setShowDeleteSeriesModal(false);
+      setShowSimpleDeleteModal(false);
+      carregarAgendamentos();
+    } catch (error) {
+      console.error('Erro ao excluir recorrência de agendamentos:', error);
     } finally {
       setDeleteLoading(false);
     }
@@ -1083,7 +1145,7 @@ export const AgendamentosPage = () => {
       {/* Modais */}
       {/* Modal de confirmação de exclusão */}
       <ConfirmDeleteModal
-        open={agendamentoExcluindo !== null}
+        open={agendamentoExcluindo !== null && showSimpleDeleteModal}
         onClose={cancelarExclusao}
         onConfirm={handleDelete}
         entityName={agendamentoExcluindo?.pacienteNome || ''}
@@ -1091,6 +1153,16 @@ export const AgendamentosPage = () => {
         isLoading={deleteLoading}
         loadingText="Excluindo..."
         confirmText="Excluir Agendamento"
+      />
+
+      <ConfirmDeleteAgendamentoModal
+        open={showDeleteSeriesModal && agendamentoExcluindo !== null}
+        onClose={cancelarExclusao}
+        onConfirmSingle={handleDelete}
+        onConfirmSeries={handleDeleteSeries}
+        isLoading={deleteLoading}
+        entityName={agendamentoExcluindo?.pacienteNome || ''}
+        seriesCount={seriesCount}
       />
 
       {/* Modal unificado de agendamento */}

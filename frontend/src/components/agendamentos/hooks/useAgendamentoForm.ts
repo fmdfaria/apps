@@ -20,6 +20,7 @@ import type {
   AgendamentoLoadingState,
   AgendamentoFormContext 
 } from '../types/agendamento-form';
+import { formatarDatasEmMensagem } from '@/utils/dateUtils';
 
 interface UseAgendamentoFormProps {
   isOpen: boolean;
@@ -423,10 +424,11 @@ export const useAgendamentoForm = ({
       resetForm();
       onSuccess();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao criar agendamento:', error);
+      const backendMsg = error?.response?.data?.message;
       AppToast.error('Erro ao criar agendamento', {
-        description: 'Não foi possível criar o agendamento. Tente novamente.'
+        description: formatarDatasEmMensagem(backendMsg || 'Não foi possível criar o agendamento. Tente novamente.')
       });
     } finally {
       setLoading(false);
@@ -446,10 +448,11 @@ export const useAgendamentoForm = ({
       resetForm();
       onSuccess();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao criar agendamento:', error);
+      const backendMsg = error?.response?.data?.message;
       AppToast.error('Erro ao criar agendamento', {
-        description: 'Não foi possível criar o agendamento. Tente novamente.'
+        description: formatarDatasEmMensagem(backendMsg || 'Não foi possível criar o agendamento. Tente novamente.')
       });
     } finally {
       setLoading(false);

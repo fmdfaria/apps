@@ -153,3 +153,19 @@ export const ehAmanha = (dataISO: string): boolean => {
     date.getFullYear() === amanha.getFullYear()
   );
 };
+
+/**
+ * Varre uma mensagem e formata quaisquer datas ISO encontradas para o padrão amigável "dd/MM/yyyy - HH:mm".
+ * Ex.: "... em 2025-08-27T11:00:00.000Z" -> "... em 27/08/2025 - 08:00" (respeitando timezone local)
+ */
+export const formatarDatasEmMensagem = (mensagem: string): string => {
+  if (!mensagem) return mensagem;
+  const isoRegex = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{3})?)?(?:Z|[+-]\d{2}:\d{2})?/g;
+  return mensagem.replace(isoRegex, (iso) => {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    const data = d.toLocaleDateString('pt-BR');
+    const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return `${data} - ${hora}`;
+  });
+};
