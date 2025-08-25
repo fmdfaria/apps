@@ -45,23 +45,32 @@ export class CreateAgendamentoUseCase {
       throw new AppError('Serviço não encontrado.', 404);
     }
     const datas: Date[] = [];
-    let atual = new Date(baseData.dataHoraInicio);
+    // Preservar a data original exatamente como recebida
+    const dataOriginal = baseData.dataHoraInicio instanceof Date ? baseData.dataHoraInicio : new Date(baseData.dataHoraInicio);
     let count = 0;
     const maxRepeticoes = recorrencia?.repeticoes ?? 100; // Limite de segurança
     const dataLimite = recorrencia?.ate ? new Date(recorrencia.ate) : undefined;
-    while (true) {
-      if (dataLimite && atual > dataLimite) break;
-      if (recorrencia?.repeticoes && count >= recorrencia.repeticoes) break;
-      datas.push(new Date(atual));
-      count++;
+    
+    // Primeira data é sempre a original
+    datas.push(new Date(dataOriginal));
+    count++;
+    
+    // Gerar as próximas datas baseando-se na original
+    while (count < maxRepeticoes && (!recorrencia?.repeticoes || count < recorrencia.repeticoes)) {
+      let proximaData = new Date(dataOriginal);
+      
       if (recorrencia?.tipo === 'semanal') {
-        atual.setDate(atual.getDate() + 7);
+        proximaData.setDate(dataOriginal.getDate() + (7 * count));
       } else if (recorrencia?.tipo === 'quinzenal') {
-        atual.setDate(atual.getDate() + 14);
+        proximaData.setDate(dataOriginal.getDate() + (14 * count));
       } else if (recorrencia?.tipo === 'mensal') {
-        atual.setMonth(atual.getMonth() + 1);
+        proximaData.setMonth(dataOriginal.getMonth() + count);
       }
-      if (count >= maxRepeticoes) break;
+      
+      if (dataLimite && proximaData > dataLimite) break;
+      
+      datas.push(proximaData);
+      count++;
     }
     // Verificar conflitos para todas as datas
     for (const dataHoraInicio of datas) {

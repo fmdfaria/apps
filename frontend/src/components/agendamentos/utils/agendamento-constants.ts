@@ -38,7 +38,7 @@ export const OPCOES_HORARIOS = [
 
 export const RECORRENCIA_PADRAO = {
   tipo: 'semanal' as const,
-  repeticoes: 4,
+  repeticoes: 50,
   ate: ''
 };
 
