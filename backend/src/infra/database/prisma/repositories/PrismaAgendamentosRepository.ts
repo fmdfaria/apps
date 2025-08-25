@@ -80,10 +80,10 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
   }
 
   async findAll(filters?: IAgendamentoFilters): Promise<IPaginatedResponse<Agendamento>> {
-    // Valores padrão para paginação
+    // Valores para paginação (opcional)
+    const limit = filters?.limit ? Math.min(filters.limit, 100) : undefined; // Só limita se explicitamente solicitado
     const page = filters?.page || 1;
-    const limit = Math.min(filters?.limit || 10, 100); // Máximo 100
-    const skip = (page - 1) * limit;
+    const skip = limit ? (page - 1) * limit : 0;
     const orderBy = filters?.orderBy || 'dataHoraInicio';
     const orderDirection = filters?.orderDirection || 'asc';
 
@@ -183,27 +183,34 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
       whereConditions.OR = nameFilters;
     }
 
+    // Configurar opções da consulta
+    const queryOptions: any = {
+      where: whereConditions,
+      include: { servico: true, paciente: true, profissional: true, recurso: true, convenio: true },
+      orderBy: { [orderBy]: orderDirection },
+    };
+
+    // Só aplicar skip/take se limit for especificado
+    if (limit) {
+      queryOptions.skip = skip;
+      queryOptions.take = limit;
+    }
+
     // Executar consultas em paralelo
     const [agendamentos, total] = await Promise.all([
-      this.prisma.agendamento.findMany({
-        where: whereConditions,
-        include: { servico: true, paciente: true, profissional: true, recurso: true, convenio: true },
-        orderBy: { [orderBy]: orderDirection },
-        skip,
-        take: limit,
-      }),
+      this.prisma.agendamento.findMany(queryOptions),
       this.prisma.agendamento.count({
         where: whereConditions,
       })
     ]);
 
-    const totalPages = Math.ceil(total / limit);
+    const totalPages = limit ? Math.ceil(total / limit) : 1;
 
     return {
       data: agendamentos.map(toDomain),
       pagination: {
-        page,
-        limit,
+        page: limit ? page : 1,
+        limit: limit || total,
         total,
         totalPages,
       },
