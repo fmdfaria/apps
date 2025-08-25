@@ -37,6 +37,7 @@ export const PendenciaPage = () => {
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [canConcluir, setCanConcluir] = useState(true);
   const [busca, setBusca] = useState('');
+  const [buscaDebounced, setBuscaDebounced] = useState('');
   const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
   const [showAtenderAgendamento, setShowAtenderAgendamento] = useState(false);
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<Agendamento | null>(null);
@@ -70,12 +71,20 @@ export const PendenciaPage = () => {
     if (initialized) {
       carregarAgendamentos();
     }
-  }, [paginaAtual, itensPorPagina, filtros, initialized]);
+  }, [paginaAtual, itensPorPagina, filtros, buscaDebounced, initialized]);
+
+  // Debounce da busca para evitar muitas chamadas à API
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setBuscaDebounced(busca);
+    }, 500); // 500ms de debounce
+    
+    return () => clearTimeout(timer);
+  }, [busca]);
 
   useEffect(() => {
     setPaginaAtual(1);
-    // Para busca textual, não recarregar da API, apenas resetar página
-  }, [busca]);
+  }, [buscaDebounced, itensPorPagina, filtros]);
 
   const checkPermissions = async () => {
     try {
@@ -106,10 +115,9 @@ export const PendenciaPage = () => {
         limit: itensPorPagina,
       };
 
-      // Aplicar filtros de busca
-      if (busca) {
-        // Para busca geral, não podemos usar todos os filtros de uma vez na API
-        // Vamos usar a busca textual no frontend após receber os dados
+      // Aplicar busca debounced
+      if (buscaDebounced) {
+        filtrosAPI.search = buscaDebounced;
       }
 
       // Filtros específicos
@@ -181,27 +189,35 @@ export const PendenciaPage = () => {
     return `${dia}/${mes}/${ano}`;
   };
 
-  // Aplicar apenas filtro de busca textual no frontend (se necessário)
-  const agendamentosFiltrados = busca 
-    ? paginatedData.data.filter(a => 
-        a.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||
-        a.profissionalNome?.toLowerCase().includes(busca.toLowerCase()) ||
-        a.servicoNome?.toLowerCase().includes(busca.toLowerCase()) ||
-        a.convenioNome?.toLowerCase().includes(busca.toLowerCase())
-      )
-    : paginatedData.data;
+  // Com a busca via API, apenas ordenamos os dados recebidos
+  const agendamentosFiltrados = paginatedData.data
+    .sort((a, b) => {
+      // Ordenação personalizada: Data > Hora > Paciente
+      
+      // 1. Extrair data e hora de cada agendamento
+      const [dataA, horaA] = a.dataHoraInicio.split('T');
+      const [dataB, horaB] = b.dataHoraInicio.split('T');
+      
+      // 2. Comparar primeiro por data
+      const comparacaoData = dataA.localeCompare(dataB);
+      if (comparacaoData !== 0) {
+        return comparacaoData;
+      }
+      
+      // 3. Se datas iguais, comparar por hora
+      const comparacaoHora = horaA.localeCompare(horaB);
+      if (comparacaoHora !== 0) {
+        return comparacaoHora;
+      }
+      
+      // 4. Se data e hora iguais, comparar por nome do paciente
+      return (a.pacienteNome || '').localeCompare(b.pacienteNome || '', 'pt-BR', { 
+        sensitivity: 'base' 
+      });
+    });
 
-  // Para busca textual, usar paginação local. Para filtros avançados, usar server-side
-  const totalPaginas = busca 
-    ? Math.ceil(agendamentosFiltrados.length / itensPorPagina)
-    : paginatedData.pagination.totalPages;
-  
-  const agendamentosPaginados = busca
-    ? agendamentosFiltrados.slice(
-        (paginaAtual - 1) * itensPorPagina,
-        paginaAtual * itensPorPagina
-      )
-    : agendamentosFiltrados;
+  // Paginação é controlada pela API, então mostramos todos os dados recebidos
+  const agendamentosPaginados = agendamentosFiltrados;
 
   const formatarDataHora = (dataISO: string) => {
     if (!dataISO) return { data: '-', hora: '-' };
@@ -228,7 +244,7 @@ export const PendenciaPage = () => {
         <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-500">
           <ClipboardCheck className="w-12 h-12 mb-4" />
           <h3 className="text-lg font-medium mb-2">Nenhum agendamento pendente</h3>
-          <p className="text-sm">{(busca || temFiltrosAtivos) ? 'Tente alterar os filtros de busca.' : 'Aguardando pendências.'}</p>
+          <p className="text-sm">{(buscaDebounced || temFiltrosAtivos) ? 'Tente alterar os filtros de busca.' : 'Aguardando pendências.'}</p>
         </div>
       ) : (
         agendamentosPaginados.map(agendamento => {
@@ -307,7 +323,7 @@ export const PendenciaPage = () => {
             <TableCell colSpan={8} className="py-12 text-center">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center"><span className="text-3xl">🔍</span></div>
-                <p className="text-gray-500 font-medium">{(busca || temFiltrosAtivos) ? 'Nenhum resultado encontrado' : 'Nenhum agendamento pendente'}</p>
+                <p className="text-gray-500 font-medium">{(buscaDebounced || temFiltrosAtivos) ? 'Nenhum resultado encontrado' : 'Nenhum agendamento pendente'}</p>
                 <p className="text-gray-400 text-sm">Tente ajustar os filtros de busca</p>
               </div>
             </TableCell>
@@ -459,7 +475,7 @@ export const PendenciaPage = () => {
         {visualizacao === 'cards' ? renderCardView() : renderTableView()}
       </div>
 
-      {(busca ? agendamentosFiltrados.length : paginatedData.pagination.total) > 0 && (
+      {paginatedData.pagination.total > 0 && (
         <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-600 flex items-center gap-2"><span className="text-lg">📊</span>Exibir</span>
@@ -471,21 +487,19 @@ export const PendenciaPage = () => {
             </select>
             <span className="text-sm text-gray-600">itens por página</span>
           </div>
-          <div className="text-sm text-gray-600 flex items-center gap-2"><span className="text-lg">📈</span>Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, busca ? agendamentosFiltrados.length : paginatedData.pagination.total)} de {busca ? agendamentosFiltrados.length : paginatedData.pagination.total} resultados</div>
+          <div className="text-sm text-gray-600 flex items-center gap-2"><span className="text-lg">📈</span>Mostrando {agendamentosFiltrados.length} de {paginatedData.pagination.total} resultados {(temFiltrosAtivos || buscaDebounced) && (
+            <span className="text-gray-500">
+              {' '}(filtrados de {paginatedData.pagination.total} total)
+            </span>
+          )}</div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setPaginaAtual(p => Math.max(1, p - 1))} disabled={paginaAtual === 1 || totalPaginas === 1} className={(paginaAtual === 1 || totalPaginas === 1) ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50" : "border-2 border-gray-200 text-gray-700 hover:border-yellow-500 hover:bg-gradient-to-r hover:from-yellow-50 hover:to-amber-50 hover:text-yellow-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"}>
+            <Button variant="outline" size="sm" onClick={() => setPaginaAtual(p => Math.max(1, p - 1))} disabled={paginaAtual === 1} className={paginaAtual === 1 ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50" : "border-2 border-gray-200 text-gray-700 hover:border-yellow-500 hover:bg-gradient-to-r hover:from-yellow-50 hover:to-amber-50 hover:text-yellow-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"}>
               <span className="mr-1 text-gray-600 group-hover:text-yellow-600 transition-colors">⬅️</span> Anterior
             </Button>
-            {(() => {
-              const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
-              const endPage = Math.min(totalPaginas, startPage + 4);
-              return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
-                <Button key={page} variant={page === paginaAtual ? "default" : "outline"} size="sm" onClick={() => totalPaginas > 1 ? setPaginaAtual(page) : undefined} disabled={totalPaginas === 1} className={page === paginaAtual ? "bg-gradient-to-r from-yellow-600 to-amber-600 text-white shadow-lg font-semibold" : totalPaginas === 1 ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50" : "border-2 border-gray-200 text-gray-700 hover:border-yellow-500 hover:bg-gradient-to-r hover:from-yellow-50 hover:to-amber-50 hover:text-yellow-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"}>
-                  {page}
-                </Button>
-              ));
-            })()}
-            <Button variant="outline" size="sm" onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))} disabled={paginaAtual === totalPaginas || totalPaginas === 1} className={(paginaAtual === totalPaginas || totalPaginas === 1) ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50" : "border-2 border-gray-200 text-gray-700 hover:border-yellow-500 hover:bg-gradient-to-r hover:from-yellow-50 hover:to-amber-50 hover:text-yellow-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"}>
+            <Button variant="default" size="sm" className="bg-gradient-to-r from-yellow-600 to-amber-600 text-white shadow-lg font-semibold">
+              {paginaAtual}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setPaginaAtual(p => p + 1)} disabled={agendamentosFiltrados.length < itensPorPagina} className={agendamentosFiltrados.length < itensPorPagina ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50" : "border-2 border-gray-200 text-gray-700 hover:border-yellow-500 hover:bg-gradient-to-r hover:from-yellow-50 hover:to-amber-50 hover:text-yellow-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"}>
               Próximo <span className="ml-1 text-gray-600 group-hover:text-yellow-600 transition-colors">➡️</span>
             </Button>
           </div>

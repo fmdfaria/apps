@@ -74,7 +74,8 @@ export class CreateAgendamentoUseCase {
         throw new AppError(`Conflito de agendamento para o profissional em ${dataHoraInicio.toISOString()}`);
       }
       // Recurso (buscar todos na data e filtrar pelo recursoId)
-      const agendamentosMesmoHorario = await this.agendamentosRepository.findAll({ dataHoraInicio });
+      const resultPaginado = await this.agendamentosRepository.findAll({ dataHoraInicio });
+      const agendamentosMesmoHorario = resultPaginado.data;
       const conflitoRecurso = agendamentosMesmoHorario.find(a => a.recursoId === baseData.recursoId);
       if (conflitoRecurso) {
         throw new AppError(`Conflito de agendamento para o recurso em ${dataHoraInicio.toISOString()}`);

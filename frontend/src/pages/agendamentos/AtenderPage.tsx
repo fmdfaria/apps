@@ -53,6 +53,7 @@ export const AtenderPage = () => {
   const [canUpdateEvolucoes, setCanUpdateEvolucoes] = useState(true);
   const [canDeleteEvolucoes, setCanDeleteEvolucoes] = useState(true);
   const [busca, setBusca] = useState('');
+  const [buscaDebounced, setBuscaDebounced] = useState('');
   const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
   const [showAtenderAgendamento, setShowAtenderAgendamento] = useState(false);
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<Agendamento | null>(null);
@@ -107,12 +108,21 @@ export const AtenderPage = () => {
     if (initialized) {
       carregarAgendamentos();
     }
-  }, [paginaAtual, itensPorPagina, filtros]);
+  }, [paginaAtual, itensPorPagina, filtros, buscaDebounced]);
+
+  // Debounce da busca para evitar muitas chamadas à API
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setBuscaDebounced(busca);
+    }, 500); // 500ms de debounce
+    
+    return () => clearTimeout(timer);
+  }, [busca]);
 
   // Reset de página quando busca/filtros/limite mudarem
   useEffect(() => {
     setPaginaAtual(1);
-  }, [busca, itensPorPagina, filtros]);
+  }, [buscaDebounced, itensPorPagina, filtros]);
 
   const checkPermissions = async () => {
     try {
@@ -190,6 +200,7 @@ export const AtenderPage = () => {
         page: paginaAtual,
         limit: itensPorPagina,
         status: 'LIBERADO',
+        ...(buscaDebounced ? { search: buscaDebounced } : {}),
         ...(filtros.dataInicio ? { dataInicio: filtros.dataInicio } : {}),
         ...(filtros.dataFim ? { dataFim: filtros.dataFim } : {}),
         ...(filtros.tipoAtendimento ? { tipoAtendimento: filtros.tipoAtendimento } : {}),
@@ -248,33 +259,9 @@ export const AtenderPage = () => {
     return `${dia}/${mes}/${ano}`;
   };
 
+  // Com a busca via API, apenas ordenamos os dados recebidos
   const agendamentosFiltrados = agendamentos
     .filter(a => a.status === 'LIBERADO')
-    .filter(a => 
-      !busca || 
-      a.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||
-      a.profissionalNome?.toLowerCase().includes(busca.toLowerCase()) ||
-      a.servicoNome?.toLowerCase().includes(busca.toLowerCase()) ||
-      a.convenioNome?.toLowerCase().includes(busca.toLowerCase())
-    )
-    // Filtros avançados por coluna
-    .filter(a => !filtros.paciente || a.pacienteNome?.toLowerCase().includes(filtros.paciente.toLowerCase()))
-    .filter(a => !filtros.profissional || a.profissionalNome?.toLowerCase().includes(filtros.profissional.toLowerCase()))
-    .filter(a => !filtros.servico || a.servicoNome?.toLowerCase().includes(filtros.servico.toLowerCase()))
-    .filter(a => !filtros.convenio || a.convenioNome?.toLowerCase().includes(filtros.convenio.toLowerCase()))
-    .filter(a => !filtros.tipoAtendimento || a.tipoAtendimento === filtros.tipoAtendimento)
-    .filter(a => {
-      if (!filtros.dataInicio && !filtros.dataFim) return true;
-      
-      // Extrair apenas a data (YYYY-MM-DD) do agendamento, ignorando horário e timezone
-      const dataAgendamentoISO = a.dataHoraInicio.split('T')[0]; // '2024-02-12'
-      
-      // Comparar apenas as datas no formato YYYY-MM-DD
-      if (filtros.dataInicio && dataAgendamentoISO < filtros.dataInicio) return false;
-      if (filtros.dataFim && dataAgendamentoISO > filtros.dataFim) return false;
-      
-      return true;
-    })
     .sort((a, b) => {
       // Ordenação personalizada: Data > Hora > Paciente
       
@@ -300,23 +287,15 @@ export const AtenderPage = () => {
       });
     });
 
-  const totalPaginas = Math.ceil(agendamentosFiltrados.length / itensPorPagina);
-  const agendamentosPaginados = agendamentosFiltrados.slice(
-    (paginaAtual - 1) * itensPorPagina,
-    paginaAtual * itensPorPagina
-  );
+  // Paginação é controlada pela API, então mostramos todos os dados recebidos
+  const agendamentosPaginados = agendamentosFiltrados;
 
   // Carregar evoluções quando os agendamentos, filtros ou paginação mudarem
   useEffect(() => {
-    const agendamentosPagina = agendamentosFiltrados.slice(
-      (paginaAtual - 1) * itensPorPagina,
-      paginaAtual * itensPorPagina
-    );
-    
-    if (agendamentosPagina.length > 0) {
-      carregarEvolucoes(agendamentosPagina);
+    if (agendamentosFiltrados.length > 0) {
+      carregarEvolucoes(agendamentosFiltrados);
     }
-  }, [agendamentos, busca, filtros, paginaAtual, itensPorPagina]);
+  }, [agendamentos, buscaDebounced, filtros, paginaAtual, itensPorPagina]);
 
   const formatarDataHora = formatarDataHoraLocal;
 
@@ -1276,7 +1255,11 @@ export const AtenderPage = () => {
         
         <div className="text-sm text-gray-600 flex items-center gap-2">
           <span className="text-lg">📈</span>
-          Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, totalResultados)} de {totalGlobal} resultados (filtrados de {totalResultados} total)
+          Mostrando {agendamentosFiltrados.length} de {totalResultados} resultados {(temFiltrosAtivos || buscaDebounced) && (
+            <span className="text-gray-500">
+              {' '}(filtrados de {totalGlobal} total)
+            </span>
+          )}
         </div>
 
         <div className="flex gap-2">
@@ -1284,8 +1267,8 @@ export const AtenderPage = () => {
             variant="outline"
             size="sm"
             onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
-            disabled={paginaAtual === 1 || totalPaginas === 1}
-            className={(paginaAtual === 1 || totalPaginas === 1)
+            disabled={paginaAtual === 1}
+            className={paginaAtual === 1
               ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50" 
               : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             }
@@ -1293,33 +1276,19 @@ export const AtenderPage = () => {
             <span className="mr-1 text-gray-600 group-hover:text-blue-600 transition-colors">⬅️</span>
             Anterior
           </Button>
-          {(() => {
-            const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
-            const endPage = Math.min(totalPaginas, startPage + 4);
-            return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
-              <Button
-                key={page}
-                variant={page === paginaAtual ? "default" : "outline"}
-                size="sm"
-                onClick={() => totalPaginas > 1 ? setPaginaAtual(page) : undefined}
-                disabled={totalPaginas === 1}
-                className={page === paginaAtual 
-                  ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg font-semibold" 
-                  : totalPaginas === 1
-                  ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
-                  : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-                }
-              >
-                {page}
-              </Button>
-            ));
-          })()}
+          <Button
+            variant="default" 
+            size="sm"
+            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg font-semibold"
+          >
+            {paginaAtual}
+          </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
-            disabled={paginaAtual === totalPaginas || totalPaginas === 1}
-            className={(paginaAtual === totalPaginas || totalPaginas === 1)
+            onClick={() => setPaginaAtual(p => p + 1)}
+            disabled={agendamentosFiltrados.length < itensPorPagina}
+            className={agendamentosFiltrados.length < itensPorPagina
               ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
               : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             }

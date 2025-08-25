@@ -50,8 +50,7 @@ export const LiberarPage = () => {
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [canLiberar, setCanLiberar] = useState(true);
   const [busca, setBusca] = useState('');
-  const [buscaLocal, setBuscaLocal] = useState('');
-  const buscaTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [buscaDebounced, setBuscaDebounced] = useState('');
   const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
 
   const [showLiberarAgendamento, setShowLiberarAgendamento] = useState(false);
@@ -173,43 +172,27 @@ export const LiberarPage = () => {
     setInitialized(true);
   }, []);
 
+  // Debounce da busca para evitar muitas chamadas à API
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setBuscaDebounced(busca);
+    }, 500); // 500ms de debounce
+    
+    return () => clearTimeout(timer);
+  }, [busca]);
+
   // Recarregamento quando dependências mudam (mas apenas após inicialização)
   useEffect(() => {
     if (initialized) {
       carregarAgendamentos();
     }
-  }, [paginaAtual, itensPorPagina, filtros, busca]);
+  }, [paginaAtual, itensPorPagina, filtros, buscaDebounced]);
 
   // Reset de página quando busca/filtros/limite mudarem
   useEffect(() => {
     setPaginaAtual(1);
-  }, [busca, itensPorPagina, filtros]);
+  }, [buscaDebounced, itensPorPagina, filtros]);
 
-  // Funções para busca global com debouncing
-  const aplicarBusca = (valor: string) => {
-    setBusca(valor);
-  };
-
-  const handleBuscaChange = (valor: string) => {
-    setBuscaLocal(valor);
-    
-    // Limpar timeout anterior
-    if (buscaTimeoutRef.current) {
-      clearTimeout(buscaTimeoutRef.current);
-    }
-    
-    // Definir novo timeout para aplicar busca após 600ms sem digitar
-    buscaTimeoutRef.current = setTimeout(() => {
-      aplicarBusca(valor);
-    }, 600);
-  };
-
-  // Sincronizar busca local quando busca externa muda (apenas se diferente)
-  useEffect(() => {
-    if (buscaLocal !== busca) {
-      setBuscaLocal(busca);
-    }
-  }, [busca]);
 
   // Effect para processar fila quando há itens e não está processando
   useEffect(() => {
@@ -226,12 +209,9 @@ export const LiberarPage = () => {
     }
   }, [webhookQueue.length, isProcessingWebhook]);
 
-  // Cleanup do timeout de busca e webhook ao desmontar componente
+  // Cleanup do timeout de webhook ao desmontar componente
   useEffect(() => {
     return () => {
-      if (buscaTimeoutRef.current) {
-        clearTimeout(buscaTimeoutRef.current);
-      }
       if (webhookTimeoutRef.current) {
         clearTimeout(webhookTimeoutRef.current);
       }
@@ -277,6 +257,7 @@ export const LiberarPage = () => {
           page: paginaAtual, 
           limit: itensPorPagina, 
           status: 'AGENDADO',
+          ...(buscaDebounced ? { search: buscaDebounced } : {}),
           ...(filtros.dataInicio ? { dataInicio: filtros.dataInicio } : {}),
           ...(filtros.dataFim ? { dataFim: filtros.dataFim } : {}),
           ...(filtros.tipoAtendimento ? { tipoAtendimento: filtros.tipoAtendimento } : {}),
@@ -285,6 +266,7 @@ export const LiberarPage = () => {
           page: paginaAtual, 
           limit: itensPorPagina, 
           status: 'SOLICITADO',
+          ...(buscaDebounced ? { search: buscaDebounced } : {}),
           ...(filtros.dataInicio ? { dataInicio: filtros.dataInicio } : {}),
           ...(filtros.dataFim ? { dataFim: filtros.dataFim } : {}),
           ...(filtros.tipoAtendimento ? { tipoAtendimento: filtros.tipoAtendimento } : {}),
@@ -356,33 +338,9 @@ export const LiberarPage = () => {
   // Extrair listas únicas para os selects
   const agendadosBase = agendamentos.filter(a => a.status === 'AGENDADO' || a.status === 'SOLICITADO');
 
+  // Com a busca via API, apenas ordenamos os dados recebidos
   const agendamentosFiltrados = agendamentos
     .filter(a => a.status === 'AGENDADO' || a.status === 'SOLICITADO')
-    .filter(a => 
-      !busca || 
-      a.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||
-      a.profissionalNome?.toLowerCase().includes(busca.toLowerCase()) ||
-      a.servicoNome?.toLowerCase().includes(busca.toLowerCase()) ||
-      a.convenioNome?.toLowerCase().includes(busca.toLowerCase())
-    )
-    // Filtros por coluna
-    .filter(a => !filtros.paciente || a.pacienteNome?.toLowerCase().includes(filtros.paciente.toLowerCase()))
-    .filter(a => !filtros.profissional || a.profissionalNome?.toLowerCase().includes(filtros.profissional.toLowerCase()))
-    .filter(a => !filtros.servico || a.servicoNome?.toLowerCase().includes(filtros.servico.toLowerCase()))
-    .filter(a => !filtros.convenio || a.convenioNome?.toLowerCase().includes(filtros.convenio.toLowerCase()))
-    .filter(a => !filtros.tipoAtendimento || a.tipoAtendimento === filtros.tipoAtendimento)
-    .filter(a => {
-      if (!filtros.dataInicio && !filtros.dataFim) return true;
-      
-      // Extrair apenas a data (YYYY-MM-DD) do agendamento, ignorando horário e timezone
-      const dataAgendamentoISO = a.dataHoraInicio.split('T')[0]; // '2024-02-12'
-      
-      // Comparar apenas as datas no formato YYYY-MM-DD
-      if (filtros.dataInicio && dataAgendamentoISO < filtros.dataInicio) return false;
-      if (filtros.dataFim && dataAgendamentoISO > filtros.dataFim) return false;
-      
-      return true;
-    })
     .sort((a, b) => {
       // Ordenação personalizada: Data > Hora > Paciente
       
@@ -408,11 +366,8 @@ export const LiberarPage = () => {
       });
     });
 
-  const totalPaginas = Math.ceil(agendamentosFiltrados.length / itensPorPagina);
-  const agendamentosPaginados = agendamentosFiltrados.slice(
-    (paginaAtual - 1) * itensPorPagina,
-    paginaAtual * itensPorPagina
-  );
+  // Paginação é controlada pela API, então mostramos todos os dados recebidos
+  const agendamentosPaginados = agendamentosFiltrados;
 
   const formatarDataHora = formatarDataHoraLocal;
 
@@ -920,8 +875,8 @@ export const LiberarPage = () => {
             <input
               type="text"
               placeholder="Buscar agendamentos..."
-              value={buscaLocal}
-              onChange={e => handleBuscaChange(e.target.value)}
+              value={busca}
+              onChange={e => setBusca(e.target.value)}
               className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -1146,9 +1101,9 @@ export const LiberarPage = () => {
           <div className="text-sm text-gray-600 flex items-center gap-2">
             <span className="text-lg">📈</span>
             <div>
-              Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, totalResultados)} de {totalGlobal} resultados {(temFiltrosAtivos || busca) && (
+              Mostrando {agendamentosFiltrados.length} de {totalResultados} resultados {(temFiltrosAtivos || busca) && (
                 <span className="text-gray-500">
-                  {' '}(filtrados de {totalResultados} total)
+                  {' '}(filtrados de {totalGlobal} total)
                 </span>
               )}
             </div>
@@ -1159,8 +1114,8 @@ export const LiberarPage = () => {
             variant="outline"
             size="sm"
             onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
-            disabled={paginaAtual === 1 || totalPaginas === 1}
-            className={(paginaAtual === 1 || totalPaginas === 1)
+            disabled={paginaAtual === 1}
+            className={paginaAtual === 1
               ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50" 
               : "border-2 border-gray-200 text-gray-700 hover:border-orange-500 hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 hover:text-orange-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             }
@@ -1168,33 +1123,19 @@ export const LiberarPage = () => {
             <span className="mr-1 text-gray-600 group-hover:text-orange-600 transition-colors">⬅️</span>
             Anterior
           </Button>
-          {(() => {
-            const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
-            const endPage = Math.min(totalPaginas, startPage + 4);
-            return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
-              <Button
-                key={page}
-                variant={page === paginaAtual ? "default" : "outline"}
-                size="sm"
-                onClick={() => totalPaginas > 1 ? setPaginaAtual(page) : undefined}
-                disabled={totalPaginas === 1}
-                className={page === paginaAtual 
-                  ? "bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg font-semibold" 
-                  : totalPaginas === 1
-                  ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
-                  : "border-2 border-gray-200 text-gray-700 hover:border-orange-500 hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 hover:text-orange-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
-                }
-              >
-                {page}
-              </Button>
-            ));
-          })()}
+          <Button
+            variant="default" 
+            size="sm"
+            className="bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg font-semibold"
+          >
+            {paginaAtual}
+          </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
-            disabled={paginaAtual === totalPaginas || totalPaginas === 1}
-            className={(paginaAtual === totalPaginas || totalPaginas === 1)
+            onClick={() => setPaginaAtual(p => p + 1)}
+            disabled={agendamentosFiltrados.length < itensPorPagina}
+            className={agendamentosFiltrados.length < itensPorPagina
               ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
               : "border-2 border-gray-200 text-gray-700 hover:border-orange-500 hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 hover:text-orange-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             }
