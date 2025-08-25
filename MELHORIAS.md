@@ -16,3 +16,8 @@
 ### Funcionalidade Online
 
 
+
+### Excluir Agendamentos
+- Criar um funcionalidade para quando apertar no botão Excluir na pagina AgendamentosPage, deve chamar a tela de confirmação com as opções de excluir somente o agendamento selecionado ou todos da recorrencia. 
+- Deve ser considerado agendamentos recorrentes todos os agendamento com Data + Hora feitos para o mesmo Paciente + Profissional + Serviço + recorrencia do tipo (semanal, quinzenal ou mensal)
+

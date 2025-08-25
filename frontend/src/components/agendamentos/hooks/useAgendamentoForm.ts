@@ -10,7 +10,7 @@ import { getConvenios } from '@/services/convenios';
 import { getServicosAtivos } from '@/services/servicos';
 import { getRecursos } from '@/services/recursos';
 import { getDisponibilidadesProfissional } from '@/services/disponibilidades';
-import { verificarConflitosRecorrencia, type ConflitosRecorrencia } from '@/services/verificacao-disponibilidade-recorrencia';
+import { verificarConflitosRecorrencia, verificarConflitosParaDatas, type ConflitosRecorrencia } from '@/services/verificacao-disponibilidade-recorrencia';
 import { FORM_DATA_PADRAO, RECORRENCIA_PADRAO, OPCOES_HORARIOS } from '../utils/agendamento-constants';
 import type { 
   TipoFluxo, 
@@ -353,7 +353,7 @@ export const useAgendamentoForm = ({
       return; // Parar execução até confirmação
     }
 
-    // Se chegou até aqui, o recurso está conforme - verificar conflitos de recorrência
+    // Se chegou até aqui, o recurso está conforme - verificar conflitos
     const dadosParaEnvio = {
       ...formData,
       dataHoraInicio: dataHoraComOffset,
@@ -364,7 +364,7 @@ export const useAgendamentoForm = ({
       } : undefined
     };
 
-    // Se tem recorrência, verificar conflitos primeiro
+    // Verificar conflitos primeiro
     if (temRecorrencia && dadosParaEnvio.recorrencia) {
       setLoading(true);
       try {
@@ -388,6 +388,29 @@ export const useAgendamentoForm = ({
           description: 'Não foi possível verificar conflitos de recorrência. Tente novamente.'
         });
         setLoading(false);
+        return;
+      }
+    } else {
+      // Não recorrente: verificar conflito exato para a data/hora
+      try {
+        const conflitos = await verificarConflitosParaDatas(
+          formData.profissionalId,
+          formData.recursoId,
+          [dataHoraComOffset],
+          formData.pacienteId
+        );
+        if (conflitos.totalConflitos > 0) {
+          const c = conflitos.datasComConflito[0];
+          AppToast.error('Conflito no agendamento', {
+            description: `${c.dataFormatada} às ${c.hora} — ${c.motivo}.`
+          });
+          return;
+        }
+      } catch (error) {
+        console.error('Erro ao verificar conflito no agendamento:', error);
+        AppToast.error('Erro ao verificar disponibilidade', {
+          description: 'Não foi possível verificar conflitos. Tente novamente.'
+        });
         return;
       }
     }

@@ -22,12 +22,29 @@ export class CreateAgendamentoUseCase {
 
     // Se não for recorrente, segue fluxo normal
     if (!agendamentoData.recorrencia) {
-      const existente = await this.agendamentosRepository.findByProfissionalAndDataHoraInicio(
-        agendamentoData.profissionalId,
-        agendamentoData.dataHoraInicio
-      );
-      if (existente) {
-        throw new AppError('Já existe um agendamento para este profissional neste horário.', 400);
+      // Regras de conflito: Profissional, Recurso, Paciente na mesma Data/Hora
+      const [existenteProf, existenteRecurso, existentePaciente] = await Promise.all([
+        this.agendamentosRepository.findByProfissionalAndDataHoraInicio(
+          agendamentoData.profissionalId,
+          agendamentoData.dataHoraInicio
+        ),
+        this.agendamentosRepository.findByRecursoAndDataHoraInicio(
+          agendamentoData.recursoId,
+          agendamentoData.dataHoraInicio
+        ),
+        this.agendamentosRepository.findByPacienteAndDataHoraInicio(
+          agendamentoData.pacienteId,
+          agendamentoData.dataHoraInicio
+        ),
+      ]);
+      if (existenteProf) {
+        throw new AppError('Conflito: profissional já possui agendamento nesta data e hora.', 400);
+      }
+      if (existenteRecurso) {
+        throw new AppError('Conflito: recurso já possui agendamento nesta data e hora.', 400);
+      }
+      if (existentePaciente) {
+        throw new AppError('Conflito: paciente já possui agendamento nesta data e hora.', 400);
       }
       // Buscar duração do serviço
       const servico = await this.servicosRepository.findById(agendamentoData.servicoId);
@@ -72,26 +89,30 @@ export class CreateAgendamentoUseCase {
       datas.push(proximaData);
       count++;
     }
-    // Verificar conflitos para todas as datas
+    // Verificar conflitos para todas as datas (profissional, recurso, paciente) no exato horário
     for (const dataHoraInicio of datas) {
-      // Profissional
-      const existeProf = await this.agendamentosRepository.findByProfissionalAndDataHoraInicio(
-        baseData.profissionalId,
-        dataHoraInicio
-      );
+      const [existeProf, existeRecurso, existePaciente] = await Promise.all([
+        this.agendamentosRepository.findByProfissionalAndDataHoraInicio(
+          baseData.profissionalId,
+          dataHoraInicio
+        ),
+        this.agendamentosRepository.findByRecursoAndDataHoraInicio(
+          baseData.recursoId,
+          dataHoraInicio
+        ),
+        this.agendamentosRepository.findByPacienteAndDataHoraInicio(
+          baseData.pacienteId,
+          dataHoraInicio
+        ),
+      ]);
       if (existeProf) {
-        throw new AppError(`Conflito de agendamento para o profissional em ${dataHoraInicio.toISOString()}`);
+        throw new AppError(`Conflito: profissional já possui agendamento em ${dataHoraInicio.toISOString()}`);
       }
-      // Recurso (buscar agendamentos no mesmo horário usando range de data)
-      const dataInicio = new Date(dataHoraInicio);
-      const dataFim = new Date(dataHoraInicio.getTime() + 30 * 60000); // 30 minutos depois
-      const agendamentosConflito = await this.agendamentosRepository.findByRecursoAndDateRange(
-        baseData.recursoId,
-        dataInicio,
-        dataFim
-      );
-      if (agendamentosConflito.length > 0) {
-        throw new AppError(`Conflito de agendamento para o recurso em ${dataHoraInicio.toISOString()}`);
+      if (existeRecurso) {
+        throw new AppError(`Conflito: recurso já possui agendamento em ${dataHoraInicio.toISOString()}`);
+      }
+      if (existePaciente) {
+        throw new AppError(`Conflito: paciente já possui agendamento em ${dataHoraInicio.toISOString()}`);
       }
     }
     // Se não houver conflitos, criar todos

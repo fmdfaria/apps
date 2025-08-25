@@ -224,6 +224,20 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     return agendamento ? toDomain(agendamento) : null;
   }
 
+  async findByRecursoAndDataHoraInicio(recursoId: string, dataHoraInicio: Date): Promise<Agendamento | null> {
+    const agendamento = await this.prisma.agendamento.findFirst({
+      where: { recursoId, dataHoraInicio },
+    });
+    return agendamento ? toDomain(agendamento) : null;
+  }
+
+  async findByPacienteAndDataHoraInicio(pacienteId: string, dataHoraInicio: Date): Promise<Agendamento | null> {
+    const agendamento = await this.prisma.agendamento.findFirst({
+      where: { pacienteId, dataHoraInicio },
+    });
+    return agendamento ? toDomain(agendamento) : null;
+  }
+
   async findByRecursoAndDateRange(recursoId: string, dataInicio: Date, dataFim: Date): Promise<Agendamento[]> {
     const agendamentos = await this.prisma.agendamento.findMany({
       where: {

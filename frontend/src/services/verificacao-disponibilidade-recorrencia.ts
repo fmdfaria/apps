@@ -24,6 +24,7 @@ export interface ConflitosRecorrencia {
 // Função para verificar se um horário está ocupado por agendamento
 const verificarHorarioOcupado = (
   profissionalId: string,
+  recursoId: string,
   data: Date,
   horario: string,
   agendamentos: any[]
@@ -35,7 +36,9 @@ const verificarHorarioOcupado = (
 
   // Verificar se existe agendamento no mesmo horário
   const agendamentoConflitante = agendamentos.find(agendamento => {
-    if (agendamento.profissionalId !== profissionalId) {
+    const mesmoProfissional = agendamento.profissionalId === profissionalId;
+    const mesmoRecurso = agendamento.recursoId === recursoId;
+    if (!mesmoProfissional && !mesmoRecurso) {
       return false;
     }
     
@@ -143,6 +146,7 @@ const verificarDisponibilidadeHorario = (
 // Função para verificar status completo
 const verificarStatusCompleto = (
   profissionalId: string,
+  recursoId: string,
   data: Date,
   horario: string,
   disponibilidades: any[],
@@ -152,7 +156,7 @@ const verificarStatusCompleto = (
   const statusDisponibilidade = verificarDisponibilidadeHorario(profissionalId, data, horario, disponibilidades);
   
   // 2. Depois verificar se está ocupado
-  const { ocupado, agendamentoConflitante } = verificarHorarioOcupado(profissionalId, data, horario, agendamentos);
+  const { ocupado, agendamentoConflitante } = verificarHorarioOcupado(profissionalId, recursoId, data, horario, agendamentos);
   
   switch (statusDisponibilidade) {
     case 'presencial':
@@ -252,10 +256,18 @@ export const verificarConflitosRecorrencia = async (
     );
 
     // Carregar dados necessários
-    const [disponibilidades, agendamentos] = await Promise.all([
+    const [disponibilidades, agendamentosProf, agendamentosRecurso] = await Promise.all([
       getAllDisponibilidades(),
-      getAgendamentos({ profissionalId })
+      getAgendamentos({ profissionalId }),
+      getAgendamentos({ recursoId })
     ]);
+
+    // Unificar agendamentos por profissional e por recurso (evitar duplicados por id)
+    const mergeMap = new Map<string, any>();
+    for (const ag of [...agendamentosProf.data, ...agendamentosRecurso.data]) {
+      if (!mergeMap.has(ag.id)) mergeMap.set(ag.id, ag);
+    }
+    const agendamentos = Array.from(mergeMap.values());
 
     const datasComConflito: ConflitosRecorrencia['datasComConflito'] = [];
 
@@ -263,6 +275,7 @@ export const verificarConflitosRecorrencia = async (
     for (const data of todasDatas) {
       const verificacao = verificarStatusCompleto(
         profissionalId,
+        recursoId,
         data,
         horario,
         disponibilidades,
@@ -309,6 +322,89 @@ export const verificarConflitosRecorrencia = async (
 
   } catch (error) {
     console.error('Erro ao verificar conflitos de recorrência:', error);
+    return {
+      datasComConflito: [],
+      totalConflitos: 0,
+      totalDatas: 0
+    };
+  }
+};
+
+// Verificar conflitos para uma lista explícita de datas/horas (ISO, com ou sem offset)
+export const verificarConflitosParaDatas = async (
+  profissionalId: string,
+  recursoId: string,
+  datasHorasISO: string[],
+  pacienteId?: string
+): Promise<ConflitosRecorrencia> => {
+  try {
+    const [disponibilidades, agendamentosProf, agendamentosRecurso, agendamentosPaciente] = await Promise.all([
+      getAllDisponibilidades(),
+      getAgendamentos({ profissionalId }),
+      getAgendamentos({ recursoId }),
+      pacienteId ? getAgendamentos({ pacienteId }) : Promise.resolve({ data: [], pagination: { page: 1, limit: 0, total: 0, totalPages: 1 } })
+    ]);
+
+    const mergeMap = new Map<string, any>();
+    for (const ag of [...agendamentosProf.data, ...agendamentosRecurso.data, ...agendamentosPaciente.data]) {
+      if (!mergeMap.has(ag.id)) mergeMap.set(ag.id, ag);
+    }
+    const agendamentos = Array.from(mergeMap.values());
+
+    const datasComConflito: ConflitosRecorrencia['datasComConflito'] = [];
+
+    for (const iso of datasHorasISO) {
+      // Separar data e hora respeitando local
+      const d = new Date(iso);
+      const data = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const horario = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+
+      const verificacao = verificarStatusCompleto(
+        profissionalId,
+        recursoId,
+        data,
+        horario,
+        disponibilidades,
+        agendamentos
+      );
+
+      if (verificacao.status === 'ocupado' || verificacao.status === 'indisponivel') {
+        const dataFormatada = data.toLocaleDateString('pt-BR', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+
+        const conflito: any = {
+          data: iso.split('T')[0],
+          dataFormatada,
+          hora: horario,
+          motivo: verificacao.motivo || 'Conflito não especificado',
+          tipo: verificacao.status === 'ocupado' ? 'ocupado' : 'indisponivel'
+        };
+
+        if (verificacao.agendamentoConflitante) {
+          conflito.agendamentoConflitante = {
+            id: verificacao.agendamentoConflitante.id,
+            pacienteNome: verificacao.agendamentoConflitante.pacienteNome || 'Paciente não informado',
+            profissionalNome: verificacao.agendamentoConflitante.profissionalNome || 'Profissional não informado',
+            servicoNome: verificacao.agendamentoConflitante.servicoNome || 'Serviço não informado',
+            dataHoraInicio: verificacao.agendamentoConflitante.dataHoraInicio
+          };
+        }
+
+        datasComConflito.push(conflito);
+      }
+    }
+
+    return {
+      datasComConflito,
+      totalConflitos: datasComConflito.length,
+      totalDatas: datasHorasISO.length
+    };
+  } catch (error) {
+    console.error('Erro ao verificar conflitos para datas explícitas:', error);
     return {
       datasComConflito: [],
       totalConflitos: 0,

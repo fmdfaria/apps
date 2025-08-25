@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Calendar, Clock, Save, X, ArrowLeft, Repeat, AlertTriangle, User, FileText, CheckCircle, XCircle, UserCheck, CreditCard, Monitor, MapPin } from 'lucide-react';
 import { OPCOES_HORARIOS } from '../utils/agendamento-constants';
 import { useVerificacaoAgendamento } from '@/hooks/useVerificacaoAgendamento';
-import { verificarConflitosRecorrencia, type ConflitosRecorrencia } from '@/services/verificacao-disponibilidade-recorrencia';
+import { verificarConflitosRecorrencia, verificarConflitosParaDatas, type ConflitosRecorrencia } from '@/services/verificacao-disponibilidade-recorrencia';
 import ConfirmationDialog from '@/components/ui/confirmation-dialog';
 import type { Agendamento } from '@/types/Agendamento';
 import { AppToast } from '@/services/toast';
@@ -51,12 +51,13 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen && agendamento) {
-      // Extract date and time from agendamento
-      const [datePart, timePart] = agendamento.dataHoraInicio.split('T');
-      const [hora, minuto] = timePart.split(':');
-      
-      setDataAgendamento(datePart);
-      setHoraAgendamento(`${hora}:${minuto}`);
+      // Extrair data e hora considerando o fuso local (sem converter para UTC)
+      const dt = new Date(agendamento.dataHoraInicio);
+      const pad2 = (n: number) => n.toString().padStart(2, '0');
+      const localDate = `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
+      const localTime = `${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
+      setDataAgendamento(localDate);
+      setHoraAgendamento(localTime);
       setTipoEdicao('individual');
       
       // Verificar se o agendamento já passou (data e hora completa)
@@ -95,8 +96,11 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
           status: 'AGENDADO'
         }
       });
-      
-      const agendamentos = response.data.filter((ag: Agendamento) => 
+      // Suporta formato paginado (result.data) e formato antigo (array direto)
+      const result = response.data as any;
+      const lista: Agendamento[] = Array.isArray(result) ? result : (result?.data ?? []);
+
+      const agendamentos = lista.filter((ag: Agendamento) => 
         ag.id !== agendamento.id && 
         new Date(ag.dataHoraInicio) > new Date(agendamento.dataHoraInicio)
       );
@@ -139,7 +143,9 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
     // Check if the selected date is in the past
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const selectedDate = new Date(dataAgendamento);
+    // Parse manual da data YYYY-MM-DD para evitar interpretação UTC
+    const [selYear, selMonth, selDay] = dataAgendamento.split('-').map(Number);
+    const selectedDate = new Date(selYear, selMonth - 1, selDay, 0, 0, 0, 0);
     
     if (selectedDate < today) {
       AppToast.error('Data inválida', {
@@ -151,10 +157,48 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
     setSaving(true);
     
     try {
-      // Build the new datetime string
-      const novaDataHora = `${dataAgendamento}T${horaAgendamento}:00.000Z`;
+      // Helpers para construir string com offset local (ex: -03:00)
+      const pad2 = (n: number) => n.toString().padStart(2, '0');
+      const buildOffsetFromDate = (d: Date) => {
+        const year = d.getFullYear();
+        const month = pad2(d.getMonth() + 1);
+        const day = pad2(d.getDate());
+        const hour = pad2(d.getHours());
+        const minute = pad2(d.getMinutes());
+        const offsetMinutes = -d.getTimezoneOffset();
+        const sign = offsetMinutes >= 0 ? '+' : '-';
+        const abs = Math.abs(offsetMinutes);
+        const offHH = pad2(Math.floor(abs / 60));
+        const offMM = pad2(abs % 60);
+        return `${year}-${month}-${day}T${hour}:${minute}:00.000${sign}${offHH}:${offMM}`;
+      };
+      const buildOffsetFromParts = (dateStr: string, timeStr: string) => {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const [hh, mm] = timeStr.split(':').map(Number);
+        const localDate = new Date(y, m - 1, d, hh, mm, 0, 0);
+        return buildOffsetFromDate(localDate);
+      };
+
+      // Montar a nova data/hora preservando o horário local com offset
+      const novaDataHora = buildOffsetFromParts(dataAgendamento, horaAgendamento);
       
       if (tipoEdicao === 'individual') {
+        // Verificar conflito para edição individual
+        const conflitosInd = await verificarConflitosParaDatas(
+          agendamento.profissionalId,
+          agendamento.recursoId,
+          [novaDataHora],
+          agendamento.pacienteId
+        );
+        if (conflitosInd.totalConflitos > 0) {
+          const c = conflitosInd.datasComConflito[0];
+          AppToast.error('Conflito no agendamento', {
+            description: `${c.dataFormatada} às ${c.hora} — ${c.motivo}.`
+          });
+          setSaving(false);
+          return;
+        }
+
         // Editar apenas o agendamento atual
         await api.put(`/agendamentos/${agendamento.id}`, {
           dataHoraInicio: novaDataHora,
@@ -176,24 +220,31 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
         const novaData = new Date(novaDataHora);
         const diferencaDias = Math.floor((novaData.getTime() - dataOriginal.getTime()) / (1000 * 60 * 60 * 24));
         
-        // Gerar recorrência simulada para verificação
-        const tipoRecorrencia = agendamentosRelacionados.length > 0 ? 'semanal' : 'semanal'; // Assumir semanal por padrão
-        const recorrenciaSimulada = {
-          tipo: tipoRecorrencia as 'semanal' | 'quinzenal' | 'mensal',
-          repeticoes: agendamentosParaEditar.length
-        };
-
         try {
-          // Verificar conflitos para a série
-          const conflitos = await verificarConflitosRecorrencia(
+          // Construir as datas alvo exatas da série mantendo offsets locais
+          const datasAlvoISO = agendamentosParaEditar.map((_, index) => {
+            const origem = index === 0 ? agendamento : agendamentosRelacionados[index - 1];
+            const dataOrigem = new Date(origem.dataHoraInicio);
+            const destino = new Date(dataOrigem);
+            destino.setDate(destino.getDate() + diferencaDias);
+            destino.setHours(novaData.getHours(), novaData.getMinutes(), 0, 0);
+            return buildOffsetFromDate(destino);
+          });
+
+          // Verificar conflitos para todas as datas alvo da série
+          const conflitos = await verificarConflitosParaDatas(
             agendamento.profissionalId,
             agendamento.recursoId,
-            novaDataHora,
-            recorrenciaSimulada
+            datasAlvoISO,
+            agendamento.pacienteId
           );
 
           if (conflitos.totalConflitos > 0) {
-            // Se há conflitos, mostrar modal e BLOQUEAR edição
+            // Se há conflitos, mostrar toast resumido e modal detalhado; BLOQUEAR edição
+            const primeiro = conflitos.datasComConflito[0];
+            AppToast.error('Conflitos na série de agendamentos', {
+              description: `${conflitos.totalConflitos} conflito(s). Ex: ${primeiro.dataFormatada} às ${primeiro.hora} — ${primeiro.motivo}.`
+            });
             setConflitosRecorrencia(conflitos);
             setShowConflictModal(true);
             setSaving(false);
@@ -219,7 +270,8 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
           novaDataAlvo.setHours(novaData.getHours(), novaData.getMinutes(), 0, 0);
           
           return api.put(`/agendamentos/${agendamentoId}`, {
-            dataHoraInicio: novaDataAlvo.toISOString(),
+            // Enviar com offset local em vez de UTC (Z)
+            dataHoraInicio: buildOffsetFromDate(novaDataAlvo),
             pacienteId: agendamentoAlvo.pacienteId,
             profissionalId: agendamentoAlvo.profissionalId,
             servicoId: agendamentoAlvo.servicoId,
