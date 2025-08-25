@@ -213,6 +213,11 @@ export const CalendarioPage = () => {
         getAllDisponibilidades()
       ]);
       
+      console.log('🔍 CalendarioPage - Agendamentos recebidos da API:', {
+        total: agendamentosData.data.length,
+        pagination: agendamentosData.pagination,
+        agendamentos: agendamentosData.data
+      });
       setAgendamentos(agendamentosData.data);
       setProfissionais(profissionaisData);
       setConvenios(conveniosData);
@@ -494,6 +499,8 @@ export const CalendarioPage = () => {
       };
     });
 
+  console.log('🔍 CalendarioPage - Agendamentos após filtro para o grid:', calendarAgendamentos.length);
+  
   const handleVerDetalhes = (agendamento: CalendarAgendamento) => {
     const agendamentoCompleto = agendamentos.find(a => a.id === agendamento.id);
     if (agendamentoCompleto) {

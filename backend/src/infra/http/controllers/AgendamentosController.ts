@@ -48,7 +48,7 @@ export class AgendamentosController {
     const querySchema = z.object({
       // Paginação
       page: z.coerce.number().int().min(1).optional().default(1),
-      limit: z.coerce.number().int().min(1).max(100).optional().default(10),
+      limit: z.coerce.number().int().min(1).max(100).optional(),
       orderBy: z.string().optional().default('dataHoraInicio'),
       orderDirection: z.enum(['asc', 'desc']).optional().default('asc'),
       
