@@ -89,6 +89,40 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
       }
     }
 
+    // Busca textual - busca por qualquer campo relacionado
+    if (filters?.search) {
+      const searchTerm = filters.search;
+      whereConditions.OR = [
+        { paciente: { nomeCompleto: { contains: searchTerm, mode: 'insensitive' } } },
+        { profissional: { nome: { contains: searchTerm, mode: 'insensitive' } } },
+        { servico: { nome: { contains: searchTerm, mode: 'insensitive' } } },
+        { convenio: { nome: { contains: searchTerm, mode: 'insensitive' } } },
+        { recurso: { nome: { contains: searchTerm, mode: 'insensitive' } } },
+        { status: { contains: searchTerm, mode: 'insensitive' } },
+        { tipoAtendimento: { contains: searchTerm, mode: 'insensitive' } },
+      ];
+    }
+
+    // Filtros específicos por nome (usam AND com outros filtros, mas OR entre si se múltiplos)
+    const nameFilters = [];
+    if (filters?.pacienteNome) {
+      nameFilters.push({ paciente: { nomeCompleto: { contains: filters.pacienteNome, mode: 'insensitive' } } });
+    }
+    if (filters?.profissionalNome) {
+      nameFilters.push({ profissional: { nome: { contains: filters.profissionalNome, mode: 'insensitive' } } });
+    }
+    if (filters?.servicoNome) {
+      nameFilters.push({ servico: { nome: { contains: filters.servicoNome, mode: 'insensitive' } } });
+    }
+    if (filters?.convenioNome) {
+      nameFilters.push({ convenio: { nome: { contains: filters.convenioNome, mode: 'insensitive' } } });
+    }
+    
+    // Se temos filtros de nome específicos, sobrescrevem a busca geral
+    if (nameFilters.length > 0) {
+      whereConditions.OR = nameFilters;
+    }
+
     // Executar consultas em paralelo
     const [agendamentos, total] = await Promise.all([
       this.prisma.agendamento.findMany({

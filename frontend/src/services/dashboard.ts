@@ -44,33 +44,35 @@ export interface DashboardData {
 }
 
 /**
- * Busca todas as estatísticas do dashboard usando a API /agendamentos/form-data
- * que retorna dados completos de pacientes, profissionais, agendamentos e ocupações
+ * Busca todas as estatísticas do dashboard usando as APIs individuais
  */
 export const getDashboardStats = async (): Promise<DashboardData> => {
   try {
-    // Usar a API existente que já retorna dados completos
+    // Buscar dados de diferentes APIs
     const hoje = new Date().toISOString().split('T')[0];
-    const { data: formData } = await api.get(`/agendamentos/form-data?data=${hoje}`);
+    const proximosSete = new Date();
+    proximosSete.setDate(proximosSete.getDate() + 7);
     
-    const { 
-      pacientes, 
-      profissionais, 
-      agendamentos, 
-      recursos,
-      ocupacoesSemana 
-    }: {
-      pacientes: Paciente[];
-      profissionais: Profissional[];
-      agendamentos: Agendamento[];
-      recursos: Recurso[];
-      ocupacoesSemana: Array<{
-        profissionalId: string;
-        ocupados: number;
-        total: number;
-        percentual: number;
-      }>;
-    } = formData;
+    const [
+      { data: pacientesResult },
+      { data: profissionaisResult }, 
+      agendamentosResult,
+      { data: formData }
+    ] = await Promise.all([
+      api.get('/pacientes'),
+      api.get('/profissionais'),
+      // Usar nova API paginada para buscar agendamentos dos próximos 7 dias
+      import('./agendamentos').then(service => service.getAgendamentos({
+        dataInicio: hoje,
+        dataFim: proximosSete.toISOString().split('T')[0]
+      })),
+      api.get(`/agendamentos/form-data?data=${hoje}`)
+    ]);
+
+    const pacientes = pacientesResult;
+    const profissionais = profissionaisResult;
+    const agendamentos = agendamentosResult.data;
+    const ocupacoesSemana = formData.ocupacoesSemana || [];
 
     // Calcular estatísticas gerais
     const agora = new Date();
@@ -78,8 +80,8 @@ export const getDashboardStats = async (): Promise<DashboardData> => {
     const fimHoje = new Date(inicioHoje);
     fimHoje.setDate(fimHoje.getDate() + 1);
     
-    const proximosSete = new Date(inicioHoje);
-    proximosSete.setDate(proximosSete.getDate() + 7);
+    const proximosSeteDate = new Date(inicioHoje);
+    proximosSeteDate.setDate(proximosSeteDate.getDate() + 7);
 
     // Filtrar agendamentos de hoje
     const agendamentosHoje = agendamentos.filter(ag => {
@@ -90,7 +92,7 @@ export const getDashboardStats = async (): Promise<DashboardData> => {
     // Filtrar agendamentos dos próximos 7 dias
     const agendamentosProximosSete = agendamentos.filter(ag => {
       const dataAg = new Date(ag.dataHoraInicio);
-      return dataAg >= inicioHoje && dataAg < proximosSete;
+      return dataAg >= inicioHoje && dataAg < proximosSeteDate;
     });
 
     // Calcular média de ocupação dos profissionais
@@ -152,11 +154,11 @@ export const getDashboardStats = async (): Promise<DashboardData> => {
             action = 'Agendamento liberado';
             status = 'info';
             break;
-          case 'EM_ATENDIMENTO':
+          case 'ATENDIDO':
             action = 'Consulta iniciada';
             status = 'info';
             break;
-          case 'CONCLUIDO':
+          case 'FINALIZADO':
             action = 'Consulta concluída';
             status = 'success';
             break;

@@ -351,6 +351,13 @@ export interface IAgendamentoFilters {
   dataInicio?: string;
   dataFim?: string;
   tipoAtendimento?: string;
+  
+  // Busca textual
+  search?: string;
+  pacienteNome?: string;
+  profissionalNome?: string;
+  servicoNome?: string;
+  convenioNome?: string;
 }
 
 export const getAgendamentos = async (filtros?: IAgendamentoFilters): Promise<IPaginatedAgendamentos> => {
@@ -373,6 +380,13 @@ export const getAgendamentos = async (filtros?: IAgendamentoFilters): Promise<IP
       if (filtros.dataInicio) params.append('dataInicio', filtros.dataInicio);
       if (filtros.dataFim) params.append('dataFim', filtros.dataFim);
       if (filtros.tipoAtendimento) params.append('tipoAtendimento', filtros.tipoAtendimento);
+      
+      // Busca textual
+      if (filtros.search) params.append('search', filtros.search);
+      if (filtros.pacienteNome) params.append('pacienteNome', filtros.pacienteNome);
+      if (filtros.profissionalNome) params.append('profissionalNome', filtros.profissionalNome);
+      if (filtros.servicoNome) params.append('servicoNome', filtros.servicoNome);
+      if (filtros.convenioNome) params.append('convenioNome', filtros.convenioNome);
     }
     
     const url = `/agendamentos${params.toString() ? `?${params.toString()}` : ''}`;
@@ -628,8 +642,8 @@ export const getFechamentosConvenios = async (filtros?: {
   convenio?: string;
 }): Promise<FechamentoConvenio[]> => {
   try {
-    // Buscar agendamentos finalizados (todos - sem paginação para fechamento)
-    const result = await getAgendamentos({ status: 'FINALIZADO', limit: 1000 });
+    // Buscar agendamentos finalizados (limitado pela API)
+    const result = await getAgendamentos({ status: 'FINALIZADO' });
     const agendamentos = result.data;
     
     // Filtrar por parâmetros adicionais se fornecidos
@@ -730,8 +744,8 @@ export const getFechamentosParticulares = async (filtros?: {
   paciente?: string;
 }): Promise<FechamentoParticular[]> => {
   try {
-    // Buscar agendamentos finalizados (todos - sem paginação para fechamento)
-    const result = await getAgendamentos({ status: 'FINALIZADO', limit: 1000 });
+    // Buscar agendamentos finalizados (limitado pela API)
+    const result = await getAgendamentos({ status: 'FINALIZADO' });
     const agendamentos = result.data;
     
     // Filtrar apenas particulares

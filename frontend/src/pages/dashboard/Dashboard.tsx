@@ -32,34 +32,18 @@ export const Dashboard = () => {
       try {
         setLoading(true);
         setError(null);
-        const [data, ocupacao, pacientes, agendamentos] = await Promise.all([
+        const [data, ocupacao, pacientes, agendamentosResult] = await Promise.all([
           getDashboardStats(),
           getDadosOcupacao(),
           getPacientes(),
-          getAgendamentos()
+          getAgendamentos() // Buscar agendamentos recentes (limitado pela API)
         ]);
+        
+        const agendamentos = agendamentosResult.data;
         setDashboardData(data);
         setOcupacaoData(ocupacao);
-        // Calcular stats de Pedidos Médicos (vencendo em 30 dias e vencidos)
-        const pedidosValidos = pacientes.filter((p: any) => p.dataPedidoMedico);
-        let total = 0, vencendo = 0, vencidos = 0, vigentes = 0;
-        const hoje = new Date();
-        for (const p of pedidosValidos) {
-          let dateToProcess = p.dataPedidoMedico as string;
-          if (/^\d{4}-\d{2}-\d{2}$/.test(dateToProcess)) {
-            dateToProcess = dateToProcess + 'T00:00:00Z';
-          }
-          const dataPedido = new Date(dateToProcess);
-          if (isNaN(dataPedido.getTime())) continue;
-          const dataVencimento = new Date(dataPedido);
-          dataVencimento.setUTCMonth(dataVencimento.getUTCMonth() + 6);
-          const diasParaVencer = Math.ceil((dataVencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
-          total += 1;
-          if (diasParaVencer < 0) vencidos += 1;
-          else if (diasParaVencer <= 30) vencendo += 1;
-          else vigentes += 1;
-        }
-        setPedidosStats({ total, vencendo, vencidos, vigentes });
+        // Pedidos Médicos agora estão em 'pacientes_pedidos'. Mantemos zero até endpoint agregado ser usado.
+        setPedidosStats({ total: 0, vencendo: 0, vencidos: 0, vigentes: 0 });
 
         // Calcular agendamentos reais (hoje e próximos 7 dias)
         const inicioHoje = new Date();

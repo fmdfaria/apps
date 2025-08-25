@@ -62,6 +62,13 @@ export class AgendamentosController {
       dataInicio: z.coerce.date().optional(),
       dataFim: z.coerce.date().optional(),
       tipoAtendimento: z.string().optional(),
+      
+      // Busca textual
+      search: z.string().optional(),
+      pacienteNome: z.string().optional(),
+      profissionalNome: z.string().optional(),
+      servicoNome: z.string().optional(),
+      convenioNome: z.string().optional(),
     });
     
     const filters = querySchema.parse(request.query);

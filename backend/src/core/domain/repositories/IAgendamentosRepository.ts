@@ -48,6 +48,13 @@ export interface IAgendamentoFilters {
   dataInicio?: Date;
   dataFim?: Date;
   tipoAtendimento?: string;
+  
+  // Busca textual
+  search?: string;
+  pacienteNome?: string;
+  profissionalNome?: string;
+  servicoNome?: string;
+  convenioNome?: string;
 }
 
 export interface IPaginatedResponse<T> {

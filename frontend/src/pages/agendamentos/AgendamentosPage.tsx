@@ -48,6 +48,7 @@ export const AgendamentosPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
+  const [buscaDebounced, setBuscaDebounced] = useState('');
   const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
   const [filtroStatus, setFiltroStatus] = useState<StatusAgendamento | 'TODOS'>('TODOS');
   
@@ -113,17 +114,25 @@ export const AgendamentosPage = () => {
     setInitialized(true);
   }, []);
 
+  // Debounce da busca para evitar muitas chamadas à API
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setBuscaDebounced(busca);
+    }, 500); // 500ms de debounce
+    
+    return () => clearTimeout(timer);
+  }, [busca]);
+  
   // Recarregamento quando dependências mudam (mas apenas após inicialização)
   useEffect(() => {
     if (initialized) {
       carregarAgendamentos();
     }
-  }, [paginaAtual, itensPorPagina, filtroStatus, filtros]);
+  }, [paginaAtual, itensPorPagina, filtroStatus, filtros, buscaDebounced]);
 
   useEffect(() => {
     setPaginaAtual(1);
-    // Para busca textual, não recarregar da API, apenas resetar página
-  }, [busca]);
+  }, [buscaDebounced, filtroStatus, filtros]);
 
   const checkPermissions = async () => {
     try {
@@ -189,6 +198,11 @@ export const AgendamentosPage = () => {
       // Aplicar filtro de status se não for 'TODOS'
       if (filtroStatus !== 'TODOS') {
         filtrosAPI.status = filtroStatus;
+      }
+
+      // Aplicar busca textual (usando versão debounced)
+      if (buscaDebounced) {
+        filtrosAPI.search = buscaDebounced;
       }
 
       // Aplicar outros filtros
@@ -373,7 +387,7 @@ export const AgendamentosPage = () => {
               Nenhum agendamento encontrado
             </h3>
             <p className="text-sm">
-              {busca || temFiltrosAtivos || filtroStatus !== 'TODOS' 
+              {buscaDebounced || temFiltrosAtivos || filtroStatus !== 'TODOS' 
                 ? 'Tente alterar os filtros de busca.' 
                 : 'Comece criando um novo agendamento.'
               }
@@ -563,7 +577,7 @@ export const AgendamentosPage = () => {
                     <span className="text-3xl">📅</span>
                   </div>
                   <p className="text-gray-500 font-medium">
-                    {busca || temFiltrosAtivos || filtroStatus !== 'TODOS' 
+                    {buscaDebounced || temFiltrosAtivos || filtroStatus !== 'TODOS' 
                       ? 'Nenhum resultado encontrado' 
                       : 'Nenhum agendamento cadastrado'
                     }
@@ -987,7 +1001,7 @@ export const AgendamentosPage = () => {
       )}
 
       {/* Paginação */}
-      {(busca ? agendamentosFiltrados.length : paginatedData.pagination.total) > 0 && (
+      {paginatedData.pagination.total > 0 && (
         <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-600 flex items-center gap-2">
@@ -1011,7 +1025,7 @@ export const AgendamentosPage = () => {
         
         <div className="text-sm text-gray-600 flex items-center gap-2">
           <span className="text-lg">📈</span>
-          Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, busca ? agendamentosFiltrados.length : paginatedData.pagination.total)} de {busca ? agendamentosFiltrados.length : paginatedData.pagination.total} resultados
+          Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, paginatedData.pagination.total)} de {paginatedData.pagination.total} resultados
         </div>
 
         <div className="flex gap-2">
