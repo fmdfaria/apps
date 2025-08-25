@@ -210,7 +210,7 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
       data: agendamentos.map(toDomain),
       pagination: {
         page: limit ? page : 1,
-        limit: limit || total,
+        limit: limit || null, // Retorna null quando não há limite especificado
         total,
         totalPages,
       },
