@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
+import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import { AppToast } from '@/services/toast';
 import { Plus, Edit, Trash2, FileText, Calendar } from 'lucide-react';
 import type { Paciente } from '@/types/Paciente';
@@ -45,6 +46,9 @@ export default function PedidosMedicosModal({
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<PacientePedido | null>(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [pedidoParaExcluir, setPedidoParaExcluir] = useState<PacientePedido | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [form, setForm] = useState<FormPedido>({
     dataPedidoMedico: '',
     crm: '',
@@ -145,19 +149,32 @@ export default function PedidosMedicosModal({
     }
   };
 
-  const handleDelete = async (pedido: PacientePedido) => {
-    if (!paciente) return;
-    
-    if (!confirm(`Deseja excluir este pedido médico?`)) return;
+  const abrirModalExclusao = (pedido: PacientePedido) => {
+    setPedidoParaExcluir(pedido);
+    setShowDeleteModal(true);
+  };
 
+  const confirmarExclusao = async () => {
+    if (!paciente || !pedidoParaExcluir) return;
+
+    setDeleteLoading(true);
     try {
-      await deletePacientePedido(paciente.id, pedido.id);
+      await deletePacientePedido(paciente.id, pedidoParaExcluir.id);
       AppToast.success('Pedido médico excluído com sucesso!');
       await fetchPedidos();
+      setShowDeleteModal(false);
+      setPedidoParaExcluir(null);
     } catch (error: any) {
       console.error('Erro ao excluir pedido:', error);
       AppToast.error('Erro ao excluir pedido médico');
+    } finally {
+      setDeleteLoading(false);
     }
+  };
+
+  const cancelarExclusao = () => {
+    setShowDeleteModal(false);
+    setPedidoParaExcluir(null);
   };
 
   const handleFormChange = (updates: Partial<FormPedido>) => {
@@ -173,13 +190,14 @@ export default function PedidosMedicosModal({
   if (!paciente) return null;
 
   return (
+    <>
     <Dialog open={showModal} onOpenChange={fecharModal}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="bg-gradient-to-r from-teal-50 to-emerald-50 -mx-6 -mt-6 px-6 pt-6 pb-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
               <span className="text-2xl">📋</span>
-              {paciente.nomeCompleto}
+              Pedidos Médicos - {paciente.nomeCompleto}
             </DialogTitle>
             {!showForm && (
               <Button 
@@ -264,7 +282,7 @@ export default function PedidosMedicosModal({
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleDelete(pedido)}
+                                onClick={() => abrirModalExclusao(pedido)}
                                 className="h-8 w-8 p-0 group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform mr-3"
                                 title="Excluir"
                               >
@@ -453,5 +471,44 @@ export default function PedidosMedicosModal({
         )}
       </DialogContent>
     </Dialog>
+
+    {/* Modal de Confirmação de Exclusão */}
+    <ConfirmacaoModal
+      open={showDeleteModal}
+      onClose={cancelarExclusao}
+      onConfirm={confirmarExclusao}
+      onCancel={cancelarExclusao}
+      title="Excluir Pedido Médico"
+      description={
+        <div className="space-y-3">
+          <p>Você tem certeza que deseja excluir este pedido médico?</p>
+          {pedidoParaExcluir && (
+            <div className="bg-gray-50 p-3 rounded-lg border">
+              <p className="font-medium text-gray-900">
+                {pedidoParaExcluir.servico?.nome || 'Serviço não informado'}
+              </p>
+              {pedidoParaExcluir.dataPedidoMedico && (
+                <p className="text-sm text-gray-600">
+                  Data: {new Date(pedidoParaExcluir.dataPedidoMedico).toLocaleDateString('pt-BR')}
+                </p>
+              )}
+              {pedidoParaExcluir.crm && (
+                <p className="text-sm text-gray-600">CRM: {pedidoParaExcluir.crm}</p>
+              )}
+            </div>
+          )}
+          <p className="text-sm text-red-600 font-medium">
+            ⚠️ Esta ação não pode ser desfeita.
+          </p>
+        </div>
+      }
+      confirmText="Sim, Excluir"
+      cancelText="Cancelar"
+      variant="danger"
+      isLoading={deleteLoading}
+      loadingText="Excluindo..."
+      icon={<Trash2 className="w-6 h-6" />}
+    />
+    </>
   );
 }

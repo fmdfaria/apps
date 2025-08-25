@@ -345,7 +345,7 @@ export const CalendarioProfissionalPage = () => {
         getAllDisponibilidades()
       ]);
       
-      setAgendamentos(agendamentosData);
+      setAgendamentos(agendamentosData.data);
       setRecursos(recursosData);
       setDisponibilidades(disponibilidadesData);
     } catch (error) {
