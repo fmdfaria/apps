@@ -71,7 +71,7 @@ export const PendenciaPage = () => {
     if (initialized) {
       carregarAgendamentos();
     }
-  }, [paginaAtual, itensPorPagina, filtros, buscaDebounced, initialized]);
+  }, [paginaAtual, itensPorPagina, filtros, buscaDebounced]);
 
   // Debounce da busca para evitar muitas chamadas à API
   useEffect(() => {

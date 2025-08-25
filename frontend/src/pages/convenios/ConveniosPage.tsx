@@ -207,9 +207,9 @@ export const ConveniosPage = () => {
       const response = await api.get('/users/me/permissions');
       const allowedRoutes = response.data;
       
-      // Verificar cada permissão específica para convênios
+      // Verificar cada permissão específica para acesso à página de convênios
       const canRead = allowedRoutes.some((route: any) => {
-        return route.path === '/convenios' && route.method.toLowerCase() === 'get';
+        return route.path === '/convenios-page' && route.method.toLowerCase() === 'get';
       });
       
       const canCreate = allowedRoutes.some((route: any) => {
@@ -258,7 +258,7 @@ export const ConveniosPage = () => {
         setAccessDenied(true);
         // Buscar informações da rota para mensagem mais específica
         try {
-          const info = await getRouteInfo('/convenios', 'GET');
+          const info = await getRouteInfo('/convenios-page', 'GET');
           setRouteInfo(info);
         } catch (routeError) {
           // Erro ao buscar informações da rota

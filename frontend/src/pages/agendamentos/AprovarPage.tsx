@@ -28,8 +28,10 @@ import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
 import { formatarDataHoraLocal } from '@/utils/dateUtils';
+import { useAuthStore } from '@/store/auth';
 
 export const AprovarPage = () => {
+  const { user } = useAuthStore();
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -126,7 +128,21 @@ export const AprovarPage = () => {
     setLoading(true);
     setAgendamentos([]); // Limpa agendamentos para evitar mostrar dados antigos
     try {
-      const dadosPromise = getAgendamentos({
+      // Se o usuário for PROFISSIONAL, buscar o ID do profissional
+      let profissionalIdFiltro: string | undefined;
+      if (user?.roles?.includes('PROFISSIONAL')) {
+        try {
+          const profissionalResponse = await api.get('/profissionais/me');
+          profissionalIdFiltro = profissionalResponse.data.id;
+        } catch (profissionalError) {
+          console.error('Erro ao buscar dados do profissional:', profissionalError);
+          AppToast.error('Erro ao carregar dados do profissional', {
+            description: 'Não foi possível carregar os agendamentos do profissional.'
+          });
+        }
+      }
+
+      const dados = await getAgendamentos({
         page: paginaAtual,
         limit: itensPorPagina,
         status: 'ATENDIDO',
@@ -134,12 +150,15 @@ export const AprovarPage = () => {
         ...(filtros.dataInicio ? { dataInicio: filtros.dataInicio } : {}),
         ...(filtros.dataFim ? { dataFim: filtros.dataFim } : {}),
         ...(filtros.tipoAtendimento ? { tipoAtendimento: filtros.tipoAtendimento } : {}),
+        ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
       });
-      const globalPromise = getAgendamentos({ page: 1, limit: 1, status: 'ATENDIDO' });
-      const [dados, global] = await Promise.all([dadosPromise, globalPromise]);
+
       setAgendamentos(dados.data);
-      setTotalResultados(dados.pagination.total || 0);
-      setTotalGlobal(global.pagination.total || 0);
+      const totalFiltrado = dados.pagination.total || 0;
+      setTotalResultados(totalFiltrado);
+      // Usar totais das consultas já feitas (evita chamadas extras à API)
+      // Removida a chamada extra - usar dados já calculados
+      setTotalGlobal(totalFiltrado); // Usar o mesmo total já calculado
     } catch (e: any) {
       if (e?.response?.status === 403) {
         setAccessDenied(true);

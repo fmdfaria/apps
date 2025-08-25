@@ -497,9 +497,9 @@ export const ServicosPage = () => {
       const response = await api.get('/users/me/permissions');
       const allowedRoutes = response.data;
       
-      // Verificar cada permissão específica para serviços
+      // Verificar cada permissão específica para acesso à página de serviços
       const canRead = allowedRoutes.some((route: any) => {
-        return route.path === '/servicos' && route.method.toLowerCase() === 'get';
+        return route.path === '/servicos-page' && route.method.toLowerCase() === 'get';
       });
       
       const canCreate = allowedRoutes.some((route: any) => {
@@ -554,7 +554,7 @@ export const ServicosPage = () => {
         setAccessDenied(true);
         // Buscar informações da rota para mensagem mais específica
         try {
-          const info = await getRouteInfo('/servicos', 'GET');
+          const info = await getRouteInfo('/servicos-page', 'GET');
           setRouteInfo(info);
         } catch (routeError) {
           // Erro ao buscar informações da rota

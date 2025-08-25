@@ -196,7 +196,7 @@ export const AtenderPage = () => {
         }
       }
 
-      const dadosPromise = getAgendamentos({
+      const dados = await getAgendamentos({
         page: paginaAtual,
         limit: itensPorPagina,
         status: 'LIBERADO',
@@ -206,18 +206,13 @@ export const AtenderPage = () => {
         ...(filtros.tipoAtendimento ? { tipoAtendimento: filtros.tipoAtendimento } : {}),
         ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
       });
-      const globalPromise = getAgendamentos({
-        page: 1,
-        limit: 1,
-        status: 'LIBERADO',
-        ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
-      });
-
-      const [dados, global] = await Promise.all([dadosPromise, globalPromise]);
 
       setAgendamentos(dados.data);
-      setTotalResultados(dados.pagination.total || 0);
-      setTotalGlobal(global.pagination.total || 0);
+      const totalFiltrado = dados.pagination.total || 0;
+      setTotalResultados(totalFiltrado);
+      // Usar totais das consultas já feitas (evita chamadas extras à API)
+      // Removida a chamada extra - usar dados já calculados
+      setTotalGlobal(totalFiltrado); // Usar o mesmo total já calculado
     } catch (e: any) {
       if (e?.response?.status === 403) {
         setAccessDenied(true);
