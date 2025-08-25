@@ -82,11 +82,15 @@ export class CreateAgendamentoUseCase {
       if (existeProf) {
         throw new AppError(`Conflito de agendamento para o profissional em ${dataHoraInicio.toISOString()}`);
       }
-      // Recurso (buscar todos na data e filtrar pelo recursoId)
-      const resultPaginado = await this.agendamentosRepository.findAll({ dataHoraInicio });
-      const agendamentosMesmoHorario = resultPaginado.data;
-      const conflitoRecurso = agendamentosMesmoHorario.find(a => a.recursoId === baseData.recursoId);
-      if (conflitoRecurso) {
+      // Recurso (buscar agendamentos no mesmo horário usando range de data)
+      const dataInicio = new Date(dataHoraInicio);
+      const dataFim = new Date(dataHoraInicio.getTime() + 30 * 60000); // 30 minutos depois
+      const agendamentosConflito = await this.agendamentosRepository.findByRecursoAndDateRange(
+        baseData.recursoId,
+        dataInicio,
+        dataFim
+      );
+      if (agendamentosConflito.length > 0) {
         throw new AppError(`Conflito de agendamento para o recurso em ${dataHoraInicio.toISOString()}`);
       }
     }
