@@ -3,6 +3,29 @@ import { inject, injectable } from 'tsyringe';
 import { Agendamento } from '../../../../core/domain/entities/Agendamento';
 import { IAgendamentosRepository, ICreateAgendamentoDTO, IUpdateAgendamentoDTO, IAgendamentoFilters, IPaginatedResponse } from '../../../../core/domain/repositories/IAgendamentosRepository';
 
+// Função para normalizar texto removendo acentos
+function normalizeText(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+// Função para criar padrão de busca que ignora acentos
+function createAccentInsensitivePattern(searchTerm: string): string {
+  const normalized = normalizeText(searchTerm);
+  // Criar padrão regex que aceita tanto caracteres com quanto sem acento
+  const pattern = normalized
+    .replace(/a/g, '[aáàâãä]')
+    .replace(/e/g, '[eéèêë]')
+    .replace(/i/g, '[iíìîï]')
+    .replace(/o/g, '[oóòôõö]')
+    .replace(/u/g, '[uúùûü]')
+    .replace(/c/g, '[cç]')
+    .replace(/n/g, '[nñ]');
+  return pattern;
+}
+
 function toDomain(agendamento: any): Agendamento {
   return {
     ...agendamento,
@@ -89,10 +112,15 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
       }
     }
 
-    // Busca textual - busca por qualquer campo relacionado
+    // Busca textual - busca por qualquer campo relacionado com suporte a acentos
     if (filters?.search) {
       const searchTerm = filters.search;
+      
+      // Busca dupla: termo original + termo sem acentos
+      const normalizedSearch = normalizeText(searchTerm);
+      
       whereConditions.OR = [
+        // Busca pelo termo original
         { paciente: { nomeCompleto: { contains: searchTerm, mode: 'insensitive' } } },
         { profissional: { nome: { contains: searchTerm, mode: 'insensitive' } } },
         { servico: { nome: { contains: searchTerm, mode: 'insensitive' } } },
@@ -101,21 +129,53 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
         { status: { contains: searchTerm, mode: 'insensitive' } },
         { tipoAtendimento: { contains: searchTerm, mode: 'insensitive' } },
       ];
+      
+      // Se o termo normalizado é diferente, adicionar busca também pelo normalizado
+      if (normalizedSearch !== searchTerm.toLowerCase()) {
+        whereConditions.OR = [
+          ...whereConditions.OR,
+          { paciente: { nomeCompleto: { contains: normalizedSearch, mode: 'insensitive' } } },
+          { profissional: { nome: { contains: normalizedSearch, mode: 'insensitive' } } },
+          { servico: { nome: { contains: normalizedSearch, mode: 'insensitive' } } },
+          { convenio: { nome: { contains: normalizedSearch, mode: 'insensitive' } } },
+          { recurso: { nome: { contains: normalizedSearch, mode: 'insensitive' } } },
+        ];
+      }
     }
 
     // Filtros específicos por nome (usam AND com outros filtros, mas OR entre si se múltiplos)
     const nameFilters = [];
     if (filters?.pacienteNome) {
       nameFilters.push({ paciente: { nomeCompleto: { contains: filters.pacienteNome, mode: 'insensitive' } } });
+      // Buscar também versão normalizada
+      const normalized = normalizeText(filters.pacienteNome);
+      if (normalized !== filters.pacienteNome.toLowerCase()) {
+        nameFilters.push({ paciente: { nomeCompleto: { contains: normalized, mode: 'insensitive' } } });
+      }
     }
     if (filters?.profissionalNome) {
       nameFilters.push({ profissional: { nome: { contains: filters.profissionalNome, mode: 'insensitive' } } });
+      // Buscar também versão normalizada
+      const normalized = normalizeText(filters.profissionalNome);
+      if (normalized !== filters.profissionalNome.toLowerCase()) {
+        nameFilters.push({ profissional: { nome: { contains: normalized, mode: 'insensitive' } } });
+      }
     }
     if (filters?.servicoNome) {
       nameFilters.push({ servico: { nome: { contains: filters.servicoNome, mode: 'insensitive' } } });
+      // Buscar também versão normalizada
+      const normalized = normalizeText(filters.servicoNome);
+      if (normalized !== filters.servicoNome.toLowerCase()) {
+        nameFilters.push({ servico: { nome: { contains: normalized, mode: 'insensitive' } } });
+      }
     }
     if (filters?.convenioNome) {
       nameFilters.push({ convenio: { nome: { contains: filters.convenioNome, mode: 'insensitive' } } });
+      // Buscar também versão normalizada
+      const normalized = normalizeText(filters.convenioNome);
+      if (normalized !== filters.convenioNome.toLowerCase()) {
+        nameFilters.push({ convenio: { nome: { contains: normalized, mode: 'insensitive' } } });
+      }
     }
     
     // Se temos filtros de nome específicos, sobrescrevem a busca geral

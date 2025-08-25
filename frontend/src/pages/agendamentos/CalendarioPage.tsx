@@ -37,6 +37,7 @@ import { AppToast } from '@/services/toast';
 import api from '@/services/api';
 import { getModuleTheme } from '@/types/theme';
 import { useNavigate } from 'react-router-dom';
+import { formatarDataHoraLocal } from '@/utils/dateUtils';
 
 interface CalendarProfissional {
   id: string;
@@ -458,27 +459,22 @@ export const CalendarioPage = () => {
       return agendamentoDateStr === currentDateStr;
     })
     .map(agendamento => {
-      // Parse manual sem conversão de timezone
-      const [datePart, timePart] = agendamento.dataHoraInicio.split('T');
-      const [hora, minuto] = timePart.split(':');
-      const horarioInicio = `${hora}:${minuto}`;
+      // Usar formatarDataHoraLocal para respeitar timezone
+      const { hora: horarioInicio } = formatarDataHoraLocal(agendamento.dataHoraInicio);
       
       // Calcular horário fim baseado na duração do serviço ou usar dataHoraFim se disponível
       let horarioFim: string;
       if (agendamento.dataHoraFim) {
-        const [, timePartFim] = agendamento.dataHoraFim.split('T');
-        const [horaFim, minutoFim] = timePartFim.split(':');
-        horarioFim = `${horaFim}:${minutoFim}`;
+        const { hora: horaFimFormatada } = formatarDataHoraLocal(agendamento.dataHoraFim);
+        horarioFim = horaFimFormatada;
       } else {
         // Estimar duração baseada no tipo de serviço (padrão 60 minutos)
-        const duracaoMinutos = 60;
-        const totalMinutos = parseInt(hora) * 60 + parseInt(minuto) + duracaoMinutos;
-        const horaFim = Math.floor(totalMinutos / 60);
-        const minutoFim = totalMinutos % 60;
-        horarioFim = `${horaFim.toString().padStart(2, '0')}:${minutoFim.toString().padStart(2, '0')}`;
+        const dataInicio = new Date(agendamento.dataHoraInicio);
+        const dataFim = new Date(dataInicio.getTime() + 60 * 60 * 1000); // 60 minutos
+        horarioFim = dataFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       }
 
-      // Para compatibilidade, criar um Date object (mas sem usar para exibição)
+      // Para compatibilidade, criar um Date object
       const dataHora = new Date(agendamento.dataHoraInicio);
 
       return {
