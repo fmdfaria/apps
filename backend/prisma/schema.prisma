@@ -237,7 +237,7 @@ model Agendamento {
   compareceu         Boolean?
   assinaturaPaciente Boolean?           @map("assinatura_paciente")
   assinaturaProfissional Boolean?       @map("assinatura_profissional")
-  dataAtendimento    DateTime?          @map("data_atendimento") @db.Timestamptz(6)
+  dataAtendimento    DateTime?          @map("data_atendimento") @db.Date
   recebimento        Boolean?           @default(false)
   pagamento          Boolean?           @default(false)
   // Novos campos de avaliação
