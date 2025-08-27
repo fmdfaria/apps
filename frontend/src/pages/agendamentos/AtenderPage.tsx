@@ -91,6 +91,16 @@ export const AtenderPage = () => {
     dataInicio: '',
     dataFim: ''
   });
+  // Estados separados para filtros aplicados vs editados
+  const [filtrosAplicados, setFiltrosAplicados] = useState({
+    paciente: '',
+    profissional: '',
+    servico: '',
+    convenio: '',
+    tipoAtendimento: '',
+    dataInicio: '',
+    dataFim: ''
+  });
 
   // Estado para controle de inicialização (mesmo padrão da AgendamentosPage)
   const [initialized, setInitialized] = useState(false);
@@ -108,7 +118,7 @@ export const AtenderPage = () => {
     if (initialized) {
       carregarAgendamentos();
     }
-  }, [paginaAtual, itensPorPagina, filtros, buscaDebounced]);
+  }, [paginaAtual, itensPorPagina, filtrosAplicados, buscaDebounced]);
 
   // Debounce da busca para evitar muitas chamadas à API
   useEffect(() => {
@@ -122,7 +132,7 @@ export const AtenderPage = () => {
   // Reset de página quando busca/filtros/limite mudarem
   useEffect(() => {
     setPaginaAtual(1);
-  }, [buscaDebounced, itensPorPagina, filtros]);
+  }, [buscaDebounced, itensPorPagina, filtrosAplicados]);
 
   const checkPermissions = async () => {
     try {
@@ -201,9 +211,9 @@ export const AtenderPage = () => {
         limit: itensPorPagina,
         status: 'LIBERADO',
         ...(buscaDebounced ? { search: buscaDebounced } : {}),
-        ...(filtros.dataInicio ? { dataInicio: filtros.dataInicio } : {}),
-        ...(filtros.dataFim ? { dataFim: filtros.dataFim } : {}),
-        ...(filtros.tipoAtendimento ? { tipoAtendimento: filtros.tipoAtendimento } : {}),
+        ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
+        ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
+        ...(filtrosAplicados.tipoAtendimento ? { tipoAtendimento: filtrosAplicados.tipoAtendimento } : {}),
         ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
       });
 
@@ -229,11 +239,15 @@ export const AtenderPage = () => {
 
   const updateFiltro = (campo: keyof typeof filtros, valor: string) => {
     setFiltros(prev => ({ ...prev, [campo]: valor }));
+  };
+
+  const aplicarFiltros = () => {
+    setFiltrosAplicados(filtros);
     setPaginaAtual(1);
   };
 
   const limparFiltros = () => {
-    setFiltros({
+    const filtrosLimpos = {
       paciente: '',
       profissional: '',
       servico: '',
@@ -241,11 +255,14 @@ export const AtenderPage = () => {
       tipoAtendimento: '',
       dataInicio: '',
       dataFim: ''
-    });
+    };
+    setFiltros(filtrosLimpos);
+    setFiltrosAplicados(filtrosLimpos);
     setPaginaAtual(1);
   };
 
-  const temFiltrosAtivos = Object.values(filtros).some(filtro => filtro !== '');
+  const temFiltrosAtivos = Object.values(filtrosAplicados).some(filtro => filtro !== '');
+  const temFiltrosNaoAplicados = JSON.stringify(filtros) !== JSON.stringify(filtrosAplicados);
 
   // Função para formatar data no formato brasileiro
   const formatarDataBrasil = (dataISO: string) => {
@@ -1073,6 +1090,17 @@ export const AtenderPage = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Filtros Avançados</h3>
             <div className="flex gap-2">
+              {temFiltrosNaoAplicados && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={aplicarFiltros}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Filter className="w-4 h-4 mr-1" />
+                  Aplicar Filtro
+                </Button>
+              )}
               {temFiltrosAtivos && (
                 <Button
                   variant="ghost"
@@ -1185,7 +1213,7 @@ export const AtenderPage = () => {
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex flex-wrap gap-2 items-center">
                 <span className="text-sm text-gray-600">Filtros ativos:</span>
-                {Object.entries(filtros)
+                {Object.entries(filtrosAplicados)
                   .filter(([_, valor]) => valor !== '')
                   .map(([campo, valor]) => {
                     const labels = {
@@ -1209,7 +1237,14 @@ export const AtenderPage = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => updateFiltro(campo as keyof typeof filtros, '')}
+                          onClick={() => {
+                            const novosFiltros = { ...filtros };
+                            const novosFiltrosAplicados = { ...filtrosAplicados };
+                            novosFiltros[campo as keyof typeof filtros] = '';
+                            novosFiltrosAplicados[campo as keyof typeof filtrosAplicados] = '';
+                            setFiltros(novosFiltros);
+                            setFiltrosAplicados(novosFiltrosAplicados);
+                          }}
                           className="h-4 w-4 p-0 hover:text-red-600 ml-1"
                         >
                           <X className="w-3 h-3" />

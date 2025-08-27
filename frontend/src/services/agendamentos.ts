@@ -273,7 +273,7 @@ export interface UpdateAgendamentoData {
   dataCodLiberacao?: string;
   
   // Etapa 3 - Atender
-  dataAtendimento?: string;
+  dataAtendimento?: string; // Data real do atendimento
   observacoesAtendimento?: string;
   compareceu?: boolean | null;
   assinaturaPaciente?: boolean | null;
@@ -521,7 +521,7 @@ export const liberarAgendamento = async (id: string, dadosLiberacao: {
 };
 
 export const atenderAgendamento = async (id: string, dadosAtendimento: {
-  dataHoraInicio?: string;
+  dataAtendimento?: string;
   observacoes?: string;
 }): Promise<Agendamento> => {
   // Usar a nova rota específica para atendimento

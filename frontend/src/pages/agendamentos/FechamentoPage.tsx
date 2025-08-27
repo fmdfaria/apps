@@ -79,6 +79,15 @@ export const FechamentoPage = () => {
     dataInicio: '',
     dataFim: ''
   });
+  // Estados separados para filtros aplicados vs editados
+  const [filtrosAplicados, setFiltrosAplicados] = useState({
+    convenio: '',
+    paciente: '',
+    profissional: '',
+    servico: '',
+    dataInicio: '',
+    dataFim: ''
+  });
 
   // Estado para controle de inicialização (mesmo padrão da AgendamentosPage)
   const [initialized, setInitialized] = useState(false);
@@ -97,7 +106,7 @@ export const FechamentoPage = () => {
       setPaginaAtual(1);
       carregarAgendamentos(); // Recarregar quando filtros mudarem
     }
-  }, [busca, itensPorPagina, filtros, tipoVisualizacao, visualizacao]);
+  }, [busca, itensPorPagina, filtrosAplicados, tipoVisualizacao, visualizacao]);
 
   const checkPermissions = async () => {
     try {
@@ -131,8 +140,8 @@ export const FechamentoPage = () => {
         status: 'LIBERADO', // Usando LIBERADO pois FINALIZADO não existe
         page: 1,
         // Removido limit para usar padrão da API (dados serão agrupados)
-        ...(filtros.dataInicio ? { dataInicio: filtros.dataInicio } : {}),
-        ...(filtros.dataFim ? { dataFim: filtros.dataFim } : {}),
+        ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
+        ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
       });
       
       // A nova API retorna { data: [], pagination: {} }
@@ -170,22 +179,29 @@ export const FechamentoPage = () => {
 
   const updateFiltro = (campo: keyof typeof filtros, valor: string) => {
     setFiltros(prev => ({ ...prev, [campo]: valor }));
+  };
+
+  const aplicarFiltros = () => {
+    setFiltrosAplicados(filtros);
     setPaginaAtual(1);
   };
 
   const limparFiltros = () => {
-    setFiltros({
+    const filtrosLimpos = {
       convenio: '',
       paciente: '',
       profissional: '',
       servico: '',
       dataInicio: '',
       dataFim: ''
-    });
+    };
+    setFiltros(filtrosLimpos);
+    setFiltrosAplicados(filtrosLimpos);
     setPaginaAtual(1);
   };
 
-  const temFiltrosAtivos = Object.values(filtros).some(filtro => filtro !== '');
+  const temFiltrosAtivos = Object.values(filtrosAplicados).some(filtro => filtro !== '');
+  const temFiltrosNaoAplicados = JSON.stringify(filtros) !== JSON.stringify(filtrosAplicados);
 
   // Função para formatar data no formato brasileiro
   const formatarDataBrasil = (dataISO: string) => {
@@ -255,17 +271,17 @@ export const FechamentoPage = () => {
       a.convenioNome?.toLowerCase().includes(busca.toLowerCase())
     )
     // Filtros avançados por coluna
-    .filter(a => !filtros.paciente || a.pacienteNome?.toLowerCase().includes(filtros.paciente.toLowerCase()))
-    .filter(a => !filtros.profissional || a.profissionalNome?.toLowerCase().includes(filtros.profissional.toLowerCase()))
-    .filter(a => !filtros.servico || a.servicoNome?.toLowerCase().includes(filtros.servico.toLowerCase()))
-    .filter(a => !filtros.convenio || a.convenioNome?.toLowerCase().includes(filtros.convenio.toLowerCase()))
+    .filter(a => !filtrosAplicados.paciente || a.pacienteNome?.toLowerCase().includes(filtrosAplicados.paciente.toLowerCase()))
+    .filter(a => !filtrosAplicados.profissional || a.profissionalNome?.toLowerCase().includes(filtrosAplicados.profissional.toLowerCase()))
+    .filter(a => !filtrosAplicados.servico || a.servicoNome?.toLowerCase().includes(filtrosAplicados.servico.toLowerCase()))
+    .filter(a => !filtrosAplicados.convenio || a.convenioNome?.toLowerCase().includes(filtrosAplicados.convenio.toLowerCase()))
     .filter(a => {
-      if (!filtros.dataInicio && !filtros.dataFim) return true;
+      if (!filtrosAplicados.dataInicio && !filtrosAplicados.dataFim) return true;
       
       const dataAgendamentoISO = a.dataHoraInicio.split('T')[0];
       
-      if (filtros.dataInicio && dataAgendamentoISO < filtros.dataInicio) return false;
-      if (filtros.dataFim && dataAgendamentoISO > filtros.dataFim) return false;
+      if (filtrosAplicados.dataInicio && dataAgendamentoISO < filtrosAplicados.dataInicio) return false;
+      if (filtrosAplicados.dataFim && dataAgendamentoISO > filtrosAplicados.dataFim) return false;
       
       return true;
     });
@@ -345,17 +361,17 @@ export const FechamentoPage = () => {
          a.convenioNome?.toLowerCase().includes(busca.toLowerCase())
         )
       )
-      .filter(a => !filtros.paciente || a.pacienteNome?.toLowerCase().includes(filtros.paciente.toLowerCase()))
-      .filter(a => !filtros.profissional || a.profissionalNome?.toLowerCase().includes(filtros.profissional.toLowerCase()))
-      .filter(a => !filtros.servico || a.servicoNome?.toLowerCase().includes(filtros.servico.toLowerCase()))
-      .filter(a => !filtros.convenio || a.convenioNome?.toLowerCase().includes(filtros.convenio.toLowerCase()))
+      .filter(a => !filtrosAplicados.paciente || a.pacienteNome?.toLowerCase().includes(filtrosAplicados.paciente.toLowerCase()))
+      .filter(a => !filtrosAplicados.profissional || a.profissionalNome?.toLowerCase().includes(filtrosAplicados.profissional.toLowerCase()))
+      .filter(a => !filtrosAplicados.servico || a.servicoNome?.toLowerCase().includes(filtrosAplicados.servico.toLowerCase()))
+      .filter(a => !filtrosAplicados.convenio || a.convenioNome?.toLowerCase().includes(filtrosAplicados.convenio.toLowerCase()))
       .filter(a => {
-        if (!filtros.dataInicio && !filtros.dataFim) return true;
+        if (!filtrosAplicados.dataInicio && !filtrosAplicados.dataFim) return true;
         
         const dataAgendamentoISO = a.dataHoraInicio.split('T')[0];
         
-        if (filtros.dataInicio && dataAgendamentoISO < filtros.dataInicio) return false;
-        if (filtros.dataFim && dataAgendamentoISO > filtros.dataFim) return false;
+        if (filtrosAplicados.dataInicio && dataAgendamentoISO < filtrosAplicados.dataInicio) return false;
+        if (filtrosAplicados.dataFim && dataAgendamentoISO > filtrosAplicados.dataFim) return false;
         
         return true;
       })
@@ -965,6 +981,17 @@ export const FechamentoPage = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Filtros Avançados</h3>
             <div className="flex gap-2">
+              {temFiltrosNaoAplicados && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={aplicarFiltros}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Filter className="w-4 h-4 mr-1" />
+                  Aplicar Filtro
+                </Button>
+              )}
               {temFiltrosAtivos && (
                 <Button
                   variant="ghost"
@@ -1039,7 +1066,7 @@ export const FechamentoPage = () => {
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex flex-wrap gap-2 items-center">
                 <span className="text-sm text-gray-600">Filtros ativos:</span>
-                {Object.entries(filtros)
+                {Object.entries(filtrosAplicados)
                   .filter(([_, valor]) => valor !== '')
                   .map(([campo, valor]) => {
                     const labels = {
@@ -1061,7 +1088,14 @@ export const FechamentoPage = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => updateFiltro(campo as keyof typeof filtros, '')}
+                          onClick={() => {
+                            const novosFiltros = { ...filtros };
+                            const novosFiltrosAplicados = { ...filtrosAplicados };
+                            novosFiltros[campo as keyof typeof filtros] = '';
+                            novosFiltrosAplicados[campo as keyof typeof filtrosAplicados] = '';
+                            setFiltros(novosFiltros);
+                            setFiltrosAplicados(novosFiltrosAplicados);
+                          }}
                           className="h-4 w-4 p-0 hover:text-red-600 ml-1"
                         >
                           <X className="w-3 h-3" />

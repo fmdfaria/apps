@@ -126,3 +126,9 @@ The frontend strictly follows:
 3. API calls use axios with base URL configuration
 4. Authentication state managed via Zustand store
 5. File uploads handled via Supabase integration
+
+## Agendamentos - AtenderPage
+
+- Preciso criar uma nova coluna chamada 'data_atendimento' na tabela 'agendamentos' no banco de dados, então forneça um SQL para adicionar essa coluna.
+- Essa nova coluna vai servir para registrar a 'Data do Atendimento' que está atualmente no put /agendamentos no Modal AtenderAgendamentoModal
+- Atualizar o backend e frontend para atender a funcionalidade dessa nova coluna.

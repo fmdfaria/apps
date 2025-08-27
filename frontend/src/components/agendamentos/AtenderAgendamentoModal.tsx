@@ -23,13 +23,13 @@ export const AtenderAgendamentoModal: React.FC<AtenderAgendamentoModalProps> = (
   onSuccess
 }) => {
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<{ dataHoraInicio: string; observacoes?: string}>({
-    dataHoraInicio: new Date().toISOString().split('T')[0]
+  const [formData, setFormData] = useState<{ dataAtendimento: string; observacoes?: string}>({
+    dataAtendimento: new Date().toISOString().split('T')[0]
   });
 
   const resetForm = () => {
     setFormData({
-      dataHoraInicio: new Date().toISOString().split('T')[0]
+      dataAtendimento: new Date().toISOString().split('T')[0]
     });
   };
 
@@ -39,7 +39,7 @@ export const AtenderAgendamentoModal: React.FC<AtenderAgendamentoModalProps> = (
     if (!agendamento) return;
     
     // Validações
-    if (!formData.dataHoraInicio) {
+    if (!formData.dataAtendimento) {
       AppToast.validation('Data obrigatória', 'A data de atendimento é obrigatória.');
       return;
     }
@@ -197,8 +197,8 @@ export const AtenderAgendamentoModal: React.FC<AtenderAgendamentoModalProps> = (
                   <Input
                     id="dataAtendimento"
                     type="date"
-                    value={formData.dataHoraInicio}
-                    onChange={(e) => setFormData(prev => ({ ...prev, dataHoraInicio: e.target.value }))}
+                    value={formData.dataAtendimento}
+                    onChange={(e) => setFormData(prev => ({ ...prev, dataAtendimento: e.target.value }))}
                     required
                     max={new Date().toISOString().split('T')[0]}
                     className="w-auto border-2 border-blue-200 focus:border-blue-500 bg-white"

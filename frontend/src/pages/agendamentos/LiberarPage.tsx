@@ -166,6 +166,16 @@ export const LiberarPage = () => {
     dataInicio: '',
     dataFim: ''
   });
+  // Estados separados para filtros aplicados vs editados
+  const [filtrosAplicados, setFiltrosAplicados] = useState({
+    paciente: '',
+    profissional: '',
+    servico: '',
+    convenio: '',
+    tipoAtendimento: '',
+    dataInicio: '',
+    dataFim: ''
+  });
 
   // Inicialização única (mesmo padrão da AgendamentosPage)
   useEffect(() => {
@@ -188,12 +198,12 @@ export const LiberarPage = () => {
     if (initialized) {
       carregarAgendamentos();
     }
-  }, [paginaAtual, itensPorPagina, filtros, buscaDebounced]);
+  }, [paginaAtual, itensPorPagina, filtrosAplicados, buscaDebounced]);
 
   // Reset de página quando busca/filtros/limite mudarem
   useEffect(() => {
     setPaginaAtual(1);
-  }, [buscaDebounced, itensPorPagina, filtros]);
+  }, [buscaDebounced, itensPorPagina, filtrosAplicados]);
 
 
   // Effect para processar fila quando há itens e não está processando
@@ -274,9 +284,9 @@ export const LiberarPage = () => {
           limit: itensPorPagina, 
           status: 'AGENDADO',
           ...(buscaDebounced ? { search: buscaDebounced } : {}),
-          ...(filtros.dataInicio ? { dataInicio: filtros.dataInicio } : {}),
-          ...(filtros.dataFim ? { dataFim: filtros.dataFim } : {}),
-          ...(filtros.tipoAtendimento ? { tipoAtendimento: filtros.tipoAtendimento } : {}),
+          ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
+          ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
+          ...(filtrosAplicados.tipoAtendimento ? { tipoAtendimento: filtrosAplicados.tipoAtendimento } : {}),
           ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
         }),
         getAgendamentos({ 
@@ -284,9 +294,9 @@ export const LiberarPage = () => {
           limit: itensPorPagina, 
           status: 'SOLICITADO',
           ...(buscaDebounced ? { search: buscaDebounced } : {}),
-          ...(filtros.dataInicio ? { dataInicio: filtros.dataInicio } : {}),
-          ...(filtros.dataFim ? { dataFim: filtros.dataFim } : {}),
-          ...(filtros.tipoAtendimento ? { tipoAtendimento: filtros.tipoAtendimento } : {}),
+          ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
+          ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
+          ...(filtrosAplicados.tipoAtendimento ? { tipoAtendimento: filtrosAplicados.tipoAtendimento } : {}),
           ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
         }),
       ]);
@@ -320,16 +330,24 @@ export const LiberarPage = () => {
 
   const updateFiltro = (campo: keyof typeof filtros, valor: string) => {
     setFiltros(prev => ({ ...prev, [campo]: valor }));
+  };
+
+  const aplicarFiltros = () => {
+    setFiltrosAplicados(filtros);
     setPaginaAtual(1);
   };
 
   const limparFiltro = (campo: keyof typeof filtros) => {
-    setFiltros(prev => ({ ...prev, [campo]: '' }));
-    setPaginaAtual(1);
+    const novosFiltros = { ...filtros };
+    const novosFiltrosAplicados = { ...filtrosAplicados };
+    novosFiltros[campo] = '';
+    novosFiltrosAplicados[campo] = '';
+    setFiltros(novosFiltros);
+    setFiltrosAplicados(novosFiltrosAplicados);
   };
 
   const limparTodosFiltros = () => {
-    setFiltros({
+    const filtrosLimpos = {
       paciente: '',
       profissional: '',
       servico: '',
@@ -337,11 +355,14 @@ export const LiberarPage = () => {
       tipoAtendimento: '',
       dataInicio: '',
       dataFim: ''
-    });
+    };
+    setFiltros(filtrosLimpos);
+    setFiltrosAplicados(filtrosLimpos);
     setPaginaAtual(1);
   };
 
-  const temFiltrosAtivos = Object.values(filtros).some(filtro => filtro !== '');
+  const temFiltrosAtivos = Object.values(filtrosAplicados).some(filtro => filtro !== '');
+  const temFiltrosNaoAplicados = JSON.stringify(filtros) !== JSON.stringify(filtrosAplicados);
 
   // Função para formatar data no formato brasileiro
   const formatarDataBrasil = (dataISO: string) => {
@@ -942,6 +963,17 @@ export const LiberarPage = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Filtros Avançados</h3>
             <div className="flex gap-2">
+              {temFiltrosNaoAplicados && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={aplicarFiltros}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Filter className="w-4 h-4 mr-1" />
+                  Aplicar Filtro
+                </Button>
+              )}
               {temFiltrosAtivos && (
                 <Button
                   variant="ghost"
@@ -1050,7 +1082,7 @@ export const LiberarPage = () => {
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex flex-wrap gap-2 items-center">
                 <span className="text-sm text-gray-600">Filtros ativos:</span>
-                {Object.entries(filtros)
+                {Object.entries(filtrosAplicados)
                   .filter(([_, valor]) => valor !== '')
                   .map(([campo, valor]) => {
                     const labels = {
@@ -1074,7 +1106,7 @@ export const LiberarPage = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => updateFiltro(campo as keyof typeof filtros, '')}
+                          onClick={() => limparFiltro(campo as keyof typeof filtros)}
                           className="h-4 w-4 p-0 hover:text-red-600 ml-1"
                         >
                           <X className="w-3 h-3" />

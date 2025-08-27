@@ -56,6 +56,16 @@ export const PendenciaPage = () => {
     dataInicio: '',
     dataFim: ''
   });
+  // Estados separados para filtros aplicados vs editados
+  const [filtrosAplicados, setFiltrosAplicados] = useState({
+    paciente: '',
+    profissional: '',
+    servico: '',
+    convenio: '',
+    tipoAtendimento: '',
+    dataInicio: '',
+    dataFim: ''
+  });
 
   const [initialized, setInitialized] = useState(false);
 
@@ -71,7 +81,7 @@ export const PendenciaPage = () => {
     if (initialized) {
       carregarAgendamentos();
     }
-  }, [paginaAtual, itensPorPagina, filtros, buscaDebounced]);
+  }, [paginaAtual, itensPorPagina, filtrosAplicados, buscaDebounced]);
 
   // Debounce da busca para evitar muitas chamadas à API
   useEffect(() => {
@@ -84,7 +94,7 @@ export const PendenciaPage = () => {
 
   useEffect(() => {
     setPaginaAtual(1);
-  }, [buscaDebounced, itensPorPagina, filtros]);
+  }, [buscaDebounced, itensPorPagina, filtrosAplicados]);
 
   const checkPermissions = async () => {
     try {
@@ -120,14 +130,14 @@ export const PendenciaPage = () => {
         filtrosAPI.search = buscaDebounced;
       }
 
-      // Filtros específicos
-      if (filtros.paciente) filtrosAPI.pacienteNome = filtros.paciente;
-      if (filtros.profissional) filtrosAPI.profissionalNome = filtros.profissional;
-      if (filtros.servico) filtrosAPI.servicoNome = filtros.servico;
-      if (filtros.convenio) filtrosAPI.convenioNome = filtros.convenio;
-      if (filtros.tipoAtendimento) filtrosAPI.tipoAtendimento = filtros.tipoAtendimento;
-      if (filtros.dataInicio) filtrosAPI.dataInicio = filtros.dataInicio;
-      if (filtros.dataFim) filtrosAPI.dataFim = filtros.dataFim;
+      // Filtros específicos (usando filtrosAplicados)
+      if (filtrosAplicados.paciente) filtrosAPI.pacienteNome = filtrosAplicados.paciente;
+      if (filtrosAplicados.profissional) filtrosAPI.profissionalNome = filtrosAplicados.profissional;
+      if (filtrosAplicados.servico) filtrosAPI.servicoNome = filtrosAplicados.servico;
+      if (filtrosAplicados.convenio) filtrosAPI.convenioNome = filtrosAplicados.convenio;
+      if (filtrosAplicados.tipoAtendimento) filtrosAPI.tipoAtendimento = filtrosAplicados.tipoAtendimento;
+      if (filtrosAplicados.dataInicio) filtrosAPI.dataInicio = filtrosAplicados.dataInicio;
+      if (filtrosAplicados.dataFim) filtrosAPI.dataFim = filtrosAplicados.dataFim;
 
       // Se o usuário for PROFISSIONAL, filtra apenas seus agendamentos
       if (user?.roles?.includes('PROFISSIONAL')) {
@@ -165,11 +175,15 @@ export const PendenciaPage = () => {
 
   const updateFiltro = (campo: keyof typeof filtros, valor: string) => {
     setFiltros(prev => ({ ...prev, [campo]: valor }));
+  };
+
+  const aplicarFiltros = () => {
+    setFiltrosAplicados(filtros);
     setPaginaAtual(1);
   };
 
   const limparFiltros = () => {
-    setFiltros({
+    const filtrosLimpos = {
       paciente: '',
       profissional: '',
       servico: '',
@@ -177,11 +191,14 @@ export const PendenciaPage = () => {
       tipoAtendimento: '',
       dataInicio: '',
       dataFim: ''
-    });
+    };
+    setFiltros(filtrosLimpos);
+    setFiltrosAplicados(filtrosLimpos);
     setPaginaAtual(1);
   };
 
-  const temFiltrosAtivos = Object.values(filtros).some(filtro => filtro !== '');
+  const temFiltrosAtivos = Object.values(filtrosAplicados).some(filtro => filtro !== '');
+  const temFiltrosNaoAplicados = JSON.stringify(filtros) !== JSON.stringify(filtrosAplicados);
 
   const formatarDataBrasil = (dataISO: string) => {
     if (!dataISO) return '';
@@ -432,6 +449,17 @@ export const PendenciaPage = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Filtros Avançados</h3>
             <div className="flex gap-2">
+              {temFiltrosNaoAplicados && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={aplicarFiltros}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Filter className="w-4 h-4 mr-1" />
+                  Aplicar Filtro
+                </Button>
+              )}
               {temFiltrosAtivos && (
                 <Button variant="ghost" size="sm" onClick={limparFiltros} className="text-red-600 hover:text-red-700 hover:bg-red-50">
                   <FilterX className="w-4 h-4 mr-1" /> Limpar Filtros
@@ -455,13 +483,27 @@ export const PendenciaPage = () => {
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex flex-wrap gap-2 items-center">
                 <span className="text-sm text-gray-600">Filtros ativos:</span>
-                {Object.entries(filtros).filter(([_, valor]) => valor !== '').map(([campo, valor]) => {
+                {Object.entries(filtrosAplicados).filter(([_, valor]) => valor !== '').map(([campo, valor]) => {
                   const labels = { paciente: 'Paciente', profissional: 'Profissional', servico: 'Serviço', convenio: 'Convênio', tipoAtendimento: 'Tipo', dataInicio: 'De', dataFim: 'Até' } as const;
                   const valorFormatado = (campo === 'dataInicio' || campo === 'dataFim') ? formatarDataBrasil(valor) : valor;
                   return (
                     <Badge key={campo} variant="secondary" className="text-xs inline-flex items-center gap-1">
                       {labels[campo as keyof typeof labels]}: {valorFormatado}
-                      <Button variant="ghost" size="sm" onClick={() => updateFiltro(campo as keyof typeof filtros, '')} className="h-4 w-4 p-0 hover:text-red-600 ml-1"><X className="w-3 h-3" /></Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const novosFiltros = { ...filtros };
+                          const novosFiltrosAplicados = { ...filtrosAplicados };
+                          novosFiltros[campo as keyof typeof filtros] = '';
+                          novosFiltrosAplicados[campo as keyof typeof filtrosAplicados] = '';
+                          setFiltros(novosFiltros);
+                          setFiltrosAplicados(novosFiltrosAplicados);
+                        }}
+                        className="h-4 w-4 p-0 hover:text-red-600 ml-1"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
                     </Badge>
                   );
                 })}

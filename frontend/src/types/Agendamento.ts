@@ -37,8 +37,8 @@ export interface Agendamento {
   statusCodLiberacao?: string;
   dataCodLiberacao?: string;
   
-  // Etapa 3 - Atender (futuro - evolução)
-  dataAtendimento?: string;
+  // Etapa 3 - Atender
+  dataAtendimento?: string; // Data real do atendimento - separada da data agendada
   observacoesAtendimento?: string;
   compareceu?: boolean | null;
   assinaturaPaciente?: boolean | null;

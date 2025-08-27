@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { 
@@ -40,6 +41,14 @@ import api from '@/services/api';
 import { AppToast } from '@/services/toast';
 import { useAuthStore } from '@/store/auth';
 import { formatarDataHoraLocal } from '@/utils/dateUtils';
+import { getConvenios } from '@/services/convenios';
+import { getServicos } from '@/services/servicos';
+import { getPacientes } from '@/services/pacientes';
+import { getProfissionais } from '@/services/profissionais';
+import type { Convenio } from '@/types/Convenio';
+import type { Servico } from '@/types/Servico';
+import type { Paciente } from '@/types/Paciente';
+import type { Profissional } from '@/types/Profissional';
 
 export const AgendamentosPage = () => {
   const { user } = useAuthStore();
@@ -73,15 +82,49 @@ export const AgendamentosPage = () => {
   
   // Filtros avançados por coluna
   const [filtros, setFiltros] = useState({
-    paciente: '',
-    profissional: '',
-    servico: '',
-    convenio: '',
+    pacienteId: '',
+    profissionalId: '',
+    servicoId: '',
+    convenioId: '',
     tipoAtendimento: '',
     status: '',
     dataInicio: '',
     dataFim: ''
   });
+  // Estados separados para filtros aplicados vs editados
+  const [filtrosAplicados, setFiltrosAplicados] = useState({
+    pacienteId: '',
+    profissionalId: '',
+    servicoId: '',
+    convenioId: '',
+    tipoAtendimento: '',
+    status: '',
+    dataInicio: '',
+    dataFim: ''
+  });
+  
+  // Estados para opções dos dropdowns
+  const [conveniosOptions, setConveniosOptions] = useState<Convenio[]>([]);
+  const [servicosOptions, setServicosOptions] = useState<Servico[]>([]);
+  const [pacientesOptions, setPacientesOptions] = useState<Paciente[]>([]);
+  const [profissionaisOptions, setProfissionaisOptions] = useState<Profissional[]>([]);
+  const [loadingDropdowns, setLoadingDropdowns] = useState(false);
+  
+  // Opções estáticas para Tipo Atendimento e Status
+  const tipoAtendimentoOptions = [
+    { id: 'presencial', nome: 'Presencial' },
+    { id: 'online', nome: 'Online' }
+  ];
+  
+  const statusOptions = [
+    { id: 'AGENDADO', nome: 'Agendado' },
+    { id: 'SOLICITADO', nome: 'Solicitado' },
+    { id: 'LIBERADO', nome: 'Liberado' },
+    { id: 'ATENDIDO', nome: 'Atendido' },
+    { id: 'FINALIZADO', nome: 'Finalizado' },
+    { id: 'CANCELADO', nome: 'Cancelado' },
+    { id: 'ARQUIVADO', nome: 'Arquivado' }
+  ];
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   
   // Estados para exclusão
@@ -133,11 +176,11 @@ export const AgendamentosPage = () => {
     if (initialized) {
       carregarAgendamentos();
     }
-  }, [paginaAtual, itensPorPagina, filtroStatus, filtros, buscaDebounced]);
+  }, [paginaAtual, itensPorPagina, filtroStatus, filtrosAplicados, buscaDebounced]);
 
   useEffect(() => {
     setPaginaAtual(1);
-  }, [buscaDebounced, filtroStatus, filtros]);
+  }, [buscaDebounced, filtroStatus, filtrosAplicados]);
 
   const checkPermissions = async () => {
     try {
@@ -210,15 +253,15 @@ export const AgendamentosPage = () => {
         filtrosAPI.search = buscaDebounced;
       }
 
-      // Aplicar outros filtros
-      if (filtros.paciente) filtrosAPI.pacienteNome = filtros.paciente;
-      if (filtros.profissional) filtrosAPI.profissionalNome = filtros.profissional;
-      if (filtros.servico) filtrosAPI.servicoNome = filtros.servico;
-      if (filtros.convenio) filtrosAPI.convenioNome = filtros.convenio;
-      if (filtros.tipoAtendimento) filtrosAPI.tipoAtendimento = filtros.tipoAtendimento;
-      if (filtros.status && filtros.status !== filtroStatus) filtrosAPI.status = filtros.status;
-      if (filtros.dataInicio) filtrosAPI.dataInicio = filtros.dataInicio;
-      if (filtros.dataFim) filtrosAPI.dataFim = filtros.dataFim;
+      // Aplicar outros filtros (usando filtrosAplicados)
+      if (filtrosAplicados.pacienteId) filtrosAPI.pacienteId = filtrosAplicados.pacienteId;
+      if (filtrosAplicados.profissionalId) filtrosAPI.profissionalId = filtrosAplicados.profissionalId;
+      if (filtrosAplicados.servicoId) filtrosAPI.servicoId = filtrosAplicados.servicoId;
+      if (filtrosAplicados.convenioId) filtrosAPI.convenioId = filtrosAplicados.convenioId;
+      if (filtrosAplicados.tipoAtendimento) filtrosAPI.tipoAtendimento = filtrosAplicados.tipoAtendimento;
+      if (filtrosAplicados.status && filtrosAplicados.status !== filtroStatus) filtrosAPI.status = filtrosAplicados.status;
+      if (filtrosAplicados.dataInicio) filtrosAPI.dataInicio = filtrosAplicados.dataInicio;
+      if (filtrosAplicados.dataFim) filtrosAPI.dataFim = filtrosAplicados.dataFim;
       
       // Se o usuário for PROFISSIONAL, filtrar apenas os agendamentos dele
       if (user?.roles?.includes('PROFISSIONAL')) {
@@ -312,24 +355,56 @@ export const AgendamentosPage = () => {
 
   const updateFiltro = (campo: keyof typeof filtros, valor: string) => {
     setFiltros(prev => ({ ...prev, [campo]: valor }));
+  };
+
+  const aplicarFiltros = () => {
+    setFiltrosAplicados(filtros);
     setPaginaAtual(1);
   };
 
   const limparFiltros = () => {
-    setFiltros({
-      paciente: '',
-      profissional: '',
-      servico: '',
-      convenio: '',
+    const filtrosLimpos = {
+      pacienteId: '',
+      profissionalId: '',
+      servicoId: '',
+      convenioId: '',
       tipoAtendimento: '',
       status: '',
       dataInicio: '',
       dataFim: ''
-    });
+    };
+    setFiltros(filtrosLimpos);
+    setFiltrosAplicados(filtrosLimpos);
     setPaginaAtual(1);
   };
 
-  const temFiltrosAtivos = Object.values(filtros).some(filtro => filtro !== '');
+  // Função para carregar dados dos dropdowns
+  const carregarDadosDropdowns = async () => {
+    setLoadingDropdowns(true);
+    try {
+      const [convenios, servicos, pacientes, profissionais] = await Promise.all([
+        getConvenios(),
+        getServicos(),
+        getPacientes(),
+        getProfissionais()
+      ]);
+      
+      setConveniosOptions(convenios);
+      setServicosOptions(servicos);
+      setPacientesOptions(pacientes);
+      setProfissionaisOptions(profissionais);
+    } catch (error) {
+      console.error('Erro ao carregar dados dos dropdowns:', error);
+      AppToast.error('Erro ao carregar opções dos filtros', {
+        description: 'Não foi possível carregar as opções para os filtros. Tente novamente.'
+      });
+    } finally {
+      setLoadingDropdowns(false);
+    }
+  };
+
+  const temFiltrosAtivos = Object.values(filtrosAplicados).some(filtro => filtro !== '');
+  const temFiltrosNaoAplicados = JSON.stringify(filtros) !== JSON.stringify(filtrosAplicados);
 
   // Função para formatar data no formato brasileiro
   const formatarDataBrasil = (dataISO: string) => {
@@ -846,7 +921,12 @@ export const AgendamentosPage = () => {
           {/* Botão Filtros Avançados */}
           <Button
             variant="outline"
-            onClick={() => setMostrarFiltros(!mostrarFiltros)}
+            onClick={() => {
+              setMostrarFiltros(!mostrarFiltros);
+              if (!mostrarFiltros) {
+                carregarDadosDropdowns();
+              }
+            }}
             className={`${mostrarFiltros ? 'bg-blue-50 border-blue-300' : ''} ${temFiltrosAtivos ? 'border-blue-500 bg-blue-50' : ''}`}
           >
             <Filter className="w-4 h-4 mr-2" />
@@ -885,6 +965,17 @@ export const AgendamentosPage = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Filtros Avançados</h3>
             <div className="flex gap-2">
+              {temFiltrosNaoAplicados && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={aplicarFiltros}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Filter className="w-4 h-4 mr-1" />
+                  Aplicar Filtro
+                </Button>
+              )}
               {temFiltrosAtivos && (
                 <Button
                   variant="ghost"
@@ -932,78 +1023,77 @@ export const AgendamentosPage = () => {
             {/* Filtro Convênio */}
             <div className="space-y-2">
               <span className="text-sm font-medium text-gray-700">Convênio</span>
-              <Input
-                placeholder="Nome do convênio..."
-                value={filtros.convenio}
-                onChange={(e) => updateFiltro('convenio', e.target.value)}
-                className="h-8"
+              <SingleSelectDropdown
+                options={conveniosOptions}
+                selected={conveniosOptions.find(c => c.id === filtros.convenioId) || null}
+                onChange={(selected) => updateFiltro('convenioId', selected?.id || '')}
+                placeholder="Selecione um convênio..."
+                searchFields={['nome']}
+                disabled={loadingDropdowns}
               />
             </div>
 
             {/* Filtro Serviço */}
             <div className="space-y-2">
               <span className="text-sm font-medium text-gray-700">Serviço</span>
-              <Input
-                placeholder="Nome do serviço..."
-                value={filtros.servico}
-                onChange={(e) => updateFiltro('servico', e.target.value)}
-                className="h-8"
+              <SingleSelectDropdown
+                options={servicosOptions}
+                selected={servicosOptions.find(s => s.id === filtros.servicoId) || null}
+                onChange={(selected) => updateFiltro('servicoId', selected?.id || '')}
+                placeholder="Selecione um serviço..."
+                searchFields={['nome']}
+                disabled={loadingDropdowns}
               />
             </div>
 
             {/* Filtro Tipo Atendimento */}
             <div className="space-y-2">
               <span className="text-sm font-medium text-gray-700">Tipo Atendimento</span>
-              <select
-                value={filtros.tipoAtendimento}
-                onChange={(e) => updateFiltro('tipoAtendimento', e.target.value)}
-                className="h-8 w-full px-3 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Todos os tipos</option>
-                <option value="presencial">Presencial</option>
-                <option value="online">Online</option>
-              </select>
+              <SingleSelectDropdown
+                options={tipoAtendimentoOptions}
+                selected={tipoAtendimentoOptions.find(t => t.id === filtros.tipoAtendimento) || null}
+                onChange={(selected) => updateFiltro('tipoAtendimento', selected?.id || '')}
+                placeholder="Selecione o tipo..."
+                searchFields={['nome']}
+              />
             </div>
 
             {/* Filtro Paciente */}
             <div className="space-y-2">
               <span className="text-sm font-medium text-gray-700">Paciente</span>
-              <Input
-                placeholder="Nome do paciente..."
-                value={filtros.paciente}
-                onChange={(e) => updateFiltro('paciente', e.target.value)}
-                className="h-8"
+              <SingleSelectDropdown
+                options={pacientesOptions.map(p => ({ ...p, nome: p.nomeCompleto }))}
+                selected={pacientesOptions.find(p => p.id === filtros.pacienteId) ? { ...pacientesOptions.find(p => p.id === filtros.pacienteId)!, nome: pacientesOptions.find(p => p.id === filtros.pacienteId)!.nomeCompleto } : null}
+                onChange={(selected) => updateFiltro('pacienteId', selected?.id || '')}
+                placeholder="Selecione um paciente..."
+                searchFields={['nome']}
+                disabled={loadingDropdowns}
               />
             </div>
 
             {/* Filtro Profissional */}
             <div className="space-y-2">
               <span className="text-sm font-medium text-gray-700">Profissional</span>
-              <Input
-                placeholder="Nome do profissional..."
-                value={filtros.profissional}
-                onChange={(e) => updateFiltro('profissional', e.target.value)}
-                className="h-8"
+              <SingleSelectDropdown
+                options={profissionaisOptions}
+                selected={profissionaisOptions.find(p => p.id === filtros.profissionalId) || null}
+                onChange={(selected) => updateFiltro('profissionalId', selected?.id || '')}
+                placeholder="Selecione um profissional..."
+                searchFields={['nome']}
+                disabled={loadingDropdowns}
               />
             </div>
 
             {/* Filtro Status */}
             <div className="space-y-2">
               <span className="text-sm font-medium text-gray-700">Status</span>
-              <select
-                value={filtros.status}
-                onChange={(e) => updateFiltro('status', e.target.value)}
-                className="h-8 w-full px-3 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Todos os status</option>
-                <option value="AGENDADO">Agendado</option>
-                <option value="SOLICITADO">Solicitado</option>
-                <option value="LIBERADO">Liberado</option>
-                <option value="ATENDIDO">Atendido</option>
-                <option value="FINALIZADO">Finalizado</option>
-                <option value="CANCELADO">Cancelado</option>
-                <option value="ARQUIVADO">Arquivado</option>
-              </select>
+              <SingleSelectDropdown
+                options={statusOptions}
+                selected={statusOptions.find(s => s.id === filtros.status) || null}
+                onChange={(selected) => updateFiltro('status', selected?.id || '')}
+                placeholder="Selecione o status..."
+                searchFields={['nome']}
+              />
             </div>
           </div>
 
@@ -1012,24 +1102,43 @@ export const AgendamentosPage = () => {
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex flex-wrap gap-2 items-center">
                 <span className="text-sm text-gray-600">Filtros ativos:</span>
-                {Object.entries(filtros)
+                {Object.entries(filtrosAplicados)
                   .filter(([_, valor]) => valor !== '')
                   .map(([campo, valor]) => {
                     const labels = {
-                      paciente: 'Paciente',
-                      profissional: 'Profissional', 
-                      servico: 'Serviço',
-                      convenio: 'Convênio',
+                      pacienteId: 'Paciente',
+                      profissionalId: 'Profissional', 
+                      servicoId: 'Serviço',
+                      convenioId: 'Convênio',
                       tipoAtendimento: 'Tipo',
                       status: 'Status',
                       dataInicio: 'De',
                       dataFim: 'Até'
                     };
                     
-                    // Formatar valor para datas no formato brasileiro
-                    const valorFormatado = (campo === 'dataInicio' || campo === 'dataFim') 
-                      ? formatarDataBrasil(valor) 
-                      : valor;
+                    // Formatar valor para exibição
+                    let valorFormatado = valor;
+                    if (campo === 'dataInicio' || campo === 'dataFim') {
+                      valorFormatado = formatarDataBrasil(valor);
+                    } else if (campo === 'pacienteId') {
+                      const paciente = pacientesOptions.find(p => p.id === valor);
+                      valorFormatado = paciente?.nomeCompleto || valor;
+                    } else if (campo === 'profissionalId') {
+                      const profissional = profissionaisOptions.find(p => p.id === valor);
+                      valorFormatado = profissional?.nome || valor;
+                    } else if (campo === 'servicoId') {
+                      const servico = servicosOptions.find(s => s.id === valor);
+                      valorFormatado = servico?.nome || valor;
+                    } else if (campo === 'convenioId') {
+                      const convenio = conveniosOptions.find(c => c.id === valor);
+                      valorFormatado = convenio?.nome || valor;
+                    } else if (campo === 'tipoAtendimento') {
+                      const tipo = tipoAtendimentoOptions.find(t => t.id === valor);
+                      valorFormatado = tipo?.nome || valor;
+                    } else if (campo === 'status') {
+                      const status = statusOptions.find(s => s.id === valor);
+                      valorFormatado = status?.nome || valor;
+                    }
                     
                     return (
                       <Badge key={campo} variant="secondary" className="text-xs inline-flex items-center gap-1">
@@ -1037,7 +1146,14 @@ export const AgendamentosPage = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => updateFiltro(campo as keyof typeof filtros, '')}
+                          onClick={() => {
+                            const novosFiltros = { ...filtros };
+                            const novosFiltrosAplicados = { ...filtrosAplicados };
+                            novosFiltros[campo as keyof typeof filtros] = '';
+                            novosFiltrosAplicados[campo as keyof typeof filtrosAplicados] = '';
+                            setFiltros(novosFiltros);
+                            setFiltrosAplicados(novosFiltrosAplicados);
+                          }}
                           className="h-4 w-4 p-0 hover:text-red-600 ml-1"
                         >
                           <X className="w-3 h-3" />

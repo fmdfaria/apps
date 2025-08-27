@@ -28,6 +28,7 @@ const agendamentoBodySchema = z.object({
   compareceu: z.boolean().optional().nullable(),
   assinaturaPaciente: z.boolean().optional().nullable(),
   assinaturaProfissional: z.boolean().optional().nullable(),
+  dataAtendimento: z.coerce.date().optional().nullable(),
   recebimento: z.boolean().optional(),
   pagamento: z.boolean().optional(),
   recorrencia: recorrenciaSchema.optional(),
@@ -141,7 +142,7 @@ export class AgendamentosController {
     // Schema específico para atendimento - apenas campos permitidos para atendimento
     const atenderBodySchema = z.object({
       status: z.literal('ATENDIDO'),
-      dataHoraInicio: z.coerce.date().optional(),
+      dataAtendimento: z.coerce.date().optional(),
       observacoes: z.string().optional(),
       avaliadoPorId: z.string().uuid().optional(),
     });

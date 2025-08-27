@@ -16,8 +16,23 @@
 ### Funcionalidade Online
 
 
+### AgendamentosPage
+- Vamos deixar o campo 'Buscar Agendamentos...' sendo utilizados com a query search: get /agendamentos?search=
+- Quando clicar no botão 'Filtros' chamar as api get /convenios  /servicos  /pacientes  /profissionais preenchendo os campos dos filtros, utilizar o componente SingleSelectDropDown
 
-### Excluir Agendamentos
-- Criar uma funcionalidade para quando apertar no botão Excluir Agendamento na pagina AgendamentosPage, deve chamar a tela de confirmação com as opções de excluir somente o agendamento selecionado ou todos da recorrencia. 
-- Deve ser considerado agendamentos recorrentes todos os agendamento com Data + Hora feitos para o mesmo Paciente + Profissional + Serviço + recorrencia do tipo (semanal, quinzenal ou mensal)
+Após clicar em aplicar filtro, utilizar para aplicar o filtro:
 
+-- Data Inicio | Data Fim : /agendamentos?page=1&limit=10&dataInicio=2025-08-26&dataFim=2025-08-27
+-- Convênio : /agendamentos?page=1&limit=10&convenioId=
+-- Serviço : /agendamentos?page=1&limit=10&servicoId=
+-- Tipo de Atendimento : /agendamentos?page=1&limit=10&tipoAtendimento=
+-- Paciente : /agendamentos?page=1&limit=10&pacienteId=
+-- Profissionais : /agendamentos?page=1&limit=10&profissionalId=
+
+Se preencher e selecionar mais campos, efetuar a busca unica com todos os parametros.
+
+
+### Agendamentos - AtenderPage
+- Preciso criar uma nova coluna chamada 'data_atendimento' na tabela 'agendamentos' no banco de dados, então forneça um SQL para adicionar essa coluna.
+- Essa nova coluna vai servir para registrar a 'Data do Atendimento' que está atualmente no put /agendamentos no Modal AtenderAgendamentoModal
+- Atualizar o backend e frontend para atender a funcionalidade dessa nova coluna.
