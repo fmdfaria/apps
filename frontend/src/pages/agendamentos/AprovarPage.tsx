@@ -235,7 +235,8 @@ export const AprovarPage = () => {
       });
     });
 
-  // Paginação é controlada pela API, então mostramos todos os dados recebidos
+  // Usar paginação da API
+  const totalPaginas = Math.ceil(totalResultados / itensPorPagina);
   const agendamentosPaginados = agendamentosFiltrados;
 
   const formatarDataHora = formatarDataHoraLocal;
@@ -805,7 +806,10 @@ export const AprovarPage = () => {
           <select
             className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-100 focus:border-green-500 transition-all duration-200 hover:border-green-300"
             value={itensPorPagina}
-            onChange={e => setItensPorPagina(Number(e.target.value))}
+            onChange={e => {
+              setItensPorPagina(Number(e.target.value));
+              setPaginaAtual(1); // Resetar para primeira página
+            }}
           >
             {[10, 25, 50, 100].map(qtd => (
               <option key={qtd} value={qtd}>{qtd}</option>
@@ -816,11 +820,7 @@ export const AprovarPage = () => {
         
         <div className="text-sm text-gray-600 flex items-center gap-2">
           <span className="text-lg">📈</span>
-          Mostrando {agendamentosFiltrados.length} de {totalResultados} resultados {(temFiltrosAtivos || buscaDebounced) && (
-            <span className="text-gray-500">
-              {' '}(filtrados de {totalGlobal} total)
-            </span>
-          )}
+          Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, totalResultados)} de {totalResultados} resultados
         </div>
 
         <div className="flex gap-2">
@@ -828,8 +828,8 @@ export const AprovarPage = () => {
             variant="outline"
             size="sm"
             onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
-            disabled={paginaAtual === 1}
-            className={paginaAtual === 1
+            disabled={paginaAtual === 1 || totalPaginas === 1}
+            className={(paginaAtual === 1 || totalPaginas === 1)
               ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50" 
               : "border-2 border-gray-200 text-gray-700 hover:border-green-500 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 hover:text-green-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             }
@@ -837,19 +837,33 @@ export const AprovarPage = () => {
             <span className="mr-1 text-gray-600 group-hover:text-green-600 transition-colors">⬅️</span>
             Anterior
           </Button>
-          <Button
-            variant="default" 
-            size="sm"
-            className="bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg font-semibold"
-          >
-            {paginaAtual}
-          </Button>
+          {(() => {
+            const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
+            const endPage = Math.min(totalPaginas, startPage + 4);
+            return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
+              <Button
+                key={page}
+                variant={page === paginaAtual ? "default" : "outline"}
+                size="sm"
+                onClick={() => totalPaginas > 1 ? setPaginaAtual(page) : undefined}
+                disabled={totalPaginas === 1}
+                className={page === paginaAtual 
+                  ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg font-semibold" 
+                  : totalPaginas === 1
+                  ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
+                  : "border-2 border-gray-200 text-gray-700 hover:border-green-500 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 hover:text-green-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+                }
+              >
+                {page}
+              </Button>
+            ));
+          })()}
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setPaginaAtual(p => p + 1)}
-            disabled={agendamentosFiltrados.length < itensPorPagina}
-            className={agendamentosFiltrados.length < itensPorPagina
+            onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
+            disabled={paginaAtual === totalPaginas || totalPaginas === 1}
+            className={(paginaAtual === totalPaginas || totalPaginas === 1)
               ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
               : "border-2 border-gray-200 text-gray-700 hover:border-green-500 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 hover:text-green-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             }

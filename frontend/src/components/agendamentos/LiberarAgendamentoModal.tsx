@@ -51,13 +51,10 @@ export const LiberarAgendamentoModal: React.FC<LiberarAgendamentoModalProps> = (
 
     setLoading(true);
     try {
-      // Ajustar a data para evitar problemas de timezone
-      const dataLiberacao = new Date(formData.dataCodLiberacao + 'T12:00:00.000Z');
-      
       await liberarAgendamento(agendamento.id, {
         codLiberacao: formData.codLiberacao,
         statusCodLiberacao: 'APROVADO', // Default status quando não especificado
-        dataCodLiberacao: dataLiberacao.toISOString()
+        dataCodLiberacao: formData.dataCodLiberacao // Enviar apenas a data no formato YYYY-MM-DD
       });
       AppToast.updated('Agendamento', 'O agendamento foi liberado com sucesso!');
       resetForm();

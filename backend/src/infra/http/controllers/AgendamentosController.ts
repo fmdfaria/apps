@@ -170,4 +170,21 @@ export class AgendamentosController {
     const agendamento = await useCase.execute(id, data);
     return reply.status(200).send(agendamento);
   }
+
+  async pendencia(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const paramsSchema = z.object({ id: z.string().uuid() });
+    const { id } = paramsSchema.parse(request.params);
+    
+    // Schema específico para pendência - apenas campos permitidos para resolver pendências
+    const pendenciaBodySchema = z.object({
+      status: z.literal('ATENDIDO'), // Força o status para ATENDIDO
+      observacoes: z.string().optional(),
+      avaliadoPorId: z.string().uuid().optional(),
+    });
+    
+    const data = pendenciaBodySchema.parse(request.body);
+    const useCase = container.resolve(UpdateAgendamentoUseCase);
+    const agendamento = await useCase.execute(id, data);
+    return reply.status(200).send(agendamento);
+  }
 } 

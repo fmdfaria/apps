@@ -4,12 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import { FormErrorMessage } from '@/components/form-error-message';
 import { createEvolucao, updateEvolucao, deleteEvolucao } from '@/services/evolucoes';
+import { getProfissionais } from '@/services/profissionais';
 import { AppToast } from '@/services/toast';
+import { useAuth } from '@/hooks/useAuth';
 import type { EvolucaoPaciente, CreateEvolucaoPacienteData } from '@/types/EvolucaoPaciente';
 import type { Agendamento } from '@/types/Agendamento';
 import type { Paciente } from '@/types/Paciente';
+import type { Profissional } from '@/types/Profissional';
 import { 
   User, 
   Users,
@@ -35,6 +39,10 @@ interface EvolucaoPacientesModalProps {
   canDelete?: boolean;
 }
 
+interface ExtendedCreateEvolucaoPacienteData extends CreateEvolucaoPacienteData {
+  profissionalId?: string;
+}
+
 export default function EvolucaoPacientesModal({ 
   open, 
   onClose, 
@@ -47,12 +55,14 @@ export default function EvolucaoPacientesModal({
   canUpdate = true,
   canDelete = true
 }: EvolucaoPacientesModalProps) {
-  const [form, setForm] = useState<CreateEvolucaoPacienteData>({
+  const { user } = useAuth();
+  const [form, setForm] = useState<ExtendedCreateEvolucaoPacienteData>({
     pacienteId: '',
     agendamentoId: undefined,
     dataEvolucao: new Date().toISOString().split('T')[0],
     objetivoSessao: '',
     descricaoEvolucao: '',
+    profissionalId: '',
   });
   
   const [formError, setFormError] = useState('');
@@ -61,21 +71,68 @@ export default function EvolucaoPacientesModal({
   const [deleting, setDeleting] = useState(false);
   const [pacienteNome, setPacienteNome] = useState('');
   const [profissionalNome, setProfissionalNome] = useState('');
+  const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+  const [loadingProfissionais, setLoadingProfissionais] = useState(false);
 
   const isEditing = !!evolucaoParaEditar;
+  const isProfissional = user?.roles?.includes('PROFISSIONAL');
+  const isStandalone = !agendamentoInicial; // Evolução standalone (sem agendamento)
+
+  // Carregar profissionais sempre que o modal abrir
+  useEffect(() => {
+    if (open) {
+      const carregarProfissionais = async () => {
+        try {
+          setLoadingProfissionais(true);
+          const profissionaisData = await getProfissionais({ ativo: true });
+          setProfissionais(profissionaisData || []);
+        } catch (error) {
+          console.error('Erro ao carregar profissionais:', error);
+          AppToast.error('Erro ao carregar profissionais');
+        } finally {
+          setLoadingProfissionais(false);
+        }
+      };
+      carregarProfissionais();
+    }
+  }, [open]);
 
   // Configurar dados iniciais quando abrir o modal
   useEffect(() => {
-    if (open && agendamentoInicial && !evolucaoParaEditar) {
-      setForm(prevForm => ({
-        ...prevForm,
-        pacienteId: agendamentoInicial.pacienteId,
-        agendamentoId: agendamentoInicial.id,
-      }));
-      setPacienteNome(agendamentoInicial.pacienteNome || '');
-      setProfissionalNome(agendamentoInicial.profissionalNome || '');
+    if (open && !evolucaoParaEditar) {
+      if (agendamentoInicial) {
+        // Evolução vinculada ao agendamento
+        setForm(prevForm => ({
+          ...prevForm,
+          pacienteId: agendamentoInicial.pacienteId,
+          agendamentoId: agendamentoInicial.id,
+          profissionalId: agendamentoInicial.profissionalId || '',
+        }));
+        setPacienteNome(agendamentoInicial.pacienteNome || '');
+        setProfissionalNome(agendamentoInicial.profissionalNome || '');
+      } else {
+        // Evolução standalone - selecionar o paciente da página
+        const pacienteAtual = pacientes[0]; // Primeiro paciente da lista (único na página)
+        if (pacienteAtual) {
+          setForm(prevForm => ({
+            ...prevForm,
+            pacienteId: pacienteAtual.id,
+            agendamentoId: undefined,
+            profissionalId: isProfissional ? (user?.profissionalId || '') : '',
+          }));
+          setPacienteNome(pacienteAtual.nomeCompleto);
+          
+          if (isProfissional) {
+            // Se é profissional, buscar nome do profissional logado da tabela profissionais
+            const profissionalLogado = profissionais.find(p => p.id === user?.profissionalId);
+            setProfissionalNome(profissionalLogado?.nome || '');
+          } else {
+            setProfissionalNome('');
+          }
+        }
+      }
     }
-  }, [open, agendamentoInicial, evolucaoParaEditar]);
+  }, [open, agendamentoInicial, evolucaoParaEditar, pacientes, isProfissional, user, profissionais]);
 
   // Preencher form quando for edição
   useEffect(() => {
@@ -111,20 +168,31 @@ export default function EvolucaoPacientesModal({
         dataEvolucao: formatarDataParaInput(evolucaoParaEditar.dataEvolucao),
         objetivoSessao: evolucaoParaEditar.objetivoSessao || '',
         descricaoEvolucao: evolucaoParaEditar.descricaoEvolucao || '',
+        profissionalId: '', // Será definido abaixo
       });
       
       // Se tem agendamento inicial (veio da AtenderPage), usar os dados dele
       if (agendamentoInicial) {
         setPacienteNome(agendamentoInicial.pacienteNome || '');
         setProfissionalNome(agendamentoInicial.profissionalNome || '');
+        setForm(prev => ({ ...prev, profissionalId: agendamentoInicial.profissionalId || '' }));
       } else {
         // Buscar nome do paciente para edição independente
         const pacienteEncontrado = pacientes.find(p => p.id === evolucaoParaEditar.pacienteId);
         setPacienteNome(pacienteEncontrado?.nomeCompleto || evolucaoParaEditar.pacienteNome || '');
-        setProfissionalNome(''); // Para edição independente, não temos o profissional
+        
+        if (isProfissional) {
+          // Se é profissional logado, usar dados da tabela profissionais
+          const profissionalLogado = profissionais.find(p => p.id === user?.profissionalId);
+          setProfissionalNome(profissionalLogado?.nome || '');
+          setForm(prev => ({ ...prev, profissionalId: user?.profissionalId || '' }));
+        } else {
+          setProfissionalNome('');
+          setForm(prev => ({ ...prev, profissionalId: '' }));
+        }
       }
     }
-  }, [open, evolucaoParaEditar, pacientes, agendamentoInicial]);
+  }, [open, evolucaoParaEditar, pacientes, agendamentoInicial, isProfissional, user, profissionais]);
 
 
   const fecharModal = () => {
@@ -135,10 +203,12 @@ export default function EvolucaoPacientesModal({
       dataEvolucao: new Date().toISOString().split('T')[0],
       objetivoSessao: '',
       descricaoEvolucao: '',
+      profissionalId: '',
     });
     setFormError('');
     setPacienteNome('');
     setProfissionalNome('');
+    setProfissionais([]);
   };
 
   const handleDelete = async () => {
@@ -164,6 +234,11 @@ export default function EvolucaoPacientesModal({
   const validarForm = (): boolean => {
     if (!form.pacienteId) {
       setFormError('Selecione um paciente.');
+      return false;
+    }
+    
+    if (!isProfissional && !form.profissionalId) {
+      setFormError('Selecione um profissional.');
       return false;
     }
     
@@ -205,10 +280,13 @@ export default function EvolucaoPacientesModal({
     setFormError('');
 
     try {
-      const dadosEvolucao = {
-        ...form,
-        objetivoSessao: form.objetivoSessao?.trim(),
-        descricaoEvolucao: form.descricaoEvolucao?.trim(),
+      const dadosEvolucao: CreateEvolucaoPacienteData = {
+        pacienteId: form.pacienteId,
+        agendamentoId: form.agendamentoId,
+        profissionalId: isProfissional ? (user?.profissionalId || undefined) : (form.profissionalId || undefined),
+        dataEvolucao: form.dataEvolucao,
+        objetivoSessao: form.objetivoSessao?.trim() || '',
+        descricaoEvolucao: form.descricaoEvolucao?.trim() || '',
       };
 
       if (isEditing && evolucaoParaEditar) {
@@ -265,14 +343,35 @@ export default function EvolucaoPacientesModal({
                 <label className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
                   <span className="text-lg">👨‍⚕️</span>
                   <span className="font-semibold">Profissional</span>
+                  {!isProfissional && <span className="text-red-500">*</span>}
                 </label>
-                <Input
-                  type="text"
-                  value={profissionalNome}
-                  disabled
-                  className="bg-gray-50 cursor-not-allowed"
-                  placeholder="Nome do profissional"
-                />
+                {isProfissional ? (
+                  <Input
+                    type="text"
+                    value={profissionalNome}
+                    disabled
+                    className="bg-gray-50 cursor-not-allowed"
+                    placeholder="Nome do profissional"
+                  />
+                ) : (
+                  <SingleSelectDropdown
+                    options={profissionais.map(p => ({ id: p.id, nome: p.nome }))}
+                    selected={profissionais.find(p => p.id === form.profissionalId) ? {
+                      id: form.profissionalId || '',
+                      nome: profissionais.find(p => p.id === form.profissionalId)?.nome || ''
+                    } : null}
+                    onChange={(selected) => {
+                      setForm({ ...form, profissionalId: selected?.id || '' });
+                      setProfissionalNome(selected?.nome || '');
+                      setFormError('');
+                    }}
+                    placeholder={loadingProfissionais ? "Carregando profissionais..." : "Digite para buscar ou clique para ver todos"}
+                    headerText="Profissionais disponíveis"
+                    dotColor="green"
+                    disabled={formLoading || loadingProfissionais}
+                    searchFields={['nome']}
+                  />
+                )}
               </div>
             </div>
 

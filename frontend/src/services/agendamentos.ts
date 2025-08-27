@@ -545,6 +545,18 @@ export const aprovarAgendamento = async (id: string, dadosAprovacao: {
   return response.data;
 };
 
+export const resolverPendencia = async (id: string, dadosPendencia: {
+  observacoes?: string;
+  avaliadoPorId?: string;
+}): Promise<Agendamento> => {
+  // Usar a nova rota específica para resolver pendências
+  const response = await api.put(`/agendamentos-pendencias/${id}`, {
+    ...dadosPendencia,
+    status: 'ATENDIDO'
+  });
+  return response.data;
+};
+
 export const cancelarAgendamento = async (id: string, dadosCancelamento: {
   dataAprovacao: string;
   motivoCancelamento: string;

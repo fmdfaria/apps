@@ -11,6 +11,7 @@ import type { EvolucaoPaciente } from '@/types/EvolucaoPaciente';
 import type { Paciente } from '@/types/Paciente';
 import type { Convenio } from '@/types/Convenio';
 import AnexoEvolucoesPacientesModal from './AnexoEvolucoesPacientesModal';
+import EvolucaoPacientesModal from './EvolucaoPacientesModal';
 import { getAnexos } from '@/services/anexos';
 import type { Anexo } from '@/types/Anexo';
 
@@ -31,6 +32,10 @@ export const EvolucaoPacientesPage: React.FC = () => {
   const [anexoToDelete, setAnexoToDelete] = useState<Anexo | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingAnexo, setDeletingAnexo] = useState(false);
+  
+  // Estados para o modal de evolução
+  const [showEvolucaoModal, setShowEvolucaoModal] = useState(false);
+  const [evolucaoParaEditar, setEvolucaoParaEditar] = useState<EvolucaoPaciente | null>(null);
 
   useEffect(() => {
     const carregar = async () => {
@@ -149,6 +154,26 @@ export const EvolucaoPacientesPage: React.FC = () => {
     setDeletingAnexo(false);
   };
 
+  const abrirModalEvolucao = () => {
+    setEvolucaoParaEditar(null);
+    setShowEvolucaoModal(true);
+  };
+
+  const fecharModalEvolucao = () => {
+    setShowEvolucaoModal(false);
+    setEvolucaoParaEditar(null);
+  };
+
+  const handleSuccessEvolucao = () => {
+    // Recarregar evoluções após sucesso
+    if (id) {
+      getEvolucoes({ pacienteId: id }).then((evols) => {
+        setEvolucoes(evols || []);
+      });
+    }
+    fecharModalEvolucao();
+  };
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center">
@@ -179,6 +204,9 @@ export const EvolucaoPacientesPage: React.FC = () => {
             Evoluções do Paciente
           </h1>
           <div className="flex items-center gap-2">
+            <Button variant="default" onClick={abrirModalEvolucao} className="gap-2 bg-green-600 hover:bg-green-700">
+              <FileText className="w-4 h-4" /> Criar Evolução
+            </Button>
             <Button variant="default" onClick={abrirModalAnexos} className="gap-2">
               <Paperclip className="w-4 h-4" /> Anexar Arquivos
             </Button>
@@ -292,6 +320,16 @@ export const EvolucaoPacientesPage: React.FC = () => {
         onSavingChange={setSaving}
         onAnexoToDeleteChange={setAnexoToDelete}
         onDeletingAnexoChange={setDeletingAnexo}
+      />
+
+      {/* Modal de Evolução */}
+      <EvolucaoPacientesModal
+        open={showEvolucaoModal}
+        pacientes={paciente ? [paciente] : []} // Lista com o paciente atual
+        agendamentoInicial={null} // Null para evolução standalone
+        evolucaoParaEditar={evolucaoParaEditar}
+        onClose={fecharModalEvolucao}
+        onSuccess={handleSuccessEvolucao}
       />
     </div>
   );

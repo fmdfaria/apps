@@ -40,4 +40,9 @@ export async function agendamentosRoutes(app: FastifyInstance) {
   app.put('/agendamentos-concluir/:id', { 
     preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos-concluir/:id', 'PUT')] 
   }, controller.concluir);
+  
+  // Rota específica para resolver pendências (PENDENTE → ATENDIDO)
+  app.put('/agendamentos-pendencias/:id', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos-pendencias/:id', 'PUT')] 
+  }, controller.pendencia);
 } 

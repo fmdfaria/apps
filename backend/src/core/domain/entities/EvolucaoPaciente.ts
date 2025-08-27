@@ -3,7 +3,8 @@ import { randomUUID } from 'crypto';
 export class EvolucaoPaciente {
   id!: string;
   pacienteId!: string;
-  agendamentoId!: string;
+  agendamentoId?: string;
+  profissionalId?: string;
   dataEvolucao!: Date;
   objetivoSessao!: string;
   descricaoEvolucao!: string;

@@ -19,7 +19,7 @@ import {
   CheckSquare
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
-import { getAgendamentos, aprovarAgendamento, IPaginatedAgendamentos } from '@/services/agendamentos';
+import { getAgendamentos, resolverPendencia, IPaginatedAgendamentos } from '@/services/agendamentos';
 import { AtenderAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
@@ -100,11 +100,11 @@ export const PendenciaPage = () => {
     try {
       const response = await api.get('/users/me/permissions');
       const allowedRoutes = response.data;
-      const canConcluir = allowedRoutes.some((route: any) => {
-        return route.path === '/agendamentos-concluir/:id' && route.method.toLowerCase() === 'put';
+      const canResolverPendencia = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos-pendencias/:id' && route.method.toLowerCase() === 'put';
       });
-      setCanConcluir(canConcluir);
-      if (!canConcluir) {
+      setCanConcluir(canResolverPendencia);
+      if (!canResolverPendencia) {
         setAccessDenied(true);
       }
     } catch (error: any) {
@@ -160,7 +160,7 @@ export const PendenciaPage = () => {
       if (e?.response?.status === 403) {
         setAccessDenied(true);
         try {
-          const info = await getRouteInfo('/agendamentos-concluir/:id', 'PUT');
+          const info = await getRouteInfo('/agendamentos-pendencias/:id', 'PUT');
           setRouteInfo(info);
         } catch {}
       } else {
@@ -233,7 +233,8 @@ export const PendenciaPage = () => {
       });
     });
 
-  // Paginação é controlada pela API, então mostramos todos os dados recebidos
+  // Usar paginação da API igual à AgendamentosPage
+  const totalPaginas = Math.ceil(paginatedData.pagination.total / itensPorPagina);
   const agendamentosPaginados = agendamentosFiltrados;
 
   const formatarDataHora = (dataISO: string) => {
@@ -529,20 +530,57 @@ export const PendenciaPage = () => {
             </select>
             <span className="text-sm text-gray-600">itens por página</span>
           </div>
-          <div className="text-sm text-gray-600 flex items-center gap-2"><span className="text-lg">📈</span>Mostrando {agendamentosFiltrados.length} de {paginatedData.pagination.total} resultados {(temFiltrosAtivos || buscaDebounced) && (
-            <span className="text-gray-500">
-              {' '}(filtrados de {paginatedData.pagination.total} total)
-            </span>
-          )}</div>
+          <div className="text-sm text-gray-600 flex items-center gap-2">
+            <span className="text-lg">📈</span>
+            Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, paginatedData.pagination.total)} de {paginatedData.pagination.total} resultados
+          </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setPaginaAtual(p => Math.max(1, p - 1))} disabled={paginaAtual === 1} className={paginaAtual === 1 ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50" : "border-2 border-gray-200 text-gray-700 hover:border-yellow-500 hover:bg-gradient-to-r hover:from-yellow-50 hover:to-amber-50 hover:text-yellow-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"}>
-              <span className="mr-1 text-gray-600 group-hover:text-yellow-600 transition-colors">⬅️</span> Anterior
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
+              disabled={paginaAtual === 1 || totalPaginas === 1}
+              className={(paginaAtual === 1 || totalPaginas === 1)
+                ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50" 
+                : "border-2 border-gray-200 text-gray-700 hover:border-yellow-500 hover:bg-gradient-to-r hover:from-yellow-50 hover:to-amber-50 hover:text-yellow-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+              }
+            >
+              <span className="mr-1 text-gray-600 group-hover:text-yellow-600 transition-colors">⬅️</span>
+              Anterior
             </Button>
-            <Button variant="default" size="sm" className="bg-gradient-to-r from-yellow-600 to-amber-600 text-white shadow-lg font-semibold">
-              {paginaAtual}
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setPaginaAtual(p => p + 1)} disabled={agendamentosFiltrados.length < itensPorPagina} className={agendamentosFiltrados.length < itensPorPagina ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50" : "border-2 border-gray-200 text-gray-700 hover:border-yellow-500 hover:bg-gradient-to-r hover:from-yellow-50 hover:to-amber-50 hover:text-yellow-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"}>
-              Próximo <span className="ml-1 text-gray-600 group-hover:text-yellow-600 transition-colors">➡️</span>
+            {(() => {
+              const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
+              const endPage = Math.min(totalPaginas, startPage + 4);
+              return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
+                <Button
+                  key={page}
+                  variant={page === paginaAtual ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => totalPaginas > 1 ? setPaginaAtual(page) : undefined}
+                  disabled={totalPaginas === 1}
+                  className={page === paginaAtual 
+                    ? "bg-gradient-to-r from-yellow-600 to-amber-600 text-white shadow-lg font-semibold" 
+                    : totalPaginas === 1
+                    ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
+                    : "border-2 border-gray-200 text-gray-700 hover:border-yellow-500 hover:bg-gradient-to-r hover:from-yellow-50 hover:to-amber-50 hover:text-yellow-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+                  }
+                >
+                  {page}
+                </Button>
+              ));
+            })()}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
+              disabled={paginaAtual === totalPaginas || totalPaginas === 1}
+              className={(paginaAtual === totalPaginas || totalPaginas === 1)
+                ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
+                : "border-2 border-gray-200 text-gray-700 hover:border-yellow-500 hover:bg-gradient-to-r hover:from-yellow-50 hover:to-amber-50 hover:text-yellow-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+              }
+            >
+              Próximo
+              <span className="ml-1 text-gray-600 group-hover:text-yellow-600 transition-colors">➡️</span>
             </Button>
           </div>
         </div>
@@ -555,11 +593,13 @@ export const PendenciaPage = () => {
         onSuccess={async () => {
           try {
             if (agendamentoSelecionado) {
-              await aprovarAgendamento(agendamentoSelecionado.id, {});
+              await resolverPendencia(agendamentoSelecionado.id, {
+                avaliadoPorId: user?.id
+              });
             }
           } catch (e) {
-            console.error('Erro ao finalizar agendamento após atendimento:', e);
-            AppToast.error('Erro ao finalizar agendamento', { description: 'O atendimento foi registrado, mas falhou ao finalizar. Tente concluir novamente.' });
+            console.error('Erro ao resolver pendência após atendimento:', e);
+            AppToast.error('Erro ao resolver pendência', { description: 'O atendimento foi registrado, mas falhou ao resolver a pendência. Tente novamente.' });
           } finally {
             await carregarAgendamentos();
           }

@@ -2,7 +2,8 @@ import { EvolucaoPaciente } from '../entities/EvolucaoPaciente';
 
 export interface ICreateEvolucaoPacienteDTO {
   pacienteId: string;
-  agendamentoId: string;
+  agendamentoId?: string;
+  profissionalId?: string;
   dataEvolucao: Date;
   objetivoSessao: string;
   descricaoEvolucao: string;

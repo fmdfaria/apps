@@ -31,23 +31,83 @@ export class PrismaEvolucoesPacientesRepository implements IEvolucoesPacientesRe
   }
 
   async findById(id: string): Promise<EvolucaoPaciente | null> {
-    const evolucao = await this.prisma.evolucaoPaciente.findUnique({ where: { id } });
-    return evolucao ? toDomain(evolucao) : null;
+    const evolucao = await this.prisma.evolucaoPaciente.findUnique({ 
+      where: { id },
+      include: {
+        profissional: {
+          select: {
+            id: true,
+            nome: true
+          }
+        },
+        agendamento: {
+          select: {
+            id: true,
+            dataHoraInicio: true
+          }
+        }
+      }
+    });
+    if (!evolucao) return null;
+    
+    return {
+      ...evolucao,
+      profissionalNome: evolucao.profissional?.nome,
+      agendamentoData: evolucao.agendamento?.dataHoraInicio
+    } as any;
   }
 
   async findAllByPaciente(pacienteId: string): Promise<EvolucaoPaciente[]> {
     const evolucoes = await this.prisma.evolucaoPaciente.findMany({
       where: { pacienteId },
+      include: {
+        profissional: {
+          select: {
+            id: true,
+            nome: true
+          }
+        },
+        agendamento: {
+          select: {
+            id: true,
+            dataHoraInicio: true
+          }
+        }
+      },
       orderBy: { dataEvolucao: 'desc' },
     });
-    return evolucoes.map(toDomain);
+    return evolucoes.map((evolucao: any) => ({
+      ...evolucao,
+      profissionalNome: evolucao.profissional?.nome,
+      agendamentoData: evolucao.agendamento?.dataHoraInicio
+    }));
   }
 
   async findByAgendamento(agendamentoId: string): Promise<EvolucaoPaciente | null> {
     const evolucao = await this.prisma.evolucaoPaciente.findFirst({
       where: { agendamentoId },
+      include: {
+        profissional: {
+          select: {
+            id: true,
+            nome: true
+          }
+        },
+        agendamento: {
+          select: {
+            id: true,
+            dataHoraInicio: true
+          }
+        }
+      }
     });
-    return evolucao ? toDomain(evolucao) : null;
+    if (!evolucao) return null;
+    
+    return {
+      ...evolucao,
+      profissionalNome: evolucao.profissional?.nome,
+      agendamentoData: evolucao.agendamento?.dataHoraInicio
+    } as any;
   }
 
   async getStatusByAgendamentos(agendamentoIds: string[]): Promise<Array<{ agendamentoId: string; temEvolucao: boolean }>> {

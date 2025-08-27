@@ -2,6 +2,7 @@ export interface EvolucaoPaciente {
   id: string;
   pacienteId: string;
   agendamentoId?: string;
+  profissionalId?: string;
   dataEvolucao: string;
   objetivoSessao?: string;
   descricaoEvolucao?: string;
@@ -10,6 +11,7 @@ export interface EvolucaoPaciente {
   
   // Dados relacionados vindos das JOINs
   pacienteNome?: string;
+  profissionalNome?: string;
   agendamentoData?: string;
   agendamentoHora?: string;
 }
@@ -17,6 +19,7 @@ export interface EvolucaoPaciente {
 export interface CreateEvolucaoPacienteData {
   pacienteId: string;
   agendamentoId?: string;
+  profissionalId?: string;
   dataEvolucao: string;
   objetivoSessao?: string;
   descricaoEvolucao?: string;
@@ -25,6 +28,7 @@ export interface CreateEvolucaoPacienteData {
 export interface UpdateEvolucaoPacienteData {
   pacienteId?: string;
   agendamentoId?: string;
+  profissionalId?: string;
   dataEvolucao?: string;
   objetivoSessao?: string;
   descricaoEvolucao?: string;

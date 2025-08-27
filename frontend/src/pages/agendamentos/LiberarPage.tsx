@@ -402,7 +402,8 @@ export const LiberarPage = () => {
       });
     });
 
-  // Paginação é controlada pela API, então mostramos todos os dados recebidos
+  // Usar paginação da API (não paginação local)
+  const totalPaginas = Math.ceil(totalResultados / itensPorPagina);
   const agendamentosPaginados = agendamentosFiltrados;
 
   const formatarDataHora = formatarDataHoraLocal;
@@ -1136,7 +1137,10 @@ export const LiberarPage = () => {
             <select
               className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transition-all duration-200 hover:border-orange-300"
               value={itensPorPagina}
-              onChange={e => setItensPorPagina(Number(e.target.value))}
+              onChange={e => {
+                setItensPorPagina(Number(e.target.value));
+                setPaginaAtual(1); // Resetar para primeira página
+              }}
             >
               {[10, 25, 50, 100].map(qtd => (
                 <option key={qtd} value={qtd}>{qtd}</option>
@@ -1147,13 +1151,7 @@ export const LiberarPage = () => {
           
           <div className="text-sm text-gray-600 flex items-center gap-2">
             <span className="text-lg">📈</span>
-            <div>
-              Mostrando {agendamentosFiltrados.length} de {totalResultados} resultados {(temFiltrosAtivos || busca) && (
-                <span className="text-gray-500">
-                  {' '}(filtrados de {totalGlobal} total)
-                </span>
-              )}
-            </div>
+            Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, totalResultados)} de {totalResultados} resultados
           </div>
 
         <div className="flex gap-2">
@@ -1161,8 +1159,8 @@ export const LiberarPage = () => {
             variant="outline"
             size="sm"
             onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
-            disabled={paginaAtual === 1}
-            className={paginaAtual === 1
+            disabled={paginaAtual === 1 || totalPaginas === 1}
+            className={(paginaAtual === 1 || totalPaginas === 1)
               ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50" 
               : "border-2 border-gray-200 text-gray-700 hover:border-orange-500 hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 hover:text-orange-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             }
@@ -1170,19 +1168,33 @@ export const LiberarPage = () => {
             <span className="mr-1 text-gray-600 group-hover:text-orange-600 transition-colors">⬅️</span>
             Anterior
           </Button>
-          <Button
-            variant="default" 
-            size="sm"
-            className="bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg font-semibold"
-          >
-            {paginaAtual}
-          </Button>
+          {(() => {
+            const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
+            const endPage = Math.min(totalPaginas, startPage + 4);
+            return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
+              <Button
+                key={page}
+                variant={page === paginaAtual ? "default" : "outline"}
+                size="sm"
+                onClick={() => totalPaginas > 1 ? setPaginaAtual(page) : undefined}
+                disabled={totalPaginas === 1}
+                className={page === paginaAtual 
+                  ? "bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg font-semibold" 
+                  : totalPaginas === 1
+                  ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
+                  : "border-2 border-gray-200 text-gray-700 hover:border-orange-500 hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 hover:text-orange-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+                }
+              >
+                {page}
+              </Button>
+            ));
+          })()}
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setPaginaAtual(p => p + 1)}
-            disabled={agendamentosFiltrados.length < itensPorPagina}
-            className={agendamentosFiltrados.length < itensPorPagina
+            onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
+            disabled={paginaAtual === totalPaginas || totalPaginas === 1}
+            className={(paginaAtual === totalPaginas || totalPaginas === 1)
               ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
               : "border-2 border-gray-200 text-gray-700 hover:border-orange-500 hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 hover:text-orange-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             }

@@ -63,6 +63,7 @@ model Profissional {
   contratos           ContratoProfissional[]
   disponibilidades    DisponibilidadeProfissional[]
   precos              PrecosServicosProfissionais[]
+  evolucoes           EvolucaoPaciente[]
   conselho            ConselhoProfissional?         @relation(fields: [conselhoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   especialidades      ProfissionaisEspecialidades[]
   servicos            ProfissionaisServicos[]
@@ -232,7 +233,7 @@ model Agendamento {
   dataHoraFim        DateTime           @map("data_hora_fim") @db.Timestamptz(6)
   codLiberacao       String?            @map("cod_liberacao") @db.VarChar(50)
   statusCodLiberacao String?            @map("status_cod_liberacao") @db.VarChar(30)
-  dataCodLiberacao   DateTime?          @map("data_cod_liberacao") @db.Timestamptz(6)
+  dataCodLiberacao   DateTime?          @map("data_cod_liberacao") @db.Date
   status             String?            @default("agendamento") @db.VarChar(20)
   compareceu         Boolean?
   assinaturaPaciente Boolean?           @map("assinatura_paciente")
@@ -322,17 +323,20 @@ model AtendimentoPacienteServico {
 }
 
 model EvolucaoPaciente {
-  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  pacienteId        String       @map("paciente_id") @db.Uuid
-  agendamentoId     String?      @map("agendamento_id") @db.Uuid
-  dataEvolucao      DateTime     @map("data_evolucao") @db.Date
-  objetivoSessao    String?      @map("objetivo_sessao")
-  descricaoEvolucao String?      @map("descricao_evolucao")
-  createdAt         DateTime?    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime?    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  agendamento       Agendamento? @relation(fields: [agendamentoId], references: [id], onUpdate: NoAction)
-  paciente          Paciente     @relation(fields: [pacienteId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pacienteId        String        @map("paciente_id") @db.Uuid
+  agendamentoId     String?       @map("agendamento_id") @db.Uuid
+  profissionalId    String?       @map("profissional_id") @db.Uuid
+  dataEvolucao      DateTime      @map("data_evolucao") @db.Date
+  objetivoSessao    String?       @map("objetivo_sessao")
+  descricaoEvolucao String?       @map("descricao_evolucao")
+  createdAt         DateTime?     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime?     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  agendamento       Agendamento?  @relation(fields: [agendamentoId], references: [id], onUpdate: NoAction)
+  paciente          Paciente      @relation(fields: [pacienteId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  profissional      Profissional? @relation(fields: [profissionalId], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
+  @@index([profissionalId], map: "idx_evolucoes_pacientes_profissional_id")
   @@map("evolucoes_pacientes")
 }
 

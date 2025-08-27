@@ -10,7 +10,8 @@ import { GetStatusEvolucoesPorAgendamentosUseCase } from '../../../core/applicat
 
 const evolucaoBodySchema = z.object({
   pacienteId: z.string().uuid(),
-  agendamentoId: z.string().uuid(),
+  agendamentoId: z.string().uuid().optional(),
+  profissionalId: z.string().uuid().optional(),
   dataEvolucao: z.coerce.date(),
   objetivoSessao: z.string(),
   descricaoEvolucao: z.string(),
