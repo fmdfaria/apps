@@ -198,12 +198,12 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
            {/* Mostrar item selecionado ou input de busca */}
            {selected && !inputFocused && input === '' ? (
              <div className="flex items-center flex-1 min-w-0">
-               <span 
+               <div 
                  className="text-gray-700 font-medium truncate flex-1" 
                  title={getDisplayText(selected)}
                >
-                 {getDisplayText(selected)}
-               </span>
+                 {formatOption ? formatOption(selected) : getDisplayText(selected)}
+               </div>
                {!disabled && (
                  <button 
                    type="button" 
@@ -315,13 +315,13 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
                 title={isDisabled ? 'Esta opção não está disponível' : undefined}
               >
                 <div className={`w-2 h-2 ${getDotColorClasses(itemDotColor || dotColor)} rounded-full transition-colors duration-150`}></div>
-                <span className={`font-medium transition-colors duration-150 ${
+                <div className={`font-medium transition-colors duration-150 flex-1 ${
                   isDisabled 
                     ? 'text-gray-400' 
                     : 'text-gray-700 group-hover:text-gray-900'
                 }`}>
-                  {getDisplayText(opt)}
-                </span>
+                  {formatOption ? formatOption(opt) : getDisplayText(opt)}
+                </div>
               </div>
             );
           })}

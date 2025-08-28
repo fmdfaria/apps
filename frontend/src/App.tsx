@@ -19,6 +19,7 @@ import { PedidosMedicosPage } from '@/pages/dashboard/PedidosMedicosPage';
 import { ProfissionaisPage } from '@/pages/profissionais/ProfissionaisPage';
 import DisponibilidadeProfissionaisPage from '@/pages/profissionais/DisponibilidadeProfissionaisPage';
 import { PacientesPage } from '@/pages/pacientes/PacientesPage';
+import FilaEsperaPage from '@/pages/fila-espera/FilaEsperaPage';
 import { ServicosPage } from '@/pages/servicos/ServicosPage';
 import PrecosServicoProfissionalPage from '@/pages/servicos/PrecosServicoProfissionalPage';
 import { ConveniosPage } from '@/pages/convenios/ConveniosPage';
@@ -81,6 +82,7 @@ export default function App() {
             <Route path="profissionais" element={<ProfissionaisPage />} />
             <Route path="profissionais/disponibilidade" element={<DisponibilidadeProfissionaisPage />} />
             <Route path="pacientes" element={<PacientesPage />} />
+            <Route path="fila-de-espera" element={<FilaEsperaPage />} />
             <Route path="pacientes/precos-particulares" element={<PrecosParticularPage />} />
             <Route path="pacientes/evolucoes/:id" element={<EvolucaoPacientesPage />} />
             <Route path="servicos" element={<ServicosPage />} />

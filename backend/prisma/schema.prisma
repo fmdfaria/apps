@@ -64,6 +64,7 @@ model Profissional {
   disponibilidades    DisponibilidadeProfissional[]
   precos              PrecosServicosProfissionais[]
   evolucoes           EvolucaoPaciente[]
+  filaEspera          FilaEspera[]
   conselho            ConselhoProfissional?         @relation(fields: [conselhoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   especialidades      ProfissionaisEspecialidades[]
   servicos            ProfissionaisServicos[]
@@ -94,6 +95,7 @@ model Paciente {
   convenio            Convenio?                    @relation(fields: [convenioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   precosParticulares  PrecosParticulares[]
   pedidos             PacientePedido[]
+  filaEspera          FilaEspera[]
 
   @@index([cpf], map: "idx_pacientes_cpf")
   @@index([email], map: "idx_pacientes_email")
@@ -145,6 +147,7 @@ model Servico {
   precosProfissionais             PrecosServicosProfissionais[]
   profissionais                   ProfissionaisServicos[]
   pedidos                         PacientePedido[]
+  filaEspera                      FilaEspera[]
 
   @@unique([nome, duracaoMinutos])
   @@map("servicos")

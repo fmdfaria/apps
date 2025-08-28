@@ -20,6 +20,7 @@ const routePermissionMap: Record<string, { path: string; method: string }> = {
   'pacientes/evolucoes-update': { path: '/evolucoes/:id', method: 'PUT' },
   'pacientes/evolucoes-delete': { path: '/evolucoes/:id', method: 'DELETE' },
   'pacientes/precos-particulares': { path: '/precos-particulares', method: 'GET' },
+  'fila-de-espera': { path: '/fila-de-espera', method: 'GET' },
   'profissionais': { path: '/profissionais', method: 'POST' },
   'profissionais/disponibilidade': { path: '/disponibilidades-profissionais', method: 'GET' },
   'servicos': { path: '/servicos-page', method: 'GET' },
