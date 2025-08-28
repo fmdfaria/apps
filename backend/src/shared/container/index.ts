@@ -74,6 +74,14 @@ import { ListPacientesPedidosUseCase } from '../../core/application/use-cases/pa
 import { UpdatePacientePedidoUseCase } from '../../core/application/use-cases/paciente-pedido/UpdatePacientePedidoUseCase';
 import { DeletePacientePedidoUseCase } from '../../core/application/use-cases/paciente-pedido/DeletePacientePedidoUseCase';
 
+import { IFilaEsperaRepository } from '../../core/domain/repositories/IFilaEsperaRepository';
+import { PrismaFilaEsperaRepository } from '../../infra/database/prisma/repositories/PrismaFilaEsperaRepository';
+import { CreateFilaEsperaUseCase } from '../../core/application/use-cases/fila-espera/CreateFilaEsperaUseCase';
+import { ListFilaEsperaUseCase } from '../../core/application/use-cases/fila-espera/ListFilaEsperaUseCase';
+import { UpdateFilaEsperaUseCase } from '../../core/application/use-cases/fila-espera/UpdateFilaEsperaUseCase';
+import { DeleteFilaEsperaUseCase } from '../../core/application/use-cases/fila-espera/DeleteFilaEsperaUseCase';
+import { UpdateFilaEsperaStatusUseCase } from '../../core/application/use-cases/fila-espera/UpdateFilaEsperaStatusUseCase';
+
 import { IUsersRepository } from '../../core/domain/repositories/IUsersRepository';
 import { PrismaUsersRepository } from '../../infra/database/prisma/repositories/PrismaUsersRepository';
 import { IRefreshTokensRepository } from '../../core/domain/repositories/IRefreshTokensRepository';
@@ -243,6 +251,13 @@ container.register('CreatePacientePedidoUseCase', CreatePacientePedidoUseCase);
 container.register('ListPacientesPedidosUseCase', ListPacientesPedidosUseCase);
 container.register('UpdatePacientePedidoUseCase', UpdatePacientePedidoUseCase);
 container.register('DeletePacientePedidoUseCase', DeletePacientePedidoUseCase);
+
+container.registerSingleton<IFilaEsperaRepository>('FilaEsperaRepository', PrismaFilaEsperaRepository);
+container.register('CreateFilaEsperaUseCase', CreateFilaEsperaUseCase);
+container.register('ListFilaEsperaUseCase', ListFilaEsperaUseCase);
+container.register('UpdateFilaEsperaUseCase', UpdateFilaEsperaUseCase);
+container.register('DeleteFilaEsperaUseCase', DeleteFilaEsperaUseCase);
+container.register('UpdateFilaEsperaStatusUseCase', UpdateFilaEsperaStatusUseCase);
 
 container.registerSingleton<IUsersRepository>(
   'UsersRepository',

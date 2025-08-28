@@ -484,3 +484,25 @@ model PacientePedido {
   @@map("pacientes_pedidos")
 }
 
+model FilaEspera {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pacienteId         String        @map("paciente_id") @db.Uuid
+  servicoId          String        @map("servico_id") @db.Uuid
+  profissionalId     String?       @map("profissional_id") @db.Uuid
+  horarioPreferencia String        @map("horario_preferencia") @db.VarChar(10)
+  observacao         String?
+  status             String?       @default("pendente") @db.VarChar(20)
+  ativo              Boolean?      @default(true)
+  createdAt          DateTime?     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime?     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  paciente           Paciente      @relation(fields: [pacienteId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  servico            Servico       @relation(fields: [servicoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  profissional       Profissional?  @relation(fields: [profissionalId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([pacienteId], map: "idx_fila_espera_paciente_id")
+  @@index([servicoId], map: "idx_fila_espera_servico_id")
+  @@index([profissionalId], map: "idx_fila_espera_profissional_id")
+  @@index([status], map: "idx_fila_espera_status")
+  @@map("fila_de_espera")
+}
+
