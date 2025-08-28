@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ClipboardCheck, XCircle, User, Calendar, Clock, FileText, CreditCard, CheckCircle2, Stethoscope } from 'lucide-react';
+import { ClipboardCheck, XCircle, User, Calendar, Clock, FileText, CreditCard, CheckCircle2, Stethoscope, UserCheck, Monitor, MapPin } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { aprovarAgendamento, updateAgendamento } from '@/services/agendamentos';
 import { useAuth } from '@/hooks/useAuth';
@@ -114,213 +111,165 @@ export const AprovarAgendamentoModal: React.FC<AprovarAgendamentoModalProps> = (
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <ClipboardCheck className="w-6 h-6 text-blue-600" />
-            Avaliar Atendimento
+          <DialogTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2 text-xl">
+              <ClipboardCheck className="w-6 h-6 text-blue-600" />
+              Avaliar Atendimento
+            </span>
+            <Badge className="bg-blue-100 text-blue-700 mr-8">
+              {agendamento.status}
+            </Badge>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Informações do Agendamento */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <FileText className="w-5 h-5" />
-                Informações do Agendamento
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium">Paciente:</span>
-                  <span>{agendamento.pacienteNome}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Profissional:</span>
-                  <span>{agendamento.profissionalNome}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium">Serviço:</span>
-                  <span>{agendamento.servicoNome}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium">Convênio:</span>
-                  <span>{agendamento.convenioNome}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium">Data:</span>
-                  <span>{data}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium">Horário:</span>
-                  <span>{hora}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Status:</span>
-                  <Badge className="bg-yellow-100 text-yellow-700">
-                    {agendamento.status}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Tipo:</span>
-                  <Badge variant="outline">
-                    {agendamento.tipoAtendimento}
-                  </Badge>
-                </div>
+        <div className="space-y-4">
+          {/* Informações do Agendamento - Compacto */}
+          <div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Paciente:</span>
+                <span className="text-gray-700">{agendamento.pacienteNome}</span>
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Profissional:</span>
+                <span className="text-gray-700">{agendamento.profissionalNome}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Convênio:</span>
+                <span className="text-gray-700">{agendamento.convenioNome}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Serviço:</span>
+                <span className="text-gray-700">{agendamento.servicoNome}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Data:</span>
+                <span className="text-gray-700">{data}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Hora:</span>
+                <span className="text-gray-700">{hora}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Monitor className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Tipo:</span>
+                <Badge variant="outline" className="text-xs">
+                  {agendamento.tipoAtendimento}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Recurso:</span>
+                <span className="text-gray-700">{agendamento.recursoNome || '-'}</span>
+              </div>
+              
+              {/* Data de Liberação */}
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Data Liberação:</span>
+                <span className={`${
+                  agendamento.dataCodLiberacao ? 'text-gray-700' : 'text-gray-500'
+                }`}>
+                  {agendamento.dataCodLiberacao ? formatarApenasData(agendamento.dataCodLiberacao) : 'Aguardando'}
+                </span>
+              </div>
 
-          {/* Dados de Liberação */}
-          {agendamento.codLiberacao && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  Dados da Liberação
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">Código:</span>
-                    <span className="font-mono bg-gray-100 px-2 py-1 rounded text-sm">
-                      {agendamento.codLiberacao}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">Status:</span>
-                    <Badge 
-                      className={agendamento.statusCodLiberacao === 'APROVADO' 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-yellow-100 text-yellow-700'
-                      }
-                    >
-                      {agendamento.statusCodLiberacao}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">Data:</span>
-                    <span>{agendamento.dataCodLiberacao ? formatarApenasData(agendamento.dataCodLiberacao) : '-'}</span>
-                  </div>
+              {/* Data do Atendimento */}
+              {agendamento.dataAtendimento && (
+                <div className="flex items-center gap-2">
+                  <Stethoscope className="w-4 h-4 text-gray-500" />
+                  <span className="font-medium">Data Atendimento:</span>
+                  <span className="text-gray-700">{formatarApenasData(agendamento.dataAtendimento)}</span>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </div>
 
-          {/* Dados do Atendimento */}
-          {agendamento.dataAtendimento && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Stethoscope className="w-5 h-5 text-blue-600" />
-                  Dados do Atendimento
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-gray-500" />
-                    <span className="font-medium">Data do Atendimento:</span>
-                    <span>{formatarApenasData(agendamento.dataAtendimento)}</span>
-                  </div>
-                </div>
-                {agendamento.observacoesAtendimento && (
-                  <div className="space-y-2">
-                    <span className="font-medium">Observações:</span>
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-sm text-gray-700">{agendamento.observacoesAtendimento}</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+            {/* Observações do Atendimento - Se existir */}
+            {agendamento.observacoesAtendimento && (
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <span className="font-medium text-gray-700">Observações:</span>
+                <p className="text-sm text-gray-600 mt-1">{agendamento.observacoesAtendimento}</p>
+              </div>
+            )}
+          </div>
 
-          {/* Seleção de Ação */}
-          {/* Seleção de Ação - Concluir agora é automático, Reprovar abre formulário */}
+          {/* Ações - Concluir e Reprovar */}
           {!acao && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <ClipboardCheck className="w-5 h-5" />
-                  Avaliar Atendimento
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-4 justify-center">
-                  <Button
-                    onClick={handleConcluirDireto}
-                    className="bg-green-600 hover:bg-green-700 flex items-center gap-2 px-8 py-4 text-lg"
+            <div className="flex gap-4 justify-center pt-4">
+              <Button
+                onClick={handleConcluirDireto}
+                className="bg-green-600 hover:bg-green-700 flex items-center gap-2 px-8 py-3"
+                disabled={loading}
+              >
+                <ClipboardCheck className="w-5 h-5" />
+                {loading ? 'Concluindo...' : 'Concluir'}
+              </Button>
+              <Button
+                onClick={() => setAcao('REPROVAR')}
+                variant="outline"
+                className="border-red-200 text-red-600 hover:bg-red-600 hover:text-white flex items-center gap-2 px-8 py-3"
+              >
+                <XCircle className="w-5 h-5" />
+                Reprovar
+              </Button>
+            </div>
+          )}
+
+          {/* Formulário de Reprovação */}
+          {acao === 'REPROVAR' && (
+            <div className="space-y-4 pt-4 border-t">
+              <div className="flex items-center gap-2 text-red-600">
+                <XCircle className="w-5 h-5" />
+                <span className="font-medium">Motivo da Reprovação</span>
+              </div>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <Textarea
+                  placeholder="Descreva o motivo da reprovação..."
+                  value={formData.motivoCancelamento}
+                  onChange={(e) => setFormData(prev => ({ ...prev, motivoCancelamento: e.target.value }))}
+                  rows={3}
+                  className="resize-none"
+                  required
+                />
+                <DialogFooter className="gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setAcao(null)}
+                    disabled={loading}
+                    className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6 transition-all duration-200"
+                  >
+                    <span className="mr-2">🔴</span>
+                    Cancelar
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    className="bg-red-600 hover:bg-red-700 shadow-lg hover:shadow-xl font-semibold px-8 transition-all duration-200"
                     disabled={loading}
                   >
-                    <ClipboardCheck className="w-5 h-5" />
-                    Concluir Atendimento
+                    {loading ? (
+                      <>
+                        <span className="mr-2">⏳</span>
+                        Reprovando...
+                      </>
+                    ) : (
+                      <>
+                        <span className="mr-2">❌</span>
+                        Reprovar
+                      </>
+                    )}
                   </Button>
-                  <Button
-                    onClick={() => setAcao('REPROVAR')}
-                    variant="outline"
-                    className="border-red-200 text-red-600 hover:bg-red-600 hover:text-white flex items-center gap-2 px-8 py-4 text-lg"
-                  >
-                    <XCircle className="w-5 h-5" />
-                    Reprovar Atendimento
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Formulário de Avaliação */}
-          {acao === 'REPROVAR' && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <XCircle className="w-5 h-5 text-red-600" />
-                  Motivo da Reprovação
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Motivo da Reprovação - apenas se reprovar */}
-                  <div className="space-y-2">
-                    <Textarea
-                      id="motivoCancelamento"
-                      placeholder="Descreva detalhadamente o motivo da reprovação..."
-                      value={formData.motivoCancelamento}
-                      onChange={(e) => setFormData(prev => ({ ...prev, motivoCancelamento: e.target.value }))}
-                      rows={4}
-                      className="resize-none"
-                      required
-                    />
-                  </div>
-
-                  <DialogFooter className="gap-2 mt-6">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={() => setAcao(null)}
-                      disabled={loading}
-                    >
-                      Voltar
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      className={'bg-red-600 hover:bg-red-700'}
-                      disabled={loading}
-                    >
-                      {loading ? 'Reprovando...' : 'Confirmar Reprovação'}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </CardContent>
-            </Card>
+                </DialogFooter>
+              </form>
+            </div>
           )}
         </div>
       </DialogContent>

@@ -20,7 +20,8 @@ import {
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { getAgendamentos, resolverPendencia, IPaginatedAgendamentos } from '@/services/agendamentos';
-import { AtenderAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
+import { DetalhesAgendamentoModal } from '@/components/agendamentos';
+import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
@@ -39,10 +40,11 @@ export const PendenciaPage = () => {
   const [busca, setBusca] = useState('');
   const [buscaDebounced, setBuscaDebounced] = useState('');
   const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
-  const [showAtenderAgendamento, setShowAtenderAgendamento] = useState(false);
+  const [showConfirmacaoModal, setShowConfirmacaoModal] = useState(false);
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<Agendamento | null>(null);
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
+  const [resolvendoPendencia, setResolvendoPendencia] = useState(false);
   const [itensPorPagina, setItensPorPagina] = useState(10);
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
@@ -248,7 +250,30 @@ export const PendenciaPage = () => {
 
   const handleAvaliar = (agendamento: Agendamento) => {
     setAgendamentoSelecionado(agendamento);
-    setShowAtenderAgendamento(true);
+    setShowConfirmacaoModal(true);
+  };
+
+  const handleConfirmarResolucao = async () => {
+    if (!agendamentoSelecionado) return;
+    
+    setResolvendoPendencia(true);
+    try {
+      await resolverPendencia(agendamentoSelecionado.id, {
+        avaliadoPorId: user?.id
+      });
+      
+      AppToast.success('Pendência resolvida com sucesso!');
+      setShowConfirmacaoModal(false);
+      setAgendamentoSelecionado(null);
+      await carregarAgendamentos();
+    } catch (error) {
+      console.error('Erro ao resolver pendência:', error);
+      AppToast.error('Erro ao resolver pendência', {
+        description: 'Não foi possível resolver a pendência. Tente novamente.'
+      });
+    } finally {
+      setResolvendoPendencia(false);
+    }
   };
 
   const handleVerDetalhes = (agendamento: Agendamento) => {
@@ -304,12 +329,12 @@ export const PendenciaPage = () => {
                     </Button>
                   </div>
                   {canConcluir ? (
-                    <Button size="sm" variant="outline" className="w-full h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white" onClick={() => handleAvaliar(agendamento)} title="Avaliar Atendimento">
-                      Avaliar Atendimento
+                    <Button size="sm" variant="outline" className="w-full h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white" onClick={() => handleAvaliar(agendamento)} title="Pendência Resolvida">
+                      Pendência Resolvida
                     </Button>
                   ) : (
-                    <Button size="sm" disabled className="w-full h-7 text-xs border-gray-300 text-gray-400 cursor-not-allowed" title="Você não tem permissão para avaliar">
-                      Avaliar Atendimento
+                    <Button size="sm" disabled className="w-full h-7 text-xs border-gray-300 text-gray-400 cursor-not-allowed" title="Você não tem permissão para resolver">
+                      Pendência Resolvida
                     </Button>
                   )}
                 </div>
@@ -364,11 +389,11 @@ export const PendenciaPage = () => {
                       <Eye className="w-4 h-4" />
                     </Button>
                     {canConcluir ? (
-                      <Button variant="outline" size="sm" className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform" onClick={() => handleAvaliar(agendamento)} title="Avaliar Atendimento">
+                      <Button variant="outline" size="sm" className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform" onClick={() => handleAvaliar(agendamento)} title="Pendência Resolvida">
                         <CheckSquare className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
                       </Button>
                     ) : (
-                      <Button variant="outline" size="sm" disabled className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0" title="Você não tem permissão para avaliar">
+                      <Button variant="outline" size="sm" disabled className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0" title="Você não tem permissão para resolver">
                         <CheckSquare className="w-4 h-4" />
                       </Button>
                     )}
@@ -586,24 +611,24 @@ export const PendenciaPage = () => {
         </div>
       )}
 
-      <AtenderAgendamentoModal
-        isOpen={showAtenderAgendamento}
-        agendamento={agendamentoSelecionado}
-        onClose={() => { setShowAtenderAgendamento(false); setAgendamentoSelecionado(null); }}
-        onSuccess={async () => {
-          try {
-            if (agendamentoSelecionado) {
-              await resolverPendencia(agendamentoSelecionado.id, {
-                avaliadoPorId: user?.id
-              });
-            }
-          } catch (e) {
-            console.error('Erro ao resolver pendência após atendimento:', e);
-            AppToast.error('Erro ao resolver pendência', { description: 'O atendimento foi registrado, mas falhou ao resolver a pendência. Tente novamente.' });
-          } finally {
-            await carregarAgendamentos();
-          }
+      <ConfirmacaoModal
+        open={showConfirmacaoModal}
+        onClose={() => {
+          setShowConfirmacaoModal(false);
+          setAgendamentoSelecionado(null);
         }}
+        onConfirm={handleConfirmarResolucao}
+        title="Resolver Pendência"
+        description={
+          agendamentoSelecionado 
+            ? `Foi corrigido o erro "${agendamentoSelecionado.motivoReprovacao || 'N/A'}"?`
+            : "Confirma a resolução desta pendência?"
+        }
+        confirmText="Sim"
+        cancelText="Não"
+        isLoading={resolvendoPendencia}
+        loadingText="Resolvendo..."
+        variant="default"
       />
       <DetalhesAgendamentoModal
         isOpen={showDetalhesAgendamento}

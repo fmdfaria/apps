@@ -4,7 +4,7 @@ import { ChevronDown, Search } from 'lucide-react';
 
 interface Option {
   id: string;
-  nome: string;
+  nome?: string;
   sigla?: string;
   disponivel?: boolean;
   [key: string]: any; // Permite propriedades extras
@@ -32,6 +32,18 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
+
+  // Função auxiliar para obter o texto de display de uma opção
+  const getDisplayText = (option: Option): string => {
+    if (formatOption) {
+      const formatted = formatOption(option);
+      return typeof formatted === 'string' ? formatted : '';
+    }
+    
+    // Tentar usar o primeiro campo dos searchFields, depois 'nome' como fallback
+    const displayField = searchFields[0] || 'nome';
+    return (option as any)[displayField] || option.nome || option.id;
+  };
 
   // Map dot colors to Tailwind classes
   const getDotColorClasses = (color: string) => {
@@ -188,9 +200,9 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
              <div className="flex items-center flex-1 min-w-0">
                <span 
                  className="text-gray-700 font-medium truncate flex-1" 
-                 title={selected.nome}
+                 title={getDisplayText(selected)}
                >
-                 {formatOption ? formatOption(selected) : selected.nome}
+                 {getDisplayText(selected)}
                </span>
                {!disabled && (
                  <button 
@@ -200,7 +212,7 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
                      handleClear(); 
                    }} 
                    className="flex-shrink-0 hover:bg-gray-100 rounded-full p-1 transition-colors duration-150 focus:outline-none ml-2"
-                   title={`Remover ${selected.nome}`}
+                   title={`Remover ${getDisplayText(selected)}`}
                  >
                    <span className="w-4 h-4 flex items-center justify-center text-gray-400 hover:text-gray-600 text-sm font-bold">×</span>
                  </button>
@@ -230,7 +242,7 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
                    }
                  }, 0);
                }}
-               placeholder={selected ? selected.nome : placeholder}
+               placeholder={selected ? getDisplayText(selected) : placeholder}
                className="flex-1 border-none outline-none bg-transparent text-gray-700 placeholder:text-gray-400 font-medium min-w-0"
                autoComplete="off"
                disabled={disabled}
@@ -308,7 +320,7 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
                     ? 'text-gray-400' 
                     : 'text-gray-700 group-hover:text-gray-900'
                 }`}>
-                  {formatOption ? formatOption(opt) : opt.nome}
+                  {getDisplayText(opt)}
                 </span>
               </div>
             );

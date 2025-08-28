@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
+import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
 
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { 
@@ -103,12 +104,6 @@ export const AgendamentosPage = () => {
     dataFim: ''
   });
   
-  // Estados para opções dos dropdowns
-  const [conveniosOptions, setConveniosOptions] = useState<Convenio[]>([]);
-  const [servicosOptions, setServicosOptions] = useState<Servico[]>([]);
-  const [pacientesOptions, setPacientesOptions] = useState<Paciente[]>([]);
-  const [profissionaisOptions, setProfissionaisOptions] = useState<Profissional[]>([]);
-  const [loadingDropdowns, setLoadingDropdowns] = useState(false);
   
   // Opções estáticas para Tipo Atendimento e Status
   const tipoAtendimentoOptions = [
@@ -125,6 +120,69 @@ export const AgendamentosPage = () => {
     { id: 'CANCELADO', nome: 'Cancelado' },
     { id: 'ARQUIVADO', nome: 'Arquivado' }
   ];
+
+  // Configuração dos campos de filtro para o AdvancedFilter
+  const filterFields: FilterField[] = [
+    { 
+      key: 'dataInicio', 
+      type: 'date', 
+      label: 'Data Início' 
+    },
+    { 
+      key: 'dataFim', 
+      type: 'date', 
+      label: 'Data Fim' 
+    },
+    { 
+      key: 'convenioId', 
+      type: 'api-select', 
+      label: 'Convênio',
+      apiService: getConvenios,
+      placeholder: 'Selecione um convênio...',
+      searchFields: ['nome']
+    },
+    { 
+      key: 'servicoId', 
+      type: 'api-select', 
+      label: 'Serviço',
+      apiService: getServicos,
+      placeholder: 'Selecione um serviço...',
+      searchFields: ['nome']
+    },
+    { 
+      key: 'tipoAtendimento', 
+      type: 'static-select', 
+      label: 'Tipo Atendimento',
+      options: tipoAtendimentoOptions,
+      placeholder: 'Selecione o tipo...',
+      searchFields: ['nome']
+    },
+    { 
+      key: 'pacienteId', 
+      type: 'api-select', 
+      label: 'Paciente',
+      apiService: getPacientes,
+      placeholder: 'Selecione um paciente...',
+      searchFields: ['nomeCompleto']
+    },
+    { 
+      key: 'profissionalId', 
+      type: 'api-select', 
+      label: 'Profissional',
+      apiService: getProfissionais,
+      placeholder: 'Selecione um profissional...',
+      searchFields: ['nome']
+    },
+    { 
+      key: 'status', 
+      type: 'static-select', 
+      label: 'Status',
+      options: statusOptions,
+      placeholder: 'Selecione o status...',
+      searchFields: ['nome']
+    }
+  ];
+  
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   
   // Estados para exclusão
@@ -174,6 +232,13 @@ export const AgendamentosPage = () => {
   // Recarregamento quando dependências mudam (mas apenas após inicialização)
   useEffect(() => {
     if (initialized) {
+      console.log('🔄 carregarAgendamentos disparado por:', {
+        paginaAtual,
+        itensPorPagina,
+        filtroStatus,
+        filtrosAplicados,
+        buscaDebounced
+      });
       carregarAgendamentos();
     }
   }, [paginaAtual, itensPorPagina, filtroStatus, filtrosAplicados, buscaDebounced]);
@@ -354,10 +419,12 @@ export const AgendamentosPage = () => {
 
 
   const updateFiltro = (campo: keyof typeof filtros, valor: string) => {
+    console.log('📝 updateFiltro chamado:', { campo, valor });
     setFiltros(prev => ({ ...prev, [campo]: valor }));
   };
 
   const aplicarFiltros = () => {
+    console.log('✅ aplicarFiltros chamado:', { filtros });
     setFiltrosAplicados(filtros);
     setPaginaAtual(1);
   };
@@ -378,30 +445,6 @@ export const AgendamentosPage = () => {
     setPaginaAtual(1);
   };
 
-  // Função para carregar dados dos dropdowns
-  const carregarDadosDropdowns = async () => {
-    setLoadingDropdowns(true);
-    try {
-      const [convenios, servicos, pacientes, profissionais] = await Promise.all([
-        getConvenios(),
-        getServicos(),
-        getPacientes(),
-        getProfissionais()
-      ]);
-      
-      setConveniosOptions(convenios);
-      setServicosOptions(servicos);
-      setPacientesOptions(pacientes);
-      setProfissionaisOptions(profissionais);
-    } catch (error) {
-      console.error('Erro ao carregar dados dos dropdowns:', error);
-      AppToast.error('Erro ao carregar opções dos filtros', {
-        description: 'Não foi possível carregar as opções para os filtros. Tente novamente.'
-      });
-    } finally {
-      setLoadingDropdowns(false);
-    }
-  };
 
   const temFiltrosAtivos = Object.values(filtrosAplicados).some(filtro => filtro !== '');
   const temFiltrosNaoAplicados = JSON.stringify(filtros) !== JSON.stringify(filtrosAplicados);
@@ -921,12 +964,7 @@ export const AgendamentosPage = () => {
           {/* Botão Filtros Avançados */}
           <Button
             variant="outline"
-            onClick={() => {
-              setMostrarFiltros(!mostrarFiltros);
-              if (!mostrarFiltros) {
-                carregarDadosDropdowns();
-              }
-            }}
+            onClick={() => setMostrarFiltros(!mostrarFiltros)}
             className={`${mostrarFiltros ? 'bg-blue-50 border-blue-300' : ''} ${temFiltrosAtivos ? 'border-blue-500 bg-blue-50' : ''}`}
           >
             <Filter className="w-4 h-4 mr-2" />
@@ -960,214 +998,17 @@ export const AgendamentosPage = () => {
       </div>
 
       {/* Painel de Filtros Avançados */}
-      {mostrarFiltros && (
-        <div className="bg-white border border-gray-200 rounded-lg px-6 py-4 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Filtros Avançados</h3>
-            <div className="flex gap-2">
-              {temFiltrosNaoAplicados && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={aplicarFiltros}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Filter className="w-4 h-4 mr-1" />
-                  Aplicar Filtro
-                </Button>
-              )}
-              {temFiltrosAtivos && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={limparFiltros}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  <FilterX className="w-4 h-4 mr-1" />
-                  Limpar Filtros
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setMostrarFiltros(false)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {/* Filtro Data Início */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Data Início</span>
-              <Input
-                type="date"
-                value={filtros.dataInicio}
-                onChange={(e) => updateFiltro('dataInicio', e.target.value)}
-                className="h-8"
-              />
-            </div>
-
-            {/* Filtro Data Fim */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Data Fim</span>
-              <Input
-                type="date"
-                value={filtros.dataFim}
-                onChange={(e) => updateFiltro('dataFim', e.target.value)}
-                className="h-8"
-              />
-            </div>
-
-            {/* Filtro Convênio */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Convênio</span>
-              <SingleSelectDropdown
-                options={conveniosOptions}
-                selected={conveniosOptions.find(c => c.id === filtros.convenioId) || null}
-                onChange={(selected) => updateFiltro('convenioId', selected?.id || '')}
-                placeholder="Selecione um convênio..."
-                searchFields={['nome']}
-                disabled={loadingDropdowns}
-              />
-            </div>
-
-            {/* Filtro Serviço */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Serviço</span>
-              <SingleSelectDropdown
-                options={servicosOptions}
-                selected={servicosOptions.find(s => s.id === filtros.servicoId) || null}
-                onChange={(selected) => updateFiltro('servicoId', selected?.id || '')}
-                placeholder="Selecione um serviço..."
-                searchFields={['nome']}
-                disabled={loadingDropdowns}
-              />
-            </div>
-
-            {/* Filtro Tipo Atendimento */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Tipo Atendimento</span>
-              <SingleSelectDropdown
-                options={tipoAtendimentoOptions}
-                selected={tipoAtendimentoOptions.find(t => t.id === filtros.tipoAtendimento) || null}
-                onChange={(selected) => updateFiltro('tipoAtendimento', selected?.id || '')}
-                placeholder="Selecione o tipo..."
-                searchFields={['nome']}
-              />
-            </div>
-
-            {/* Filtro Paciente */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Paciente</span>
-              <SingleSelectDropdown
-                options={pacientesOptions.map(p => ({ ...p, nome: p.nomeCompleto }))}
-                selected={pacientesOptions.find(p => p.id === filtros.pacienteId) ? { ...pacientesOptions.find(p => p.id === filtros.pacienteId)!, nome: pacientesOptions.find(p => p.id === filtros.pacienteId)!.nomeCompleto } : null}
-                onChange={(selected) => updateFiltro('pacienteId', selected?.id || '')}
-                placeholder="Selecione um paciente..."
-                searchFields={['nome']}
-                disabled={loadingDropdowns}
-              />
-            </div>
-
-            {/* Filtro Profissional */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Profissional</span>
-              <SingleSelectDropdown
-                options={profissionaisOptions}
-                selected={profissionaisOptions.find(p => p.id === filtros.profissionalId) || null}
-                onChange={(selected) => updateFiltro('profissionalId', selected?.id || '')}
-                placeholder="Selecione um profissional..."
-                searchFields={['nome']}
-                disabled={loadingDropdowns}
-              />
-            </div>
-
-            {/* Filtro Status */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Status</span>
-              <SingleSelectDropdown
-                options={statusOptions}
-                selected={statusOptions.find(s => s.id === filtros.status) || null}
-                onChange={(selected) => updateFiltro('status', selected?.id || '')}
-                placeholder="Selecione o status..."
-                searchFields={['nome']}
-              />
-            </div>
-          </div>
-
-          {/* Resumo dos Filtros Ativos */}
-          {temFiltrosAtivos && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-sm text-gray-600">Filtros ativos:</span>
-                {Object.entries(filtrosAplicados)
-                  .filter(([_, valor]) => valor !== '')
-                  .map(([campo, valor]) => {
-                    const labels = {
-                      pacienteId: 'Paciente',
-                      profissionalId: 'Profissional', 
-                      servicoId: 'Serviço',
-                      convenioId: 'Convênio',
-                      tipoAtendimento: 'Tipo',
-                      status: 'Status',
-                      dataInicio: 'De',
-                      dataFim: 'Até'
-                    };
-                    
-                    // Formatar valor para exibição
-                    let valorFormatado = valor;
-                    if (campo === 'dataInicio' || campo === 'dataFim') {
-                      valorFormatado = formatarDataBrasil(valor);
-                    } else if (campo === 'pacienteId') {
-                      const paciente = pacientesOptions.find(p => p.id === valor);
-                      valorFormatado = paciente?.nomeCompleto || valor;
-                    } else if (campo === 'profissionalId') {
-                      const profissional = profissionaisOptions.find(p => p.id === valor);
-                      valorFormatado = profissional?.nome || valor;
-                    } else if (campo === 'servicoId') {
-                      const servico = servicosOptions.find(s => s.id === valor);
-                      valorFormatado = servico?.nome || valor;
-                    } else if (campo === 'convenioId') {
-                      const convenio = conveniosOptions.find(c => c.id === valor);
-                      valorFormatado = convenio?.nome || valor;
-                    } else if (campo === 'tipoAtendimento') {
-                      const tipo = tipoAtendimentoOptions.find(t => t.id === valor);
-                      valorFormatado = tipo?.nome || valor;
-                    } else if (campo === 'status') {
-                      const status = statusOptions.find(s => s.id === valor);
-                      valorFormatado = status?.nome || valor;
-                    }
-                    
-                    return (
-                      <Badge key={campo} variant="secondary" className="text-xs inline-flex items-center gap-1">
-                        {labels[campo as keyof typeof labels]}: {valorFormatado}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const novosFiltros = { ...filtros };
-                            const novosFiltrosAplicados = { ...filtrosAplicados };
-                            novosFiltros[campo as keyof typeof filtros] = '';
-                            novosFiltrosAplicados[campo as keyof typeof filtrosAplicados] = '';
-                            setFiltros(novosFiltros);
-                            setFiltrosAplicados(novosFiltrosAplicados);
-                          }}
-                          className="h-4 w-4 p-0 hover:text-red-600 ml-1"
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </Badge>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      
+      <AdvancedFilter
+        fields={filterFields}
+        filters={filtros}
+        appliedFilters={filtrosAplicados}
+        onFilterChange={updateFiltro}
+        onApplyFilters={aplicarFiltros}
+        onClearFilters={limparFiltros}
+        isVisible={mostrarFiltros}
+        onClose={() => setMostrarFiltros(false)}
+        loading={loading}
+      />
 
       {/* Conteúdo */}
       {visualizacao === 'cards' ? (

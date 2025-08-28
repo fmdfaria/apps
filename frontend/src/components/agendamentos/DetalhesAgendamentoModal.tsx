@@ -15,7 +15,11 @@ import {
   Info,
   UserCheck,
   Monitor,
-  MapPin
+  MapPin,
+  Key,
+  CalendarCheck,
+  Stethoscope,
+  AlertTriangle
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { formatarDataHoraLocal, formatarApenasData } from '@/utils/dateUtils';
@@ -76,6 +80,7 @@ export const DetalhesAgendamentoModal: React.FC<DetalhesAgendamentoModalProps> =
           {/* Informações do Agendamento */}
           <div>
             <div className="grid grid-cols-2 gap-3 text-sm">
+              {/* Linha 1 */}
               <div className="flex items-center gap-2">
                 <User className="w-4 h-4 text-gray-500" />
                 <span className="font-medium">Paciente:</span>
@@ -86,6 +91,8 @@ export const DetalhesAgendamentoModal: React.FC<DetalhesAgendamentoModalProps> =
                 <span className="font-medium">Profissional:</span>
                 <span className="text-gray-700">{agendamento.profissionalNome}</span>
               </div>
+              
+              {/* Linha 2 */}
               <div className="flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-gray-500" />
                 <span className="font-medium">Convênio:</span>
@@ -96,6 +103,8 @@ export const DetalhesAgendamentoModal: React.FC<DetalhesAgendamentoModalProps> =
                 <span className="font-medium">Serviço:</span>
                 <span className="text-gray-700">{agendamento.servicoNome}</span>
               </div>
+              
+              {/* Linha 3 */}
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-gray-500" />
                 <span className="font-medium">Data:</span>
@@ -106,6 +115,8 @@ export const DetalhesAgendamentoModal: React.FC<DetalhesAgendamentoModalProps> =
                 <span className="font-medium">Hora:</span>
                 <span className="text-gray-700">{hora}</span>
               </div>
+              
+              {/* Linha 4 */}
               <div className="flex items-center gap-2">
                 <Monitor className="w-4 h-4 text-gray-500" />
                 <span className="font-medium">Tipo:</span>
@@ -118,73 +129,42 @@ export const DetalhesAgendamentoModal: React.FC<DetalhesAgendamentoModalProps> =
                 <span className="font-medium">Recurso:</span>
                 <span className="text-gray-700">{agendamento.recursoNome || '-'}</span>
               </div>
+              
+              {/* Linha 5 */}
+              {(agendamento.codLiberacao || agendamento.dataCodLiberacao) && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Key className="w-4 h-4 text-gray-500" />
+                    <span className="font-medium">Código:</span>
+                    <span className="text-gray-700 font-mono">{agendamento.codLiberacao || '-'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CalendarCheck className="w-4 h-4 text-gray-500" />
+                    <span className="font-medium">Data Liberação:</span>
+                    <span className="text-gray-700">{agendamento.dataCodLiberacao ? formatarDataHoraCompleta(agendamento.dataCodLiberacao) : '-'}</span>
+                  </div>
+                </>
+              )}
+              
+              {/* Linha 6 */}
+              {agendamento.dataAtendimento && (
+                <div className="flex items-center gap-2 col-span-2">
+                  <Stethoscope className="w-4 h-4 text-gray-500" />
+                  <span className="font-medium">Data do Atendimento:</span>
+                  <span className="text-gray-700">{formatarDataHoraCompleta(agendamento.dataAtendimento)}</span>
+                </div>
+              )}
+              
+              {/* Linha 7 */}
+              {agendamento.motivoReprovacao && (
+                <div className="flex items-center gap-2 col-span-2">
+                  <AlertTriangle className="w-4 h-4 text-gray-500" />
+                  <span className="font-medium">Motivo da Reprovação:</span>
+                  <span className="text-gray-700">{agendamento.motivoReprovacao}</span>
+                </div>
+              )}
             </div>
           </div>
-
-          {/* Informações Adicionais */}
-          {(agendamento.codLiberacao || agendamento.dataAtendimento || agendamento.observacoesAtendimento || 
-            agendamento.dataAprovacao || agendamento.motivoCancelamento) && (
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Informações Adicionais</h3>
-              <div className="space-y-3 text-sm">
-                {agendamento.codLiberacao && (
-                  <div>
-                    <h4 className="font-semibold text-gray-800 mb-2">Dados da Liberação</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <span className="font-medium">Código:</span>
-                        <span className="text-gray-700 ml-2 font-mono">{agendamento.codLiberacao}</span>
-                      </div>
-                      <div>
-                        <span className="font-medium">Data:</span>
-                        <span className="text-gray-700 ml-2">{agendamento.dataCodLiberacao ? formatarDataHoraCompleta(agendamento.dataCodLiberacao) : '-'}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {agendamento.dataAtendimento && (
-                  <div>
-                    <span className="font-medium">Data do Atendimento:</span>
-                    <span className="text-gray-700 ml-2">{formatarDataHoraCompleta(agendamento.dataAtendimento)}</span>
-                  </div>
-                )}
-
-                {agendamento.dataAprovacao && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <span className="font-medium">Data de Aprovação:</span>
-                      <span className="text-gray-700 ml-2">{formatarDataHoraCompleta(agendamento.dataAprovacao)}</span>
-                    </div>
-                    {agendamento.aprovadoPor && (
-                      <div>
-                        <span className="font-medium">Aprovado por:</span>
-                        <span className="text-gray-700 ml-2">{agendamento.aprovadoPor}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {agendamento.observacoesAtendimento && (
-                  <div>
-                    <span className="font-medium">Observações do Atendimento:</span>
-                    <p className="mt-1 p-3 bg-gray-50 rounded border text-gray-700">
-                      {agendamento.observacoesAtendimento}
-                    </p>
-                  </div>
-                )}
-
-                {agendamento.motivoCancelamento && (
-                  <div>
-                    <span className="font-medium">Motivo do Cancelamento:</span>
-                    <p className="mt-1 p-3 bg-red-50 border border-red-200 rounded text-red-800">
-                      {agendamento.motivoCancelamento}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </DialogContent>
     </Dialog>

@@ -164,7 +164,7 @@ export default function EvolucaoPacientesModal({
 
       setForm({
         pacienteId: evolucaoParaEditar.pacienteId,
-        agendamentoId: evolucaoParaEditar.agendamentoId,
+        agendamentoId: evolucaoParaEditar.agendamentoId || undefined,
         dataEvolucao: formatarDataParaInput(evolucaoParaEditar.dataEvolucao),
         objetivoSessao: evolucaoParaEditar.objetivoSessao || '',
         descricaoEvolucao: evolucaoParaEditar.descricaoEvolucao || '',
@@ -182,13 +182,15 @@ export default function EvolucaoPacientesModal({
         setPacienteNome(pacienteEncontrado?.nomeCompleto || evolucaoParaEditar.pacienteNome || '');
         
         if (isProfissional) {
-          // Se é profissional logado, usar dados da tabela profissionais
-          const profissionalLogado = profissionais.find(p => p.id === user?.profissionalId);
-          setProfissionalNome(profissionalLogado?.nome || '');
-          setForm(prev => ({ ...prev, profissionalId: user?.profissionalId || '' }));
+          // Se é profissional logado editando, manter o profissional original da evolução
+          const profissionalOriginal = profissionais.find(p => p.id === evolucaoParaEditar.profissionalId);
+          setProfissionalNome(profissionalOriginal?.nome || evolucaoParaEditar.profissionalNome || '');
+          setForm(prev => ({ ...prev, profissionalId: evolucaoParaEditar.profissionalId || '' }));
         } else {
-          setProfissionalNome('');
-          setForm(prev => ({ ...prev, profissionalId: '' }));
+          // Se é admin/outro usuário, carregar dados do profissional original para poder trocar
+          const profissionalOriginal = profissionais.find(p => p.id === evolucaoParaEditar.profissionalId);
+          setProfissionalNome(profissionalOriginal?.nome || evolucaoParaEditar.profissionalNome || '');
+          setForm(prev => ({ ...prev, profissionalId: evolucaoParaEditar.profissionalId || '' }));
         }
       }
     }
@@ -282,8 +284,8 @@ export default function EvolucaoPacientesModal({
     try {
       const dadosEvolucao: CreateEvolucaoPacienteData = {
         pacienteId: form.pacienteId,
-        agendamentoId: form.agendamentoId,
-        profissionalId: isProfissional ? (user?.profissionalId || undefined) : (form.profissionalId || undefined),
+        ...(form.agendamentoId && { agendamentoId: form.agendamentoId }),
+        profissionalId: (isProfissional && !isEditing) ? (user?.profissionalId || undefined) : (form.profissionalId || undefined),
         dataEvolucao: form.dataEvolucao,
         objetivoSessao: form.objetivoSessao?.trim() || '',
         descricaoEvolucao: form.descricaoEvolucao?.trim() || '',

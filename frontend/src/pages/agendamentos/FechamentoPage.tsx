@@ -134,10 +134,9 @@ export const FechamentoPage = () => {
     setLoading(true);
     setAgendamentos([]); // Inicializa como array vazio para evitar erro de filter
     try {
-      // Usar status LIBERADO (status FINALIZADO não existe no banco)
-      // Debug revelou status disponíveis: ['LIBERADO', 'AGENDADO']
+      // Usar status FINALIZADO para fechamentos
       const dados = await getAgendamentos({ 
-        status: 'LIBERADO', // Usando LIBERADO pois FINALIZADO não existe
+        status: 'FINALIZADO',
         page: 1,
         // Removido limit para usar padrão da API (dados serão agrupados)
         ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
@@ -236,6 +235,12 @@ export const FechamentoPage = () => {
     return null; // Parcial
   };
 
+  // Função para calcular valor total do serviço (como no modal)
+  const calcularValorTotal = (agendamento: Agendamento): number => {
+    const preco = parseFloat((agendamento as any).servico?.preco || '0');
+    return preco;
+  };
+
   // Função para calcular valor a receber pela clínica
   const calcularValorClinica = (agendamento: Agendamento): number => {
     // Prioridade 1: valor_clinica direto do serviço
@@ -259,10 +264,9 @@ export const FechamentoPage = () => {
     return precoServico;
   };
 
-  // Filtrar agendamentos LIBERADOS (com proteção para array)
-  // Status FINALIZADO não existe - usando LIBERADO conforme disponível no banco
+  // Filtrar agendamentos FINALIZADOS (com proteção para array)
   const agendamentosFiltrados = (Array.isArray(agendamentos) ? agendamentos : [])
-    .filter(a => a.status === 'LIBERADO')
+    .filter(a => a.status === 'FINALIZADO')
     .filter(a => 
       !busca || 
       a.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||
@@ -278,7 +282,10 @@ export const FechamentoPage = () => {
     .filter(a => {
       if (!filtrosAplicados.dataInicio && !filtrosAplicados.dataFim) return true;
       
-      const dataAgendamentoISO = a.dataHoraInicio.split('T')[0];
+      // Ajustar para timezone do Brasil (-3 horas) antes de extrair a data
+      const date = new Date(a.dataHoraInicio);
+      const brasilDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+      const dataAgendamentoISO = brasilDate.toISOString().split('T')[0];
       
       if (filtrosAplicados.dataInicio && dataAgendamentoISO < filtrosAplicados.dataInicio) return false;
       if (filtrosAplicados.dataFim && dataAgendamentoISO > filtrosAplicados.dataFim) return false;
@@ -312,14 +319,21 @@ export const FechamentoPage = () => {
 
       const dados = conveniosMap.get(convenio)!;
       dados.agendamentos.push(agendamento);
-      // Calcular valor a receber pela clínica
-      const valorClinica = calcularValorClinica(agendamento);
-      dados.valorTotal += valorClinica;
+      // Calcular valor total do serviço (igual ao modal)
+      const valorTotal = calcularValorTotal(agendamento);
+      dados.valorTotal += valorTotal;
     });
 
     return Array.from(conveniosMap.entries()).map(([convenio, dados]) => {
+      
       const datas = dados.agendamentos
-        .map(a => a.dataHoraInicio?.split('T')[0])
+        .map(a => {
+          if (!a.dataHoraInicio) return null;
+          // Ajustar para timezone do Brasil (-3 horas) antes de extrair a data
+          const date = new Date(a.dataHoraInicio);
+          const brasilDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+          return brasilDate.toISOString().split('T')[0];
+        })
         .filter(d => d); // Remove undefined/null values
       
       if (datas.length === 0) {
@@ -336,11 +350,14 @@ export const FechamentoPage = () => {
 
       const dataInicio = Math.min(...datas.map(d => new Date(d).getTime()));
       const dataFim = Math.max(...datas.map(d => new Date(d).getTime()));
+      
+      const finalDataInicio = new Date(dataInicio).toISOString().split('T')[0];
+      const finalDataFim = new Date(dataFim).toISOString().split('T')[0];
 
       return {
         convenio: convenio || 'Não informado',
-        dataInicio: new Date(dataInicio).toISOString().split('T')[0],
-        dataFim: new Date(dataFim).toISOString().split('T')[0],
+        dataInicio: finalDataInicio,
+        dataFim: finalDataFim,
         qtdAgendamentos: dados.agendamentos.length,
         valorReceber: dados.valorTotal,
         agendamentos: dados.agendamentos
@@ -368,7 +385,10 @@ export const FechamentoPage = () => {
       .filter(a => {
         if (!filtrosAplicados.dataInicio && !filtrosAplicados.dataFim) return true;
         
-        const dataAgendamentoISO = a.dataHoraInicio.split('T')[0];
+        // Ajustar para timezone do Brasil (-3 horas) antes de extrair a data
+        const date = new Date(a.dataHoraInicio);
+        const brasilDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+        const dataAgendamentoISO = brasilDate.toISOString().split('T')[0];
         
         if (filtrosAplicados.dataInicio && dataAgendamentoISO < filtrosAplicados.dataInicio) return false;
         if (filtrosAplicados.dataFim && dataAgendamentoISO > filtrosAplicados.dataFim) return false;
@@ -408,18 +428,25 @@ export const FechamentoPage = () => {
 
       const tipoPagamento = precoParticular?.tipoPagamento || 'Mensal';
       const pagamentoAntecipado = precoParticular?.pagamentoAntecipado ?? false;
-      const valorClinica = calcularValorClinica(agendamento);
+      const valorTotal = calcularValorTotal(agendamento);
 
       if (tipoPagamento === 'Avulso') {
         // Para pagamentos avulsos, cada agendamento é uma linha separada
-        const dataAgendamento = agendamento.dataHoraInicio?.split('T')[0] || new Date().toISOString().split('T')[0];
+        let dataAgendamento;
+        if (agendamento.dataHoraInicio) {
+          const date = new Date(agendamento.dataHoraInicio);
+          const brasilDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+          dataAgendamento = brasilDate.toISOString().split('T')[0];
+        } else {
+          dataAgendamento = new Date().toISOString().split('T')[0];
+        }
         
         resultados.push({
           paciente: paciente,
           dataInicio: dataAgendamento,
           dataFim: dataAgendamento,
           qtdAgendamentos: 1,
-          valorReceber: valorClinica,
+          valorReceber: valorTotal,
           agendamentos: [agendamento],
           tipoPagamento: tipoPagamento,
           pagamentoAntecipado: pagamentoAntecipado
@@ -433,11 +460,15 @@ export const FechamentoPage = () => {
         if (existingEntry) {
           existingEntry.agendamentos.push(agendamento);
           existingEntry.qtdAgendamentos += 1;
-          existingEntry.valorReceber += valorClinica;
+          existingEntry.valorReceber += valorTotal;
           
           // Atualizar datas para incluir este agendamento
-          const dataAgendamento = agendamento.dataHoraInicio?.split('T')[0];
-          if (dataAgendamento) {
+          let dataAgendamento;
+          if (agendamento.dataHoraInicio) {
+            const date = new Date(agendamento.dataHoraInicio);
+            const brasilDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+            dataAgendamento = brasilDate.toISOString().split('T')[0];
+            
             if (dataAgendamento < existingEntry.dataInicio) {
               existingEntry.dataInicio = dataAgendamento;
             }
@@ -446,14 +477,21 @@ export const FechamentoPage = () => {
             }
           }
         } else {
-          const dataAgendamento = agendamento.dataHoraInicio?.split('T')[0] || new Date().toISOString().split('T')[0];
+          let dataAgendamento;
+          if (agendamento.dataHoraInicio) {
+            const date = new Date(agendamento.dataHoraInicio);
+            const brasilDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+            dataAgendamento = brasilDate.toISOString().split('T')[0];
+          } else {
+            dataAgendamento = new Date().toISOString().split('T')[0];
+          }
           
           resultados.push({
             paciente: paciente,
             dataInicio: dataAgendamento,
             dataFim: dataAgendamento,
             qtdAgendamentos: 1,
-            valorReceber: valorClinica,
+            valorReceber: valorTotal,
             agendamentos: [agendamento],
             tipoPagamento: tipoPagamento,
             pagamentoAntecipado: pagamentoAntecipado

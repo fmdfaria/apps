@@ -40,9 +40,16 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
   const formatarDataHora = (dataISO: string) => {
     if (!dataISO) return { data: '', hora: '' };
     
-    const [datePart, timePart] = dataISO.split('T');
-    const [ano, mes, dia] = datePart.split('-');
-    const [hora, minuto] = timePart.split(':');
+    // Criar Date object e ajustar para timezone do Brasil (-3 horas)
+    const date = new Date(dataISO);
+    // Como o banco já está em -0300 mas a API retorna em UTC, precisamos ajustar
+    const brasilDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+    
+    const dia = brasilDate.getUTCDate().toString().padStart(2, '0');
+    const mes = (brasilDate.getUTCMonth() + 1).toString().padStart(2, '0');
+    const ano = brasilDate.getUTCFullYear().toString();
+    const hora = brasilDate.getUTCHours().toString().padStart(2, '0');
+    const minuto = brasilDate.getUTCMinutes().toString().padStart(2, '0');
     
     return {
       data: `${dia}/${mes}/${ano}`,

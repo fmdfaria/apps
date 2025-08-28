@@ -3,21 +3,25 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, ArrowLeft, User, FileText, Phone, Building2, IdCard, Paperclip } from 'lucide-react';
-import { getEvolucoes } from '@/services/evolucoes';
+import { Calendar, ArrowLeft, User, FileText, Phone, Building2, IdCard, Paperclip, UserCheck, Stethoscope, Edit, Trash2 } from 'lucide-react';
+import { getEvolucoes, deleteEvolucao, updateEvolucao } from '@/services/evolucoes';
 import { getPacientes } from '@/services/pacientes';
 import { getConvenios } from '@/services/convenios';
+import { useAuth } from '@/hooks/useAuth';
+import { AppToast } from '@/services/toast';
 import type { EvolucaoPaciente } from '@/types/EvolucaoPaciente';
 import type { Paciente } from '@/types/Paciente';
 import type { Convenio } from '@/types/Convenio';
 import AnexoEvolucoesPacientesModal from './AnexoEvolucoesPacientesModal';
 import EvolucaoPacientesModal from './EvolucaoPacientesModal';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import { getAnexos } from '@/services/anexos';
 import type { Anexo } from '@/types/Anexo';
 
 export const EvolucaoPacientesPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [evolucoes, setEvolucoes] = useState<EvolucaoPaciente[]>([]);
@@ -36,6 +40,11 @@ export const EvolucaoPacientesPage: React.FC = () => {
   // Estados para o modal de evolução
   const [showEvolucaoModal, setShowEvolucaoModal] = useState(false);
   const [evolucaoParaEditar, setEvolucaoParaEditar] = useState<EvolucaoPaciente | null>(null);
+  
+  // Estados para o modal de confirmação de exclusão
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [evolucaoParaExcluir, setEvolucaoParaExcluir] = useState<EvolucaoPaciente | null>(null);
+  const [deletingEvolucao, setDeletingEvolucao] = useState(false);
 
   useEffect(() => {
     const carregar = async () => {
@@ -123,6 +132,35 @@ export const EvolucaoPacientesPage: React.FC = () => {
     return whatsapp;
   };
 
+  // Funções de permissão
+  const canEditEvolucao = (evolucao: EvolucaoPaciente) => {
+    if (!user) return false;
+    
+    // ADMIN pode editar qualquer evolução
+    if (user.roles?.includes('ADMIN')) return true;
+    
+    // PROFISSIONAL pode editar apenas suas próprias evoluções
+    if (user.roles?.includes('PROFISSIONAL') && user.profissionalId) {
+      return evolucao.profissionalId === user.profissionalId;
+    }
+    
+    return false;
+  };
+
+  const canDeleteEvolucao = (evolucao: EvolucaoPaciente) => {
+    if (!user) return false;
+    
+    // ADMIN pode excluir qualquer evolução
+    if (user.roles?.includes('ADMIN')) return true;
+    
+    // PROFISSIONAL pode excluir apenas suas próprias evoluções
+    if (user.roles?.includes('PROFISSIONAL') && user.profissionalId) {
+      return evolucao.profissionalId === user.profissionalId;
+    }
+    
+    return false;
+  };
+
   const convenioNome = useMemo(() => {
     if (!paciente?.convenioId) return undefined;
     return convenios.find(c => c.id === paciente.convenioId)?.nome;
@@ -172,6 +210,46 @@ export const EvolucaoPacientesPage: React.FC = () => {
       });
     }
     fecharModalEvolucao();
+  };
+
+  const handleEditEvolucao = (evolucao: EvolucaoPaciente) => {
+    setEvolucaoParaEditar(evolucao);
+    setShowEvolucaoModal(true);
+  };
+
+  const handleDeleteEvolucao = (evolucao: EvolucaoPaciente) => {
+    setEvolucaoParaExcluir(evolucao);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!evolucaoParaExcluir) return;
+
+    try {
+      setDeletingEvolucao(true);
+      await deleteEvolucao(evolucaoParaExcluir.id);
+      AppToast.success('Evolução excluída com sucesso!');
+      
+      // Recarregar evoluções
+      if (id) {
+        const evols = await getEvolucoes({ pacienteId: id });
+        setEvolucoes(evols || []);
+      }
+      
+      setShowDeleteModal(false);
+      setEvolucaoParaExcluir(null);
+    } catch (error) {
+      console.error('Erro ao excluir evolução:', error);
+      AppToast.error('Erro ao excluir evolução');
+    } finally {
+      setDeletingEvolucao(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setEvolucaoParaExcluir(null);
+    setDeletingEvolucao(false);
   };
 
   if (loading) {
@@ -253,7 +331,7 @@ export const EvolucaoPacientesPage: React.FC = () => {
             </div>
           ) : (
             monthGroups.map((group) => (
-              <div key={group.key} className="space-y-4">
+              <div key={group.key} className="space-y-6">
                 {/* Cabeçalho do mês */}
                 <div className="relative pl-12 md:pl-16 cursor-pointer" onClick={() => toggleMonth(group.key)}>
                   {/* Marcador do mês */}
@@ -267,28 +345,76 @@ export const EvolucaoPacientesPage: React.FC = () => {
 
                 {/* Itens do mês (colapsáveis) */}
                 {openMonths.has(group.key) && (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     {group.items.map((ev, idx) => (
                       <div key={ev.id || idx} className="relative pl-12 md:pl-16">
-                        {/* Marcador do item */}
-                        <div className="absolute left-4 top-3 w-4 h-4 bg-white border-2 border-blue-500 rounded-full shadow" />
-                        {/* Conteúdo */}
-                        <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-blue-500">
-                          <CardContent className="p-4 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <Calendar className="w-4 h-4" />
-                                <span>{formatarData(ev.dataEvolucao as any)}</span>
+                        {/* Marcador do item otimizado */}
+                        <div className="absolute left-4 top-4 w-4 h-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full shadow-lg flex items-center justify-center">
+                          <div className="w-2 h-2 bg-white rounded-full" />
+                        </div>
+                        {/* Card otimizado */}
+                        <Card className="group hover:shadow-xl hover:shadow-blue-100/50 transition-all duration-300 border-l-4 border-l-blue-500 bg-gradient-to-br from-white via-white to-blue-50/30">
+                          <CardContent className="p-5 space-y-4">
+                            {/* Header com data */}
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center gap-3 text-sm">
+                                <div className="flex items-center gap-2 text-gray-600 bg-gray-50 px-3 py-1.5 rounded-full">
+                                  <Calendar className="w-4 h-4 text-blue-600" />
+                                  <span className="font-medium">{formatarData(ev.dataEvolucao as any)}</span>
+                                </div>
                               </div>
-                              <Badge variant="outline" className="bg-blue-50 border-blue-200 text-blue-700">{ev.objetivoSessao || 'Evolução'}</Badge>
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-700">
-                              <FileText className="w-4 h-4 text-blue-600" />
-                              <span className="font-medium">Descrição</span>
+
+                            {/* Informações do profissional */}
+                            {ev.profissionalNome && (
+                              <div className="flex items-center gap-2 text-sm bg-green-50 px-3 py-2 rounded-lg border border-green-100">
+                                <UserCheck className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                <span className="text-gray-600">Profissional:</span>
+                                <span className="font-semibold text-green-700">{ev.profissionalNome}</span>
+                              </div>
+                            )}
+
+                            {/* Seção de descrição */}
+                            <div className="space-y-2">
+                              <Badge 
+                                variant="outline" 
+                                className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200 text-blue-800 font-medium px-3 py-1"
+                              >
+                                <Stethoscope className="w-3 h-3 mr-1" />
+                                {ev.objetivoSessao || 'Evolução'}
+                              </Badge>
+                              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                <p className="text-sm leading-relaxed text-gray-800 whitespace-pre-line">
+                                  {ev.descricaoEvolucao}
+                                </p>
+                              </div>
                             </div>
-                            <p className="text-sm leading-relaxed text-gray-800 whitespace-pre-line">
-                              {ev.descricaoEvolucao}
-                            </p>
+
+                            {/* Footer com botões de ação */}
+                            <div className="pt-2 border-t border-gray-100 flex items-center justify-end gap-2">
+                              {canEditEvolucao(ev) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditEvolucao(ev)}
+                                  className="h-8 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                >
+                                  <Edit className="w-4 h-4 mr-1" />
+                                  Editar
+                                </Button>
+                              )}
+                              {canDeleteEvolucao(ev) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteEvolucao(ev)}
+                                  className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-1" />
+                                  Excluir
+                                </Button>
+                              )}
+                            </div>
                           </CardContent>
                         </Card>
                       </div>
@@ -330,6 +456,18 @@ export const EvolucaoPacientesPage: React.FC = () => {
         evolucaoParaEditar={evolucaoParaEditar}
         onClose={fecharModalEvolucao}
         onSuccess={handleSuccessEvolucao}
+      />
+
+      {/* Modal de Confirmação de Exclusão */}
+      <ConfirmDeleteModal
+        open={showDeleteModal}
+        onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        entityName={evolucaoParaExcluir ? `Evolução de ${formatarData(evolucaoParaExcluir.dataEvolucao)}` : ''}
+        entityType="evolução"
+        isLoading={deletingEvolucao}
+        loadingText="Excluindo evolução..."
+        confirmText="Excluir Evolução"
       />
     </div>
   );
