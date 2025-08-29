@@ -26,9 +26,11 @@ import {
 } from '@/services/fila-espera';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import FilaEsperaModal from './FilaEsperaModal';
+import FilaEsperaViewModal from './FilaEsperaViewModal';
 import { AppToast } from '@/services/toast';
 import api from '@/services/api';
 import { formatarDataHoraLocal } from '@/utils/dateUtils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const HORA_LABEL: Record<HorarioPreferencia, string> = {
   'MANHÃ': 'Manhã',
@@ -69,6 +71,7 @@ export default function FilaEsperaPage() {
   const [canCreate, setCanCreate] = useState(true);
   const [canUpdate, setCanUpdate] = useState(true);
   const [canDelete, setCanDelete] = useState(true);
+  const [canToggleStatus, setCanToggleStatus] = useState(true);
 
   // Estados para modais
   const [showDetalhesItem, setShowDetalhesItem] = useState(false);
@@ -132,11 +135,16 @@ export default function FilaEsperaPage() {
       const canDelete = allowedRoutes.some((route: any) => {
         return route.path === '/fila-de-espera/:id' && route.method.toLowerCase() === 'delete';
       });
+
+      const canToggleStatus = allowedRoutes.some((route: any) => {
+        return route.path === '/fila-de-espera/:id/status' && route.method.toLowerCase() === 'patch';
+      });
       
       setCanRead(canRead);
       setCanCreate(canCreate);
       setCanUpdate(canUpdate);
       setCanDelete(canDelete);
+      setCanToggleStatus(canToggleStatus);
       
       // Se não tem nem permissão de leitura, marca como access denied
       if (!canRead) {
@@ -149,6 +157,7 @@ export default function FilaEsperaPage() {
       setCanCreate(false);
       setCanUpdate(false);
       setCanDelete(false);
+      setCanToggleStatus(false);
       
       // Se retornar 401/403 no endpoint de permissões, considera acesso negado
       if (error?.response?.status === 401 || error?.response?.status === 403) {
@@ -199,8 +208,10 @@ export default function FilaEsperaPage() {
   const formatarDataHora = formatarDataHoraLocal;
 
   const handleVerDetalhes = (item: FilaEspera) => {
+    console.log('Clicou no botão olho, item:', item);
     setItemDetalhes(item);
     setShowDetalhesItem(true);
+    console.log('Estados definidos - showDetalhesItem: true');
   };
 
   const handleEditarItem = (item: FilaEspera) => {
@@ -242,9 +253,12 @@ export default function FilaEsperaPage() {
       setItemExcluindo(null);
       carregarItens(); // Recarregar a lista após exclusão
       AppToast.success('Item removido da fila de espera');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao excluir item:', error);
-      AppToast.error('Erro ao remover item');
+      const errorMessage = error?.response?.data?.message || 'Erro ao remover item';
+      AppToast.error('Erro ao remover item', {
+        description: errorMessage
+      });
     } finally {
       setDeleteLoading(false);
     }
@@ -255,9 +269,12 @@ export default function FilaEsperaPage() {
       await toggleFilaEsperaStatus(item.id, !item.ativo);
       carregarItens();
       AppToast.success(`Item ${!item.ativo ? 'ativado' : 'desativado'} com sucesso`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao alterar status:', error);
-      AppToast.error('Erro ao alterar status do item');
+      const errorMessage = error?.response?.data?.message || 'Erro ao alterar status do item';
+      AppToast.error('Erro ao alterar status', {
+        description: errorMessage
+      });
     }
   };
 
@@ -279,7 +296,9 @@ export default function FilaEsperaPage() {
             </p>
           </div>
         ) : (
-          itensFiltrados.map(item => (
+          itensFiltrados.map(item => {
+            console.log('Renderizando card para item:', item?.id, item?.pacienteNome);
+            return (
             <Card key={item.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-2 pt-3 px-3">
                 <div className="flex items-start justify-between">
@@ -344,15 +363,23 @@ export default function FilaEsperaPage() {
                       <Eye className="w-4 h-4" />
                     </Button>
                   ) : (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      disabled={true}
-                      className="bg-gray-400 cursor-not-allowed h-8 w-8 p-0"
-                      title="Você não tem permissão para visualizar itens"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            disabled={true}
+                            className="bg-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Você não tem permissão para visualizar itens</p>
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                   {canUpdate ? (
                     <Button
@@ -365,17 +392,25 @@ export default function FilaEsperaPage() {
                       <Edit className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
                     </Button>
                   ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={true}
-                      className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
-                      title="Você não tem permissão para editar itens"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={true}
+                            className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Você não tem permissão para editar itens</p>
+                      </TooltipContent>
+                    </Tooltip>
                   )}
-                  {canUpdate ? (
+                  {canToggleStatus ? (
                     <Button
                       variant="outline"
                       size="sm"
@@ -386,15 +421,23 @@ export default function FilaEsperaPage() {
                       <RotateCcw className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
                     </Button>
                   ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={true}
-                      className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
-                      title="Você não tem permissão para alterar status"
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={true}
+                            className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Você não tem permissão para alterar status</p>
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                   {canDelete ? (
                     <Button
@@ -407,20 +450,29 @@ export default function FilaEsperaPage() {
                       <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
                     </Button>
                   ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={true}
-                      className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
-                      title="Você não tem permissão para excluir itens"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={true}
+                            className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Você não tem permissão para excluir itens</p>
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                 </div>
               </CardContent>
             </Card>
-          ))
+            );
+          })
         )}
       </div>
     </div>
@@ -500,7 +552,9 @@ export default function FilaEsperaPage() {
               </TableCell>
             </TableRow>
           ) : (
-            itensFiltrados.map((item) => (
+            itensFiltrados.map((item) => {
+              console.log('Renderizando table row para item:', item?.id, item?.pacienteNome);
+              return (
               <TableRow key={item.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200 h-12">
                 <TableCell className="py-2">
                   <div className="flex items-center gap-3">
@@ -551,15 +605,23 @@ export default function FilaEsperaPage() {
                         <Eye className="w-4 h-4" />
                       </Button>
                     ) : (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        disabled={true}
-                        className="bg-gray-400 cursor-not-allowed h-8 w-8 p-0"
-                        title="Você não tem permissão para visualizar itens"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              disabled={true}
+                              className="bg-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Você não tem permissão para visualizar itens</p>
+                        </TooltipContent>
+                      </Tooltip>
                     )}
                     {canUpdate ? (
                       <Button
@@ -572,17 +634,25 @@ export default function FilaEsperaPage() {
                         <Edit className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
                       </Button>
                     ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={true}
-                        className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
-                        title="Você não tem permissão para editar itens"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={true}
+                              className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Você não tem permissão para editar itens</p>
+                        </TooltipContent>
+                      </Tooltip>
                     )}
-                    {canUpdate ? (
+                    {canToggleStatus ? (
                       <Button
                         variant="outline"
                         size="sm"
@@ -593,15 +663,23 @@ export default function FilaEsperaPage() {
                         <RotateCcw className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
                       </Button>
                     ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={true}
-                        className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
-                        title="Você não tem permissão para alterar status"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={true}
+                              className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Você não tem permissão para alterar status</p>
+                        </TooltipContent>
+                      </Tooltip>
                     )}
                     {canDelete ? (
                       <Button
@@ -614,20 +692,29 @@ export default function FilaEsperaPage() {
                         <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
                       </Button>
                     ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={true}
-                        className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
-                        title="Você não tem permissão para excluir itens"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={true}
+                              className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Você não tem permissão para excluir itens</p>
+                        </TooltipContent>
+                      </Tooltip>
                     )}
                   </div>
                 </TableCell>
               </TableRow>
-            ))
+              );
+            })
           )}
         </TableBody>
       </Table>
@@ -666,7 +753,8 @@ export default function FilaEsperaPage() {
   }
 
   return (
-    <div className="pt-2 pl-6 pr-6 h-full min-h-0 flex flex-col">
+    <TooltipProvider>
+      <div className="pt-2 pl-6 pr-6 h-full min-h-0 flex flex-col">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
         <div>
@@ -720,14 +808,22 @@ export default function FilaEsperaPage() {
               Adicionar à Fila
             </Button>
           ) : (
-            <Button 
-              disabled={true}
-              className="bg-gray-400 cursor-not-allowed"
-              title="Você não tem permissão para adicionar itens à fila"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Adicionar à Fila
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button 
+                    disabled={true}
+                    className="bg-gray-400 cursor-not-allowed"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Adicionar à Fila
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Você não tem permissão para adicionar itens à fila</p>
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
       </div>
@@ -749,6 +845,13 @@ export default function FilaEsperaPage() {
         onSuccess={handleSuccessModal}
       />
 
+      {/* Modal de visualização */}
+      <FilaEsperaViewModal
+        isOpen={showDetalhesItem}
+        item={itemDetalhes}
+        onClose={() => setShowDetalhesItem(false)}
+      />
+
       {/* Modal de confirmação de exclusão */}
       <ConfirmDeleteModal
         open={itemExcluindo !== null}
@@ -760,6 +863,7 @@ export default function FilaEsperaPage() {
         loadingText="Excluindo..."
         confirmText="Excluir Item"
       />
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }
