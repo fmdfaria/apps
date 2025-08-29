@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, User, Calendar, Clock, FileText, CreditCard, UserCheck, Monitor, MapPin } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
-import { liberarAgendamento } from '@/services/agendamentos';
+import { liberarAgendamento, getAgendamentos } from '@/services/agendamentos';
 import { AppToast } from '@/services/toast';
 import { formatarDataHoraLocal } from '@/utils/dateUtils';
 
@@ -26,6 +26,8 @@ export const LiberarAgendamentoModal: React.FC<LiberarAgendamentoModalProps> = (
   onSuccess
 }) => {
   const [loading, setLoading] = useState(false);
+  const [sessionNumber, setSessionNumber] = useState<number | null>(null);
+  const [loadingSessions, setLoadingSessions] = useState(false);
   const [formData, setFormData] = useState({
     codLiberacao: '',
     dataCodLiberacao: new Date().toISOString().split('T')[0] // Data de hoje
@@ -78,6 +80,36 @@ export const LiberarAgendamentoModal: React.FC<LiberarAgendamentoModalProps> = (
   };
 
   const formatarDataHora = formatarDataHoraLocal;
+  // Calcular número da sessão ao abrir o modal (hook deve ficar antes de qualquer return condicional)
+  useEffect(() => {
+    const calcularSessao = async () => {
+      if (!agendamento) return;
+      try {
+        setLoadingSessions(true);
+        // Obter data (YYYY-MM-DD) do agendamento
+        const [dataStr] = agendamento.dataHoraInicio.split('T');
+        const agendamentoDate = new Date(agendamento.dataHoraInicio);
+
+        // Chamada única: tudo até o fim do dia atual; filtramos localmente horários do mesmo dia posteriores
+        const sameDayRes = await getAgendamentos({
+          pacienteId: agendamento.pacienteId,
+          profissionalId: agendamento.profissionalId,
+          servicoId: agendamento.servicoId,
+          dataFim: dataStr,
+          // backend limita a 100
+          limit: 100,
+        });
+        const anterioresAteAgora = sameDayRes.data.filter(a => new Date(a.dataHoraInicio).getTime() < agendamentoDate.getTime()).length;
+        setSessionNumber(anterioresAteAgora + 1);
+      } catch (e) {
+        setSessionNumber(null);
+      } finally {
+        setLoadingSessions(false);
+      }
+    };
+    calcularSessao();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agendamento?.id]);
 
   if (!agendamento) return null;
 
@@ -96,9 +128,16 @@ export const LiberarAgendamentoModal: React.FC<LiberarAgendamentoModalProps> = (
               <CheckCircle className="w-6 h-6 text-green-600" />
               Liberação de Agendamento
             </span>
-            <Badge className="bg-blue-100 text-blue-700 mr-8">
-              {agendamento.status}
-            </Badge>
+            <span className="flex items-center gap-2 mr-8">
+              {sessionNumber !== null && (
+                <Badge className="bg-emerald-100 text-emerald-700">
+                  Sessão #{sessionNumber}
+                </Badge>
+              )}
+              <Badge className="bg-blue-100 text-blue-700">
+                {agendamento.status}
+              </Badge>
+            </span>
           </DialogTitle>
         </DialogHeader>
 
