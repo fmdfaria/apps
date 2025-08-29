@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
+import { getAgendamentos } from '@/services/agendamentos';
 import { formatarDataHoraLocal, formatarApenasData } from '@/utils/dateUtils';
 
 interface DetalhesAgendamentoModalProps {
@@ -39,6 +40,30 @@ export const DetalhesAgendamentoModal: React.FC<DetalhesAgendamentoModalProps> =
 
   const formatarDataHora = formatarDataHoraLocal;
   const formatarDataHoraCompleta = formatarApenasData;
+
+  // Sessão #
+  const [sessionNumber, setSessionNumber] = useState<number | null>(null);
+  useEffect(() => {
+    const calcularSessao = async () => {
+      if (!agendamento) return;
+      try {
+        const [dataStr] = agendamento.dataHoraInicio.split('T');
+        const res = await getAgendamentos({
+          pacienteId: agendamento.pacienteId,
+          profissionalId: agendamento.profissionalId,
+          servicoId: agendamento.servicoId,
+          dataFim: dataStr,
+          limit: 1,
+        });
+        const totalAteData = res.pagination?.total ?? (res.data?.length || 0);
+        setSessionNumber(totalAteData);
+      } catch {
+        setSessionNumber(null);
+      }
+    };
+    calcularSessao();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agendamento?.id]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -70,9 +95,16 @@ export const DetalhesAgendamentoModal: React.FC<DetalhesAgendamentoModalProps> =
               <Info className="w-6 h-6 text-blue-600" />
               Detalhes do Agendamento
             </span>
-            <Badge className={`${getStatusColor(agendamento.status)} mr-8`}>
-              {agendamento.status}
-            </Badge>
+            <span className="flex items-center gap-2 mr-8">
+              {sessionNumber !== null && (
+                <Badge className="bg-emerald-100 text-emerald-700">
+                  Sessão #{sessionNumber}
+                </Badge>
+              )}
+              <Badge className={`${getStatusColor(agendamento.status)}`}>
+                {agendamento.status}
+              </Badge>
+            </span>
           </DialogTitle>
         </DialogHeader>
 
