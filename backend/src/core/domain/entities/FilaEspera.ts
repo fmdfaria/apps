@@ -11,6 +11,11 @@ export class FilaEspera {
   ativo?: boolean;
   createdAt!: Date;
   updatedAt!: Date;
+  
+  // Campos relacionados
+  pacienteNome?: string;
+  servicoNome?: string;
+  profissionalNome?: string;
 
   constructor(
     props: Omit<FilaEspera, 'id' | 'createdAt' | 'updatedAt'>,

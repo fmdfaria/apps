@@ -1,29 +1,21 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, RotateCcw } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AppToast } from '@/services/toast';
-import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
+import { Button } from '@/components/ui/button';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { 
-  PageContainer,
-  PageHeader,
-  PageContent,
-  ViewToggle,
-  SearchBar,
-  FilterButton,
-  DynamicFilterPanel,
-  ResponsiveTable,
-  ResponsiveCards,
-  ResponsivePagination,
-  ActionButton,
-  ResponsiveCardFooter,
-  TableColumn
-} from '@/components/layout';
-import { useViewMode } from '@/hooks/useViewMode';
-import { useResponsiveTable } from '@/hooks/useResponsiveTable';
-import { useTableFilters } from '@/hooks/useTableFilters';
-import { useMenuPermissions } from '@/hooks/useMenuPermissions';
+  Clock,
+  Plus,
+  Search,
+  Users,
+  Activity,
+  LayoutGrid,
+  List,
+  Eye,
+  Edit,
+  Trash2,
+  RotateCcw
+} from 'lucide-react';
 import type { FilaEspera, HorarioPreferencia } from '@/types/FilaEspera';
 import { 
   getFilaEspera,
@@ -33,7 +25,10 @@ import {
   toggleFilaEsperaStatus
 } from '@/services/fila-espera';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
-import ConfirmacaoModal from '@/components/ConfirmacaoModal';
+import FilaEsperaModal from './FilaEsperaModal';
+import { AppToast } from '@/services/toast';
+import api from '@/services/api';
+import { formatarDataHoraLocal } from '@/utils/dateUtils';
 
 const HORA_LABEL: Record<HorarioPreferencia, string> = {
   'MANHÃ': 'Manhã',
@@ -41,343 +36,730 @@ const HORA_LABEL: Record<HorarioPreferencia, string> = {
   'NOITE': 'Noite',
 };
 
+const getHorarioColor = (horario: HorarioPreferencia) => {
+  const cores = {
+    'MANHÃ': 'bg-yellow-100 text-yellow-700',
+    'TARDE': 'bg-orange-100 text-orange-700', 
+    'NOITE': 'bg-blue-100 text-blue-700'
+  };
+  return cores[horario] || 'bg-gray-100 text-gray-700';
+};
+
+const getStatusColor = (status: string) => {
+  const cores = {
+    'pendente': 'bg-orange-100 text-orange-700',
+    'agendado': 'bg-green-100 text-green-700',
+    'cancelado': 'bg-red-100 text-red-700',
+    'finalizado': 'bg-gray-100 text-gray-700'
+  };
+  return cores[status] || 'bg-gray-100 text-gray-700';
+};
+
 export default function FilaEsperaPage() {
   const [items, setItems] = useState<FilaEspera[]>([]);
-  const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
+  const [busca, setBusca] = useState('');
+  const [buscaDebounced, setBuscaDebounced] = useState('');
+  const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
+  
+  
+  // Estados para controle de permissões RBAC
   const [accessDenied, setAccessDenied] = useState(false);
-  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [canRead, setCanRead] = useState(true);
   const [canCreate, setCanCreate] = useState(true);
   const [canUpdate, setCanUpdate] = useState(true);
   const [canDelete, setCanDelete] = useState(true);
-  const [canToggle, setCanToggle] = useState(true);
 
-  const [showCriarModal, setShowCriarModal] = useState(false);
-  const [showEditarModal, setShowEditarModal] = useState(false);
-  const [editando, setEditando] = useState<FilaEspera | null>(null);
+  // Estados para modais
+  const [showDetalhesItem, setShowDetalhesItem] = useState(false);
+  const [itemDetalhes, setItemDetalhes] = useState<FilaEspera | null>(null);
+  
+  const [showEditarItem, setShowEditarItem] = useState(false);
+  const [itemEdicao, setItemEdicao] = useState<FilaEspera | null>(null);
+  
+  const [showFilaEsperaModal, setShowFilaEsperaModal] = useState(false);
 
-  const [form, setForm] = useState({
-    pacienteId: '',
-    servicoId: '',
-    profissionalId: '',
-    horarioPreferencia: 'MANHÃ' as HorarioPreferencia,
-    observacao: '',
-    status: 'pendente',
-    ativo: true,
-  });
-  const [formError, setFormError] = useState('');
-  const [formLoading, setFormLoading] = useState(false);
-
-  const [excluindo, setExcluindo] = useState<FilaEspera | null>(null);
+  // Estados para exclusão
+  const [itemExcluindo, setItemExcluindo] = useState<FilaEspera | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  
+  const [initialized, setInitialized] = useState(false);
 
-  const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'fila-espera-view' });
-  const table = useResponsiveTable({ pageSize: 10 });
-  // Estado para mostrar/ocultar painel de filtros
-  const [mostrarFiltros, setMostrarFiltros] = useState(false);
-  const { hasPermission } = useMenuPermissions();
-
+  // Inicialização única
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        setLoading(true);
-        const info = await getRouteInfo('/fila-de-espera', 'GET');
-        if (mounted) setRouteInfo(info);
-        setCanCreate(hasPermission('fila-de-espera') && !!(await getRouteInfo('/fila-de-espera', 'POST')));
-        setCanUpdate(hasPermission('fila-de-espera') && !!(await getRouteInfo('/fila-de-espera/:id', 'PUT')));
-        setCanDelete(hasPermission('fila-de-espera') && !!(await getRouteInfo('/fila-de-espera/:id', 'DELETE')));
-        setCanToggle(hasPermission('fila-de-espera') && !!(await getRouteInfo('/fila-de-espera/:id/status', 'PATCH')));
-        const data = await getFilaEspera();
-        if (mounted) setItems(data);
-      } catch (err: any) {
-        if (err?.response?.status === 403) {
-          setAccessDenied(true);
-        } else {
-          AppToast.error('Erro ao carregar fila de espera');
-        }
-      } finally {
-        setLoading(false);
-      }
-    })();
-    return () => { mounted = false; };
+    const init = async () => {
+      await checkPermissions();
+      await carregarItens();
+      setInitialized(true);
+    };
+    init();
   }, []);
 
+  // Debounce da busca para evitar muitas chamadas à API
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setBuscaDebounced(busca);
+    }, 500); // 500ms de debounce
+    
+    return () => clearTimeout(timer);
+  }, [busca]);
   
+  // Recarregamento quando dependências mudam (mas apenas após inicialização)
+  useEffect(() => {
+    if (initialized) {
+      carregarItens();
+    }
+  }, [buscaDebounced]);
 
-  const columns: TableColumn<FilaEspera>[] = [
-    { 
-      key: 'horarioPreferencia', 
-      header: 'Horário', 
-      essential: true,
-      filterable: { 
-        type: 'select', 
-        placeholder: 'Selecione o horário...',
-        options: [
-          { label: 'Manhã', value: 'MANHÃ' },
-          { label: 'Tarde', value: 'TARDE' },
-          { label: 'Noite', value: 'NOITE' },
-        ]
-      },
-      render: (row) => HORA_LABEL[row.horarioPreferencia]
-    },
-    { 
-      key: 'status', 
-      header: 'Status', 
-      essential: true,
-      filterable: { type: 'text', placeholder: 'Buscar status...' },
-      render: (row) => <Badge variant="outline">{row.status || 'pendente'}</Badge> 
-    },
-    { 
-      key: 'ativo', 
-      header: 'Ativo', 
-      filterable: { 
-        type: 'select', 
-        placeholder: 'Filtrar ativo...',
-        options: [
-          { label: 'Ativo', value: 'true' },
-          { label: 'Inativo', value: 'false' }
-        ]
-      },
-      render: (row) => row.ativo ? <Badge>Ativo</Badge> : <Badge variant="secondary">Inativo</Badge> 
-    },
-  ];
-
-  // Hook de filtros dinâmicos baseado nas colunas
-  const {
-    activeFilters,
-    filterConfigs,
-    activeFiltersCount,
-    setFilter,
-    clearAllFilters,
-    applyFilters
-  } = useTableFilters(columns);
-
-  const filtered = useMemo(() => applyFilters(items).filter((i) => {
-    if (!busca) return true;
-    const text = [i.status, i.observacao, i.horarioPreferencia].join(' ').toLowerCase();
-    return text.includes(busca.toLowerCase());
-  }), [items, busca, activeFilters, applyFilters]);
-
-  const handleCreate = async () => {
+  const checkPermissions = async () => {
     try {
-      setFormLoading(true);
-      const payload = { ...form, profissionalId: form.profissionalId || null } as any;
-      const created = await createFilaEspera(payload);
-      setItems((prev) => [created, ...prev]);
-      setShowCriarModal(false);
-      AppToast.success('Adicionado à fila de espera');
-    } catch (e: any) {
-      AppToast.error(e?.response?.data?.message || 'Erro ao criar item');
-    } finally {
-      setFormLoading(false);
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data;
+      
+      // Verificar cada permissão específica para fila de espera
+      const canRead = allowedRoutes.some((route: any) => {
+        return route.path === '/fila-de-espera' && route.method.toLowerCase() === 'get';
+      });
+      
+      const canCreate = allowedRoutes.some((route: any) => {
+        return route.path === '/fila-de-espera' && route.method.toLowerCase() === 'post';
+      });
+      
+      const canUpdate = allowedRoutes.some((route: any) => {
+        return route.path === '/fila-de-espera/:id' && route.method.toLowerCase() === 'put';
+      });
+      
+      const canDelete = allowedRoutes.some((route: any) => {
+        return route.path === '/fila-de-espera/:id' && route.method.toLowerCase() === 'delete';
+      });
+      
+      setCanRead(canRead);
+      setCanCreate(canCreate);
+      setCanUpdate(canUpdate);
+      setCanDelete(canDelete);
+      
+      // Se não tem nem permissão de leitura, marca como access denied
+      if (!canRead) {
+        setAccessDenied(true);
+      }
+      
+    } catch (error: any) {
+      // Em caso de erro, desabilita tudo por segurança
+      setCanRead(false);
+      setCanCreate(false);
+      setCanUpdate(false);
+      setCanDelete(false);
+      
+      // Se retornar 401/403 no endpoint de permissões, considera acesso negado
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setAccessDenied(true);
+      }
     }
   };
 
-  const handleUpdate = async () => {
-    if (!editando) return;
-    try {
-      setFormLoading(true);
-      const payload = { ...form, profissionalId: form.profissionalId || null } as any;
-      const updated = await updateFilaEspera(editando.id, payload);
-      setItems((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-      setShowEditarModal(false);
-      setEditando(null);
-      AppToast.success('Item atualizado');
-    } catch (e: any) {
-      AppToast.error(e?.response?.data?.message || 'Erro ao atualizar item');
-    } finally {
-      setFormLoading(false);
+
+  const carregarItens = async () => {
+    if (!canRead) {
+      setAccessDenied(true);
+      return;
     }
+    
+    setLoading(true);
+    setAccessDenied(false);
+    try {
+      const data = await getFilaEspera();
+      setItems(data);
+    } catch (e: any) {
+      if (e?.response?.status === 403) {
+        setAccessDenied(true);
+      } else {
+        AppToast.error('Erro ao carregar fila de espera', {
+          description: 'Ocorreu um problema ao carregar a lista da fila de espera. Tente novamente.'
+        });
+      }
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filtrar itens baseado na busca
+  const itensFiltrados = busca 
+    ? items.filter(item => 
+        item.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||
+        item.servicoNome?.toLowerCase().includes(busca.toLowerCase()) ||
+        item.profissionalNome?.toLowerCase().includes(busca.toLowerCase()) ||
+        item.observacao?.toLowerCase().includes(busca.toLowerCase()) ||
+        item.status?.toLowerCase().includes(busca.toLowerCase()) ||
+        HORA_LABEL[item.horarioPreferencia].toLowerCase().includes(busca.toLowerCase()) ||
+        item.pacienteId.toLowerCase().includes(busca.toLowerCase())
+      )
+    : items;
+
+  const formatarDataHora = formatarDataHoraLocal;
+
+  const handleVerDetalhes = (item: FilaEspera) => {
+    setItemDetalhes(item);
+    setShowDetalhesItem(true);
+  };
+
+  const handleEditarItem = (item: FilaEspera) => {
+    setItemEdicao(item);
+    setShowFilaEsperaModal(true);
+  };
+
+  const handleAbrirNovoItem = () => {
+    setItemEdicao(null);
+    setShowFilaEsperaModal(true);
+  };
+
+  const handleSuccessModal = () => {
+    carregarItens();
+    setShowFilaEsperaModal(false);
+    setItemEdicao(null);
+  };
+
+  const handleFecharModal = () => {
+    setShowFilaEsperaModal(false);
+    setItemEdicao(null);
+  };
+
+  // Funções de exclusão
+  const confirmarExclusao = async (item: FilaEspera) => {
+    setItemExcluindo(item);
+  };
+
+  const cancelarExclusao = () => {
+    setItemExcluindo(null);
   };
 
   const handleDelete = async () => {
-    if (!excluindo) return;
+    if (!itemExcluindo) return;
+    
+    setDeleteLoading(true);
     try {
-      setDeleteLoading(true);
-      await deleteFilaEspera(excluindo.id);
-      setItems((prev) => prev.filter((p) => p.id !== excluindo.id));
-      setExcluindo(null);
-      AppToast.success('Item removido');
-    } catch (e: any) {
-      AppToast.error(e?.response?.data?.message || 'Erro ao remover item');
+      await deleteFilaEspera(itemExcluindo.id);
+      setItemExcluindo(null);
+      carregarItens(); // Recarregar a lista após exclusão
+      AppToast.success('Item removido da fila de espera');
+    } catch (error) {
+      console.error('Erro ao excluir item:', error);
+      AppToast.error('Erro ao remover item');
     } finally {
       setDeleteLoading(false);
     }
   };
 
-  const handleToggle = async (row: FilaEspera) => {
+  const handleToggleStatus = async (item: FilaEspera) => {
     try {
-      const updated = await toggleFilaEsperaStatus(row.id, !row.ativo);
-      setItems((prev) => prev.map((p) => (p.id === row.id ? updated : p)));
-    } catch (e: any) {
-      AppToast.error(e?.response?.data?.message || 'Erro ao alterar status');
+      await toggleFilaEsperaStatus(item.id, !item.ativo);
+      carregarItens();
+      AppToast.success(`Item ${!item.ativo ? 'ativado' : 'desativado'} com sucesso`);
+    } catch (error) {
+      console.error('Erro ao alterar status:', error);
+      AppToast.error('Erro ao alterar status do item');
     }
   };
 
-  const resetForm = () => {
-    setForm({
-      pacienteId: '',
-      servicoId: '',
-      profissionalId: '',
-      horarioPreferencia: 'MANHÃ',
-      observacao: '',
-      status: 'pendente',
-      ativo: true,
-    });
-    setFormError('');
-  };
-
-  const openEdit = (row: FilaEspera) => {
-    setEditando(row);
-    setForm({
-      pacienteId: row.pacienteId,
-      servicoId: row.servicoId,
-      profissionalId: row.profissionalId || '',
-      horarioPreferencia: row.horarioPreferencia,
-      observacao: row.observacao || '',
-      status: row.status || 'pendente',
-      ativo: !!row.ativo,
-    });
-    setShowEditarModal(true);
-  };
-
-  const renderForm = () => (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <input className="input" placeholder="Paciente ID" value={form.pacienteId} onChange={(e) => setForm((f) => ({ ...f, pacienteId: e.target.value }))} />
-        <input className="input" placeholder="Serviço ID" value={form.servicoId} onChange={(e) => setForm((f) => ({ ...f, servicoId: e.target.value }))} />
-        <input className="input" placeholder="Profissional ID (opcional)" value={form.profissionalId} onChange={(e) => setForm((f) => ({ ...f, profissionalId: e.target.value }))} />
-        <select className="input" value={form.horarioPreferencia} onChange={(e) => setForm((f) => ({ ...f, horarioPreferencia: e.target.value as HorarioPreferencia }))}>
-          <option value="MANHÃ">Manhã</option>
-          <option value="TARDE">Tarde</option>
-          <option value="NOITE">Noite</option>
-        </select>
-        <input className="input" placeholder="Status" value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))} />
-        <textarea className="input" placeholder="Observação" value={form.observacao} onChange={(e) => setForm((f) => ({ ...f, observacao: e.target.value }))} />
-      </div>
-      {formError ? <div className="text-red-500 text-sm">{formError}</div> : null}
-      <div className="flex gap-2">
-        {editando ? (
-          <Button onClick={handleUpdate} disabled={formLoading}>Salvar</Button>
+  const renderCardView = () => (
+    <div className="space-y-6">
+      {/* Cards dos Itens */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+        {itensFiltrados.length === 0 ? (
+          <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-500">
+            <Activity className="w-12 h-12 mb-4" />
+            <h3 className="text-lg font-medium mb-2">
+              Nenhum item encontrado
+            </h3>
+            <p className="text-sm">
+              {busca 
+                ? 'Tente alterar os filtros de busca.' 
+                : 'Comece adicionando um item à fila de espera.'
+              }
+            </p>
+          </div>
         ) : (
-          <Button onClick={handleCreate} disabled={formLoading}>Criar</Button>
+          itensFiltrados.map(item => (
+            <Card key={item.id} className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2 pt-3 px-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                      {(item.pacienteNome || 'P')?.charAt(0).toUpperCase()}
+                    </div>
+                    <CardTitle className="text-sm font-medium truncate">
+                      {item.pacienteNome || `ID: ${item.pacienteId}`}
+                    </CardTitle>
+                  </div>
+                  <Badge className={`text-xs flex-shrink-0 ml-2 ${getStatusColor(item.status || 'pendente')}`}>
+                    {item.status || 'pendente'}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0 px-3 pb-3">
+                <div className="space-y-1 mb-3">
+                  {item.createdAt && (
+                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <span className="text-lg">📅</span>
+                      <span className="truncate">Criado: {formatarDataHora(item.createdAt).data}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <Clock className="w-3 h-3" />
+                    <span className="truncate">Horário: {HORA_LABEL[item.horarioPreferencia]}</span>
+                  </div>
+                  {item.servicoNome && (
+                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <span className="text-lg">🩺</span>
+                      <span className="truncate">Serviço: {item.servicoNome}</span>
+                    </div>
+                  )}
+                  {item.profissionalNome && (
+                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <span className="text-lg">👨‍⚕️</span>
+                      <span className="truncate">Profissional: {item.profissionalNome}</span>
+                    </div>
+                  )}
+                  {item.observacao && (
+                    <div className="text-xs text-gray-500 truncate">
+                      💬 {item.observacao}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between mt-2">
+                    <Badge variant={item.ativo ? "default" : "secondary"} className="text-xs px-1 py-0">
+                      {item.ativo ? 'Ativo' : 'Inativo'}
+                    </Badge>
+                  </div>
+                </div>
+                
+                <div className="flex gap-1.5">
+                  {canRead ? (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                      onClick={() => handleVerDetalhes(item)}
+                      title="Visualizar Item"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      disabled={true}
+                      className="bg-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                      title="Você não tem permissão para visualizar itens"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                  )}
+                  {canUpdate ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="group border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                      onClick={() => handleEditarItem(item)}
+                      title="Editar Item"
+                    >
+                      <Edit className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={true}
+                      className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                      title="Você não tem permissão para editar itens"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  )}
+                  {canUpdate ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                      onClick={() => handleToggleStatus(item)}
+                      title={item.ativo ? "Desativar Item" : "Ativar Item"}
+                    >
+                      <RotateCcw className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={true}
+                      className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                      title="Você não tem permissão para alterar status"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </Button>
+                  )}
+                  {canDelete ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                      onClick={() => confirmarExclusao(item)}
+                      title="Excluir Item"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={true}
+                      className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                      title="Você não tem permissão para excluir itens"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))
         )}
-        <Button variant="secondary" onClick={resetForm} disabled={formLoading}><RotateCcw className="w-4 h-4 mr-1"/>Limpar</Button>
       </div>
     </div>
   );
 
-  return (
-    <PageContainer>
-      <PageHeader 
-        title="Fila de Espera" 
-        description={routeInfo?.descricao || 'Gerencie a fila de espera de atendimentos.'}
-        actions={
-          <div className="flex gap-2">
-            <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} module="pacientes" />
-            {canCreate && <Button onClick={() => { resetForm(); setShowCriarModal(true); }}><Plus className="w-4 h-4 mr-1"/>Novo</Button>}
-          </div>
-        }
-      />
-      <PageContent>
-        <Card>
-          <CardHeader>
-            <CardTitle>Itens</CardTitle>
-            <CardDescription>Controle dos itens da fila</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2 mb-3">
-              <SearchBar value={busca} onChange={setBusca} placeholder="Buscar por status, observação..." />
-              <FilterButton 
-                showFilters={mostrarFiltros}
-                onToggleFilters={() => setMostrarFiltros(prev => !prev)}
-                activeFiltersCount={activeFiltersCount}
-                module="pacientes"
-                disabled={filterConfigs.length === 0}
-              />
-            </div>
-
-            <DynamicFilterPanel
-              isVisible={mostrarFiltros}
-              filterConfigs={filterConfigs}
-              activeFilters={activeFilters}
-              onFilterChange={setFilter}
-              onClearAll={clearAllFilters}
-              onClose={() => setMostrarFiltros(false)}
-              module="pacientes"
-            />
-
-            {viewMode === 'table' ? (
-              <ResponsiveTable 
-                data={filtered}
-                columns={columns}
-                module="pacientes"
-                actions={(row) => (
-                  <div className="flex gap-2">
-                    {canUpdate && <ActionButton icon={Edit} onClick={() => openEdit(row)} title="Editar" />}
-                    {canToggle && <ActionButton icon={RotateCcw} onClick={() => handleToggle(row)} title="Ativar/Inativar" />}
-                    {canDelete && <ActionButton icon={Trash2} onClick={() => setExcluindo(row)} title="Excluir" />}
+  const renderTableView = () => (
+    <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-sm border border-gray-100">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">👤</span>
+                Paciente
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📅</span>
+                Data Criação
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⏰</span>
+                Horário
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🩺</span>
+                Serviço
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">👨‍⚕️</span>
+                Profissional
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📊</span>
+                Status
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">💬</span>
+                Observação
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⚙️</span>
+                Ações
+              </div>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {itensFiltrados.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={8} className="py-12 text-center">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                    <span className="text-3xl">📋</span>
                   </div>
-                )}
-                pagination={table.pagination}
-              />
-            ) : (
-              <ResponsiveCards 
-                data={filtered}
-                renderCard={(row) => (
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <Badge variant="outline">{HORA_LABEL[row.horarioPreferencia]}</Badge>
-                      <div className="flex gap-1">
-                        {canUpdate && <ActionButton icon={Edit} onClick={() => openEdit(row)} title="Editar" />}
-                        {canToggle && <ActionButton icon={RotateCcw} onClick={() => handleToggle(row)} title="Ativar/Inativar" />}
-                        {canDelete && <ActionButton icon={Trash2} onClick={() => setExcluindo(row)} title="Excluir" />}
-                      </div>
+                  <p className="text-gray-500 font-medium">
+                    {busca 
+                      ? 'Nenhum resultado encontrado' 
+                      : 'Nenhum item na fila de espera'
+                    }
+                  </p>
+                  <p className="text-gray-400 text-sm">Tente ajustar os filtros de busca</p>
+                </div>
+              </TableCell>
+            </TableRow>
+          ) : (
+            itensFiltrados.map((item) => (
+              <TableRow key={item.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200 h-12">
+                <TableCell className="py-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                      {(item.pacienteNome || 'P')?.charAt(0).toUpperCase()}
                     </div>
-                    <div className="text-sm text-gray-600">{row.status || 'pendente'}</div>
-                    {row.observacao && <div className="text-sm text-gray-500">{row.observacao}</div>}
-                    <ResponsiveCardFooter active={!!row.ativo} />
+                    <span className="text-sm font-medium">{item.pacienteNome || `ID: ${item.pacienteId}`}</span>
                   </div>
-                )}
-                pagination={table.pagination}
-              />
-            )}
-          </CardContent>
-        </Card>
-      </PageContent>
+                </TableCell>
+                <TableCell className="py-2">
+                  <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded text-gray-700">
+                    {item.createdAt ? formatarDataHora(item.createdAt).data : '-'}
+                  </span>
+                </TableCell>
+                <TableCell className="py-2">
+                  <Badge className={`text-xs ${getHorarioColor(item.horarioPreferencia)}`}>
+                    {HORA_LABEL[item.horarioPreferencia]}
+                  </Badge>
+                </TableCell>
+                <TableCell className="py-2">
+                  <span className="text-sm text-blue-600 hover:text-blue-800 transition-colors">
+                    {item.servicoNome || '-'}
+                  </span>
+                </TableCell>
+                <TableCell className="py-2">
+                  <span className="text-sm">
+                    {item.profissionalNome || '-'}
+                  </span>
+                </TableCell>
+                <TableCell className="py-2">
+                  <Badge className={`text-xs ${getStatusColor(item.status || 'pendente')}`}>
+                    {item.status || 'pendente'}
+                  </Badge>
+                </TableCell>
+                <TableCell className="py-2">
+                  <span className="text-sm truncate max-w-xs">{item.observacao || '-'}</span>
+                </TableCell>
+                <TableCell className="py-2">
+                  <div className="flex gap-1.5">
+                    {canRead ? (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleVerDetalhes(item)}
+                        title="Visualizar Item"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        disabled={true}
+                        className="bg-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                        title="Você não tem permissão para visualizar itens"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    )}
+                    {canUpdate ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleEditarItem(item)}
+                        title="Editar Item"
+                      >
+                        <Edit className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={true}
+                        className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                        title="Você não tem permissão para editar itens"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                    )}
+                    {canUpdate ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleToggleStatus(item)}
+                        title={item.ativo ? "Desativar Item" : "Ativar Item"}
+                      >
+                        <RotateCcw className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={true}
+                        className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                        title="Você não tem permissão para alterar status"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </Button>
+                    )}
+                    {canDelete ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => confirmarExclusao(item)}
+                        title="Excluir Item"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={true}
+                        className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                        title="Você não tem permissão para excluir itens"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
 
-      {/* Modal Criar */}
-      {showCriarModal && (
-        <ConfirmacaoModal 
-          title="Adicionar à Fila"
-          description={renderForm() as any}
-          onClose={() => setShowCriarModal(false)}
-        />
+  if (loading) {
+    return (
+      <div className="pt-2 pl-6 pr-6 h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <p className="text-gray-500">Carregando fila de espera...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Tela de acesso negado
+  if (accessDenied) {
+    return (
+      <div className="pt-2 pl-6 pr-6 h-full flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">🚫</span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Acesso Negado</h2>
+          <p className="text-gray-600 mb-4">
+            Você não tem permissão para acessar esta funcionalidade.
+          </p>
+          <p className="text-sm text-gray-500">
+            Entre em contato com o administrador do sistema para solicitar as devidas permissões.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pt-2 pl-6 pr-6 h-full min-h-0 flex flex-col">
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <span className="text-4xl">📋</span>
+            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Fila de Espera
+            </span>
+          </h1>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar paciente, serviço, profissional..."
+              value={busca}
+              onChange={e => setBusca(e.target.value)}
+              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          
+          {/* Toggle de visualização */}
+          <div className="flex border rounded-lg p-1 bg-gray-100">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setVisualizacao('tabela')}
+              className={`h-7 px-3 ${visualizacao === 'tabela' ? 'bg-white shadow-sm' : ''}`}
+            >
+              <List className="w-4 h-4 mr-1" />
+              Tabela
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setVisualizacao('cards')}
+              className={`h-7 px-3 ${visualizacao === 'cards' ? 'bg-white shadow-sm' : ''}`}
+            >
+              <LayoutGrid className="w-4 h-4 mr-1" />
+              Cards
+            </Button>
+          </div>
+          
+          {canCreate ? (
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={handleAbrirNovoItem}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Adicionar à Fila
+            </Button>
+          ) : (
+            <Button 
+              disabled={true}
+              className="bg-gray-400 cursor-not-allowed"
+              title="Você não tem permissão para adicionar itens à fila"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Adicionar à Fila
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Conteúdo */}
+      {visualizacao === 'cards' ? (
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          {renderCardView()}
+        </div>
+      ) : (
+        renderTableView()
       )}
 
-      {/* Modal Editar */}
-      {showEditarModal && (
-        <ConfirmacaoModal 
-          title="Editar Item"
-          description={renderForm() as any}
-          onClose={() => setShowEditarModal(false)}
-        />
-      )}
+      {/* Modal FilaEspera */}
+      <FilaEsperaModal
+        isOpen={showFilaEsperaModal}
+        editando={itemEdicao}
+        onClose={handleFecharModal}
+        onSuccess={handleSuccessModal}
+      />
 
-      {/* Modal Excluir */}
-      {excluindo && (
-        <ConfirmDeleteModal 
-          isOpen={!!excluindo}
-          title="Excluir item"
-          description="Tem certeza que deseja excluir este item?"
-          onClose={() => setExcluindo(null)}
-          onConfirm={handleDelete}
-          loading={deleteLoading}
-        />
-      )}
-    </PageContainer>
+      {/* Modal de confirmação de exclusão */}
+      <ConfirmDeleteModal
+        open={itemExcluindo !== null}
+        onClose={cancelarExclusao}
+        onConfirm={handleDelete}
+        entityName={`Item ${itemExcluindo?.id.slice(0, 8) || ''}...`}
+        entityType="item da fila"
+        isLoading={deleteLoading}
+        loadingText="Excluindo..."
+        confirmText="Excluir Item"
+      />
+    </div>
   );
 }
-
-

@@ -11,6 +11,10 @@ export interface FilaEspera {
   ativo?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  // Campos relacionados
+  pacienteNome?: string;
+  servicoNome?: string;
+  profissionalNome?: string;
 }
 
 

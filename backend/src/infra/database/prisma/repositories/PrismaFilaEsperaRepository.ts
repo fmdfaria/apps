@@ -26,18 +26,105 @@ export class PrismaFilaEsperaRepository implements IFilaEsperaRepository {
   }
 
   async findById(id: string): Promise<FilaEspera | null> {
-    const item = await this.prisma.filaEspera.findUnique({ where: { id } });
-    return (item as unknown as FilaEspera) || null;
+    const item = await this.prisma.filaEspera.findUnique({ 
+      where: { id },
+      include: {
+        paciente: {
+          select: {
+            id: true,
+            nomeCompleto: true
+          }
+        },
+        servico: {
+          select: {
+            id: true,
+            nome: true
+          }
+        },
+        profissional: {
+          select: {
+            id: true,
+            nome: true
+          }
+        }
+      }
+    });
+    
+    if (!item) return null;
+    
+    return {
+      ...item,
+      pacienteNome: item.paciente?.nomeCompleto,
+      servicoNome: item.servico?.nome,
+      profissionalNome: item.profissional?.nome
+    } as unknown as FilaEspera;
   }
 
   async findAll(): Promise<FilaEspera[]> {
-    const items = await this.prisma.filaEspera.findMany({ orderBy: { createdAt: 'desc' } });
-    return items as unknown as FilaEspera[];
+    const items = await this.prisma.filaEspera.findMany({ 
+      orderBy: { createdAt: 'desc' },
+      include: {
+        paciente: {
+          select: {
+            id: true,
+            nomeCompleto: true
+          }
+        },
+        servico: {
+          select: {
+            id: true,
+            nome: true
+          }
+        },
+        profissional: {
+          select: {
+            id: true,
+            nome: true
+          }
+        }
+      }
+    });
+    
+    return items.map(item => ({
+      ...item,
+      pacienteNome: item.paciente?.nomeCompleto,
+      servicoNome: item.servico?.nome,
+      profissionalNome: item.profissional?.nome
+    })) as unknown as FilaEspera[];
   }
 
   async findAllActive(): Promise<FilaEspera[]> {
-    const items = await this.prisma.filaEspera.findMany({ where: { ativo: true }, orderBy: { createdAt: 'desc' } });
-    return items as unknown as FilaEspera[];
+    const items = await this.prisma.filaEspera.findMany({ 
+      where: { ativo: true }, 
+      orderBy: { createdAt: 'desc' },
+      include: {
+        paciente: {
+          select: {
+            id: true,
+            nomeCompleto: true
+          }
+        },
+        servico: {
+          select: {
+            id: true,
+            nome: true
+          }
+        },
+        profissional: {
+          select: {
+            id: true,
+            nome: true
+          }
+        }
+      }
+    });
+    
+    return items.map(item => ({
+      ...item,
+      pacienteNome: item.paciente?.nomeCompleto,
+      servicoNome: item.servico?.nome,
+      profissionalNome: item.profissional?.nome
+    })) as unknown as FilaEspera[];
   }
 
   async save(item: FilaEspera): Promise<FilaEspera> {
