@@ -66,4 +66,9 @@ export interface Agendamento {
   convenioNome?: string;
   servicoNome?: string;
   recursoNome?: string;
+  // Campos auxiliares para exibição no modal de liberação
+  profissionalConselhoSigla?: string;
+  profissionalNumeroConselho?: string;
+  servicoProcedimentoPrimeiro?: string;
+  servicoProcedimentoDemais?: string;
 } 

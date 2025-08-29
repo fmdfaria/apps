@@ -48,32 +48,10 @@ const verificarHorarioOcupado = (
       return false;
     }
 
-    // Parse manual sem conversão de timezone (igual ao CalendarioPage)
-    let dataHoraAgendamento: Date;
-    try {
-      // Parse manual da string ISO igual ao CalendarioPage
-      const [datePart, timePart] = agendamento.dataHoraInicio.split('T');
-      const [horaStr, minutoStr] = timePart.split(':');
-      const [ano, mes, dia] = datePart.split('-');
-      
-      // Criar data manualmente sem conversão de timezone
-      dataHoraAgendamento = new Date(
-        parseInt(ano),
-        parseInt(mes) - 1, // mês é 0-indexed
-        parseInt(dia),
-        parseInt(horaStr),
-        parseInt(minutoStr),
-        0,
-        0
-      );
-      
-      // Verificar se a data é válida
-      if (isNaN(dataHoraAgendamento.getTime())) {
-        console.error('❌ Data inválida:', agendamento.dataHoraInicio);
-        return false;
-      }
-    } catch (error) {
-      console.error('❌ Erro ao parsear data:', agendamento.dataHoraInicio, error);
+    // Interpretar ISO com sufixo Z como horário local correto (ex.: 10:30Z => 07:30 -03:00)
+    const dataHoraAgendamento = new Date(agendamento.dataHoraInicio);
+    if (isNaN(dataHoraAgendamento.getTime())) {
+      console.error('❌ Data inválida:', agendamento.dataHoraInicio);
       return false;
     }
     

@@ -44,13 +44,17 @@ export const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
   // Estados para opções dos dropdowns carregados via API
   const [apiOptions, setApiOptions] = useState<Record<string, Array<{ id: string; nome: string }>>>({});
   const [loadingOptions, setLoadingOptions] = useState<Record<string, boolean>>({});
+  const [optionsLoaded, setOptionsLoaded] = useState(false);
 
-  // Carregar opções via API quando necessário
+  // Carregar opções via API quando necessário (apenas uma vez quando o painel abre)
   useEffect(() => {
     const loadApiOptions = async () => {
       const apiFields = fields.filter(field => field.type === 'api-select' && field.apiService);
       
       if (apiFields.length === 0) return;
+
+      // Se as opções já foram carregadas, não carregar novamente
+      if (optionsLoaded) return;
 
       const loadingState: Record<string, boolean> = {};
       apiFields.forEach(field => {
@@ -73,6 +77,7 @@ export const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
         });
 
         setApiOptions(optionsData);
+        setOptionsLoaded(true);
       } catch (error) {
         console.error('Erro ao carregar opções dos filtros:', error);
       } finally {
@@ -84,10 +89,11 @@ export const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
       }
     };
 
-    if (isVisible) {
+    // Só carrega as opções quando o painel fica visível E as opções ainda não foram carregadas
+    if (isVisible && !optionsLoaded) {
       loadApiOptions();
     }
-  }, [fields, isVisible]);
+  }, [isVisible, optionsLoaded]);
 
   // Helper functions
   const hasActiveFilters = Object.values(appliedFilters).some(value => value !== '');

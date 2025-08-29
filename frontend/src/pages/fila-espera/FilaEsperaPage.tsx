@@ -296,9 +296,7 @@ export default function FilaEsperaPage() {
             </p>
           </div>
         ) : (
-          itensFiltrados.map(item => {
-            console.log('Renderizando card para item:', item?.id, item?.pacienteNome);
-            return (
+          itensFiltrados.map(item => (
             <Card key={item.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-2 pt-3 px-3">
                 <div className="flex items-start justify-between">
@@ -471,8 +469,7 @@ export default function FilaEsperaPage() {
                 </div>
               </CardContent>
             </Card>
-            );
-          })
+          ))
         )}
       </div>
     </div>
@@ -552,9 +549,7 @@ export default function FilaEsperaPage() {
               </TableCell>
             </TableRow>
           ) : (
-            itensFiltrados.map((item) => {
-              console.log('Renderizando table row para item:', item?.id, item?.pacienteNome);
-              return (
+            itensFiltrados.map((item) => (
               <TableRow key={item.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200 h-12">
                 <TableCell className="py-2">
                   <div className="flex items-center gap-3">
@@ -713,8 +708,7 @@ export default function FilaEsperaPage() {
                   </div>
                 </TableCell>
               </TableRow>
-              );
-            })
+            ))
           )}
         </TableBody>
       </Table>

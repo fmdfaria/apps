@@ -81,12 +81,16 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
         agendamentos: agendamentosDoDia
           .filter(a => a.recursoId === r.id)
           .map(a => {
-            const [horaStr, minutoStr] = a.dataHoraInicio.split('T')[1].split(':');
-            const inicio = `${horaStr}:${minutoStr}`;
-            // Supondo duração padrão de 30 min quando não há fim
-            const [h, m] = inicio.split(':').map(Number);
-            const fimDate = new Date(0, 0, 0, h, m + 30);
-            const fim = `${String(fimDate.getHours()).padStart(2, '0')}:${String(fimDate.getMinutes()).padStart(2, '0')}`;
+            // Interpretar ISO do backend como horário local (considera Z -> local)
+            const inicioDate = new Date(a.dataHoraInicio);
+            const inicioH = String(inicioDate.getHours()).padStart(2, '0');
+            const inicioM = String(inicioDate.getMinutes()).padStart(2, '0');
+            const inicio = `${inicioH}:${inicioM}`;
+            // Supondo duração padrão de 30 min quando não houver fim disponível
+            const fimDate = new Date(inicioDate.getTime() + 30 * 60000);
+            const fimH = String(fimDate.getHours()).padStart(2, '0');
+            const fimM = String(fimDate.getMinutes()).padStart(2, '0');
+            const fim = `${fimH}:${fimM}`;
             return { horaInicio: inicio, horaFim: fim, profissionalNome: a.profissionalNome, status: a.status };
           })
       }));

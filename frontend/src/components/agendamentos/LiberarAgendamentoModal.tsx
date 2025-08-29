@@ -82,6 +82,10 @@ export const LiberarAgendamentoModal: React.FC<LiberarAgendamentoModalProps> = (
   if (!agendamento) return null;
 
   const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
+  const conselhoSigla = agendamento.profissionalConselhoSigla || (agendamento as any).profissional?.conselho?.sigla || '-';
+  const numeroConselho = agendamento.profissionalNumeroConselho || (agendamento as any).profissional?.numeroConselho || (agendamento as any).profissional?.numero_conselho || '-';
+  const procPrimeiro = agendamento.servicoProcedimentoPrimeiro || (agendamento as any).servico?.procedimentoPrimeiroAtendimento || (agendamento as any).servico?.procedimento_primeiro_atendimento || '-';
+  const procDemais = agendamento.servicoProcedimentoDemais || (agendamento as any).servico?.procedimentoDemaisAtendimentos || (agendamento as any).servico?.procedimento_demais_atendimentos || '-';
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -102,16 +106,20 @@ export const LiberarAgendamentoModal: React.FC<LiberarAgendamentoModalProps> = (
           {/* Informações do Agendamento */}
           <div>
             <div className="grid grid-cols-2 gap-3 text-sm">
+              {/* Linha 1 */}
               <div className="flex items-center gap-2">
                 <User className="w-4 h-4 text-gray-500" />
                 <span className="font-medium">Paciente:</span>
                 <span className="text-gray-700">{agendamento.pacienteNome}</span>
               </div>
               <div className="flex items-center gap-2">
-                <UserCheck className="w-4 h-4 text-gray-500" />
-                <span className="font-medium">Profissional:</span>
-                <span className="text-gray-700">{agendamento.profissionalNome}</span>
+                <Monitor className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Tipo:</span>
+                <Badge variant="outline" className="text-xs">
+                  {agendamento.tipoAtendimento}
+                </Badge>
               </div>
+              {/* Linha 2 */}
               <div className="flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-gray-500" />
                 <span className="font-medium">Convênio:</span>
@@ -122,6 +130,7 @@ export const LiberarAgendamentoModal: React.FC<LiberarAgendamentoModalProps> = (
                 <span className="font-medium">Serviço:</span>
                 <span className="text-gray-700">{agendamento.servicoNome}</span>
               </div>
+              {/* Linha 3 */}
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-gray-500" />
                 <span className="font-medium">Data:</span>
@@ -132,17 +141,38 @@ export const LiberarAgendamentoModal: React.FC<LiberarAgendamentoModalProps> = (
                 <span className="font-medium">Hora:</span>
                 <span className="text-gray-700">{hora}</span>
               </div>
+              {/* Linha 4 */}
               <div className="flex items-center gap-2">
-                <Monitor className="w-4 h-4 text-gray-500" />
-                <span className="font-medium">Tipo:</span>
-                <Badge variant="outline" className="text-xs">
-                  {agendamento.tipoAtendimento}
-                </Badge>
+                <UserCheck className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Profissional:</span>
+                <span className="text-gray-700">{agendamento.profissionalNome}</span>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-gray-500" />
                 <span className="font-medium">Recurso:</span>
                 <span className="text-gray-700">{agendamento.recursoNome || '-'}</span>
+              </div>
+              {/* Linha 5 */}
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Conselho:</span>
+                <span className="text-gray-700">{conselhoSigla}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Núm Conselho:</span>
+                <span className="text-gray-700">{numeroConselho}</span>
+              </div>
+              {/* Linha 6 */}
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Procedimento 1º:</span>
+                <span className="text-gray-700">{procPrimeiro}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Procedimento Demais:</span>
+                <span className="text-gray-700">{procDemais}</span>
               </div>
             </div>
           </div>

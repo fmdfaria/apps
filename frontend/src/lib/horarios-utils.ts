@@ -130,10 +130,11 @@ export const formatarDataParaAPI = (data: Date): string => {
 };
 
 export const gerarHorarioParaAPI = (data: Date, horario: string): string => {
+  // Ignorar o fuso local: gerar um ISO em UTC com a mesma hora/minuto selecionados
+  // para que o backend (TIME) persista exatamente o horário escolhido.
   const [hora, minuto] = horario.split(':').map(Number);
-  const novaData = new Date(data);
-  novaData.setHours(hora, minuto, 0, 0);
-  return novaData.toISOString();
+  const utc = new Date(Date.UTC(1970, 0, 1, hora, minuto, 0, 0));
+  return utc.toISOString();
 };
 
 // Funções para gerenciar estado de alterações

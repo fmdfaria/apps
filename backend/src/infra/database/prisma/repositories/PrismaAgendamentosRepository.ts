@@ -51,7 +51,13 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
         dataHoraInicio: data.dataHoraInicio,
         dataHoraFim: data.dataHoraFim,
       },
-      include: { servico: true, paciente: true, profissional: true, recurso: true, convenio: true },
+      include: { 
+        servico: true, 
+        paciente: true, 
+        profissional: { include: { conselho: true } }, 
+        recurso: true, 
+        convenio: true 
+      },
     });
     return toDomain(agendamento);
   }
@@ -66,7 +72,13 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
         avaliadoPorId: data.avaliadoPorId || undefined,
         motivoReprovacao: data.motivoReprovacao || undefined,
       },
-      include: { servico: true, paciente: true, profissional: true, recurso: true, convenio: true },
+      include: { 
+        servico: true, 
+        paciente: true, 
+        profissional: { include: { conselho: true } }, 
+        recurso: true, 
+        convenio: true 
+      },
     });
     return toDomain(agendamento);
   }
@@ -74,7 +86,13 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
   async findById(id: string): Promise<Agendamento | null> {
     const agendamento = await this.prisma.agendamento.findUnique({
       where: { id },
-      include: { servico: true, paciente: true, profissional: true, recurso: true, convenio: true },
+      include: { 
+        servico: true, 
+        paciente: true, 
+        profissional: { include: { conselho: true } }, 
+        recurso: true, 
+        convenio: true 
+      },
     });
     return agendamento ? toDomain(agendamento) : null;
   }
@@ -186,7 +204,13 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     // Configurar opções da consulta
     const queryOptions: any = {
       where: whereConditions,
-      include: { servico: true, paciente: true, profissional: true, recurso: true, convenio: true },
+      include: { 
+        servico: true, 
+        paciente: true, 
+        profissional: { include: { conselho: true } }, 
+        recurso: true, 
+        convenio: true 
+      },
       orderBy: { [orderBy]: orderDirection },
     };
 

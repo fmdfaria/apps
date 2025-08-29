@@ -317,6 +317,11 @@ const transformApiAgendamento = (agendamento: any): Agendamento => {
     convenioNome: agendamento.convenio?.nome || '',
     servicoNome: agendamento.servico?.nome || '',
     recursoNome: agendamento.recurso?.nome || '',
+    // Campos adicionais para liberação
+    profissionalConselhoSigla: agendamento.profissional?.conselho?.sigla || undefined,
+    profissionalNumeroConselho: agendamento.profissional?.numeroConselho || agendamento.profissional?.numero_conselho || undefined,
+    servicoProcedimentoPrimeiro: agendamento.servico?.procedimentoPrimeiroAtendimento || agendamento.servico?.procedimento_primeiro_atendimento || undefined,
+    servicoProcedimentoDemais: agendamento.servico?.procedimentoDemaisAtendimentos || agendamento.servico?.procedimento_demais_atendimentos || undefined,
     // Garantir que os dados de liberação sejam preservados
     codLiberacao: agendamento.codLiberacao || undefined,
     statusCodLiberacao: agendamento.statusCodLiberacao || undefined,

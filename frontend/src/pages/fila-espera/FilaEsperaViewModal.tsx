@@ -51,8 +51,6 @@ export default function FilaEsperaViewModal({
   onClose
 }: FilaEsperaViewModalProps) {
   const formatarDataHora = formatarDataHoraLocal;
-  
-  console.log('FilaEsperaViewModal render - isOpen:', isOpen, 'item:', item);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

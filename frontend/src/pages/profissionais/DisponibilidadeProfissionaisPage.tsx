@@ -20,6 +20,7 @@ import type { Profissional } from '@/types/Profissional';
 import type { Recurso } from '@/types/Recurso';
 import type { HorarioSemana, CreateDisponibilidadeDto } from '@/types/DisponibilidadeProfissional';
 import { criarHorarioSemanaPadrao, converterDisponibilidadesParaHorarios, gerarHorarioParaAPI, compararHorarios } from '@/lib/horarios-utils';
+import { formatDateOnly } from '@/lib/utils';
 import { parseDataLocal, formatarDataLocal } from '@/lib/utils';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
@@ -445,11 +446,13 @@ export default function DisponibilidadeProfissionaisPage() {
       const novaDisponibilidade: CreateDisponibilidadeDto = {
         profissionalId: profissionalSelecionado.id,
         recursoId: recursoSelecionado?.id || null,
-        horaInicio: dataHoraInicio.toISOString(),
-        horaFim: dataHoraFim.toISOString(),
+        // Enviar horário em UTC fixo para evitar offset (-3h)
+        horaInicio: gerarHorarioParaAPI(dataCompleta, horarioInicioEspecificoSelecionado.nome),
+        horaFim: gerarHorarioParaAPI(dataCompleta, horarioFimEspecificoSelecionado.nome),
         tipo: tipoEdicao,
         diaSemana: null,
-        dataEspecifica: dataCompleta.toISOString(),
+        // Enviar apenas a data (YYYY-MM-DD) para evitar offset ao salvar DATE
+        dataEspecifica: formatDateOnly(dataCompleta),
         observacao: observacaoEspecifica || null
       };
 

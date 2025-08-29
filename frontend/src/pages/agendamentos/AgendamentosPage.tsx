@@ -51,6 +51,82 @@ import type { Servico } from '@/types/Servico';
 import type { Paciente } from '@/types/Paciente';
 import type { Profissional } from '@/types/Profissional';
 
+// Opções estáticas para Tipo Atendimento e Status (movidas para fora do componente)
+const tipoAtendimentoOptions = [
+  { id: 'presencial', nome: 'Presencial' },
+  { id: 'online', nome: 'Online' }
+];
+
+const statusOptions = [
+  { id: 'AGENDADO', nome: 'Agendado' },
+  { id: 'SOLICITADO', nome: 'Solicitado' },
+  { id: 'LIBERADO', nome: 'Liberado' },
+  { id: 'ATENDIDO', nome: 'Atendido' },
+  { id: 'FINALIZADO', nome: 'Finalizado' },
+  { id: 'CANCELADO', nome: 'Cancelado' },
+  { id: 'ARQUIVADO', nome: 'Arquivado' }
+];
+
+// Configuração dos campos de filtro para o AdvancedFilter (movida para fora do componente)
+const filterFields: FilterField[] = [
+  { 
+    key: 'dataInicio', 
+    type: 'date', 
+    label: 'Data Início' 
+  },
+  { 
+    key: 'dataFim', 
+    type: 'date', 
+    label: 'Data Fim' 
+  },
+  { 
+    key: 'convenioId', 
+    type: 'api-select', 
+    label: 'Convênio',
+    apiService: getConvenios,
+    placeholder: 'Selecione um convênio...',
+    searchFields: ['nome']
+  },
+  { 
+    key: 'servicoId', 
+    type: 'api-select', 
+    label: 'Serviço',
+    apiService: getServicos,
+    placeholder: 'Selecione um serviço...',
+    searchFields: ['nome']
+  },
+  { 
+    key: 'tipoAtendimento', 
+    type: 'static-select', 
+    label: 'Tipo Atendimento',
+    options: tipoAtendimentoOptions,
+    placeholder: 'Selecione o tipo...'
+  },
+  { 
+    key: 'pacienteId', 
+    type: 'api-select', 
+    label: 'Paciente',
+    apiService: getPacientes,
+    placeholder: 'Selecione um paciente...',
+    searchFields: ['nomeCompleto']
+  },
+  { 
+    key: 'profissionalId', 
+    type: 'api-select', 
+    label: 'Profissional',
+    apiService: getProfissionais,
+    placeholder: 'Selecione um profissional...',
+    searchFields: ['nome']
+  },
+  { 
+    key: 'status', 
+    type: 'static-select', 
+    label: 'Status',
+    options: statusOptions,
+    placeholder: 'Selecione o status...'
+  }
+];
+
 export const AgendamentosPage = () => {
   const { user } = useAuthStore();
   const [paginatedData, setPaginatedData] = useState<IPaginatedAgendamentos>({
@@ -103,85 +179,6 @@ export const AgendamentosPage = () => {
     dataInicio: '',
     dataFim: ''
   });
-  
-  
-  // Opções estáticas para Tipo Atendimento e Status
-  const tipoAtendimentoOptions = [
-    { id: 'presencial', nome: 'Presencial' },
-    { id: 'online', nome: 'Online' }
-  ];
-  
-  const statusOptions = [
-    { id: 'AGENDADO', nome: 'Agendado' },
-    { id: 'SOLICITADO', nome: 'Solicitado' },
-    { id: 'LIBERADO', nome: 'Liberado' },
-    { id: 'ATENDIDO', nome: 'Atendido' },
-    { id: 'FINALIZADO', nome: 'Finalizado' },
-    { id: 'CANCELADO', nome: 'Cancelado' },
-    { id: 'ARQUIVADO', nome: 'Arquivado' }
-  ];
-
-  // Configuração dos campos de filtro para o AdvancedFilter
-  const filterFields: FilterField[] = [
-    { 
-      key: 'dataInicio', 
-      type: 'date', 
-      label: 'Data Início' 
-    },
-    { 
-      key: 'dataFim', 
-      type: 'date', 
-      label: 'Data Fim' 
-    },
-    { 
-      key: 'convenioId', 
-      type: 'api-select', 
-      label: 'Convênio',
-      apiService: getConvenios,
-      placeholder: 'Selecione um convênio...',
-      searchFields: ['nome']
-    },
-    { 
-      key: 'servicoId', 
-      type: 'api-select', 
-      label: 'Serviço',
-      apiService: getServicos,
-      placeholder: 'Selecione um serviço...',
-      searchFields: ['nome']
-    },
-    { 
-      key: 'tipoAtendimento', 
-      type: 'static-select', 
-      label: 'Tipo Atendimento',
-      options: tipoAtendimentoOptions,
-      placeholder: 'Selecione o tipo...',
-      searchFields: ['nome']
-    },
-    { 
-      key: 'pacienteId', 
-      type: 'api-select', 
-      label: 'Paciente',
-      apiService: getPacientes,
-      placeholder: 'Selecione um paciente...',
-      searchFields: ['nomeCompleto']
-    },
-    { 
-      key: 'profissionalId', 
-      type: 'api-select', 
-      label: 'Profissional',
-      apiService: getProfissionais,
-      placeholder: 'Selecione um profissional...',
-      searchFields: ['nome']
-    },
-    { 
-      key: 'status', 
-      type: 'static-select', 
-      label: 'Status',
-      options: statusOptions,
-      placeholder: 'Selecione o status...',
-      searchFields: ['nome']
-    }
-  ];
   
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   

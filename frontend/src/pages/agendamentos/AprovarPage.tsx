@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { 
   ClipboardCheck,
@@ -29,6 +30,69 @@ import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
 import { formatarDataHoraLocal } from '@/utils/dateUtils';
 import { useAuthStore } from '@/store/auth';
+import { getConvenios } from '@/services/convenios';
+import { getServicos } from '@/services/servicos';
+import { getPacientes } from '@/services/pacientes';
+import { getProfissionais } from '@/services/profissionais';
+
+// Opções estáticas (movidas para fora do componente)
+const tipoAtendimentoOptions = [
+  { id: 'presencial', nome: 'Presencial' },
+  { id: 'online', nome: 'Online' }
+];
+
+// Configuração dos campos de filtro para o AdvancedFilter (movida para fora do componente)
+const filterFields: FilterField[] = [
+  { 
+    key: 'dataInicio', 
+    type: 'date', 
+    label: 'Data Início' 
+  },
+  { 
+    key: 'dataFim', 
+    type: 'date', 
+    label: 'Data Fim' 
+  },
+  { 
+    key: 'convenioId', 
+    type: 'api-select', 
+    label: 'Convênio',
+    apiService: getConvenios,
+    placeholder: 'Selecione um convênio...',
+    searchFields: ['nome']
+  },
+  { 
+    key: 'servicoId', 
+    type: 'api-select', 
+    label: 'Serviço',
+    apiService: getServicos,
+    placeholder: 'Selecione um serviço...',
+    searchFields: ['nome']
+  },
+  { 
+    key: 'tipoAtendimento', 
+    type: 'static-select', 
+    label: 'Tipo Atendimento',
+    options: tipoAtendimentoOptions,
+    placeholder: 'Selecione o tipo...'
+  },
+  { 
+    key: 'pacienteId', 
+    type: 'api-select', 
+    label: 'Paciente',
+    apiService: getPacientes,
+    placeholder: 'Selecione um paciente...',
+    searchFields: ['nomeCompleto']
+  },
+  { 
+    key: 'profissionalId', 
+    type: 'api-select', 
+    label: 'Profissional',
+    apiService: getProfissionais,
+    placeholder: 'Selecione um profissional...',
+    searchFields: ['nome']
+  }
+];
 
 export const AprovarPage = () => {
   const { user } = useAuthStore();
@@ -53,16 +117,9 @@ export const AprovarPage = () => {
   const [totalGlobal, setTotalGlobal] = useState(0); // sem filtros adicionais
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
 
-  // Filtros avançados por coluna
-  const [filtros, setFiltros] = useState({
-    paciente: '',
-    profissional: '',
-    servico: '',
-    convenio: '',
-    tipoAtendimento: '',
-    dataInicio: '',
-    dataFim: ''
-  });
+  // Estados para os filtros do AdvancedFilter
+  const [filtros, setFiltros] = useState<Record<string, string>>({});
+  const [filtrosAplicados, setFiltrosAplicados] = useState<Record<string, string>>({});
 
   // Estado para controle de inicialização (mesmo padrão da AgendamentosPage)
   const [initialized, setInitialized] = useState(false);
@@ -79,7 +136,7 @@ export const AprovarPage = () => {
     if (initialized) {
       carregarAgendamentos();
     }
-  }, [paginaAtual, itensPorPagina, filtros, buscaDebounced]);
+  }, [paginaAtual, itensPorPagina, filtrosAplicados, buscaDebounced]);
 
   // Debounce da busca para evitar muitas chamadas à API
   useEffect(() => {
@@ -93,7 +150,7 @@ export const AprovarPage = () => {
   // Reset de página quando busca/filtros/limite mudarem
   useEffect(() => {
     setPaginaAtual(1);
-  }, [buscaDebounced, itensPorPagina, filtros]);
+  }, [buscaDebounced, itensPorPagina, filtrosAplicados]);
 
   const checkPermissions = async () => {
     try {
@@ -147,9 +204,13 @@ export const AprovarPage = () => {
         limit: itensPorPagina,
         status: 'ATENDIDO',
         ...(buscaDebounced ? { search: buscaDebounced } : {}),
-        ...(filtros.dataInicio ? { dataInicio: filtros.dataInicio } : {}),
-        ...(filtros.dataFim ? { dataFim: filtros.dataFim } : {}),
-        ...(filtros.tipoAtendimento ? { tipoAtendimento: filtros.tipoAtendimento } : {}),
+        ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
+        ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
+        ...(filtrosAplicados.tipoAtendimento ? { tipoAtendimento: filtrosAplicados.tipoAtendimento } : {}),
+        ...(filtrosAplicados.convenioId ? { convenioId: filtrosAplicados.convenioId } : {}),
+        ...(filtrosAplicados.servicoId ? { servicoId: filtrosAplicados.servicoId } : {}),
+        ...(filtrosAplicados.pacienteId ? { pacienteId: filtrosAplicados.pacienteId } : {}),
+        ...(filtrosAplicados.profissionalId && !profissionalIdFiltro ? { profissionalId: filtrosAplicados.profissionalId } : {}),
         ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
       });
 
@@ -180,25 +241,23 @@ export const AprovarPage = () => {
     }
   };
 
-  const updateFiltro = (campo: keyof typeof filtros, valor: string) => {
-    setFiltros(prev => ({ ...prev, [campo]: valor }));
+  const handleFilterChange = (field: string, value: string) => {
+    setFiltros(prev => ({ ...prev, [field]: value }));
+  };
+
+  const aplicarFiltros = () => {
+    setFiltrosAplicados(filtros);
     setPaginaAtual(1);
   };
 
   const limparFiltros = () => {
-    setFiltros({
-      paciente: '',
-      profissional: '',
-      servico: '',
-      convenio: '',
-      tipoAtendimento: '',
-      dataInicio: '',
-      dataFim: ''
-    });
+    setFiltros({});
+    setFiltrosAplicados({});
     setPaginaAtual(1);
   };
 
-  const temFiltrosAtivos = Object.values(filtros).some(filtro => filtro !== '');
+  const temFiltrosAtivos = Object.values(filtrosAplicados).some(filtro => filtro !== '');
+  const temFiltrosNaoAplicados = JSON.stringify(filtros) !== JSON.stringify(filtrosAplicados);
 
   // Função para formatar data no formato brasileiro
   const formatarDataBrasil = (dataISO: string) => {
@@ -627,168 +686,24 @@ export const AprovarPage = () => {
             Filtros
             {temFiltrosAtivos && (
               <Badge variant="secondary" className="ml-2 h-4 px-1">
-                {Object.values(filtros).filter(f => f !== '').length}
+                {Object.values(filtrosAplicados).filter(f => f !== '').length}
               </Badge>
             )}
           </Button>
         </div>
       </div>
 
-      {/* Painel de Filtros Avançados */}
-      {mostrarFiltros && (
-        <div className="bg-white border border-gray-200 rounded-lg px-6 py-4 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Filtros Avançados</h3>
-            <div className="flex gap-2">
-              {temFiltrosAtivos && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={limparFiltros}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  <FilterX className="w-4 h-4 mr-1" />
-                  Limpar Filtros
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setMostrarFiltros(false)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {/* Filtro Data Início */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Data Início</span>
-              <input
-                type="date"
-                value={filtros.dataInicio}
-                onChange={(e) => updateFiltro('dataInicio', e.target.value)}
-                className="h-8 w-full px-3 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Filtro Data Fim */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Data Fim</span>
-              <input
-                type="date"
-                value={filtros.dataFim}
-                onChange={(e) => updateFiltro('dataFim', e.target.value)}
-                className="h-8 w-full px-3 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Filtro Convênio */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Convênio</span>
-              <input
-                type="text"
-                placeholder="Nome do convênio..."
-                value={filtros.convenio}
-                onChange={(e) => updateFiltro('convenio', e.target.value)}
-                className="h-8 w-full px-3 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Filtro Serviço */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Serviço</span>
-              <input
-                type="text"
-                placeholder="Nome do serviço..."
-                value={filtros.servico}
-                onChange={(e) => updateFiltro('servico', e.target.value)}
-                className="h-8 w-full px-3 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Filtro Tipo Atendimento */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Tipo Atendimento</span>
-              <select
-                value={filtros.tipoAtendimento}
-                onChange={(e) => updateFiltro('tipoAtendimento', e.target.value)}
-                className="h-8 w-full px-3 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Todos os tipos</option>
-                <option value="presencial">Presencial</option>
-                <option value="online">Online</option>
-              </select>
-            </div>
-
-            {/* Filtro Paciente */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Paciente</span>
-              <input
-                type="text"
-                placeholder="Nome do paciente..."
-                value={filtros.paciente}
-                onChange={(e) => updateFiltro('paciente', e.target.value)}
-                className="h-8 w-full px-3 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Filtro Profissional */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Profissional</span>
-              <input
-                type="text"
-                placeholder="Nome do profissional..."
-                value={filtros.profissional}
-                onChange={(e) => updateFiltro('profissional', e.target.value)}
-                className="h-8 w-full px-3 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          {/* Resumo dos Filtros Ativos */}
-          {temFiltrosAtivos && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-sm text-gray-600">Filtros ativos:</span>
-                {Object.entries(filtros)
-                  .filter(([_, valor]) => valor !== '')
-                  .map(([campo, valor]) => {
-                    const labels = {
-                      paciente: 'Paciente',
-                      profissional: 'Profissional', 
-                      servico: 'Serviço',
-                      convenio: 'Convênio',
-                      tipoAtendimento: 'Tipo',
-                      dataInicio: 'De',
-                      dataFim: 'Até'
-                    };
-                    
-                    // Formatar valor para datas no formato brasileiro
-                    const valorFormatado = (campo === 'dataInicio' || campo === 'dataFim') 
-                      ? formatarDataBrasil(valor) 
-                      : valor;
-                    
-                    return (
-                      <Badge key={campo} variant="secondary" className="text-xs inline-flex items-center gap-1">
-                        {labels[campo as keyof typeof labels]}: {valorFormatado}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => updateFiltro(campo as keyof typeof filtros, '')}
-                          className="h-4 w-4 p-0 hover:text-red-600 ml-1"
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </Badge>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      <AdvancedFilter
+        fields={filterFields}
+        filters={filtros}
+        appliedFilters={filtrosAplicados}
+        onFilterChange={handleFilterChange}
+        onApplyFilters={aplicarFiltros}
+        onClearFilters={limparFiltros}
+        isVisible={mostrarFiltros}
+        onClose={() => setMostrarFiltros(false)}
+        loading={loading}
+      />
 
       {/* Conteúdo */}
       <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-sm border border-gray-100">
