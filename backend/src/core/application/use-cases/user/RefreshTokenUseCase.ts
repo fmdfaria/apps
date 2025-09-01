@@ -39,14 +39,14 @@ export class RefreshTokenUseCase {
     const accessToken = jwt.sign(
       { sub: user.id, roles: [] }, // TODO: buscar roles do usuário
       process.env.JWT_SECRET as string,
-      { expiresIn: '15m' }
+      { expiresIn: '1h' }
     );
     const newRefreshToken = jwt.sign(
       { sub: user.id },
       process.env.JWT_REFRESH_SECRET as string,
-      { expiresIn: '7d' }
+      { expiresIn: '30d' }
     );
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     // Remove o antigo e salva o novo
     await this.refreshTokensRepository.delete(token.id);
     await this.refreshTokensRepository.create({

@@ -70,18 +70,26 @@ api.interceptors.response.use(
         }
         return api(originalRequest);
       } catch (refreshError) {
+        console.error('Falha na renovação automática de token:', refreshError);
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
-        window.location.href = '/auth/login';
+        // Só redireciona se não estivermos já na página de login
+        if (!window.location.pathname.includes('/auth/login')) {
+          window.location.href = '/auth/login';
+        }
         return Promise.reject(refreshError);
       }
     }
 
     // Se o erro foi no /refresh, desloga direto
     if (originalRequest.url.endsWith('/refresh')) {
+      console.error('Falha no endpoint /refresh, fazendo logout');
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
-      window.location.href = '/auth/login';
+      // Só redireciona se não estivermos já na página de login
+      if (!window.location.pathname.includes('/auth/login')) {
+        window.location.href = '/auth/login';
+      }
     }
 
     // Trata erros 403 (Acesso Negado) com mensagem amigável

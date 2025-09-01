@@ -32,6 +32,7 @@ import type { DisponibilidadeProfissional } from '@/types/DisponibilidadeProfiss
 import { AppToast } from '@/services/toast';
 import api from '@/services/api';
 import { getModuleTheme } from '@/types/theme';
+import { formatarDataHoraLocal } from '@/utils/dateUtils';
 
 interface WeekDay {
   date: Date;
@@ -371,28 +372,25 @@ export const CalendarioProfissionalPage = () => {
         return agendamentoDate >= dayStart && agendamentoDate <= dayEnd;
       })
       .map((agendamento, index) => {
-        // Parse manual sem conversão de timezone (como no CalendarioPage)
-        const [datePart, timePart] = agendamento.dataHoraInicio.split('T');
-        const [hora, minuto] = timePart.split(':');
-        const horarioInicio = `${hora}:${minuto}`;
+        // Usar formatarDataHoraLocal para respeitar timezone (igual ao CalendarioPage)
+        const { hora: horarioInicio } = formatarDataHoraLocal(agendamento.dataHoraInicio);
         
         // Calcular horário fim baseado na duração ou usar dataHoraFim
         let duration: number;
         let horarioFim: string;
         
         if (agendamento.dataHoraFim) {
-          const [, timePartFim] = agendamento.dataHoraFim.split('T');
-          const [horaFim, minutoFim] = timePartFim.split(':');
-          horarioFim = `${horaFim}:${minutoFim}`;
+          const { hora: horaFimFormatada } = formatarDataHoraLocal(agendamento.dataHoraFim);
+          horarioFim = horaFimFormatada;
           
           // Calcular duração em minutos
-          const startMinutes = parseInt(hora) * 60 + parseInt(minuto);
-          const endMinutes = parseInt(horaFim) * 60 + parseInt(minutoFim);
+          const startMinutes = parseInt(horarioInicio.split(':')[0]) * 60 + parseInt(horarioInicio.split(':')[1]);
+          const endMinutes = parseInt(horaFimFormatada.split(':')[0]) * 60 + parseInt(horaFimFormatada.split(':')[1]);
           duration = endMinutes - startMinutes;
         } else {
           // Estimar duração padrão de 60 minutos
           duration = 60;
-          const totalMinutos = parseInt(hora) * 60 + parseInt(minuto) + duration;
+          const totalMinutos = parseInt(horarioInicio.split(':')[0]) * 60 + parseInt(horarioInicio.split(':')[1]) + duration;
           const horaFim = Math.floor(totalMinutos / 60);
           const minutoFim = totalMinutos % 60;
           horarioFim = `${horaFim.toString().padStart(2, '0')}:${minutoFim.toString().padStart(2, '0')}`;
@@ -489,13 +487,18 @@ export const CalendarioProfissionalPage = () => {
     
     // Verificar se há agendamento neste horário
     const temAgendamento = agendamentos.some(agendamento => {
-      const agendamentoDate = new Date(agendamento.dataHoraInicio);
-      const agendamentoHour = agendamentoDate.getHours();
-      const agendamentoMinute = agendamentoDate.getMinutes();
+      // Parse da string de data sem conversão de timezone (igual ao CalendarioPage)
+      const agendamentoDateStr = agendamento.dataHoraInicio.split('T')[0];
+      const currentDateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+      
+      if (agendamentoDateStr !== currentDateStr) return false;
+      
+      // Usar formatarDataHoraLocal para obter o horário correto
+      const { hora: agendamentoHora } = formatarDataHoraLocal(agendamento.dataHoraInicio);
+      const [agendamentoHour, agendamentoMinute] = agendamentoHora.split(':').map(Number);
       const agendamentoMinutos = agendamentoHour * 60 + agendamentoMinute;
       
-      return agendamentoDate.toDateString() === date.toDateString() &&
-             Math.abs(agendamentoMinutos - horarioMinutos) < 30; // Tolerância de 30 minutos
+      return Math.abs(agendamentoMinutos - horarioMinutos) < 30; // Tolerância de 30 minutos
     });
 
     if (temAgendamento) return 'ocupado';
@@ -540,19 +543,18 @@ export const CalendarioProfissionalPage = () => {
     const horarioMinutos = timeSlot.hour * 60 + timeSlot.minute;
     
     const temAgendamento = agendamentos.some(agendamento => {
-      // Parse manual para evitar problemas de timezone
-      const [datePart, timePart] = agendamento.dataHoraInicio.split('T');
-      const [ano, mes, dia] = datePart.split('-').map(Number);
-      const [hora, minuto] = timePart.split(':').map(Number);
+      // Parse da string de data sem conversão de timezone (igual ao CalendarioPage)
+      const agendamentoDateStr = agendamento.dataHoraInicio.split('T')[0];
+      const currentDateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
       
-      // Criar data no fuso local
-      const agendamentoDate = new Date(ano, mes - 1, dia);
-      const agendamentoMinutos = hora * 60 + minuto;
+      if (agendamentoDateStr !== currentDateStr) return false;
       
-      const isSameDay = agendamentoDate.toDateString() === date.toDateString();
-      const isWithinTimeSlot = Math.abs(agendamentoMinutos - horarioMinutos) < 30;
+      // Usar formatarDataHoraLocal para obter o horário correto
+      const { hora: agendamentoHora } = formatarDataHoraLocal(agendamento.dataHoraInicio);
+      const [agendamentoHour, agendamentoMinute] = agendamentoHora.split(':').map(Number);
+      const agendamentoMinutos = agendamentoHour * 60 + agendamentoMinute;
       
-      return isSameDay && isWithinTimeSlot;
+      return Math.abs(agendamentoMinutos - horarioMinutos) < 30;
     });
 
     if (temAgendamento) {

@@ -20,6 +20,9 @@ interface AuthState {
   checkTokenValidity: () => Promise<void>;
   startTokenWatcher: () => void;
   stopTokenWatcher: () => void;
+  updateLastActivity: () => void;
+  startActivityTracking: () => void;
+  stopActivityTracking: () => void;
   completeFirstLogin: (authData: any) => void;
   clearError: () => void;
 }
@@ -35,6 +38,10 @@ const getStoredUser = () => {
 
 // Timer para verificação periódica de tokens
 let tokenWatcherInterval: NodeJS.Timeout | null = null;
+
+// Controle de atividade do usuário
+let lastActivity = Date.now();
+let activityListeners: (() => void)[] = [];
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: getStoredUser(),
@@ -130,7 +137,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     useAuthStore.getState().stopTokenWatcher();
     
     set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
-    window.location.href = '/';
+    // Só redireciona se não estivermos já na página inicial ou de login
+    if (!window.location.pathname.includes('/auth') && window.location.pathname !== '/') {
+      window.location.href = '/';
+    }
   },
 
   refresh: async () => {
@@ -190,7 +200,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     // Verifica se o refresh token está expirado
     if (storedRefreshToken && isTokenExpired(storedRefreshToken)) {
-      console.log('Refresh token expirado, fazendo logout automático');
+      console.log('🔒 Refresh token expirado, fazendo logout automático');
       useAuthStore.getState().logout();
       return;
     }
@@ -198,7 +208,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     // Se o access token está expirado mas temos refresh token válido, renova
     if (storedAccessToken && isTokenExpired(storedAccessToken) && storedRefreshToken) {
       try {
-        console.log('Access token expirado, tentando renovar...');
+        console.log('🔄 Access token expirado, tentando renovar automaticamente...');
         await useAuthStore.getState().refresh();
         useAuthStore.getState().startTokenWatcher();
         return;
@@ -224,27 +234,33 @@ export const useAuthStore = create<AuthState>((set) => ({
     const { accessToken, refreshToken } = useAuthStore.getState();
 
     if (!refreshToken) {
-      console.log('Sem refresh token, fazendo logout');
+      console.log('🔒 Sem refresh token, fazendo logout');
       useAuthStore.getState().logout();
       return;
     }
 
     // Se refresh token expirado, faz logout
     if (isTokenExpired(refreshToken)) {
-      console.log('Refresh token expirado, fazendo logout');
+      console.log('🔒 Refresh token expirado, fazendo logout');
       useAuthStore.getState().logout();
       return;
     }
 
-    // Se access token está expirando em menos de 5 minutos, renova
-    if (accessToken && isTokenExpiringSoon(accessToken, 5)) {
+    // Só renova se o usuário esteve ativo nos últimos 10 minutos
+    const timeSinceLastActivity = Date.now() - lastActivity;
+    const isUserActive = timeSinceLastActivity < 10 * 60 * 1000; // 10 minutos
+
+    // Se access token está expirando em menos de 2 minutos E usuário está ativo, renova
+    if (accessToken && isTokenExpiringSoon(accessToken, 2) && isUserActive) {
       try {
-        console.log('Access token expirando em breve, renovando...');
+        console.log('🔄 Access token expirando em breve e usuário ativo, renovando...');
         await useAuthStore.getState().refresh();
       } catch (error) {
         console.error('Erro ao renovar token automaticamente:', error);
         useAuthStore.getState().logout();
       }
+    } else if (accessToken && isTokenExpiringSoon(accessToken, 2) && !isUserActive) {
+      console.log('⏸️  Access token expirando mas usuário inativo - aguardando atividade');
     }
   },
 
@@ -254,12 +270,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       clearInterval(tokenWatcherInterval);
     }
 
-    // Verifica a cada 5 minutos
+    // Verifica a cada 30 minutos
     tokenWatcherInterval = setInterval(() => {
       useAuthStore.getState().checkTokenValidity();
-    }, 5 * 60 * 1000);
+    }, 30 * 60 * 1000);
 
-    console.log('Token watcher iniciado');
+    // Inicia o rastreamento de atividade
+    useAuthStore.getState().startActivityTracking();
+
+    console.log('Token watcher iniciado - verificação a cada 30 minutos');
   },
 
   stopTokenWatcher: () => {
@@ -268,6 +287,34 @@ export const useAuthStore = create<AuthState>((set) => ({
       tokenWatcherInterval = null;
       console.log('Token watcher parado');
     }
+    useAuthStore.getState().stopActivityTracking();
+  },
+
+  updateLastActivity: () => {
+    lastActivity = Date.now();
+  },
+
+  startActivityTracking: () => {
+    const updateActivity = () => {
+      useAuthStore.getState().updateLastActivity();
+    };
+
+    // Lista de eventos que indicam atividade do usuário
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    // Remove listeners antigos
+    useAuthStore.getState().stopActivityTracking();
+    
+    // Adiciona novos listeners
+    events.forEach(event => {
+      document.addEventListener(event, updateActivity, { passive: true });
+      activityListeners.push(() => document.removeEventListener(event, updateActivity));
+    });
+  },
+
+  stopActivityTracking: () => {
+    activityListeners.forEach(removeListener => removeListener());
+    activityListeners = [];
   },
 
   completeFirstLogin: (authData) => {
