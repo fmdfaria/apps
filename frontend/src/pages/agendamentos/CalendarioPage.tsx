@@ -85,9 +85,15 @@ export const CalendarioPage = () => {
 
   // Estados para modais de agendamento  
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
-  const [preenchimentoInicialModal, setPreenchimentoInicialModal] = useState<any>(undefined);
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
+  const [dadosDoubleClick, setDadosDoubleClick] = useState<{
+    profissionalId: string;
+    data: string;
+    hora: string;
+    recursoId: string;
+    tipoAtendimento: 'presencial' | 'online';
+  } | null>(null);
   
   // Estados para edição de agendamento
   const [showEditarAgendamento, setShowEditarAgendamento] = useState(false);
@@ -113,7 +119,7 @@ export const CalendarioPage = () => {
   // Funções de controle do modal unificado
   const handleFecharAgendamentoModal = () => {
     setShowAgendamentoModal(false);
-    setPreenchimentoInicialModal(undefined);
+    setDadosDoubleClick(null);
   };
 
   const handleSuccessAgendamento = () => {
@@ -122,25 +128,51 @@ export const CalendarioPage = () => {
   };
 
   const handleAbrirNovoAgendamento = () => {
+    setDadosDoubleClick(null);
     setShowAgendamentoModal(true);
-    setPreenchimentoInicialModal(undefined);
   };
 
-  // Função para abrir modal com preenchimento direto (ex: duplo clique no grid)
-  function handleAbrirFormularioDireto(dados?: { 
-    profissionalId?: string; 
-    dataHoraInicio?: string;
-    recursoId?: string;
-    tipoFluxo?: 'por-profissional' | 'por-data';
-  }) {
-    // Usar o tipoFluxo fornecido nos dados, senão usar "Por Profissional" como padrão
-    const dadosComFluxo = {
-      ...dados,
-      tipoFluxo: dados?.tipoFluxo || 'por-profissional' as const
+  const handleDoubleClick = (entityId: string, horario: string) => {
+    // Determinar qual profissional baseado no tipo de visualização
+    let profissionalId = '';
+    let recursoIdSugerido = '';
+    
+    if (gridViewType === 'profissionais') {
+      profissionalId = entityId;
+      
+      // Tentar auto-selecionar recurso baseado nas disponibilidades do profissional para este horário
+      const dataHoraCompleta = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${currentDate.getDate().toString().padStart(2, '0')}T${horario}`;
+      recursoIdSugerido = autoSelecionarRecursoParaHorario(profissionalId, dataHoraCompleta);
+    } else {
+      // Na visualização por recursos, precisa encontrar um profissional que tenha disponibilidade para este recurso no horário
+      recursoIdSugerido = entityId;
+      profissionalId = encontrarProfissionalParaRecurso(entityId, horario);
+    }
+
+    // Definir tipo de atendimento baseado no recurso
+    let tipoAtendimento: 'presencial' | 'online' = 'presencial';
+    if (recursoIdSugerido) {
+      const recurso = recursos.find(r => r.id === recursoIdSugerido);
+      if (recurso && recurso.nome.toLowerCase().includes('online')) {
+        tipoAtendimento = 'online';
+      }
+    }
+
+    // Construir dados para preenchimento manual (sem acionar carregamento automático)
+    const dadosDoubleClick = {
+      profissionalId,
+      data: `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${currentDate.getDate().toString().padStart(2, '0')}`,
+      hora: horario,
+      recursoId: recursoIdSugerido,
+      tipoAtendimento
     };
-    setPreenchimentoInicialModal(dadosComFluxo);
+
+    console.log('🖱️ Duplo clique - Dados para preenchimento manual:', dadosDoubleClick);
+    
+    setDadosDoubleClick(dadosDoubleClick);
     setShowAgendamentoModal(true);
-  }
+  };
+
 
   // Handlers para edição de agendamento
   const handleEditarAgendamento = (agendamentoId: string) => {
@@ -407,6 +439,99 @@ export const CalendarioPage = () => {
     );
     
     return temDataEspecificaOnline || temHorarioSemanalOnline;
+  };
+
+  // Função para auto-selecionar recurso baseado nas disponibilidades do profissional para um horário específico
+  const autoSelecionarRecursoParaHorario = (profissionalId: string, dataHoraCompleta: string): string => {
+    if (!disponibilidades.length || !recursos.length) {
+      return '';
+    }
+
+    // Extrair data e hora
+    const [data, hora] = dataHoraCompleta.split('T');
+    const dataObj = new Date(data + 'T00:00:00');
+    const diaSemana = dataObj.getDay();
+    const [horaNum, minutoNum] = hora.split(':').map(Number);
+    const horarioMinutos = horaNum * 60 + minutoNum;
+    
+    // Buscar disponibilidades do profissional para esta data/horário
+    const disponibilidadesProfissional = disponibilidades.filter(disp => {
+      if (disp.profissionalId !== profissionalId) return false;
+      
+      // Verificar se é para data específica
+      if (disp.dataEspecifica) {
+        const dataDisp = new Date(disp.dataEspecifica);
+        const matches = dataDisp.getFullYear() === dataObj.getFullYear() &&
+                       dataDisp.getMonth() === dataObj.getMonth() &&
+                       dataDisp.getDate() === dataObj.getDate();
+        if (!matches) return false;
+      } else if (disp.diaSemana !== null) {
+        // Verificar se é para dia da semana
+        if (disp.diaSemana !== diaSemana) return false;
+      } else {
+        return false;
+      }
+      
+      // Verificar se tem recurso associado e se o horário está no intervalo
+      if (!disp.recursoId) return false;
+      
+      const horaInicioDisp = disp.horaInicio.getHours() * 60 + disp.horaInicio.getMinutes();
+      const horaFimDisp = disp.horaFim.getHours() * 60 + disp.horaFim.getMinutes();
+      
+      return horarioMinutos >= horaInicioDisp && horarioMinutos < horaFimDisp;
+    });
+    
+    if (disponibilidadesProfissional.length === 0) return '';
+    
+    // Priorizar recursos presenciais se houver múltiplas opções
+    const disponibilidadePresencial = disponibilidadesProfissional.find(disp => disp.tipo === 'presencial');
+    if (disponibilidadePresencial && disponibilidadePresencial.recursoId) {
+      return disponibilidadePresencial.recursoId;
+    }
+    
+    // Se não há presencial, usar o primeiro disponível
+    return disponibilidadesProfissional[0].recursoId || '';
+  };
+
+  // Função para encontrar profissional que tenha disponibilidade para um recurso específico no horário
+  const encontrarProfissionalParaRecurso = (recursoId: string, horario: string): string => {
+    if (!disponibilidades.length) {
+      return '';
+    }
+
+    const diaSemana = currentDate.getDay();
+    const [horaNum, minutoNum] = horario.split(':').map(Number);
+    const horarioMinutos = horaNum * 60 + minutoNum;
+    
+    // Buscar disponibilidades que usam este recurso no horário especificado
+    const disponibilidadesDoRecurso = disponibilidades.filter(disp => {
+      if (disp.recursoId !== recursoId) return false;
+      
+      // Verificar se é para data específica
+      if (disp.dataEspecifica) {
+        const dataDisp = new Date(disp.dataEspecifica);
+        const matches = dataDisp.getFullYear() === currentDate.getFullYear() &&
+                       dataDisp.getMonth() === currentDate.getMonth() &&
+                       dataDisp.getDate() === currentDate.getDate();
+        if (!matches) return false;
+      } else if (disp.diaSemana !== null) {
+        // Verificar se é para dia da semana
+        if (disp.diaSemana !== diaSemana) return false;
+      } else {
+        return false;
+      }
+      
+      // Verificar se o horário está no intervalo
+      const horaInicioDisp = disp.horaInicio.getHours() * 60 + disp.horaInicio.getMinutes();
+      const horaFimDisp = disp.horaFim.getHours() * 60 + disp.horaFim.getMinutes();
+      
+      return horarioMinutos >= horaInicioDisp && horarioMinutos < horaFimDisp;
+    });
+    
+    if (disponibilidadesDoRecurso.length === 0) return '';
+    
+    // Retornar o primeiro profissional encontrado
+    return disponibilidadesDoRecurso[0].profissionalId;
   };
 
   // Converter profissionais para o formato do calendário
@@ -931,47 +1056,7 @@ export const CalendarioPage = () => {
                   }
                 }}
                 onEditClick={handleEditarAgendamento}
-                onDoubleClick={(entityId, horario) => {
-                  // Verificar permissão para criar agendamento
-                  if (!canCreate) {
-                    AppToast.error('Acesso negado', {
-                      description: 'Você não tem permissão para criar agendamentos.'
-                    });
-                    return;
-                  }
-                  
-                  // Verificar se o horário está disponível antes de permitir criar agendamento
-                  if (gridViewType === 'profissionais') {
-                    const status = verificarStatusDisponibilidade(entityId, currentDate, horario);
-                    if (status === 'folga' || status === 'nao_configurado') {
-                      return; // Não permitir criar agendamento em horário indisponível ou não configurado
-                    }
-                  }
-                  
-                  // Criar data/hora combinando a data atual com o horário clicado
-                  const dataHoraCombinada = new Date(currentDate);
-                  const [hora, minuto] = horario.split(':').map(Number);
-                  dataHoraCombinada.setHours(hora, minuto, 0, 0);
-                  
-                  // Formatar para datetime-local sem conversão de timezone
-                  const ano = dataHoraCombinada.getFullYear();
-                  const mes = (dataHoraCombinada.getMonth() + 1).toString().padStart(2, '0');
-                  const dia = dataHoraCombinada.getDate().toString().padStart(2, '0');
-                  const horaFormatada = dataHoraCombinada.getHours().toString().padStart(2, '0');
-                  const minutoFormatado = dataHoraCombinada.getMinutes().toString().padStart(2, '0');
-                  
-                  const dataHoraLocal = `${ano}-${mes}-${dia}T${horaFormatada}:${minutoFormatado}`;
-                  
-                  // Escolher fluxo baseado na visualização atual
-                  const dadosFormulario = {
-                    dataHoraInicio: dataHoraLocal,
-                    profissionalId: gridViewType === 'profissionais' ? entityId : undefined,
-                    recursoId: gridViewType === 'recursos' ? entityId : undefined,
-                    tipoFluxo: gridViewType === 'recursos' ? 'por-data' as const : 'por-profissional' as const
-                  };
-                  
-                  handleAbrirFormularioDireto(dadosFormulario);
-                }}
+                onDoubleClick={handleDoubleClick}
               />
             </CardContent>
           </Card>
@@ -983,7 +1068,13 @@ export const CalendarioPage = () => {
         isOpen={showAgendamentoModal}
         onClose={handleFecharAgendamentoModal}
         onSuccess={handleSuccessAgendamento}
-        preenchimentoInicial={preenchimentoInicialModal}
+        dadosExternos={{
+          profissionais,
+          recursos,
+          disponibilidades,
+          convenios
+        }}
+        dadosDoubleClick={dadosDoubleClick}
       />
 
       <DetalhesAgendamentoModal

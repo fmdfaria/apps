@@ -14,34 +14,3 @@
 
 
 ### Funcionalidade Online
-
-
-### AgendamentosPage
-- Vamos deixar o campo 'Buscar Agendamentos...' sendo utilizados com a query search: get /agendamentos?search=
-- Quando clicar no botão 'Filtros' chamar as api get /convenios  /servicos  /pacientes  /profissionais preenchendo os campos dos filtros, utilizar o componente SingleSelectDropDown
-
-Após clicar em aplicar filtro, utilizar para aplicar o filtro:
-
--- Data Inicio | Data Fim : /agendamentos?page=1&limit=10&dataInicio=2025-08-26&dataFim=2025-08-27
--- Convênio : /agendamentos?page=1&limit=10&convenioId=
--- Serviço : /agendamentos?page=1&limit=10&servicoId=
--- Tipo de Atendimento : /agendamentos?page=1&limit=10&tipoAtendimento=
--- Paciente : /agendamentos?page=1&limit=10&pacienteId=
--- Profissionais : /agendamentos?page=1&limit=10&profissionalId=
-
-Se preencher e selecionar mais campos, efetuar a busca unica com todos os parametros.
-
-
-### Agendamentos - AtenderPage
-- Preciso criar uma nova coluna chamada 'data_atendimento' na tabela 'agendamentos' no banco de dados, então forneça um SQL para adicionar essa coluna.
-- Essa nova coluna vai servir para registrar a 'Data do Atendimento' que está atualmente no put /agendamentos no Modal AtenderAgendamentoModal
-- Atualizar o backend e frontend para atender a funcionalidade dessa nova coluna.
-
-
-### PacientesPage
-- Criar um botão com nome 'Criar Evolução' na pagina EvolucaoPacientesPage.
-- Quando clicar no botão, deve abrir o modal EvolucaoPacientesModal.
-
-Quando utilizar EvolucaoPacientesModal pelo botão 'Evolução' na pagina AtenderPage deve continuar fazendo o envio dos dados para o modal e qdo salvar vincular ao agendamento_id como é feito hoje.
-
-Mais quando utilizar EvolucaoPacientesModal pelo novo botão 'Criar Evolução' direto na pagina EvolucaoPacientesPage, não deve vincular ao agendamento_id , pois estou fazendo evolucao stand alone... e os demais campos do modal todos iguais.

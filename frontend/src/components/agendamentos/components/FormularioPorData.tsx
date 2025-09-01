@@ -476,21 +476,23 @@ export const FormularioPorData: React.FC<FormularioPorDataProps> = ({ context })
                     onChange={(selected) => {
                       const recursoId = selected?.id || '';
                       
-                      // Regra de negócio: definir tipo de atendimento baseado no recurso
-                      let tipoAtendimento: TipoAtendimento = 'presencial';
+                      // Nova regra: só alterar tipo automaticamente se recurso for 'online'
+                      // Permitir que usuário mantenha 'online' em recursos presenciais
+                      const updates: any = { recursoId };
+                      
                       if (selected) {
                         const recursoNome = selected.nome.toLowerCase();
                         if (recursoNome.includes('online')) {
-                          tipoAtendimento = 'online';
-                        } else {
-                          tipoAtendimento = 'presencial';
+                          // Recursos online sempre forçam tipo 'online'
+                          updates.tipoAtendimento = 'online';
                         }
+                        // Se recurso não é online, manter tipo atual (não forçar 'presencial')
+                      } else {
+                        // Se não há recurso selecionado, resetar para presencial
+                        updates.tipoAtendimento = 'presencial';
                       }
                       
-                      updateFormData({ 
-                        recursoId,
-                        tipoAtendimento 
-                      });
+                      updateFormData(updates);
                     }}
                     placeholder={!formData.profissionalId ? "Selecione um profissional primeiro..." : loadingData ? "Carregando recursos..." : "Buscar recurso..."}
                     disabled={!formData.profissionalId || loadingData}

@@ -36,13 +36,28 @@ interface UseAgendamentoFormProps {
   };
   onSuccess: () => void;
   onClose: () => void;
+  dadosExternos?: {
+    profissionais?: any[];
+    recursos?: any[];
+    disponibilidades?: any[];
+    convenios?: any[];
+  };
+  dadosDoubleClick?: {
+    profissionalId: string;
+    data: string;
+    hora: string;
+    recursoId: string;
+    tipoAtendimento: 'presencial' | 'online';
+  };
 }
 
 export const useAgendamentoForm = ({ 
   isOpen, 
   preenchimentoInicial, 
   onSuccess, 
-  onClose 
+  onClose,
+  dadosExternos,
+  dadosDoubleClick
 }: UseAgendamentoFormProps): AgendamentoFormContext => {
   // Estados do formulário
   const [formData, setFormData] = useState<CreateAgendamentoData>(FORM_DATA_PADRAO);
@@ -477,6 +492,16 @@ export const useAgendamentoForm = ({
   // Effect para carregar dados quando o modal abrir
   useEffect(() => {
     if (isOpen) {
+      // Se há dados do double-click, usar dados externos sem chamar APIs
+      if (dadosDoubleClick && dadosExternos) {
+        console.log('🚀 Usando dados externos do CalendarioPage - sem chamadas API');
+        setProfissionais(dadosExternos.profissionais || []);
+        setRecursos(dadosExternos.recursos || []);
+        setDisponibilidades(dadosExternos.disponibilidades || []);
+        setConvenios(dadosExternos.convenios || []);
+        return; // Pular carregamento via API
+      }
+      
       // Se há preenchimento inicial com profissional e/ou data, carregar dados;
       // Caso contrário, não chamar a API ainda (somente após seleção do fluxo)
       const filtros: { data?: string; profissionalId?: string } = {};
@@ -494,7 +519,7 @@ export const useAgendamentoForm = ({
         carregarDados(filtros);
       }
     }
-  }, [isOpen, carregarDados, preenchimentoInicial]);
+  }, [isOpen, carregarDados, preenchimentoInicial, dadosDoubleClick, dadosExternos]);
 
   // Effect para pré-preenchimento quando o modal abrir
   useEffect(() => {
@@ -533,6 +558,46 @@ export const useAgendamentoForm = ({
       }
     }
   }, [isOpen, preenchimentoInicial]);
+
+  // Effect para lidar com dados do double-click
+  useEffect(() => {
+    if (isOpen && dadosDoubleClick) {
+      console.log('🖱️ Aplicando dados do double-click:', dadosDoubleClick);
+      
+      // Definir tipo de fluxo como por-profissional
+      setTipoFluxo('por-profissional');
+      
+      // Preencher dados do formulário
+      setFormData(prev => ({
+        ...prev,
+        profissionalId: dadosDoubleClick.profissionalId,
+        recursoId: dadosDoubleClick.recursoId,
+        tipoAtendimento: dadosDoubleClick.tipoAtendimento
+      }));
+      
+      // Preencher data e hora
+      setDataAgendamento(dadosDoubleClick.data);
+      setHoraAgendamento(dadosDoubleClick.hora);
+      
+      // Carregar apenas pacientes ativos (sem usar /form-data)
+      const carregarPacientesParaDoubleClick = async () => {
+        setLoadingData(true);
+        try {
+          const pacientesAtivos = await getPacientesAtivos();
+          setPacientes(pacientesAtivos);
+        } catch (error) {
+          console.error('Erro ao carregar pacientes:', error);
+          AppToast.error('Erro ao carregar pacientes', {
+            description: 'Não foi possível carregar a lista de pacientes.'
+          });
+        } finally {
+          setLoadingData(false);
+        }
+      };
+      
+      carregarPacientesParaDoubleClick();
+    }
+  }, [isOpen, dadosDoubleClick]);
 
   // Effect para carregar dados do profissional quando profissionalId mudar
   useEffect(() => {

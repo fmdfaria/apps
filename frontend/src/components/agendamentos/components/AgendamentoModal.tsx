@@ -26,6 +26,21 @@ interface AgendamentoModalProps {
   onCustomSubmit?: (e: React.FormEvent) => Promise<void>;
   /** Título customizado para o modal (opcional) */
   titulo?: string;
+  /** Dados externos já carregados para evitar chamadas API extras */
+  dadosExternos?: {
+    profissionais?: any[];
+    recursos?: any[];
+    disponibilidades?: any[];
+    convenios?: any[];
+  };
+  /** Dados para preenchimento manual sem acionar carregamento automático */
+  dadosDoubleClick?: {
+    profissionalId: string;
+    data: string;
+    hora: string;
+    recursoId: string;
+    tipoAtendimento: 'presencial' | 'online';
+  };
 }
 
 /**
@@ -46,14 +61,18 @@ export const AgendamentoModal: React.FC<AgendamentoModalProps> = ({
   onSuccess,
   preenchimentoInicial,
   onCustomSubmit,
-  titulo
+  titulo,
+  dadosExternos,
+  dadosDoubleClick
 }) => {
   // Hook unificado de agendamento com todos os dados e funcionalidades
   const agendamentoContext = useAgendamentoForm({
     isOpen,
     preenchimentoInicial,
     onSuccess,
-    onClose
+    onClose,
+    dadosExternos,
+    dadosDoubleClick
   });
 
   /**

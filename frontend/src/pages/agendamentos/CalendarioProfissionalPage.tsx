@@ -13,10 +13,10 @@ import {
   Monitor,
   X,
   Edit,
-  Eye
+  Eye,
+  Plus
 } from 'lucide-react';
 import { 
-  AgendamentoModal,
   DetalhesAgendamentoModal
 } from '@/components/agendamentos';
 import { AppointmentCard } from '@/components/calendar/AppointmentCard';
@@ -77,9 +77,6 @@ export const CalendarioProfissionalPage = () => {
   const [userProfissional, setUserProfissional] = useState<Profissional | null>(null);
   const [loadingError, setLoadingError] = useState<string | null>(null);
 
-  // Estados para modais de agendamento (apenas duplo clique)
-  const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
-  const [preenchimentoInicialModal, setPreenchimentoInicialModal] = useState<any>(undefined);
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
   
@@ -165,33 +162,9 @@ export const CalendarioProfissionalPage = () => {
     setCurrentWeek(new Date());
   };
 
-  // Funções de controle do modal unificado
-  const handleFecharAgendamentoModal = () => {
-    setShowAgendamentoModal(false);
-    setPreenchimentoInicialModal(undefined);
-  };
-
-  const handleSuccessAgendamento = () => {
-    carregarDados();
-    handleFecharAgendamentoModal();
-  };
 
 
-  // Função para abrir modal com preenchimento direto (duplo clique)
-  const handleAbrirFormularioDireto = (dados?: { 
-    profissionalId?: string; 
-    dataHoraInicio?: string;
-    tipoFluxo?: 'por-profissional' | 'por-data';
-  }) => {
-    // Sempre usar o profissional logado e fluxo por profissional
-    const dadosComFluxo = {
-      ...dados,
-      profissionalId: userProfissional?.id,
-      tipoFluxo: 'por-profissional' as const
-    };
-    setPreenchimentoInicialModal(dadosComFluxo);
-    setShowAgendamentoModal(true);
-  };
+
 
   // Handlers para edição de agendamento
   const handleEditarAgendamento = (agendamentoId: string) => {
@@ -752,12 +725,7 @@ export const CalendarioProfissionalPage = () => {
                         return (
                           <div
                             key={timeIndex}
-                            className={`h-[60px] border-b border-gray-100 transition-colors relative ${getSlotColor(day.date, timeSlot)} ${
-                              verificarStatusDisponibilidade(userProfissional?.id || '', day.date, timeSlot.time) === 'presencial' ||
-                              verificarStatusDisponibilidade(userProfissional?.id || '', day.date, timeSlot.time) === 'online'
-                                ? 'cursor-pointer hover:bg-opacity-80' 
-                                : 'cursor-default'
-                            }`}
+                            className={`h-[60px] border-b border-gray-100 transition-colors relative ${getSlotColor(day.date, timeSlot)}`}
                           >
                           </div>
                         );
@@ -813,13 +781,6 @@ export const CalendarioProfissionalPage = () => {
         </CardContent>
       </Card>
 
-      {/* Modal de Agendamento */}
-      <AgendamentoModal
-        isOpen={showAgendamentoModal}
-        onClose={handleFecharAgendamentoModal}
-        onSuccess={handleSuccessAgendamento}
-        preenchimentoInicial={preenchimentoInicialModal}
-      />
 
       {/* Modal de Detalhes */}
       <DetalhesAgendamentoModal

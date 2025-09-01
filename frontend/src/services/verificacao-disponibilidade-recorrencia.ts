@@ -1,5 +1,6 @@
 import { getAllDisponibilidades } from './disponibilidades';
 import { getAgendamentos } from './agendamentos';
+import { formatarDataHoraLocal } from '@/utils/dateUtils';
 
 // Interface para conflitos de recorrência
 export interface ConflitosRecorrencia {
@@ -29,10 +30,8 @@ const verificarHorarioOcupado = (
   horario: string,
   agendamentos: any[]
 ): { ocupado: boolean; agendamentoConflitante?: any } => {
-  // Criar data/hora para comparação (usar timezone local)
-  const dataHoraSolicitada = new Date(data);
-  const [hora, minuto] = horario.split(':').map(Number);
-  dataHoraSolicitada.setHours(hora, minuto, 0, 0);
+  // Converter data para string no formato YYYY-MM-DD para comparação
+  const dataSolicitada = `${data.getFullYear()}-${(data.getMonth() + 1).toString().padStart(2, '0')}-${data.getDate().toString().padStart(2, '0')}`;
 
   // Verificar se existe agendamento no mesmo horário
   const agendamentoConflitante = agendamentos.find(agendamento => {
@@ -48,38 +47,11 @@ const verificarHorarioOcupado = (
       return false;
     }
 
-    // Parse manual sem conversão de timezone
-    let dataHoraAgendamento: Date;
-    try {
-      const [datePart, timePart] = agendamento.dataHoraInicio.split('T');
-      const [horaStr, minutoStr] = timePart.split(':');
-      const [ano, mes, dia] = datePart.split('-');
-      
-      dataHoraAgendamento = new Date(
-        parseInt(ano),
-        parseInt(mes) - 1,
-        parseInt(dia),
-        parseInt(horaStr),
-        parseInt(minutoStr),
-        0,
-        0
-      );
-      
-      if (isNaN(dataHoraAgendamento.getTime())) {
-        return false;
-      }
-    } catch (error) {
-      return false;
-    }
+    // Usar formatarDataHoraLocal para parsing correto (igual ao CalendarioPage)
+    const { data: dataAgendamento, hora: horaAgendamento } = formatarDataHoraLocal(agendamento.dataHoraInicio);
     
-    // Criar versões normalizadas para comparação
-    const solicitadaFormatada = new Date(dataHoraSolicitada);
-    solicitadaFormatada.setSeconds(0, 0);
-    
-    const agendamentoFormatada = new Date(dataHoraAgendamento);
-    agendamentoFormatada.setSeconds(0, 0);
-    
-    return solicitadaFormatada.getTime() === agendamentoFormatada.getTime();
+    // Comparar data (string) e horário (string) diretamente
+    return dataAgendamento === dataSolicitada && horaAgendamento === horario;
   });
 
   return {
@@ -242,10 +214,12 @@ export const verificarConflitosRecorrencia = async (
   }
 ): Promise<ConflitosRecorrencia> => {
   try {
-    // Extrair data e hora
-    const [dataStr, horaStr] = dataHoraInicio.split('T');
-    const dataInicial = new Date(dataStr + 'T00:00:00');
-    const horario = horaStr.substring(0, 5); // HH:MM
+    // Usar formatarDataHoraLocal para parsing correto (sem conversões timezone)
+    const { data: dataStr, hora: horario } = formatarDataHoraLocal(dataHoraInicio);
+    
+    // Converter data string para objeto Date
+    const [ano, mes, dia] = dataStr.split('-').map(Number);
+    const dataInicial = new Date(ano, mes - 1, dia); // mes é 0-indexed
 
     // Gerar todas as datas da recorrência
     const todasDatas = gerarDatasRecorrencia(
@@ -354,10 +328,12 @@ export const verificarConflitosParaDatas = async (
     const datasComConflito: ConflitosRecorrencia['datasComConflito'] = [];
 
     for (const iso of datasHorasISO) {
-      // Separar data e hora respeitando local
-      const d = new Date(iso);
-      const data = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      const horario = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+      // Usar formatarDataHoraLocal para parsing correto (sem conversões de timezone)
+      const { data: dataStr, hora: horario } = formatarDataHoraLocal(iso);
+      
+      // Converter data string para objeto Date
+      const [ano, mes, dia] = dataStr.split('-').map(Number);
+      const data = new Date(ano, mes - 1, dia); // mes é 0-indexed
 
       const verificacao = verificarStatusCompleto(
         profissionalId,
