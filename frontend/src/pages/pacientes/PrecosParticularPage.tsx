@@ -139,6 +139,9 @@ export default function PrecosParticularPage() {
           <div>
             <div className="font-semibold text-gray-900 text-base">{paciente?.nomeCompleto || p.pacienteId}</div>
             <div className="text-sm text-gray-500">{servico?.nome || p.servicoId}</div>
+            {servico?.duracaoMinutos && (
+              <div className="text-xs text-gray-400">⏱️ {servico.duracaoMinutos} min</div>
+            )}
           </div>
         </div>
         <div className={`flex items-center gap-2`}>
@@ -252,6 +255,16 @@ export default function PrecosParticularPage() {
       },
       essential: true,
       filterable: { type: 'text', placeholder: 'Buscar por serviço...' },
+    },
+    {
+      key: 'duracao',
+      header: '⏱️ Duração',
+      render: (p: PrecoParticular) => {
+        const servico = servicos.find(s => s.id === p.servicoId);
+        return servico?.duracaoMinutos ? `${servico.duracaoMinutos} min` : '-';
+      },
+      className: 'text-center',
+      filterable: { type: 'text', placeholder: 'Ex.: 30 min' },
     },
     {
       key: 'preco',

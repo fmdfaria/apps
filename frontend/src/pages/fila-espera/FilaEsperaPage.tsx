@@ -11,7 +11,6 @@ import {
   Activity,
   LayoutGrid,
   List,
-  Eye,
   Edit,
   Trash2,
   RotateCcw
@@ -26,7 +25,6 @@ import {
 } from '@/services/fila-espera';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import FilaEsperaModal from './FilaEsperaModal';
-import FilaEsperaViewModal from './FilaEsperaViewModal';
 import { AppToast } from '@/services/toast';
 import api from '@/services/api';
 import { formatarDataHoraLocal } from '@/utils/dateUtils';
@@ -74,8 +72,6 @@ export default function FilaEsperaPage() {
   const [canToggleStatus, setCanToggleStatus] = useState(true);
 
   // Estados para modais
-  const [showDetalhesItem, setShowDetalhesItem] = useState(false);
-  const [itemDetalhes, setItemDetalhes] = useState<FilaEspera | null>(null);
   
   const [showEditarItem, setShowEditarItem] = useState(false);
   const [itemEdicao, setItemEdicao] = useState<FilaEspera | null>(null);
@@ -207,12 +203,6 @@ export default function FilaEsperaPage() {
 
   const formatarDataHora = formatarDataHoraLocal;
 
-  const handleVerDetalhes = (item: FilaEspera) => {
-    console.log('Clicou no botão olho, item:', item);
-    setItemDetalhes(item);
-    setShowDetalhesItem(true);
-    console.log('Estados definidos - showDetalhesItem: true');
-  };
 
   const handleEditarItem = (item: FilaEspera) => {
     setItemEdicao(item);
@@ -308,9 +298,6 @@ export default function FilaEsperaPage() {
                       {item.pacienteNome || `ID: ${item.pacienteId}`}
                     </CardTitle>
                   </div>
-                  <Badge className={`text-xs flex-shrink-0 ml-2 ${getStatusColor(item.status || 'pendente')}`}>
-                    {item.status || 'pendente'}
-                  </Badge>
                 </div>
               </CardHeader>
               <CardContent className="pt-0 px-3 pb-3">
@@ -342,43 +329,9 @@ export default function FilaEsperaPage() {
                       💬 {item.observacao}
                     </div>
                   )}
-                  <div className="flex items-center justify-between mt-2">
-                    <Badge variant={item.ativo ? "default" : "secondary"} className="text-xs px-1 py-0">
-                      {item.ativo ? 'Ativo' : 'Inativo'}
-                    </Badge>
-                  </div>
                 </div>
                 
                 <div className="flex gap-1.5">
-                  {canRead ? (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                      onClick={() => handleVerDetalhes(item)}
-                      title="Visualizar Item"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                  ) : (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            disabled={true}
-                            className="bg-gray-400 cursor-not-allowed h-8 w-8 p-0"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Você não tem permissão para visualizar itens</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
                   {canUpdate ? (
                     <Button
                       variant="outline"
@@ -405,35 +358,6 @@ export default function FilaEsperaPage() {
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>Você não tem permissão para editar itens</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                  {canToggleStatus ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                      onClick={() => handleToggleStatus(item)}
-                      title={item.ativo ? "Desativar Item" : "Ativar Item"}
-                    >
-                      <RotateCcw className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
-                    </Button>
-                  ) : (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={true}
-                            className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
-                          >
-                            <RotateCcw className="w-4 h-4" />
-                          </Button>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Você não tem permissão para alterar status</p>
                       </TooltipContent>
                     </Tooltip>
                   )}
@@ -512,12 +436,6 @@ export default function FilaEsperaPage() {
             </TableHead>
             <TableHead className="py-3 text-sm font-semibold text-gray-700">
               <div className="flex items-center gap-2">
-                <span className="text-lg">📊</span>
-                Status
-              </div>
-            </TableHead>
-            <TableHead className="py-3 text-sm font-semibold text-gray-700">
-              <div className="flex items-center gap-2">
                 <span className="text-lg">💬</span>
                 Observação
               </div>
@@ -533,7 +451,7 @@ export default function FilaEsperaPage() {
         <TableBody>
           {itensFiltrados.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="py-12 text-center">
+              <TableCell colSpan={7} className="py-12 text-center">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                     <span className="text-3xl">📋</span>
@@ -580,44 +498,10 @@ export default function FilaEsperaPage() {
                   </span>
                 </TableCell>
                 <TableCell className="py-2">
-                  <Badge className={`text-xs ${getStatusColor(item.status || 'pendente')}`}>
-                    {item.status || 'pendente'}
-                  </Badge>
-                </TableCell>
-                <TableCell className="py-2">
                   <span className="text-sm truncate max-w-xs">{item.observacao || '-'}</span>
                 </TableCell>
                 <TableCell className="py-2">
                   <div className="flex gap-1.5">
-                    {canRead ? (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                        onClick={() => handleVerDetalhes(item)}
-                        title="Visualizar Item"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                    ) : (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              disabled={true}
-                              className="bg-gray-400 cursor-not-allowed h-8 w-8 p-0"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Você não tem permissão para visualizar itens</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
                     {canUpdate ? (
                       <Button
                         variant="outline"
@@ -644,35 +528,6 @@ export default function FilaEsperaPage() {
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>Você não tem permissão para editar itens</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                    {canToggleStatus ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                        onClick={() => handleToggleStatus(item)}
-                        title={item.ativo ? "Desativar Item" : "Ativar Item"}
-                      >
-                        <RotateCcw className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
-                      </Button>
-                    ) : (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={true}
-                              className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
-                            >
-                              <RotateCcw className="w-4 h-4" />
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Você não tem permissão para alterar status</p>
                         </TooltipContent>
                       </Tooltip>
                     )}
@@ -839,12 +694,6 @@ export default function FilaEsperaPage() {
         onSuccess={handleSuccessModal}
       />
 
-      {/* Modal de visualização */}
-      <FilaEsperaViewModal
-        isOpen={showDetalhesItem}
-        item={itemDetalhes}
-        onClose={() => setShowDetalhesItem(false)}
-      />
 
       {/* Modal de confirmação de exclusão */}
       <ConfirmDeleteModal

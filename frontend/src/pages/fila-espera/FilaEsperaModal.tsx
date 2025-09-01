@@ -343,61 +343,8 @@ export default function FilaEsperaModal({
               </div>
             </div>
 
-            {/* Linha 3: Status | Ativo */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <span className="text-lg">📊</span>
-                  Status
-                </label>
-                <div className="w-full">
-                  <SingleSelectDropdown
-                    options={statusOptions}
-                    selected={statusOptions.find(s => s.id === form.status) || null}
-                    onChange={(selected) => {
-                      handleFormChange({ status: selected?.id || 'pendente' });
-                    }}
-                    placeholder="Selecione o status..."
-                    headerText="Status do Item"
-                    formatOption={(option) => option.nome}
-                    disabled={formLoading}
-                  />
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <span className="text-lg">✅</span>
-                  Item Ativo
-                </label>
-                <div className="flex items-center gap-3 mt-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="ativo"
-                      checked={form.ativo === true}
-                      onChange={() => handleFormChange({ ativo: true })}
-                      disabled={formLoading}
-                      className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-medium text-green-600">Ativo</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="ativo"
-                      checked={form.ativo === false}
-                      onChange={() => handleFormChange({ ativo: false })}
-                      disabled={formLoading}
-                      className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-medium text-gray-600">Inativo</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            {/* Linha 4: Observações */}
+            {/* Linha 3: Observações */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                 <span className="text-lg">💬</span>
