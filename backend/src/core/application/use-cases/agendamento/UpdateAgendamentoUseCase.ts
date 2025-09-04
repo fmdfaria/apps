@@ -104,8 +104,22 @@ export class UpdateAgendamentoUseCase {
             });
           }
         }
-        // Se já tem evento e mudou data/hora, atualizar evento existente
+        // Se já tem evento e mudou data/hora, verificar se é série recorrente
         else if (atual.googleEventId && mudouDataHora) {
+          // Buscar agendamentos com mesmo googleEventId (série recorrente)
+          const agendamentosDoMesmoEvento = await this.agendamentosRepository.findAll({
+            // Buscar por googleEventId seria ideal, mas vamos usar uma busca mais ampla
+            profissionalId: agendamentoAtualizado.profissionalId,
+            pacienteId: agendamentoAtualizado.pacienteId,
+            servicoId: agendamentoAtualizado.servicoId,
+            limit: 100
+          });
+
+          // Filtrar apenas os que tem o mesmo googleEventId
+          const serieRecorrente = agendamentosDoMesmoEvento.data.filter(ag => 
+            ag.googleEventId === atual.googleEventId && ag.id !== atual.id
+          );
+
           const [profissional, paciente, convenio, servicoCompleto] = await Promise.all([
             this.profissionaisRepository.findById(agendamentoAtualizado.profissionalId),
             this.pacientesRepository.findById(agendamentoAtualizado.pacienteId),
@@ -114,17 +128,134 @@ export class UpdateAgendamentoUseCase {
           ]);
 
           if (profissional && paciente && convenio && servicoCompleto) {
-            await this.googleCalendarService.atualizarEvento(atual.googleEventId, {
-              pacienteNome: paciente.nomeCompleto,
-              pacienteEmail: paciente.email || undefined,
-              profissionalNome: profissional.nome,
-              profissionalEmail: profissional.email,
-              servicoNome: servicoCompleto.nome,
-              convenioNome: convenio.nome,
-              dataHoraInicio: agendamentoAtualizado.dataHoraInicio,
-              dataHoraFim: agendamentoAtualizado.dataHoraFim,
-              agendamentoId: agendamentoAtualizado.id
-            });
+            if (serieRecorrente.length > 0) {
+              // É uma série recorrente - precisamos decidir como editar
+              console.log('🔍 Detectada edição em série recorrente:', {
+                agendamentoEditado: agendamentoAtualizado.id,
+                totalNaSerie: serieRecorrente.length + 1,
+                googleEventId: atual.googleEventId,
+                tipoEdicao: data.tipoEdicaoRecorrencia
+              });
+
+              // Verificar se há agendamentos futuros na série
+              const agendamentosFuturos = serieRecorrente.filter(ag => 
+                new Date(ag.dataHoraInicio) > new Date(agendamentoAtualizado.dataHoraInicio)
+              );
+
+              // Decidir o tipo de edição baseado no parâmetro ou lógica automática
+              const tipoEdicao = data.tipoEdicaoRecorrencia || 
+                (agendamentosFuturos.length > 0 ? 'esta_e_futuras' : 'apenas_esta');
+
+              if (tipoEdicao === 'toda_serie') {
+                // Editar TODA a série (todos os agendamentos)
+                console.log('📅 Editando TODA a série recorrente');
+                
+                await this.googleCalendarService.editarTodaASerie(atual.googleEventId, {
+                  pacienteNome: paciente.nomeCompleto,
+                  pacienteEmail: paciente.email || undefined,
+                  profissionalNome: profissional.nome,
+                  profissionalEmail: profissional.email,
+                  servicoNome: servicoCompleto.nome,
+                  convenioNome: convenio.nome,
+                  dataHoraInicio: agendamentoAtualizado.dataHoraInicio,
+                  dataHoraFim: agendamentoAtualizado.dataHoraFim,
+                  agendamentoId: agendamentoAtualizado.id
+                });
+
+                // Atualizar TODOS os agendamentos da série no banco com a nova data/hora
+                const todosAgendamentosDaSerie = [agendamentoAtualizado, ...serieRecorrente];
+                const deltaHoras = agendamentoAtualizado.dataHoraInicio.getTime() - atual.dataHoraInicio.getTime();
+                
+                await Promise.all(
+                  todosAgendamentosDaSerie
+                    .filter(ag => ag.id !== agendamentoAtualizado.id) // Excluir o atual que já foi atualizado
+                    .map(ag => {
+                      const novaDataHoraInicio = new Date(ag.dataHoraInicio.getTime() + deltaHoras);
+                      const novaDataHoraFim = new Date(ag.dataHoraFim.getTime() + deltaHoras);
+                      return this.agendamentosRepository.update(ag.id, {
+                        dataHoraInicio: novaDataHoraInicio,
+                        dataHoraFim: novaDataHoraFim
+                      });
+                    })
+                );
+
+              } else if (tipoEdicao === 'esta_e_futuras' && agendamentosFuturos.length > 0) {
+                // Há agendamentos futuros - editar "esta e as futuras ocorrências"
+                console.log('📅 Editando esta e futuras ocorrências da série');
+                
+                const novoEventId = await this.googleCalendarService.editarSerieAPartirDe(
+                  atual.googleEventId,
+                  agendamentoAtualizado.dataHoraInicio,
+                  {
+                    pacienteNome: paciente.nomeCompleto,
+                    pacienteEmail: paciente.email || undefined,
+                    profissionalNome: profissional.nome,
+                    profissionalEmail: profissional.email,
+                    servicoNome: servicoCompleto.nome,
+                    convenioNome: convenio.nome,
+                    dataHoraInicio: agendamentoAtualizado.dataHoraInicio,
+                    dataHoraFim: agendamentoAtualizado.dataHoraFim,
+                    agendamentoId: agendamentoAtualizado.id,
+                    recorrencia: {
+                      tipo: 'semanal', // Assumir semanal por padrão - idealmente deveria vir do banco
+                      repeticoes: agendamentosFuturos.length + 1
+                    }
+                  }
+                );
+
+                // Atualizar TODOS os agendamentos futuros com o novo googleEventId
+                await Promise.all([
+                  this.agendamentosRepository.update(agendamentoAtualizado.id, {
+                    googleEventId: novoEventId
+                  }),
+                  ...agendamentosFuturos.map(ag =>
+                    this.agendamentosRepository.update(ag.id, {
+                      googleEventId: novoEventId
+                    })
+                  )
+                ]);
+
+              } else {
+                // Editar apenas esta ocorrência (tipoEdicao === 'apenas_esta' ou não há futuros)
+                console.log('📅 Editando apenas esta ocorrência específica');
+                
+                const novoEventId = await this.googleCalendarService.editarOcorrenciaEspecifica(
+                  atual.googleEventId,
+                  new Date(atual.dataHoraInicio), // Data original da ocorrência
+                  {
+                    pacienteNome: paciente.nomeCompleto,
+                    pacienteEmail: paciente.email || undefined,
+                    profissionalNome: profissional.nome,
+                    profissionalEmail: profissional.email,
+                    servicoNome: servicoCompleto.nome,
+                    convenioNome: convenio.nome,
+                    dataHoraInicio: agendamentoAtualizado.dataHoraInicio,
+                    dataHoraFim: agendamentoAtualizado.dataHoraFim,
+                    agendamentoId: agendamentoAtualizado.id
+                  }
+                );
+
+                // Atualizar apenas este agendamento com o novo googleEventId
+                await this.agendamentosRepository.update(agendamentoAtualizado.id, {
+                  googleEventId: novoEventId
+                });
+              }
+
+            } else {
+              // Não é série recorrente - evento único
+              console.log('📅 Editando evento único (não recorrente)');
+              await this.googleCalendarService.atualizarEvento(atual.googleEventId, {
+                pacienteNome: paciente.nomeCompleto,
+                pacienteEmail: paciente.email || undefined,
+                profissionalNome: profissional.nome,
+                profissionalEmail: profissional.email,
+                servicoNome: servicoCompleto.nome,
+                convenioNome: convenio.nome,
+                dataHoraInicio: agendamentoAtualizado.dataHoraInicio,
+                dataHoraFim: agendamentoAtualizado.dataHoraFim,
+                agendamentoId: agendamentoAtualizado.id
+              });
+            }
           }
         }
         // Se mudou de online para presencial, deletar evento

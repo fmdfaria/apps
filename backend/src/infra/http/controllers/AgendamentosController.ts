@@ -35,6 +35,8 @@ const agendamentoBodySchema = z.object({
   // Novos campos (avaliador e motivo de reprovação)
   avaliadoPorId: z.string().uuid().optional().nullable(),
   motivoReprovacao: z.string().optional().nullable(),
+  // Campo para tipo de edição de recorrência
+  tipoEdicaoRecorrencia: z.enum(['apenas_esta', 'esta_e_futuras', 'toda_serie']).optional(),
 });
 
 export class AgendamentosController {
@@ -112,8 +114,31 @@ export class AgendamentosController {
   async delete(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const paramsSchema = z.object({ id: z.string().uuid() });
     const { id } = paramsSchema.parse(request.params);
+    
+    // Permitir tipoEdicaoRecorrencia como query param ou body
+    const querySchema = z.object({
+      tipoEdicaoRecorrencia: z.enum(['apenas_esta', 'esta_e_futuras', 'toda_serie']).optional()
+    });
+    const bodySchema = z.object({
+      tipoEdicaoRecorrencia: z.enum(['apenas_esta', 'esta_e_futuras', 'toda_serie']).optional()
+    });
+    
+    // Verificar query params primeiro, depois body
+    let tipoEdicaoRecorrencia;
+    try {
+      const queryParams = querySchema.parse(request.query);
+      tipoEdicaoRecorrencia = queryParams.tipoEdicaoRecorrencia;
+    } catch {
+      try {
+        const bodyParams = bodySchema.parse(request.body);
+        tipoEdicaoRecorrencia = bodyParams.tipoEdicaoRecorrencia;
+      } catch {
+        // Se não encontrar em nenhum lugar, usar undefined (comportamento automático)
+      }
+    }
+    
     const useCase = container.resolve(DeleteAgendamentoUseCase);
-    await useCase.execute(id);
+    await useCase.execute(id, tipoEdicaoRecorrencia);
     return reply.status(204).send();
   }
 

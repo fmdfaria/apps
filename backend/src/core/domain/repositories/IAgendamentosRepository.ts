@@ -29,6 +29,8 @@ export interface ICreateAgendamentoDTO {
 export interface IUpdateAgendamentoDTO extends Partial<ICreateAgendamentoDTO> {
   avaliadoPorId?: string | null;
   motivoReprovacao?: string | null;
+  // Para edições de recorrência
+  tipoEdicaoRecorrencia?: 'apenas_esta' | 'esta_e_futuras' | 'toda_serie';
 }
 
 export interface IAgendamentoFilters {
