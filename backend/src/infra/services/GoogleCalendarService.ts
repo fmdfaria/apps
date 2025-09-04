@@ -129,7 +129,7 @@ export class GoogleCalendarService {
         calendarId,
         resource: event,
         conferenceDataVersion: 1,
-        sendUpdates: 'all'
+        sendUpdates: 'none'
       });
 
       const meetUrl = response.data.conferenceData?.entryPoints?.[0]?.uri;
@@ -178,7 +178,7 @@ export class GoogleCalendarService {
         calendarId,
         eventId: eventId,
         resource: updateData,
-        sendUpdates: 'all'
+        sendUpdates: 'none'
       });
     } catch (error) {
       console.error('Erro ao atualizar evento Google Calendar:', error);
@@ -193,7 +193,7 @@ export class GoogleCalendarService {
       await this.calendar.events.delete({
         calendarId,
         eventId: eventId,
-        sendUpdates: 'all'
+        sendUpdates: 'none'
       });
     } catch (error) {
       console.error('Erro ao deletar evento Google Calendar:', error);
