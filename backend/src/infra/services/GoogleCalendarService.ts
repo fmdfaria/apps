@@ -296,7 +296,7 @@ export class GoogleCalendarService {
       
       // Atualizar o evento original para terminar antes da nova data
       const rruleOriginal = eventoOriginal.data.recurrence[0].split(';');
-      const novaRRuleOriginal = rruleOriginal.filter(part => !part.startsWith('UNTIL') && !part.startsWith('COUNT'));
+      const novaRRuleOriginal = rruleOriginal.filter((part: string) => !part.startsWith('UNTIL') && !part.startsWith('COUNT'));
       novaRRuleOriginal.push(`UNTIL=${ano}${mes}${dia}`);
 
       await this.calendar.events.update({
@@ -408,8 +408,15 @@ export class GoogleCalendarService {
       
       // Atualizar o evento original para terminar antes da nova data
       const rruleOriginal = eventoOriginal.data.recurrence[0].split(';');
-      const novaRRuleOriginal = rruleOriginal.filter(part => !part.startsWith('UNTIL') && !part.startsWith('COUNT'));
+      const novaRRuleOriginal = rruleOriginal.filter((part: string) => !part.startsWith('UNTIL') && !part.startsWith('COUNT'));
       novaRRuleOriginal.push(`UNTIL=${ano}${mes}${dia}`);
+
+      console.log('🔧 Debug - Terminando série original:', {
+        eventoOriginal: eventId,
+        dataLimite: `${ano}${mes}${dia}`,
+        rruleOriginal: eventoOriginal.data.recurrence[0],
+        novaRRuleOriginal: novaRRuleOriginal.join(';')
+      });
 
       await this.calendar.events.update({
         calendarId,
@@ -446,6 +453,52 @@ export class GoogleCalendarService {
         }
       }
 
+      // FIX: Usar a nova data/hora fornecida para a nova série, não a do evento original
+      let startDateTime: string;
+      let endDateTime: string;
+
+      if (recurrenceData.dataHoraInicio && recurrenceData.dataHoraFim) {
+        // Usar as novas datas fornecidas
+        startDateTime = recurrenceData.dataHoraInicio.toISOString();
+        endDateTime = recurrenceData.dataHoraFim.toISOString();
+      } else {
+        // Fallback: usar horário do evento original mas na nova data
+        const eventoStart = new Date(eventoOriginal.data.start?.dateTime || eventoOriginal.data.start?.date);
+        const eventoEnd = new Date(eventoOriginal.data.end?.dateTime || eventoOriginal.data.end?.date);
+        
+        // Preservar apenas o horário do evento original, aplicando na nova data
+        const novaDataHora = new Date(dataInicio);
+        novaDataHora.setHours(eventoStart.getHours(), eventoStart.getMinutes(), eventoStart.getSeconds(), eventoStart.getMilliseconds());
+        
+        const novaDataFim = new Date(dataInicio);
+        novaDataFim.setHours(eventoEnd.getHours(), eventoEnd.getMinutes(), eventoEnd.getSeconds(), eventoEnd.getMilliseconds());
+        
+        startDateTime = novaDataHora.toISOString();
+        endDateTime = novaDataFim.toISOString();
+      }
+
+      // Validar se as datas estão corretas
+      const startDate = new Date(startDateTime);
+      const endDate = new Date(endDateTime);
+      
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        throw new Error(`Datas inválidas: start=${startDateTime}, end=${endDateTime}`);
+      }
+      
+      if (startDate >= endDate) {
+        throw new Error(`Data de início deve ser anterior à data de fim: start=${startDateTime}, end=${endDateTime}`);
+      }
+
+      console.log('🔧 Debug - Criando nova série (FIXED):', {
+        dataInicio: dataInicio.toISOString(),
+        startDateTime,
+        endDateTime,
+        rrule,
+        eventoOriginalStart: eventoOriginal.data.start,
+        eventoOriginalEnd: eventoOriginal.data.end,
+        recorrenciaFornecida: recurrenceData.recorrencia
+      });
+
       const novaSerie = {
         summary: recurrenceData.pacienteNome && recurrenceData.servicoNome ? 
           this.formatarTitulo(recurrenceData as EventData) : eventoOriginal.data.summary,
@@ -453,14 +506,14 @@ export class GoogleCalendarService {
           recurrenceData.servicoNome && recurrenceData.convenioNome ?
           this.formatarDescricao(recurrenceData as EventData) : eventoOriginal.data.description,
         start: {
-          dateTime: recurrenceData.dataHoraInicio?.toISOString() || eventoOriginal.data.start?.dateTime,
+          dateTime: startDateTime,
           timeZone: timezone,
         },
         end: {
-          dateTime: recurrenceData.dataHoraFim?.toISOString() || eventoOriginal.data.end?.dateTime,
+          dateTime: endDateTime,
           timeZone: timezone,
         },
-        recurrence: [rrule],
+        recurrence: rrule ? [rrule] : undefined, // Só incluir recurrence se rrule não estiver vazio
         attendees: eventoOriginal.data.attendees,
         conferenceData: eventoOriginal.data.conferenceData,
         guestsCanInviteOthers: false,

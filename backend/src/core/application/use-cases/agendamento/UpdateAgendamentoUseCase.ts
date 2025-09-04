@@ -183,6 +183,29 @@ export class UpdateAgendamentoUseCase {
                 // Há agendamentos futuros - editar "esta e as futuras ocorrências"
                 console.log('📅 Editando esta e futuras ocorrências da série');
                 
+                // Detectar tipo de recorrência baseado no intervalo entre agendamentos
+                let tipoRecorrencia: 'semanal' | 'quinzenal' | 'mensal' = 'semanal';
+                if (serieRecorrente.length > 0) {
+                  const primeiroAgendamento = new Date(atual.dataHoraInicio);
+                  const segundoAgendamento = new Date(serieRecorrente[0].dataHoraInicio);
+                  const diferencaDias = Math.abs(segundoAgendamento.getTime() - primeiroAgendamento.getTime()) / (1000 * 60 * 60 * 24);
+                  
+                  if (diferencaDias <= 8) {
+                    tipoRecorrencia = 'semanal';
+                  } else if (diferencaDias <= 16) {
+                    tipoRecorrencia = 'quinzenal';
+                  } else {
+                    tipoRecorrencia = 'mensal';
+                  }
+                }
+                
+                console.log('🔍 Detectado tipo de recorrência:', {
+                  tipoRecorrencia,
+                  totalFuturos: agendamentosFuturos.length,
+                  dataAtual: atual.dataHoraInicio,
+                  proximaData: serieRecorrente.length > 0 ? serieRecorrente[0].dataHoraInicio : 'N/A'
+                });
+                
                 const novoEventId = await this.googleCalendarService.editarSerieAPartirDe(
                   atual.googleEventId,
                   agendamentoAtualizado.dataHoraInicio,
@@ -197,7 +220,7 @@ export class UpdateAgendamentoUseCase {
                     dataHoraFim: agendamentoAtualizado.dataHoraFim,
                     agendamentoId: agendamentoAtualizado.id,
                     recorrencia: {
-                      tipo: 'semanal', // Assumir semanal por padrão - idealmente deveria vir do banco
+                      tipo: tipoRecorrencia,
                       repeticoes: agendamentosFuturos.length + 1
                     }
                   }
