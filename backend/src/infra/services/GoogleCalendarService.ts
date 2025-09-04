@@ -522,6 +522,10 @@ export class GoogleCalendarService {
         reminders: eventoOriginal.data.reminders,
       };
 
+      console.log('🔧 Debug - Objeto novaSerie completo:', {
+        novaSerie: JSON.stringify(novaSerie, null, 2)
+      });
+
       const response = await this.calendar.events.insert({
         calendarId,
         resource: novaSerie,

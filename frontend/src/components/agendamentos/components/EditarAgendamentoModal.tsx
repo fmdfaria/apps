@@ -309,7 +309,9 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
           convenioId: agendamento.convenioId,
           recursoId: agendamento.recursoId,
           tipoAtendimento: agendamento.tipoAtendimento,
-          status: agendamento.status
+          status: agendamento.status,
+          // Informar ao backend que é edição individual de recorrência
+          tipoEdicaoRecorrencia: 'apenas_esta'
         });
       } else {
         // Verificar conflitos antes de editar toda a série
@@ -378,7 +380,9 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
             convenioId: agendamentoAlvo.convenioId,
             recursoId: agendamentoAlvo.recursoId,
             tipoAtendimento: agendamentoAlvo.tipoAtendimento,
-            status: agendamentoAlvo.status
+            status: agendamentoAlvo.status,
+            // Informar ao backend que é edição de toda a série
+            tipoEdicaoRecorrencia: 'esta_e_futuras'
           });
         });
         

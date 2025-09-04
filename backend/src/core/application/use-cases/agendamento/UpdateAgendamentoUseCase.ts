@@ -142,9 +142,22 @@ export class UpdateAgendamentoUseCase {
                 new Date(ag.dataHoraInicio) > new Date(agendamentoAtualizado.dataHoraInicio)
               );
 
-              // Decidir o tipo de edição baseado no parâmetro ou lógica automática
-              const tipoEdicao = data.tipoEdicaoRecorrencia || 
-                (agendamentosFuturos.length > 0 ? 'esta_e_futuras' : 'apenas_esta');
+              // Mapear as opções do modal do frontend:
+              // Modal: "Apenas este agendamento" = 'apenas_esta'
+              // Modal: "Toda a série (x agendamentos) para frente" = 'esta_e_futuras'
+              const tipoEdicao = data.tipoEdicaoRecorrencia || 'apenas_esta';
+              
+              console.log('🎯 Decisão de edição (Modal):', {
+                tipoEdicaoFornecido: data.tipoEdicaoRecorrencia,
+                tipoEdicaoEscolhido: tipoEdicao,
+                temFuturos: agendamentosFuturos.length > 0,
+                totalFuturos: agendamentosFuturos.length,
+                opcoesMobile: {
+                  'apenas_esta': 'Apenas este agendamento',
+                  'esta_e_futuras': `Toda a série (${agendamentosFuturos.length + 1} agendamentos) para frente`,
+                  'toda_serie': `TODA a série recorrente`
+                }
+              });
 
               if (tipoEdicao === 'toda_serie') {
                 // Editar TODA a série (todos os agendamentos)
