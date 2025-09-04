@@ -110,8 +110,28 @@ const verificarDisponibilidadeHorario = (
     const isDiaSemana = disponibilidade.diaSemana !== null && disponibilidade.diaSemana === diaSemana;
     
     if (isDataEspecifica || isDiaSemana) {
-      const inicioDisponibilidade = disponibilidade.horaInicio.getHours() * 60 + disponibilidade.horaInicio.getMinutes();
-      const fimDisponibilidade = disponibilidade.horaFim.getHours() * 60 + disponibilidade.horaFim.getMinutes();
+      let inicioDisponibilidade, fimDisponibilidade;
+      
+      // Tratar diferentes formatos de horário (mesmo código da versão recorrência)
+      const horaInicioRaw = disponibilidade.horaInicio;
+      const horaFimRaw = disponibilidade.horaFim;
+      
+      if (typeof horaInicioRaw === 'string' && horaInicioRaw.includes('T')) {
+        const dataInicio = new Date(horaInicioRaw);
+        const dataFim = new Date(horaFimRaw as any);
+        inicioDisponibilidade = dataInicio.getHours() * 60 + dataInicio.getMinutes();
+        fimDisponibilidade = dataFim.getHours() * 60 + dataFim.getMinutes();
+      } else if (typeof horaInicioRaw === 'object' && (horaInicioRaw as any).getHours) {
+        inicioDisponibilidade = (horaInicioRaw as Date).getHours() * 60 + (horaInicioRaw as Date).getMinutes();
+        fimDisponibilidade = (horaFimRaw as Date).getHours() * 60 + (horaFimRaw as Date).getMinutes();
+      } else if (typeof horaInicioRaw === 'string' && horaInicioRaw.includes(':')) {
+        const [hI, mI] = (horaInicioRaw as string).split(':').map(Number);
+        const [hF, mF] = (horaFimRaw as string).split(':').map(Number);
+        inicioDisponibilidade = hI * 60 + mI;
+        fimDisponibilidade = hF * 60 + mF;
+      } else {
+        continue; // Formato não reconhecido, pular esta disponibilidade
+      }
       
       // Se o horário está dentro do intervalo da disponibilidade
       if (horarioMinutos >= inicioDisponibilidade && horarioMinutos < fimDisponibilidade) {

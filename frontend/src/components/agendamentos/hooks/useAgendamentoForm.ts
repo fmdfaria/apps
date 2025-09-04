@@ -406,29 +406,6 @@ export const useAgendamentoForm = ({
         setLoading(false);
         return;
       }
-    } else {
-      // Não recorrente: verificar conflito exato para a data/hora
-      try {
-        const conflitos = await verificarConflitosParaDatas(
-          formData.profissionalId,
-          formData.recursoId,
-          [dataHoraComOffset],
-          formData.pacienteId
-        );
-        if (conflitos.totalConflitos > 0) {
-          const c = conflitos.datasComConflito[0];
-          AppToast.error('Conflito no agendamento', {
-            description: `${c.dataFormatada} às ${c.hora} — ${c.motivo}.`
-          });
-          return;
-        }
-      } catch (error) {
-        console.error('Erro ao verificar conflito no agendamento:', error);
-        AppToast.error('Erro ao verificar disponibilidade', {
-          description: 'Não foi possível verificar conflitos. Tente novamente.'
-        });
-        return;
-      }
     }
 
     // Se não há conflitos, prosseguir com criação
@@ -442,6 +419,7 @@ export const useAgendamentoForm = ({
     } catch (error: any) {
       console.error('Erro ao criar agendamento:', error);
       const backendMsg = error?.response?.data?.message;
+      
       AppToast.error('Erro ao criar agendamento', {
         description: formatarDatasEmMensagem(backendMsg || 'Não foi possível criar o agendamento. Tente novamente.')
       });

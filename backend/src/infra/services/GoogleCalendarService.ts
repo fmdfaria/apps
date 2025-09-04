@@ -37,10 +37,16 @@ export class GoogleCalendarService {
   }
 
   private async setupCredentials(): Promise<void> {
-    // Para simplificar, usar service account ou configurar refresh token
-    // Por enquanto, deixar sem autenticação para implementação posterior
-    // O cliente precisará configurar OAuth2 flow completo
-    console.log('Google Calendar Service configurado. OAuth2 pendente de configuração.');
+    // Configurar refresh token se disponível
+    if (process.env.GOOGLE_REFRESH_TOKEN) {
+      this.oauth2Client.setCredentials({
+        refresh_token: process.env.GOOGLE_REFRESH_TOKEN
+      });
+      console.log('✅ Google Calendar Service configurado com refresh token.');
+    } else {
+      console.log('⚠️ Google Calendar Service: GOOGLE_REFRESH_TOKEN não configurado.');
+      console.log('📖 Para obter o refresh token, execute o fluxo OAuth2 completo.');
+    }
   }
 
   private formatarTitulo(eventData: EventData): string {

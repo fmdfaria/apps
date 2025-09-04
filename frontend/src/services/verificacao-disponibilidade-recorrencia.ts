@@ -345,7 +345,9 @@ export const verificarConflitosParaDatas = async (
       );
 
       if (verificacao.status === 'ocupado' || verificacao.status === 'indisponivel') {
-        const dataFormatada = data.toLocaleDateString('pt-BR', {
+        // Criar data correta para formatação usando o ISO original
+        const dataParaFormatacao = new Date(iso.split('T')[0] + 'T00:00:00');
+        const dataFormatada = dataParaFormatacao.toLocaleDateString('pt-BR', {
           weekday: 'long',
           year: 'numeric',
           month: 'long',
