@@ -174,11 +174,18 @@ export class CreateAgendamentoUseCase {
     // Buscar dados do profissional, paciente e convenio uma vez para agendamentos online
     let profissional, paciente, convenio;
     if (baseData.tipoAtendimento === 'online' && this.googleCalendarService.isIntegracaoAtiva()) {
+      console.log('🔍 Recorrente: Carregando dados para integração Google Calendar');
       [profissional, paciente, convenio] = await Promise.all([
         this.profissionaisRepository.findById(baseData.profissionalId),
         this.pacientesRepository.findById(baseData.pacienteId),
         this.conveniosRepository.findById(baseData.convenioId)
       ]);
+      console.log('📋 Dados carregados:', {
+        profissional: profissional?.nome,
+        paciente: paciente?.nomeCompleto,
+        convenio: convenio?.nome,
+        integracaoAtiva: this.googleCalendarService.isIntegracaoAtiva()
+      });
     }
     
     for (const dataHoraInicio of datas) {
@@ -186,7 +193,16 @@ export class CreateAgendamentoUseCase {
       const agendamento = await this.agendamentosRepository.create({ ...baseData, dataHoraInicio, dataHoraFim });
       
       // Integrar com Google Calendar se for online
+      console.log(`📅 Processando agendamento ${agendamento.id}:`, {
+        tipoAtendimento: baseData.tipoAtendimento,
+        integracaoAtiva: this.googleCalendarService.isIntegracaoAtiva(),
+        temProfissional: !!profissional,
+        temPaciente: !!paciente,
+        temConvenio: !!convenio
+      });
+      
       if (baseData.tipoAtendimento === 'online' && this.googleCalendarService.isIntegracaoAtiva() && profissional && paciente && convenio) {
+        console.log('✅ Criando evento Google Calendar para agendamento recorrente:', agendamento.id);
         try {
           const googleEvent = await this.googleCalendarService.criarEventoComMeet({
             pacienteNome: paciente.nomeCompleto,
@@ -198,6 +214,12 @@ export class CreateAgendamentoUseCase {
             dataHoraInicio: dataHoraInicio,
             dataHoraFim: dataHoraFim,
             agendamentoId: agendamento.id
+          });
+
+          console.log('📝 Atualizando agendamento com dados do Google Calendar:', {
+            agendamentoId: agendamento.id,
+            urlMeet: googleEvent.urlMeet,
+            eventId: googleEvent.eventId
           });
 
           // Atualizar agendamento com URL do Meet e Event ID
@@ -214,10 +236,11 @@ export class CreateAgendamentoUseCase {
             agendamentosCriados.push(agendamento);
           }
         } catch (error) {
-          console.error('Erro na integração Google Calendar para agendamento recorrente:', error);
+          console.error('❌ Erro na integração Google Calendar para agendamento recorrente:', error);
           agendamentosCriados.push(agendamento);
         }
       } else {
+        console.log('⏭️ Pulando integração Google Calendar - condições não atendidas');
         agendamentosCriados.push(agendamento);
       }
     }
