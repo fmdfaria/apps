@@ -66,7 +66,17 @@ export class UpdateAgendamentoUseCase {
       }
       dataHoraFim = new Date(new Date(dataHoraInicio).getTime() + servico.duracaoMinutos * 60000);
     }
-    const agendamentoAtualizado = await this.agendamentosRepository.update(id, { ...data, dataHoraFim });
+
+    // Remover campos que não fazem parte do schema do banco antes de enviar para o repositório
+    const { tipoEdicaoRecorrencia, ...dadosParaBanco } = data;
+    
+    console.log('🔧 Debug - Dados sendo enviados para o banco:', {
+      tipoEdicaoRecorrencia, // Log apenas para debug
+      camposParaBanco: Object.keys(dadosParaBanco),
+      dataHoraFimCalculada: dataHoraFim
+    });
+    
+    const agendamentoAtualizado = await this.agendamentosRepository.update(id, { ...dadosParaBanco, dataHoraFim });
     
     // Integração com Google Calendar
     if (this.googleCalendarService.isIntegracaoAtiva() && agendamentoAtualizado.tipoAtendimento === 'online') {
@@ -134,7 +144,7 @@ export class UpdateAgendamentoUseCase {
                 agendamentoEditado: agendamentoAtualizado.id,
                 totalNaSerie: serieRecorrente.length + 1,
                 googleEventId: atual.googleEventId,
-                tipoEdicao: data.tipoEdicaoRecorrencia
+                tipoEdicao: tipoEdicaoRecorrencia
               });
 
               // Verificar se há agendamentos futuros na série
@@ -145,10 +155,10 @@ export class UpdateAgendamentoUseCase {
               // Mapear as opções do modal do frontend:
               // Modal: "Apenas este agendamento" = 'apenas_esta'
               // Modal: "Toda a série (x agendamentos) para frente" = 'esta_e_futuras'
-              const tipoEdicao = data.tipoEdicaoRecorrencia || 'apenas_esta';
+              const tipoEdicao = tipoEdicaoRecorrencia || 'apenas_esta';
               
               console.log('🎯 Decisão de edição (Modal):', {
-                tipoEdicaoFornecido: data.tipoEdicaoRecorrencia,
+                tipoEdicaoFornecido: tipoEdicaoRecorrencia,
                 tipoEdicaoEscolhido: tipoEdicao,
                 temFuturos: agendamentosFuturos.length > 0,
                 totalFuturos: agendamentosFuturos.length,
