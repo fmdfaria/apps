@@ -24,6 +24,7 @@ export class Agendamento {
   recebimento?: boolean;
   pagamento?: boolean;
   urlMeet?: string | null;
+  googleEventId?: string | null;
   createdAt!: Date;
   updatedAt!: Date;
 

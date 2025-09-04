@@ -11,6 +11,7 @@ import { Calendar, Clock, Save, X, ArrowLeft, Repeat, AlertTriangle, User, FileT
 import { OPCOES_HORARIOS } from '../utils/agendamento-constants';
 import { useVerificacaoAgendamento } from '@/hooks/useVerificacaoAgendamento';
 import { verificarConflitosRecorrencia, verificarConflitosParaDatas, type ConflitosRecorrencia } from '@/services/verificacao-disponibilidade-recorrencia';
+import { getDisponibilidadesProfissional } from '@/services/disponibilidades';
 import ConfirmationDialog from '@/components/ui/confirmation-dialog';
 import type { Agendamento } from '@/types/Agendamento';
 import { AppToast } from '@/services/toast';
@@ -41,6 +42,7 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
   // Estados para modal de conflitos de recorrência
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [conflitosRecorrencia, setConflitosRecorrencia] = useState<ConflitosRecorrencia | null>(null);
+  const [disponibilidades, setDisponibilidades] = useState<any[]>([]);
 
   // Hook para verificação de disponibilidade
   const {
@@ -127,6 +129,101 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
     }
   }, [agendamento?.profissionalId, dataAgendamento, verificarHorarios]);
 
+  // Carregar disponibilidades quando agendamento mudar
+  useEffect(() => {
+    if (agendamento?.profissionalId) {
+      const carregarDisponibilidades = async () => {
+        try {
+          const lista = await getDisponibilidadesProfissional(agendamento.profissionalId);
+          setDisponibilidades(lista || []);
+        } catch (error) {
+          console.error('Erro ao carregar disponibilidades:', error);
+          setDisponibilidades([]);
+        }
+      };
+      carregarDisponibilidades();
+    }
+  }, [agendamento?.profissionalId]);
+
+  // Função para validar se o recurso está conforme a disponibilidade cadastrada
+  const validarRecursoConformeDisponibilidade = async (
+    profissionalId: string, 
+    recursoId: string, 
+    dataHoraCompleta: string
+  ): Promise<boolean> => {
+    if (!disponibilidades.length) return true; // Se não há disponibilidades, aceita qualquer recurso
+
+    // Extrair data e hora
+    const [data, hora] = dataHoraCompleta.split('T');
+    const dataObj = new Date(data + 'T00:00:00');
+    const diaSemana = dataObj.getDay();
+    const [horaNum, minutoNum] = hora.split(':').map(Number);
+    const horarioMinutos = horaNum * 60 + minutoNum;
+
+    // Buscar disponibilidades do profissional
+    const disponibilidadesProfissional = disponibilidades.filter(disp => {
+      const dispProfissionalId = disp.profissionalId ?? disp.profissional_id;
+      if (dispProfissionalId !== profissionalId) return false;
+      
+      // Verificar se é para data específica
+      const dataEspecifica = disp.dataEspecifica ?? disp.data_especifica;
+      if (dataEspecifica) {
+        const dataDisp = new Date(dataEspecifica);
+        return dataDisp.getFullYear() === dataObj.getFullYear() &&
+               dataDisp.getMonth() === dataObj.getMonth() &&
+               dataDisp.getDate() === dataObj.getDate();
+      }
+      
+      // Verificar se é para dia da semana
+      const diaSemanaDisp = (disp.diaSemana ?? disp.dia_semana);
+      if (diaSemanaDisp !== null && diaSemanaDisp !== undefined) {
+        return diaSemanaDisp === diaSemana;
+      }
+      
+      return false;
+    });
+
+    // Verificar se existe uma disponibilidade com o recurso selecionado no horário específico
+    const disponibilidadeComRecurso = disponibilidadesProfissional.find(disp => {
+      const dispRecursoId = disp.recursoId ?? disp.recurso_id;
+      if (dispRecursoId !== recursoId) return false;
+      
+      const horaInicioRaw = disp.horaInicio ?? disp.hora_inicio;
+      const horaFimRaw = disp.horaFim ?? disp.hora_fim;
+      if (horaInicioRaw && horaFimRaw) {
+        let horaInicioDisp, horaFimDisp;
+        
+        // Tratar diferentes formatos de horário (mesmo código da auto-seleção)
+        if (typeof horaInicioRaw === 'string' && horaInicioRaw.includes('T')) {
+          const dataInicio = new Date(horaInicioRaw);
+          const dataFim = new Date(horaFimRaw as any);
+          horaInicioDisp = dataInicio.getHours() * 60 + dataInicio.getMinutes();
+          horaFimDisp = dataFim.getHours() * 60 + dataFim.getMinutes();
+        }
+        else if (typeof horaInicioRaw === 'object' && (horaInicioRaw as any).getHours) {
+          horaInicioDisp = (horaInicioRaw as Date).getHours() * 60 + (horaInicioRaw as Date).getMinutes();
+          horaFimDisp = (horaFimRaw as Date).getHours() * 60 + (horaFimRaw as Date).getMinutes();
+        } 
+        else if (typeof horaInicioRaw === 'string' && horaInicioRaw.includes(':')) {
+          const [hI, mI] = (horaInicioRaw as string).split(':').map(Number);
+          const [hF, mF] = (horaFimRaw as string).split(':').map(Number);
+          horaInicioDisp = hI * 60 + mI;
+          horaFimDisp = hF * 60 + mF;
+        }
+        else {
+          return false;
+        }
+        
+        // Verificar se o horário está dentro do intervalo
+        return horarioMinutos >= horaInicioDisp && horarioMinutos < horaFimDisp;
+      }
+      
+      return false;
+    });
+
+    return !!disponibilidadeComRecurso; // Retorna true se encontrou a disponibilidade, false se não encontrou
+  };
+
   const handleSave = async () => {
     if (!agendamento || !dataAgendamento || !horaAgendamento) {
       AppToast.error('Erro de validação', {
@@ -186,17 +283,17 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
       const novaDataHora = buildOffsetFromParts(dataAgendamento, horaAgendamento);
       
       if (tipoEdicao === 'individual') {
-        // Verificar conflito para edição individual
-        const conflitosInd = await verificarConflitosParaDatas(
-          agendamento.profissionalId,
-          agendamento.recursoId,
-          [novaDataHora],
-          agendamento.pacienteId
+        // Validação de recurso x disponibilidade usando formato simples
+        const dataHoraCombinada = `${dataAgendamento}T${horaAgendamento}`;
+        const recursoConforme = await validarRecursoConformeDisponibilidade(
+          agendamento.profissionalId, 
+          agendamento.recursoId, 
+          dataHoraCombinada
         );
-        if (conflitosInd.totalConflitos > 0) {
-          const c = conflitosInd.datasComConflito[0];
+
+        if (!recursoConforme) {
           AppToast.error('Conflito no agendamento', {
-            description: `${c.dataFormatada} às ${c.hora} — ${c.motivo}.`
+            description: 'Profissional não atende neste horário.'
           });
           setSaving(false);
           return;

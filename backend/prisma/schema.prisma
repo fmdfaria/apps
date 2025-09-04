@@ -245,6 +245,7 @@ model Agendamento {
   recebimento        Boolean?           @default(false)
   pagamento          Boolean?           @default(false)
   urlMeet            String?            @map("url_meet") @db.VarChar(500)
+  googleEventId      String?            @map("google_event_id") @db.VarChar(255)
   // Novos campos de avaliação
   avaliadoPorId      String?            @map("avaliado_por_id") @db.Uuid
   motivoReprovacao   String?            @map("motivo_reprovacao")

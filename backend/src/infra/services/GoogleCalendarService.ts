@@ -169,8 +169,14 @@ export class GoogleCalendarService {
         };
       }
 
-      if (eventData.pacienteNome || eventData.servicoNome) {
-        updateData.summary = `${eventData.servicoNome || 'Consulta'} - ${eventData.pacienteNome || 'Paciente'}`;
+      // Atualizar título usando template se tiver todas as informações
+      if (eventData.pacienteNome && eventData.servicoNome) {
+        updateData.summary = this.formatarTitulo(eventData as EventData);
+      }
+
+      // Atualizar descrição se tiver todas as informações
+      if (eventData.pacienteNome && eventData.profissionalNome && eventData.servicoNome && eventData.convenioNome) {
+        updateData.description = this.formatarDescricao(eventData as EventData);
       }
 
       const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';

@@ -68,38 +68,72 @@ export class UpdateAgendamentoUseCase {
     }
     const agendamentoAtualizado = await this.agendamentosRepository.update(id, { ...data, dataHoraFim });
     
-    // Integrar com Google Calendar se mudou para online ou status LIBERADO
-    const statusMudouParaLiberado = data.status === 'LIBERADO' && atual.status !== 'LIBERADO';
-    const mudouParaOnline = data.tipoAtendimento === 'online' && atual.tipoAtendimento !== 'online';
-    
-    if ((statusMudouParaLiberado || mudouParaOnline) && 
-        agendamentoAtualizado.tipoAtendimento === 'online' && 
-        !agendamentoAtualizado.urlMeet && 
-        this.googleCalendarService.isIntegracaoAtiva()) {
+    // Integração com Google Calendar
+    if (this.googleCalendarService.isIntegracaoAtiva() && agendamentoAtualizado.tipoAtendimento === 'online') {
       try {
-        const [profissional, paciente, convenio, servicoCompleto] = await Promise.all([
-          this.profissionaisRepository.findById(agendamentoAtualizado.profissionalId),
-          this.pacientesRepository.findById(agendamentoAtualizado.pacienteId),
-          this.conveniosRepository.findById(agendamentoAtualizado.convenioId),
-          this.servicosRepository.findById(agendamentoAtualizado.servicoId)
-        ]);
+        const statusMudouParaLiberado = data.status === 'LIBERADO' && atual.status !== 'LIBERADO';
+        const mudouParaOnline = data.tipoAtendimento === 'online' && atual.tipoAtendimento !== 'online';
+        const mudouDataHora = data.dataHoraInicio && data.dataHoraInicio.getTime() !== atual.dataHoraInicio.getTime();
 
-        if (profissional && paciente && convenio && servicoCompleto) {
-          const googleEvent = await this.googleCalendarService.criarEventoComMeet({
-            pacienteNome: paciente.nomeCompleto,
-            pacienteEmail: paciente.email || undefined,
-            profissionalNome: profissional.nome,
-            profissionalEmail: profissional.email,
-            servicoNome: servicoCompleto.nome,
-            convenioNome: convenio.nome,
-            dataHoraInicio: agendamentoAtualizado.dataHoraInicio,
-            dataHoraFim: agendamentoAtualizado.dataHoraFim,
-            agendamentoId: agendamentoAtualizado.id
-          });
+        // Se mudou para online ou status LIBERADO e não tem evento ainda, criar novo evento
+        if ((statusMudouParaLiberado || mudouParaOnline) && !agendamentoAtualizado.urlMeet) {
+          const [profissional, paciente, convenio, servicoCompleto] = await Promise.all([
+            this.profissionaisRepository.findById(agendamentoAtualizado.profissionalId),
+            this.pacientesRepository.findById(agendamentoAtualizado.pacienteId),
+            this.conveniosRepository.findById(agendamentoAtualizado.convenioId),
+            this.servicosRepository.findById(agendamentoAtualizado.servicoId)
+          ]);
 
-          // Atualizar com URL do Meet
+          if (profissional && paciente && convenio && servicoCompleto) {
+            const googleEvent = await this.googleCalendarService.criarEventoComMeet({
+              pacienteNome: paciente.nomeCompleto,
+              pacienteEmail: paciente.email || undefined,
+              profissionalNome: profissional.nome,
+              profissionalEmail: profissional.email,
+              servicoNome: servicoCompleto.nome,
+              convenioNome: convenio.nome,
+              dataHoraInicio: agendamentoAtualizado.dataHoraInicio,
+              dataHoraFim: agendamentoAtualizado.dataHoraFim,
+              agendamentoId: agendamentoAtualizado.id
+            });
+
+            // Atualizar com URL do Meet e Event ID
+            return await this.agendamentosRepository.update(id, {
+              urlMeet: googleEvent.urlMeet,
+              googleEventId: googleEvent.eventId
+            });
+          }
+        }
+        // Se já tem evento e mudou data/hora, atualizar evento existente
+        else if (atual.googleEventId && mudouDataHora) {
+          const [profissional, paciente, convenio, servicoCompleto] = await Promise.all([
+            this.profissionaisRepository.findById(agendamentoAtualizado.profissionalId),
+            this.pacientesRepository.findById(agendamentoAtualizado.pacienteId),
+            this.conveniosRepository.findById(agendamentoAtualizado.convenioId),
+            this.servicosRepository.findById(agendamentoAtualizado.servicoId)
+          ]);
+
+          if (profissional && paciente && convenio && servicoCompleto) {
+            await this.googleCalendarService.atualizarEvento(atual.googleEventId, {
+              pacienteNome: paciente.nomeCompleto,
+              pacienteEmail: paciente.email || undefined,
+              profissionalNome: profissional.nome,
+              profissionalEmail: profissional.email,
+              servicoNome: servicoCompleto.nome,
+              convenioNome: convenio.nome,
+              dataHoraInicio: agendamentoAtualizado.dataHoraInicio,
+              dataHoraFim: agendamentoAtualizado.dataHoraFim,
+              agendamentoId: agendamentoAtualizado.id
+            });
+          }
+        }
+        // Se mudou de online para presencial, deletar evento
+        else if (atual.googleEventId && atual.tipoAtendimento === 'online' && data.tipoAtendimento === 'presencial') {
+          await this.googleCalendarService.deletarEvento(atual.googleEventId);
+          // Limpar dados do Google Calendar
           return await this.agendamentosRepository.update(id, {
-            urlMeet: googleEvent.urlMeet
+            urlMeet: null,
+            googleEventId: null
           });
         }
       } catch (error) {

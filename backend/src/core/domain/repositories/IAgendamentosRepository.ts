@@ -22,6 +22,7 @@ export interface ICreateAgendamentoDTO {
   recebimento?: boolean;
   pagamento?: boolean;
   urlMeet?: string | null;
+  googleEventId?: string | null;
   recorrencia?: IRecorrenciaAgendamento;
 }
 
