@@ -171,77 +171,60 @@ export class CreateAgendamentoUseCase {
     // Se não houver conflitos, criar todos
     const agendamentosCriados: Agendamento[] = [];
     
-    // Buscar dados do profissional, paciente e convenio uma vez para agendamentos online
-    let profissional, paciente, convenio;
-    if (baseData.tipoAtendimento === 'online' && this.googleCalendarService.isIntegracaoAtiva()) {
-      console.log('🔍 Recorrente: Carregando dados para integração Google Calendar');
-      [profissional, paciente, convenio] = await Promise.all([
-        this.profissionaisRepository.findById(baseData.profissionalId),
-        this.pacientesRepository.findById(baseData.pacienteId),
-        this.conveniosRepository.findById(baseData.convenioId)
-      ]);
-      console.log('📋 Dados carregados:', {
-        profissional: profissional?.nome,
-        paciente: paciente?.nomeCompleto,
-        convenio: convenio?.nome,
-        integracaoAtiva: this.googleCalendarService.isIntegracaoAtiva()
-      });
-    }
-    
+    // Criar todos os agendamentos primeiro
     for (const dataHoraInicio of datas) {
       const dataHoraFim = new Date(dataHoraInicio.getTime() + servico.duracaoMinutos * 60000);
       const agendamento = await this.agendamentosRepository.create({ ...baseData, dataHoraInicio, dataHoraFim });
-      
-      // Integrar com Google Calendar se for online
-      console.log(`📅 Processando agendamento ${agendamento.id}:`, {
-        tipoAtendimento: baseData.tipoAtendimento,
-        integracaoAtiva: this.googleCalendarService.isIntegracaoAtiva(),
-        temProfissional: !!profissional,
-        temPaciente: !!paciente,
-        temConvenio: !!convenio
-      });
-      
-      if (baseData.tipoAtendimento === 'online' && this.googleCalendarService.isIntegracaoAtiva() && profissional && paciente && convenio) {
-        console.log('✅ Criando evento Google Calendar para agendamento recorrente:', agendamento.id);
-        try {
-          const googleEvent = await this.googleCalendarService.criarEventoComMeet({
+      agendamentosCriados.push(agendamento);
+    }
+
+    // Integrar com Google Calendar - criar UM evento recorrente para toda a série
+    if (baseData.tipoAtendimento === 'online' && this.googleCalendarService.isIntegracaoAtiva()) {
+      console.log('🔍 Recorrente: Criando evento recorrente no Google Calendar');
+      try {
+        const [profissional, paciente, convenio] = await Promise.all([
+          this.profissionaisRepository.findById(baseData.profissionalId),
+          this.pacientesRepository.findById(baseData.pacienteId),
+          this.conveniosRepository.findById(baseData.convenioId)
+        ]);
+
+        if (profissional && paciente && convenio) {
+          const primeiroAgendamento = agendamentosCriados[0];
+          const dataHoraFimPrimeiro = new Date(primeiroAgendamento.dataHoraInicio.getTime() + servico.duracaoMinutos * 60000);
+
+          const googleEvent = await this.googleCalendarService.criarEventoRecorrenteComMeet({
             pacienteNome: paciente.nomeCompleto,
             pacienteEmail: paciente.email || undefined,
             profissionalNome: profissional.nome,
             profissionalEmail: profissional.email,
             servicoNome: servico.nome,
             convenioNome: convenio.nome,
-            dataHoraInicio: dataHoraInicio,
-            dataHoraFim: dataHoraFim,
-            agendamentoId: agendamento.id
+            dataHoraInicio: primeiroAgendamento.dataHoraInicio,
+            dataHoraFim: dataHoraFimPrimeiro,
+            agendamentoId: primeiroAgendamento.id,
+            recorrencia: recorrencia
           });
 
-          console.log('📝 Atualizando agendamento com dados do Google Calendar:', {
-            agendamentoId: agendamento.id,
-            urlMeet: googleEvent.urlMeet,
-            eventId: googleEvent.eventId
-          });
+          console.log('📝 Atualizando TODOS os agendamentos da série com dados do Google Calendar');
 
-          // Atualizar agendamento com URL do Meet e Event ID
-          await this.agendamentosRepository.update(agendamento.id, {
-            urlMeet: googleEvent.urlMeet,
-            googleEventId: googleEvent.eventId
-          });
+          // Atualizar TODOS os agendamentos da série com o mesmo urlMeet e googleEventId
+          // Todos compartilham o mesmo evento recorrente do Google Calendar
+          for (let i = 0; i < agendamentosCriados.length; i++) {
+            await this.agendamentosRepository.update(agendamentosCriados[i].id, {
+              urlMeet: googleEvent.urlMeet,
+              googleEventId: googleEvent.eventId
+            });
 
-          // Buscar agendamento atualizado
-          const agendamentoAtualizado = await this.agendamentosRepository.findById(agendamento.id);
-          if (agendamentoAtualizado) {
-            agendamentosCriados.push(agendamentoAtualizado);
-          } else {
-            agendamentosCriados.push(agendamento);
+            // Buscar agendamento atualizado
+            const agendamentoAtualizado = await this.agendamentosRepository.findById(agendamentosCriados[i].id);
+            if (agendamentoAtualizado) {
+              agendamentosCriados[i] = agendamentoAtualizado;
+            }
           }
-        } catch (error) {
-          console.error('❌ Erro na integração Google Calendar para agendamento recorrente:', error);
-          agendamentosCriados.push(agendamento);
         }
-      } else {
-        console.log('⏭️ Pulando integração Google Calendar - condições não atendidas');
-        agendamentosCriados.push(agendamento);
+      } catch (error) {
+        console.error('❌ Erro na integração Google Calendar para série recorrente:', error);
+        // Continua sem falhar - agendamentos já foram criados
       }
     }
     return agendamentosCriados;

@@ -13,6 +13,14 @@ interface EventData {
   agendamentoId: string;
 }
 
+interface RecurrenceData extends EventData {
+  recorrencia: {
+    tipo: 'semanal' | 'quinzenal' | 'mensal';
+    repeticoes?: number;
+    ate?: Date;
+  };
+}
+
 interface GoogleMeetEventResponse {
   eventId: string;
   urlMeet: string;
@@ -202,9 +210,180 @@ export class GoogleCalendarService {
         eventId: eventId,
         sendUpdates: 'none'
       });
+      console.log('✅ Evento Google Calendar deletado:', eventId);
     } catch (error) {
       console.error('Erro ao deletar evento Google Calendar:', error);
       // Não lança erro para não quebrar o fluxo de exclusão do agendamento
+    }
+  }
+
+  async atualizarEventoRecorrente(eventId: string, recurrenceData: Partial<RecurrenceData>): Promise<void> {
+    try {
+      const updateData: any = {};
+      const timezone = process.env.GOOGLE_TIMEZONE || 'America/Sao_Paulo';
+      
+      if (recurrenceData.dataHoraInicio) {
+        updateData.start = {
+          dateTime: recurrenceData.dataHoraInicio.toISOString(),
+          timeZone: timezone,
+        };
+      }
+
+      if (recurrenceData.dataHoraFim) {
+        updateData.end = {
+          dateTime: recurrenceData.dataHoraFim.toISOString(),
+          timeZone: timezone,
+        };
+      }
+
+      // Atualizar título e descrição usando template se tiver todas as informações
+      if (recurrenceData.pacienteNome && recurrenceData.servicoNome) {
+        updateData.summary = this.formatarTitulo(recurrenceData as EventData);
+      }
+
+      if (recurrenceData.pacienteNome && recurrenceData.profissionalNome && 
+          recurrenceData.servicoNome && recurrenceData.convenioNome) {
+        updateData.description = this.formatarDescricao(recurrenceData as EventData);
+      }
+
+      // Atualizar RRULE se recorrência mudou
+      if (recurrenceData.recorrencia) {
+        let rrule = '';
+        switch (recurrenceData.recorrencia.tipo) {
+          case 'semanal':
+            rrule = 'RRULE:FREQ=WEEKLY';
+            break;
+          case 'quinzenal':
+            rrule = 'RRULE:FREQ=WEEKLY;INTERVAL=2';
+            break;
+          case 'mensal':
+            rrule = 'RRULE:FREQ=MONTHLY';
+            break;
+        }
+
+        if (recurrenceData.recorrencia.ate) {
+          const dataLimite = recurrenceData.recorrencia.ate;
+          const ano = dataLimite.getFullYear();
+          const mes = (dataLimite.getMonth() + 1).toString().padStart(2, '0');
+          const dia = dataLimite.getDate().toString().padStart(2, '0');
+          rrule += `;UNTIL=${ano}${mes}${dia}`;
+        } else if (recurrenceData.recorrencia.repeticoes) {
+          rrule += `;COUNT=${recurrenceData.recorrencia.repeticoes}`;
+        }
+
+        updateData.recurrence = [rrule];
+      }
+
+      const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
+      
+      await this.calendar.events.update({
+        calendarId,
+        eventId: eventId,
+        resource: updateData,
+        sendUpdates: 'none'
+      });
+      console.log('✅ Evento recorrente Google Calendar atualizado:', eventId);
+    } catch (error) {
+      console.error('Erro ao atualizar evento recorrente Google Calendar:', error);
+      throw new Error('Falha ao atualizar evento recorrente no Google Calendar');
+    }
+  }
+
+  async criarEventoRecorrenteComMeet(recurrenceData: RecurrenceData): Promise<GoogleMeetEventResponse> {
+    try {
+      const timezone = process.env.GOOGLE_TIMEZONE || 'America/Sao_Paulo';
+      
+      // Construir RRULE baseado no tipo de recorrência
+      let rrule = '';
+      switch (recurrenceData.recorrencia.tipo) {
+        case 'semanal':
+          rrule = 'RRULE:FREQ=WEEKLY';
+          break;
+        case 'quinzenal':
+          rrule = 'RRULE:FREQ=WEEKLY;INTERVAL=2';
+          break;
+        case 'mensal':
+          rrule = 'RRULE:FREQ=MONTHLY';
+          break;
+      }
+
+      // Adicionar limite por data ou por número de repetições
+      if (recurrenceData.recorrencia.ate) {
+        // Converter data limite para formato YYYYMMDD
+        const dataLimite = recurrenceData.recorrencia.ate;
+        const ano = dataLimite.getFullYear();
+        const mes = (dataLimite.getMonth() + 1).toString().padStart(2, '0');
+        const dia = dataLimite.getDate().toString().padStart(2, '0');
+        rrule += `;UNTIL=${ano}${mes}${dia}`;
+      } else if (recurrenceData.recorrencia.repeticoes) {
+        rrule += `;COUNT=${recurrenceData.recorrencia.repeticoes}`;
+      }
+
+      const event = {
+        summary: this.formatarTitulo(recurrenceData),
+        description: this.formatarDescricao(recurrenceData),
+        start: {
+          dateTime: recurrenceData.dataHoraInicio.toISOString(),
+          timeZone: timezone,
+        },
+        end: {
+          dateTime: recurrenceData.dataHoraFim.toISOString(),
+          timeZone: timezone,
+        },
+        recurrence: [rrule],
+        attendees: [
+          { email: recurrenceData.profissionalEmail },
+          ...(recurrenceData.pacienteEmail ? [{ email: recurrenceData.pacienteEmail }] : [])
+        ],
+        conferenceData: {
+          createRequest: {
+            requestId: `meet-${recurrenceData.agendamentoId}`,
+            conferenceSolutionKey: {
+              type: 'hangoutsMeet'
+            },
+            status: {
+              statusCode: 'success'
+            }
+          }
+        },
+        guestsCanInviteOthers: false,
+        guestsCanModify: false,
+        guestsCanSeeOtherGuests: true,
+        reminders: {
+          useDefault: false,
+          overrides: [],
+        },
+      };
+
+      const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
+      
+      const response = await this.calendar.events.insert({
+        calendarId,
+        resource: event,
+        conferenceDataVersion: 1,
+        sendUpdates: 'none'
+      });
+
+      const meetUrl = response.data.conferenceData?.entryPoints?.[0]?.uri;
+      
+      if (!meetUrl) {
+        throw new Error('Falha ao criar link do Google Meet para evento recorrente');
+      }
+
+      console.log('✅ Evento recorrente Google Calendar criado:', {
+        eventId: response.data.id,
+        recurringEventId: response.data.recurringEventId,
+        rrule: rrule,
+        meetUrl: meetUrl
+      });
+
+      return {
+        eventId: response.data.id,
+        urlMeet: meetUrl
+      };
+    } catch (error) {
+      console.error('Erro ao criar evento recorrente Google Calendar:', error);
+      throw new Error('Falha na integração com Google Calendar para evento recorrente');
     }
   }
 
