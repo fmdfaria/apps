@@ -132,6 +132,7 @@ export class GoogleCalendarService {
         sendUpdates: 'none'
       });
 
+
       const meetUrl = response.data.conferenceData?.entryPoints?.[0]?.uri;
       
       if (!meetUrl) {
