@@ -30,6 +30,7 @@ export interface Agendamento {
   servicoId: string;
   dataHoraInicio: string; // ISO string
   dataHoraFim?: string; // Calculado automaticamente
+  urlMeet?: string | null; // Google Meet link para agendamentos online
   recorrencia?: RecorrenciaAgendamento;
   
   // Etapa 2 - Liberar

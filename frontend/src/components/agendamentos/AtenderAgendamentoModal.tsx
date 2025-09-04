@@ -165,6 +165,19 @@ export const AtenderAgendamentoModal: React.FC<AtenderAgendamentoModalProps> = (
                 />
               </div>
               <DialogFooter className="mt-6">
+                {/* Botão Meet para agendamentos online */}
+                {agendamento?.tipoAtendimento === 'online' && agendamento?.urlMeet && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => window.open(agendamento.urlMeet!, '_blank', 'noopener,noreferrer')}
+                    className="border-2 border-blue-300 text-blue-700 hover:border-blue-400 hover:bg-blue-50 font-semibold px-6 transition-all duration-200"
+                  >
+                    <span className="mr-2">📹</span>
+                    Entrar no Meet
+                  </Button>
+                )}
+                
                 <Button
                   type="button"
                   variant="outline"

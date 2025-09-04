@@ -3,6 +3,10 @@ import { AppError } from '../../../../shared/errors/AppError';
 import { IAgendamentosRepository, IUpdateAgendamentoDTO } from '../../../domain/repositories/IAgendamentosRepository';
 import { Agendamento } from '../../../domain/entities/Agendamento';
 import { IServicosRepository } from '../../../domain/repositories/IServicosRepository';
+import { GoogleCalendarService } from '../../../../infra/services/GoogleCalendarService';
+import { IProfissionaisRepository } from '../../../domain/repositories/IProfissionaisRepository';
+import { IPacientesRepository } from '../../../domain/repositories/IPacientesRepository';
+import { IConveniosRepository } from '../../../domain/repositories/IConveniosRepository';
 
 @injectable()
 export class UpdateAgendamentoUseCase {
@@ -10,7 +14,15 @@ export class UpdateAgendamentoUseCase {
     @inject('AgendamentosRepository')
     private agendamentosRepository: IAgendamentosRepository,
     @inject('ServicosRepository')
-    private servicosRepository: IServicosRepository
+    private servicosRepository: IServicosRepository,
+    @inject('GoogleCalendarService')
+    private googleCalendarService: GoogleCalendarService,
+    @inject('ProfissionaisRepository')
+    private profissionaisRepository: IProfissionaisRepository,
+    @inject('PacientesRepository')
+    private pacientesRepository: IPacientesRepository,
+    @inject('ConveniosRepository')
+    private conveniosRepository: IConveniosRepository
   ) {}
 
   async execute(id: string, data: IUpdateAgendamentoDTO): Promise<Agendamento> {
@@ -54,6 +66,48 @@ export class UpdateAgendamentoUseCase {
       }
       dataHoraFim = new Date(new Date(dataHoraInicio).getTime() + servico.duracaoMinutos * 60000);
     }
-    return this.agendamentosRepository.update(id, { ...data, dataHoraFim });
+    const agendamentoAtualizado = await this.agendamentosRepository.update(id, { ...data, dataHoraFim });
+    
+    // Integrar com Google Calendar se mudou para online ou status LIBERADO
+    const statusMudouParaLiberado = data.status === 'LIBERADO' && atual.status !== 'LIBERADO';
+    const mudouParaOnline = data.tipoAtendimento === 'online' && atual.tipoAtendimento !== 'online';
+    
+    if ((statusMudouParaLiberado || mudouParaOnline) && 
+        agendamentoAtualizado.tipoAtendimento === 'online' && 
+        !agendamentoAtualizado.urlMeet && 
+        this.googleCalendarService.isIntegracaoAtiva()) {
+      try {
+        const [profissional, paciente, convenio, servicoCompleto] = await Promise.all([
+          this.profissionaisRepository.findById(agendamentoAtualizado.profissionalId),
+          this.pacientesRepository.findById(agendamentoAtualizado.pacienteId),
+          this.conveniosRepository.findById(agendamentoAtualizado.convenioId),
+          this.servicosRepository.findById(agendamentoAtualizado.servicoId)
+        ]);
+
+        if (profissional && paciente && convenio && servicoCompleto) {
+          const googleEvent = await this.googleCalendarService.criarEventoComMeet({
+            pacienteNome: paciente.nomeCompleto,
+            pacienteEmail: paciente.email || undefined,
+            profissionalNome: profissional.nome,
+            profissionalEmail: profissional.email,
+            servicoNome: servicoCompleto.nome,
+            convenioNome: convenio.nome,
+            dataHoraInicio: agendamentoAtualizado.dataHoraInicio,
+            dataHoraFim: agendamentoAtualizado.dataHoraFim,
+            agendamentoId: agendamentoAtualizado.id
+          });
+
+          // Atualizar com URL do Meet
+          return await this.agendamentosRepository.update(id, {
+            urlMeet: googleEvent.urlMeet
+          });
+        }
+      } catch (error) {
+        console.error('Erro na integração Google Calendar:', error);
+        // Continua sem falhar a atualização
+      }
+    }
+    
+    return agendamentoAtualizado;
   }
 } 

@@ -704,6 +704,20 @@ export const AtenderPage = () => {
 
                 {/* Botões de Ação */}
                 <div className="flex flex-col gap-1 pt-2 border-t">
+                  {/* Botão Meet para agendamentos online */}
+                  {agendamento.tipoAtendimento === 'online' && agendamento.urlMeet && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => window.open(agendamento.urlMeet!, '_blank', 'noopener,noreferrer')}
+                      className="border-2 border-blue-300 text-blue-700 hover:border-blue-400 hover:bg-blue-50 w-full font-semibold"
+                      title="Entrar no Google Meet"
+                    >
+                      <span className="mr-2">📹</span>
+                      Meet
+                    </Button>
+                  )}
+                  
                   <div className="flex justify-center gap-1">
                     <Button 
                       size="sm" 
@@ -942,6 +956,19 @@ export const AtenderPage = () => {
                   </TableCell>
                   <TableCell className="text-right py-2">
                     <div className="flex justify-end gap-1">
+                      {/* Botão Meet para agendamentos online */}
+                      {agendamento.tipoAtendimento === 'online' && agendamento.urlMeet && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(agendamento.urlMeet!, '_blank', 'noopener,noreferrer')}
+                          className="border-blue-300 text-blue-700 hover:bg-blue-50 h-8 w-8 p-0"
+                          title="Entrar no Google Meet"
+                        >
+                          📹
+                        </Button>
+                      )}
+                      
                       <Button
                         variant="default"
                         size="sm"

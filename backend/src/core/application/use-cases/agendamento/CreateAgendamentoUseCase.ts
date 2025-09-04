@@ -3,6 +3,10 @@ import { AppError } from '../../../../shared/errors/AppError';
 import { IAgendamentosRepository, ICreateAgendamentoDTO, IRecorrenciaAgendamento } from '../../../domain/repositories/IAgendamentosRepository';
 import { Agendamento } from '../../../domain/entities/Agendamento';
 import { IServicosRepository } from '../../../domain/repositories/IServicosRepository';
+import { GoogleCalendarService } from '../../../../infra/services/GoogleCalendarService';
+import { IProfissionaisRepository } from '../../../domain/repositories/IProfissionaisRepository';
+import { IPacientesRepository } from '../../../domain/repositories/IPacientesRepository';
+import { IConveniosRepository } from '../../../domain/repositories/IConveniosRepository';
 
 @injectable()
 export class CreateAgendamentoUseCase {
@@ -10,7 +14,15 @@ export class CreateAgendamentoUseCase {
     @inject('AgendamentosRepository')
     private agendamentosRepository: IAgendamentosRepository,
     @inject('ServicosRepository')
-    private servicosRepository: IServicosRepository
+    private servicosRepository: IServicosRepository,
+    @inject('GoogleCalendarService')
+    private googleCalendarService: GoogleCalendarService,
+    @inject('ProfissionaisRepository')
+    private profissionaisRepository: IProfissionaisRepository,
+    @inject('PacientesRepository')
+    private pacientesRepository: IPacientesRepository,
+    @inject('ConveniosRepository')
+    private conveniosRepository: IConveniosRepository
   ) {}
 
   async execute(data: Omit<ICreateAgendamentoDTO, 'dataHoraFim'>): Promise<Agendamento | Agendamento[]> {
@@ -52,7 +64,47 @@ export class CreateAgendamentoUseCase {
         throw new AppError('Serviço não encontrado.', 404);
       }
       const dataHoraFim = new Date(new Date(agendamentoData.dataHoraInicio).getTime() + servico.duracaoMinutos * 60000);
-      return this.agendamentosRepository.create({ ...agendamentoData, dataHoraFim });
+      
+      // Criar agendamento primeiro
+      const agendamento = await this.agendamentosRepository.create({ ...agendamentoData, dataHoraFim });
+      
+      // Integrar com Google Calendar se for online e integração ativa
+      if (agendamentoData.tipoAtendimento === 'online' && this.googleCalendarService.isIntegracaoAtiva()) {
+        try {
+          const [profissional, paciente, convenio] = await Promise.all([
+            this.profissionaisRepository.findById(agendamentoData.profissionalId),
+            this.pacientesRepository.findById(agendamentoData.pacienteId),
+            this.conveniosRepository.findById(agendamentoData.convenioId)
+          ]);
+
+          if (profissional && paciente && convenio) {
+            const googleEvent = await this.googleCalendarService.criarEventoComMeet({
+              pacienteNome: paciente.nomeCompleto,
+              pacienteEmail: paciente.email || undefined,
+              profissionalNome: profissional.nome,
+              profissionalEmail: profissional.email,
+              servicoNome: servico.nome,
+              convenioNome: convenio.nome,
+              dataHoraInicio: new Date(agendamentoData.dataHoraInicio),
+              dataHoraFim: dataHoraFim,
+              agendamentoId: agendamento.id
+            });
+
+            // Atualizar agendamento com URL do Meet
+            await this.agendamentosRepository.update(agendamento.id, {
+              urlMeet: googleEvent.urlMeet
+            });
+
+            // Retornar agendamento atualizado com URL
+            return await this.agendamentosRepository.findById(agendamento.id) || agendamento;
+          }
+        } catch (error) {
+          console.error('Erro na integração Google Calendar:', error);
+          // Continua sem falhar o agendamento
+        }
+      }
+      
+      return agendamento;
     }
 
     // --- Lógica de recorrência ---
@@ -117,10 +169,55 @@ export class CreateAgendamentoUseCase {
     }
     // Se não houver conflitos, criar todos
     const agendamentosCriados: Agendamento[] = [];
+    
+    // Buscar dados do profissional, paciente e convenio uma vez para agendamentos online
+    let profissional, paciente, convenio;
+    if (baseData.tipoAtendimento === 'online' && this.googleCalendarService.isIntegracaoAtiva()) {
+      [profissional, paciente, convenio] = await Promise.all([
+        this.profissionaisRepository.findById(baseData.profissionalId),
+        this.pacientesRepository.findById(baseData.pacienteId),
+        this.conveniosRepository.findById(baseData.convenioId)
+      ]);
+    }
+    
     for (const dataHoraInicio of datas) {
       const dataHoraFim = new Date(dataHoraInicio.getTime() + servico.duracaoMinutos * 60000);
       const agendamento = await this.agendamentosRepository.create({ ...baseData, dataHoraInicio, dataHoraFim });
-      agendamentosCriados.push(agendamento);
+      
+      // Integrar com Google Calendar se for online
+      if (baseData.tipoAtendimento === 'online' && this.googleCalendarService.isIntegracaoAtiva() && profissional && paciente && convenio) {
+        try {
+          const googleEvent = await this.googleCalendarService.criarEventoComMeet({
+            pacienteNome: paciente.nomeCompleto,
+            pacienteEmail: paciente.email || undefined,
+            profissionalNome: profissional.nome,
+            profissionalEmail: profissional.email,
+            servicoNome: servico.nome,
+            convenioNome: convenio.nome,
+            dataHoraInicio: dataHoraInicio,
+            dataHoraFim: dataHoraFim,
+            agendamentoId: agendamento.id
+          });
+
+          // Atualizar agendamento com URL do Meet
+          await this.agendamentosRepository.update(agendamento.id, {
+            urlMeet: googleEvent.urlMeet
+          });
+
+          // Buscar agendamento atualizado
+          const agendamentoAtualizado = await this.agendamentosRepository.findById(agendamento.id);
+          if (agendamentoAtualizado) {
+            agendamentosCriados.push(agendamentoAtualizado);
+          } else {
+            agendamentosCriados.push(agendamento);
+          }
+        } catch (error) {
+          console.error('Erro na integração Google Calendar para agendamento recorrente:', error);
+          agendamentosCriados.push(agendamento);
+        }
+      } else {
+        agendamentosCriados.push(agendamento);
+      }
     }
     return agendamentosCriados;
   }

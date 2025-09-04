@@ -135,8 +135,12 @@ import { ListConfiguracaoUseCase } from '../../core/application/use-cases/config
 import { UpdateConfiguracaoUseCase } from '../../core/application/use-cases/configuracao/UpdateConfiguracaoUseCase';
 import { DeleteConfiguracaoUseCase } from '../../core/application/use-cases/configuracao/DeleteConfiguracaoUseCase';
 import { GetConfiguracoesUseCase } from '../../core/application/use-cases/configuracao/GetConfiguracoesUseCase';
+import { GoogleCalendarService } from '../../infra/services/GoogleCalendarService';
 
 container.registerInstance('PrismaClient', prisma);
+
+// Google Calendar Service
+container.registerSingleton<GoogleCalendarService>('GoogleCalendarService', GoogleCalendarService);
 
 container.register<IEspecialidadesRepository>(
   'EspecialidadesRepository',

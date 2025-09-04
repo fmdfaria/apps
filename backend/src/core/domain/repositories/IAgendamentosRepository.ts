@@ -21,11 +21,10 @@ export interface ICreateAgendamentoDTO {
   status?: string;
   recebimento?: boolean;
   pagamento?: boolean;
+  urlMeet?: string | null;
   recorrencia?: IRecorrenciaAgendamento;
 }
 
-export interface IUpdateAgendamentoDTO extends Partial<ICreateAgendamentoDTO> {}
-// Estender o DTO para novos campos opcionais
 export interface IUpdateAgendamentoDTO extends Partial<ICreateAgendamentoDTO> {
   avaliadoPorId?: string | null;
   motivoReprovacao?: string | null;

@@ -23,6 +23,7 @@ export class Agendamento {
   motivoReprovacao?: string | null;
   recebimento?: boolean;
   pagamento?: boolean;
+  urlMeet?: string | null;
   createdAt!: Date;
   updatedAt!: Date;
 
