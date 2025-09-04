@@ -104,6 +104,10 @@ import { PrismaUserRolesRepository } from '../../infra/database/prisma/repositor
 import { IRoleRoutesRepository } from '../../core/domain/repositories/IRoleRoutesRepository';
 import { PrismaRoleRoutesRepository } from '../../infra/database/prisma/repositories/PrismaRoleRoutesRepository';
 
+// Configuracoes
+import { IConfiguracoesRepository } from '../../core/domain/repositories/IConfiguracoesRepository';
+import { PrismaConfiguracoesRepository } from '../../infra/database/prisma/repositories/PrismaConfiguracoesRepository';
+
 // RBAC Use Cases
 import { CreateRoleUseCase } from '../../core/application/use-cases/role/CreateRoleUseCase';
 import { ListRolesUseCase } from '../../core/application/use-cases/role/ListRolesUseCase';
@@ -124,6 +128,13 @@ import { ListUserAllowedRoutesUseCase } from '../../core/application/use-cases/r
 import { ListAllRoleRoutesUseCase } from '../../core/application/use-cases/role-route/ListAllRoleRoutesUseCase';
 import { UpdateRoleRouteUseCase } from '../../core/application/use-cases/role-route/UpdateRoleRouteUseCase';
 import { DeleteRoleRouteUseCase } from '../../core/application/use-cases/role-route/DeleteRoleRouteUseCase';
+
+// Configuracoes Use Cases
+import { CreateConfiguracaoUseCase } from '../../core/application/use-cases/configuracao/CreateConfiguracaoUseCase';
+import { ListConfiguracaoUseCase } from '../../core/application/use-cases/configuracao/ListConfiguracaoUseCase';
+import { UpdateConfiguracaoUseCase } from '../../core/application/use-cases/configuracao/UpdateConfiguracaoUseCase';
+import { DeleteConfiguracaoUseCase } from '../../core/application/use-cases/configuracao/DeleteConfiguracaoUseCase';
+import { GetConfiguracoesUseCase } from '../../core/application/use-cases/configuracao/GetConfiguracoesUseCase';
 
 container.registerInstance('PrismaClient', prisma);
 
@@ -323,3 +334,15 @@ container.register('ListUserAllowedRoutesUseCase', ListUserAllowedRoutesUseCase)
 container.register('ListAllRoleRoutesUseCase', ListAllRoleRoutesUseCase);
 container.register('UpdateRoleRouteUseCase', UpdateRoleRouteUseCase);
 container.register('DeleteRoleRouteUseCase', DeleteRoleRouteUseCase);
+
+// Configuracoes
+container.register<IConfiguracoesRepository>(
+  'ConfiguracoesRepository',
+  PrismaConfiguracoesRepository
+);
+
+container.register('CreateConfiguracaoUseCase', CreateConfiguracaoUseCase);
+container.register('ListConfiguracaoUseCase', ListConfiguracaoUseCase);
+container.register('UpdateConfiguracaoUseCase', UpdateConfiguracaoUseCase);
+container.register('DeleteConfiguracaoUseCase', DeleteConfiguracaoUseCase);
+container.register('GetConfiguracoesUseCase', GetConfiguracoesUseCase);

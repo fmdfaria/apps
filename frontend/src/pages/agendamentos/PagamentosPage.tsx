@@ -119,10 +119,8 @@ export const PagamentosPage = () => {
     setAgendamentos([]); // Inicializar como array vazio
     try {
       const [agendamentosData, precosData] = await Promise.all([
-        // Usar status LIBERADO (status FINALIZADO não existe no banco)
-        // Debug revelou status disponíveis: ['LIBERADO', 'AGENDADO']
         getAgendamentos({ 
-          status: 'LIBERADO', // Usando LIBERADO pois FINALIZADO não existe
+          status: 'FINALIZADO',
           page: 1,
           // Removido limit para usar padrão da API (dados serão agrupados)
           ...(filtros.dataInicio ? { dataInicio: filtros.dataInicio } : {}),
@@ -176,6 +174,16 @@ export const PagamentosPage = () => {
 
   const temFiltrosAtivos = Object.values(filtros).some(filtro => filtro !== '');
 
+  // Função para converter data UTC para timezone brasileiro e extrair apenas a data
+  const extrairDataBrasil = (dataISO: string) => {
+    if (!dataISO) return '';
+    // Criar objeto Date e converter para timezone brasileiro
+    const data = new Date(dataISO);
+    // Converter para timezone brasileiro (UTC-3)
+    const dataBrasil = new Date(data.getTime() - (3 * 60 * 60 * 1000));
+    return dataBrasil.toISOString().split('T')[0];
+  };
+
   // Função para formatar data no formato brasileiro
   const formatarDataBrasil = (dataISO: string) => {
     if (!dataISO) return '';
@@ -200,10 +208,9 @@ export const PagamentosPage = () => {
     return null; // Parcial
   };
 
-  // Filtrar agendamentos LIBERADOS (com proteção para array)
-  // Status FINALIZADO não existe - usando LIBERADO conforme disponível no banco
+  // Filtrar agendamentos FINALIZADOS (com proteção para array)
   const agendamentosFiltrados = (Array.isArray(agendamentos) ? agendamentos : [])
-    .filter(a => a.status === 'LIBERADO')
+    .filter(a => a.status === 'FINALIZADO')
     .filter(a => 
       !busca || 
       a.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||
@@ -216,10 +223,10 @@ export const PagamentosPage = () => {
     .filter(a => {
       if (!filtros.dataInicio && !filtros.dataFim) return true;
       
-      const dataAgendamentoISO = a.dataHoraInicio.split('T')[0];
+      const dataAgendamentoBrasil = extrairDataBrasil(a.dataHoraInicio);
       
-      if (filtros.dataInicio && dataAgendamentoISO < filtros.dataInicio) return false;
-      if (filtros.dataFim && dataAgendamentoISO > filtros.dataFim) return false;
+      if (filtros.dataInicio && dataAgendamentoBrasil < filtros.dataInicio) return false;
+      if (filtros.dataFim && dataAgendamentoBrasil > filtros.dataFim) return false;
       
       return true;
     });
@@ -254,30 +261,34 @@ export const PagamentosPage = () => {
       // Pegar o profissionalId do primeiro agendamento (todos do mesmo profissional)
       const profissionalId = dados.agendamentos[0]?.profissionalId || '';
       const datas = dados.agendamentos
-        .map(a => a.dataHoraInicio?.split('T')[0])
+        .map(a => a.dataHoraInicio ? extrairDataBrasil(a.dataHoraInicio) : '')
         .filter(d => d); // Remove undefined/null values
       
       if (datas.length === 0) {
-        const hoje = new Date().toISOString().split('T')[0];
+        // Para fallback, usar data atual no timezone brasileiro
+        const hoje = new Date();
+        const hojeBrasil = new Date(hoje.getTime() - (3 * 60 * 60 * 1000));
+        const hojeStr = hojeBrasil.toISOString().split('T')[0];
         return {
           profissional: profissional || 'Não informado',
           profissionalId,
-          dataInicio: hoje,
-          dataFim: hoje,
+          dataInicio: hojeStr,
+          dataFim: hojeStr,
           qtdAgendamentos: dados.agendamentos.length,
           valorPagar: dados.valorTotal,
           agendamentos: dados.agendamentos
         };
       }
 
-      const dataInicio = Math.min(...datas.map(d => new Date(d).getTime()));
-      const dataFim = Math.max(...datas.map(d => new Date(d).getTime()));
+      // As datas já estão no formato brasileiro, então apenas encontramos min/max
+      const dataInicio = datas.sort()[0]; // Menor data
+      const dataFim = datas.sort().reverse()[0]; // Maior data
 
       return {
         profissional: profissional || 'Não informado',
         profissionalId,
-        dataInicio: new Date(dataInicio).toISOString().split('T')[0],
-        dataFim: new Date(dataFim).toISOString().split('T')[0],
+        dataInicio,
+        dataFim,
         qtdAgendamentos: dados.agendamentos.length,
         valorPagar: dados.valorTotal,
         agendamentos: dados.agendamentos

@@ -40,7 +40,8 @@ const pageToModuleMap: Record<string, string> = {
   'administracao/roles': 'default',
   'administracao/rotas': 'default',
   'administracao/usuarios-roles': 'default',
-  'administracao/permissoes': 'default'
+  'administracao/permissoes': 'default',
+  'configuracoes': 'default'
 };
 
 // Componente de Tooltip para sidebar recolhido
@@ -209,7 +210,8 @@ const menuItems = [
   { id: 'administracao/roles', label: 'Roles', icon: Shield },
   { id: 'administracao/rotas', label: 'Rotas', icon: Building },
   { id: 'administracao/usuarios-roles', label: 'Usuários e Roles', icon: UserCheck },
-  { id: 'administracao/permissoes', label: 'Permissões', icon: Settings }
+  { id: 'administracao/permissoes', label: 'Permissões', icon: Settings },
+  { id: 'configuracoes', label: 'Configurações', icon: Settings }
 ];
 
 export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedProp, setIsCollapsed: setIsCollapsedProp }: SidebarProps) => {

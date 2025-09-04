@@ -44,6 +44,7 @@ import RolesPage from './pages/admin/RolesPage';
 import RoutesPage from './pages/admin/RoutesPage';
 import UserRolesPage from './pages/admin/UserRolesPage';
 import PermissionsPage from './pages/admin/PermissionsPage';
+import { ConfiguracoesPage } from './pages/configuracoes/ConfiguracoesPage';
 import EvolucaoPacientesPage from '@/pages/pacientes/EvolucaoPacientesPage';
 import { TestDocumentScanner } from '@/components/TestDocumentScanner';
 import { SimpleDocumentScanner } from '@/components/SimpleDocumentScanner';
@@ -108,6 +109,7 @@ export default function App() {
             <Route path="administracao/rotas" element={<RoutesPage />} />
             <Route path="administracao/usuarios-roles" element={<UserRolesPage />} />
             <Route path="administracao/permissoes" element={<PermissionsPage />} />
+            <Route path="configuracoes" element={<ConfiguracoesPage />} />
             <Route path="test/scanner" element={<TestDocumentScanner />} />
             <Route path="test/simple-camera" element={<SimpleDocumentScanner />} />
             <Route path="test/pdf-orientation" element={<TestPDFOrientation />} />

@@ -509,3 +509,23 @@ model FilaEspera {
   @@map("fila_de_espera")
 }
 
+model Configuracao {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entidadeTipo String    @map("entidade_tipo") @db.VarChar(50)
+  entidadeId   String?   @map("entidade_id") @db.Uuid
+  contexto     String    @db.VarChar(100)
+  chave        String    @db.VarChar(100)
+  valor        String    @db.Text
+  tipoValor    String    @default("string") @map("tipo_valor") @db.VarChar(20)
+  descricao    String?   @db.Text
+  ativo        Boolean   @default(true)
+  createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([entidadeTipo, entidadeId, contexto, chave])
+  @@index([entidadeTipo, entidadeId], map: "idx_configuracoes_entidade")
+  @@index([contexto], map: "idx_configuracoes_contexto")
+  @@index([chave], map: "idx_configuracoes_chave")
+  @@map("configuracoes")
+}
+
