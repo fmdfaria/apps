@@ -108,9 +108,15 @@ export class GoogleCalendarService {
             requestId: `meet-${eventData.agendamentoId}`,
             conferenceSolutionKey: {
               type: 'hangoutsMeet'
+            },
+            status: {
+              statusCode: 'success'
             }
           }
         },
+        guestsCanInviteOthers: false,
+        guestsCanModify: false,
+        guestsCanSeeOtherGuests: true,
         reminders: {
           useDefault: false,
           overrides: [],
