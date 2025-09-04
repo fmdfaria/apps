@@ -200,9 +200,10 @@ export class CreateAgendamentoUseCase {
             agendamentoId: agendamento.id
           });
 
-          // Atualizar agendamento com URL do Meet
+          // Atualizar agendamento com URL do Meet e Event ID
           await this.agendamentosRepository.update(agendamento.id, {
-            urlMeet: googleEvent.urlMeet
+            urlMeet: googleEvent.urlMeet,
+            googleEventId: googleEvent.eventId
           });
 
           // Buscar agendamento atualizado
