@@ -17,6 +17,7 @@ import {
   deletePacientePedido,
   type CreatePacientePedidoData
 } from '@/services/pacientes-pedidos';
+import { useConfiguracoesConvenio } from '@/hooks/useConfiguracoesConvenio';
 
 interface FormPedido {
   dataPedidoMedico: string;
@@ -49,6 +50,9 @@ export default function PedidosMedicosModal({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [pedidoParaExcluir, setPedidoParaExcluir] = useState<PacientePedido | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  
+  // Hook para configurações do convênio do paciente
+  const { camposObrigatorios, loading: loadingConfig, validarFormulario } = useConfiguracoesConvenio(paciente?.convenioId);
   const [form, setForm] = useState<FormPedido>({
     dataPedidoMedico: '',
     crm: '',
@@ -119,6 +123,15 @@ export default function PedidosMedicosModal({
     e.preventDefault();
     if (!paciente) return;
 
+    // Validar campos obrigatórios baseados no convênio
+    const { isValid, errors } = validarFormulario(form);
+    
+    if (!isValid) {
+      AppToast.error('Campos obrigatórios', {
+        description: errors.join(' ')
+      });
+      return;
+    }
     setFormLoading(true);
     try {
       const pedidoData: CreatePacientePedidoData = {
@@ -198,6 +211,11 @@ export default function PedidosMedicosModal({
             <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
               <span className="text-2xl">📋</span>
               Pedidos Médicos - {paciente.nomeCompleto}
+              {loadingConfig && (
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                  Carregando regras...
+                </span>
+              )}
             </DialogTitle>
             {!showForm && (
               <Button 
@@ -300,6 +318,16 @@ export default function PedidosMedicosModal({
           ) : (
             // Formulário
             <div>
+              {/* Informação sobre campos obrigatórios */}
+              {paciente?.convenioId && Object.values(camposObrigatorios).some(Boolean) && (
+                <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-sm text-amber-800">
+                    <span className="font-semibold">ℹ️ Campos obrigatórios:</span> 
+                    {' '}Os campos marcados com <span className="text-red-500 font-bold">*</span> são obrigatórios para o convênio deste paciente.
+                  </p>
+                </div>
+              )}
+              
               <form id="pedido-form" onSubmit={handleSubmit} className="space-y-4">
                 {/* Linha 1: Serviço | Data Pedido Médico | CRM */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -307,6 +335,7 @@ export default function PedidosMedicosModal({
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
                       <span className="text-base">🏥</span>
                       Serviço
+                      {camposObrigatorios.servico_obrigatorio && <span className="text-red-500 ml-1">*</span>}
                     </label>
                     <SingleSelectDropdown
                       options={servicos.filter(s => s.ativo).map(servico => ({
@@ -333,6 +362,7 @@ export default function PedidosMedicosModal({
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
                       <span className="text-base">📅</span>
                       Data Pedido Médico
+                      {camposObrigatorios.data_pedido_obrigatorio && <span className="text-red-500 ml-1">*</span>}
                     </label>
                     <input
                       type="date"
@@ -347,6 +377,7 @@ export default function PedidosMedicosModal({
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
                       <span className="text-base">👨‍⚕️</span>
                       CRM
+                      {camposObrigatorios.crm_obrigatorio && <span className="text-red-500 ml-1">*</span>}
                     </label>
                     <input
                       type="text"
@@ -364,6 +395,7 @@ export default function PedidosMedicosModal({
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
                       <span className="text-base">🩺</span>
                       CBO
+                      {camposObrigatorios.cbo_obrigatorio && <span className="text-red-500 ml-1">*</span>}
                     </label>
                     <input
                       type="text"
@@ -378,6 +410,7 @@ export default function PedidosMedicosModal({
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
                       <span className="text-base">📋</span>
                       CID
+                      {camposObrigatorios.cid_obrigatorio && <span className="text-red-500 ml-1">*</span>}
                     </label>
                     <input
                       type="text"
@@ -422,6 +455,7 @@ export default function PedidosMedicosModal({
                     disabled={formLoading}
                   />
                 </div>
+
               </form>
             </div>
           )}

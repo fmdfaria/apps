@@ -8,6 +8,7 @@ import type { Paciente } from '@/types/Paciente';
 import type { Convenio } from '@/types/Convenio';
 import { useInputMask } from '@/hooks/useInputMask';
 import { WhatsAppInput } from '@/components/ui/whatsapp-input';
+import { useConfiguracoesPacientes } from '@/hooks/useConfiguracoesPacientes';
 
 interface FormPaciente {
   nomeCompleto: string;
@@ -46,6 +47,9 @@ export default function CriarPacienteModal({
   onFormChange,
   onSuccess
 }: CriarPacienteModalProps) {
+
+  // Hook para configurações do convênio selecionado
+  const { camposObrigatorios } = useConfiguracoesPacientes(form.convenioId);
 
   // Buscar o convênio "Particular" pelo nome
   const getConvenioParticular = () => {
@@ -139,6 +143,7 @@ export default function CriarPacienteModal({
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">👨‍👩‍👧</span>
                   Nome do Responsável
+                  {camposObrigatorios.nome_responsavel_obrigatorio && <span className="text-red-500 ml-1">*</span>}
                 </label>
                 <input
                   type="text"
@@ -169,6 +174,7 @@ export default function CriarPacienteModal({
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">🆔</span>
                   CPF
+                  {camposObrigatorios.cpf_obrigatorio && <span className="text-red-500 ml-1">*</span>}
                 </label>
                 <input
                   type="text"
@@ -211,7 +217,7 @@ export default function CriarPacienteModal({
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">🏥</span>
                   Convênio
-                  {form.tipoServico && <span className="text-red-500">*</span>}
+                  {form.tipoServico === 'Convênio' && <span className="text-red-500 ml-1">*</span>}
                 </label>
                 <div className="w-full">
                   <SingleSelectDropdown
@@ -244,6 +250,7 @@ export default function CriarPacienteModal({
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">🎫</span>
                   N° Carteirinha
+                  {camposObrigatorios.numero_carteirinha_obrigatorio && <span className="text-red-500 ml-1">*</span>}
                 </label>
                 <input
                   type="text"
@@ -262,6 +269,7 @@ export default function CriarPacienteModal({
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">🎂</span>
                   Data de Nascimento
+                  {camposObrigatorios.data_nascimento_obrigatorio && <span className="text-red-500 ml-1">*</span>}
                 </label>
                 <input
                   type="date"
@@ -275,6 +283,7 @@ export default function CriarPacienteModal({
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">📧</span>
                   E-mail
+                  {camposObrigatorios.email_obrigatorio && <span className="text-red-500 ml-1">*</span>}
                 </label>
                 <input
                   type="email"

@@ -18,6 +18,10 @@ import {
   type UpdateConfiguracaoData
 } from '@/services/configuracoes';
 import type { Configuracao } from '@/types/Configuracao';
+import { getConvenios } from '@/services/convenios';
+import { getServicos } from '@/services/servicos';
+import type { Convenio } from '@/types/Convenio';
+import type { Servico } from '@/types/Servico';
 import api from '@/services/api';
 import { FormErrorMessage } from '@/components/form-error-message';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
@@ -46,7 +50,6 @@ import { getModuleTheme } from '@/types/theme';
 const tiposEntidade = [
   { id: 'convenio', nome: 'Convênio', sigla: undefined },
   { id: 'servico', nome: 'Serviço', sigla: undefined },
-  { id: 'profissional', nome: 'Profissional', sigla: undefined },
   { id: 'global', nome: 'Global', sigla: undefined },
 ];
 
@@ -97,6 +100,14 @@ export const ConfiguracoesPage = () => {
   const [excluindo, setExcluindo] = useState<Configuracao | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // Estados para opções dinâmicas
+  const [convenios, setConvenios] = useState<Convenio[]>([]);
+  const [servicos, setServicos] = useState<Servico[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);
+  
+  // Estados para mapear nomes das entidades
+  const [entidadeNomes, setEntidadeNomes] = useState<Record<string, string>>({});
+
   // Hooks responsivos
   const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'configuracoes-view' });
   
@@ -116,7 +127,10 @@ export const ConfiguracoesPage = () => {
           <div className={`w-8 h-8 bg-gradient-to-r ${theme.primaryButton} rounded-full flex items-center justify-center text-white text-sm font-bold`}>
             {item.entidadeTipo.charAt(0).toUpperCase()}
           </div>
-          <span className="text-sm font-medium">{item.entidadeTipo}</span>
+          <div className="flex flex-col">
+            <span className="text-sm font-medium">{obterNomeEntidade(item)}</span>
+            <span className="text-xs text-gray-500 capitalize">{item.entidadeTipo}</span>
+          </div>
         </div>
       )
     },
@@ -290,7 +304,44 @@ export const ConfiguracoesPage = () => {
   useEffect(() => {
     fetchConfiguracoes();
     checkPermissions();
+    carregarNomesEntidades();
   }, []);
+  
+  const carregarNomesEntidades = async () => {
+    try {
+      // Carregar convenios e serviços para mapear nomes
+      const [conveniosData, servicosData] = await Promise.all([
+        getConvenios(),
+        getServicos()
+      ]);
+      
+      const nomes: Record<string, string> = {};
+      
+      // Mapear nomes dos convênios
+      conveniosData.forEach(convenio => {
+        nomes[convenio.id] = convenio.nome;
+      });
+      
+      // Mapear nomes dos serviços
+      servicosData.forEach(servico => {
+        nomes[servico.id] = servico.nome;
+      });
+      
+      setEntidadeNomes(nomes);
+    } catch (error) {
+      console.error('Erro ao carregar nomes das entidades:', error);
+    }
+  };
+  
+  // Função utilitária para obter nome da entidade
+  const obterNomeEntidade = (configuracao: Configuracao): string => {
+    if (!configuracao.entidadeId) {
+      return 'Global';
+    }
+    
+    const nome = entidadeNomes[configuracao.entidadeId];
+    return nome || configuracao.entidadeTipo;
+  };
 
   const checkPermissions = async () => {
     try {
@@ -333,6 +384,32 @@ export const ConfiguracoesPage = () => {
       if (error?.response?.status === 401 || error?.response?.status === 403) {
         setAccessDenied(true);
       }
+    }
+  };
+
+  const fetchOpcoesEntidade = async (tipoEntidade: string) => {
+    if (!tipoEntidade || tipoEntidade === 'global') {
+      return;
+    }
+
+    setLoadingOptions(true);
+    try {
+      if (tipoEntidade === 'convenio') {
+        const conveniosData = await getConvenios();
+        setConvenios(conveniosData);
+      } else if (tipoEntidade === 'servico') {
+        const servicosData = await getServicos();
+        // Filtrar apenas serviços ativos
+        const servicosAtivos = servicosData.filter(s => s.ativo);
+        setServicos(servicosAtivos);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar opções da entidade:', error);
+      AppToast.error('Erro ao carregar opções', {
+        description: 'Não foi possível carregar as opções da entidade selecionada.'
+      });
+    } finally {
+      setLoadingOptions(false);
     }
   };
 
@@ -382,9 +459,14 @@ export const ConfiguracoesPage = () => {
         <div className="space-y-2">
           <div className="flex items-start gap-2">
             <span className="text-xs font-medium text-muted-foreground">Entidade:</span>
-            <span className="text-xs font-medium text-blue-600 flex-1">
-              {configuracao.entidadeTipo}
-            </span>
+            <div className="flex-1">
+              <span className="text-xs font-medium text-blue-600 block">
+                {obterNomeEntidade(configuracao)}
+              </span>
+              <span className="text-xs text-gray-400 capitalize">
+                ({configuracao.entidadeTipo})
+              </span>
+            </div>
           </div>
           <div className="flex items-start gap-2">
             <span className="text-xs font-medium text-muted-foreground">Contexto:</span>
@@ -511,6 +593,10 @@ export const ConfiguracoesPage = () => {
     });
     setFormError('');
     setShowModal(true);
+    // Carregar opções para o tipo de entidade quando editando
+    if (c.entidadeTipo && c.entidadeTipo !== 'global') {
+      fetchOpcoesEntidade(c.entidadeTipo);
+    }
   };
 
   const fecharModal = () => {
@@ -787,7 +873,11 @@ export const ConfiguracoesPage = () => {
                       sigla: undefined
                     } : null}
                     onChange={(selected) => {
-                      setForm(f => ({ ...f, entidadeTipo: selected?.id || '' }));
+                      const novoTipo = selected?.id || '';
+                      setForm(f => ({ ...f, entidadeTipo: novoTipo, entidadeId: '' })); // Reset entidadeId quando tipo mudar
+                      if (novoTipo) {
+                        fetchOpcoesEntidade(novoTipo);
+                      }
                     }}
                     placeholder="Selecione o tipo..."
                     headerText="Tipos de entidade"
@@ -821,15 +911,50 @@ export const ConfiguracoesPage = () => {
                     <span className="text-lg">🆔</span>
                     <span className={`bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent font-semibold`}>ID da Entidade</span>
                     <span className="text-gray-400 text-xs">(Opcional)</span>
+                    {loadingOptions && <span className="text-xs text-blue-500">Carregando...</span>}
                   </label>
-                  <Input
-                    type="text"
-                    value={form.entidadeId}
-                    onChange={e => setForm(f => ({ ...f, entidadeId: e.target.value }))}
-                    disabled={formLoading}
-                    className="hover:border-blue-300 focus:border-blue-500 focus:ring-blue-100"
-                    placeholder="UUID da entidade (deixe vazio para global)"
-                  />
+                  {form.entidadeTipo === 'convenio' ? (
+                    <SingleSelectDropdown
+                      options={convenios.map(c => ({ id: c.id, nome: c.nome, sigla: undefined }))}
+                      selected={form.entidadeId ? {
+                        id: form.entidadeId,
+                        nome: convenios.find(c => c.id === form.entidadeId)?.nome || form.entidadeId,
+                        sigla: undefined
+                      } : null}
+                      onChange={(selected) => {
+                        setForm(f => ({ ...f, entidadeId: selected?.id || '' }));
+                      }}
+                      placeholder={loadingOptions ? "Carregando convênios..." : "Selecione um convênio..."}
+                      headerText="Convênios disponíveis"
+                      formatOption={(option) => option.nome}
+                      disabled={formLoading || loadingOptions}
+                    />
+                  ) : form.entidadeTipo === 'servico' ? (
+                    <SingleSelectDropdown
+                      options={servicos.map(s => ({ id: s.id, nome: s.nome, sigla: undefined }))}
+                      selected={form.entidadeId ? {
+                        id: form.entidadeId,
+                        nome: servicos.find(s => s.id === form.entidadeId)?.nome || form.entidadeId,
+                        sigla: undefined
+                      } : null}
+                      onChange={(selected) => {
+                        setForm(f => ({ ...f, entidadeId: selected?.id || '' }));
+                      }}
+                      placeholder={loadingOptions ? "Carregando serviços..." : "Selecione um serviço..."}
+                      headerText="Serviços ativos"
+                      formatOption={(option) => option.nome}
+                      disabled={formLoading || loadingOptions}
+                    />
+                  ) : (
+                    <Input
+                      type="text"
+                      value={form.entidadeId}
+                      onChange={e => setForm(f => ({ ...f, entidadeId: e.target.value }))}
+                      disabled={formLoading}
+                      className="hover:border-blue-300 focus:border-blue-500 focus:ring-blue-100"
+                      placeholder="UUID da entidade (deixe vazio para global)"
+                    />
+                  )}
                 </div>
                 
                 <div>

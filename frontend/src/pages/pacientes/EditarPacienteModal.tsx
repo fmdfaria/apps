@@ -8,6 +8,7 @@ import type { Paciente } from '@/types/Paciente';
 import type { Convenio } from '@/types/Convenio';
 import { useInputMask } from '@/hooks/useInputMask';
 import { WhatsAppInput } from '@/components/ui/whatsapp-input';
+import { useConfiguracoesPacientes } from '@/hooks/useConfiguracoesPacientes';
 import { isValidWhatsApp } from '@/utils/whatsapp';
 
 interface FormPaciente {
@@ -49,6 +50,9 @@ export default function EditarPacienteModal({
 }: EditarPacienteModalProps) {
   // WhatsApp é tratado via componente WhatsAppInput; form.whatsapp guarda somente dígitos (E.164 sem +)
   const maskCPF = useInputMask('999.999.999-99');
+  
+  // Hook para configurações do convênio selecionado
+  const { camposObrigatorios } = useConfiguracoesPacientes(form.convenioId);
 
   // Função para lidar com o envio do formulário
   const handleSubmit = (e: React.FormEvent) => {
@@ -96,6 +100,7 @@ export default function EditarPacienteModal({
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">👨‍👩‍👧</span>
                   Nome do Responsável
+                  {camposObrigatorios.nome_responsavel_obrigatorio && <span className="text-red-500 ml-1">*</span>}
                 </label>
                 <input
                   type="text"
@@ -126,6 +131,7 @@ export default function EditarPacienteModal({
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">🆔</span>
                   CPF
+                  {camposObrigatorios.cpf_obrigatorio && <span className="text-red-500 ml-1">*</span>}
                 </label>
                 <input
                   type="text"
@@ -168,6 +174,7 @@ export default function EditarPacienteModal({
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">🏥</span>
                   Convênio
+                  {form.tipoServico === 'Convênio' && <span className="text-red-500 ml-1">*</span>}
                 </label>
                 <div className="w-full">
                   <SingleSelectDropdown
@@ -191,6 +198,7 @@ export default function EditarPacienteModal({
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">🎫</span>
                   N° Carteirinha
+                  {camposObrigatorios.numero_carteirinha_obrigatorio && <span className="text-red-500 ml-1">*</span>}
                 </label>
                 <input
                   type="text"
@@ -209,6 +217,7 @@ export default function EditarPacienteModal({
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">🎂</span>
                   Data de Nascimento
+                  {camposObrigatorios.data_nascimento_obrigatorio && <span className="text-red-500 ml-1">*</span>}
                 </label>
                 <input
                   type="date"
@@ -222,6 +231,7 @@ export default function EditarPacienteModal({
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <span className="text-lg">📧</span>
                   E-mail
+                  {camposObrigatorios.email_obrigatorio && <span className="text-red-500 ml-1">*</span>}
                 </label>
                 <input
                   type="email"

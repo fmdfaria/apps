@@ -23,6 +23,7 @@ import PedidosMedicosModal from './PedidosMedicosModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import { AgendamentoModal } from '@/components/agendamentos';
+import { useConfiguracoesPacientes } from '@/hooks/useConfiguracoesPacientes';
 
 import { 
   PageContainer, 
@@ -95,6 +96,9 @@ export const PacientesPage = () => {
   });
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
+  
+  // Hook para configurações do convênio selecionado
+  const { validarFormularioPaciente } = useConfiguracoesPacientes(form.convenioId);
 
   // Estados para modal de anexo
   const [showAnexoModal, setShowAnexoModal] = useState(false);
@@ -1097,6 +1101,24 @@ export const PacientesPage = () => {
             return;
           }
           
+          // Validar convênio quando tipo de serviço é "Convênio"
+          if (form.tipoServico === 'Convênio' && !form.convenioId.trim()) {
+            AppToast.error('Erro de Validação', {
+              description: 'O Convênio é obrigatório quando o Tipo de Serviço é Convênio.'
+            });
+            return;
+          }
+          
+          // Validar campos obrigatórios baseados no convênio selecionado
+          const { isValid, errors } = validarFormularioPaciente(form);
+          
+          if (!isValid) {
+            AppToast.error('Campos obrigatórios', {
+              description: errors.join(' ')
+            });
+            return;
+          }
+          
           // Validar telefone internacional (E.164 dígitos; DDI + DDD + número)
           if (!isValidWhatsApp(form.whatsapp.trim())) {
             AppToast.error('Erro de Validação', {
@@ -1202,6 +1224,24 @@ export const PacientesPage = () => {
           if (form.email.trim() && !form.email.includes('@')) {
             AppToast.error('Erro de Validação', {
               description: 'E-mail inválido. Exemplo: nome@email.com'
+            });
+            return;
+          }
+
+          // Validar convênio quando tipo de serviço é "Convênio"
+          if (form.tipoServico === 'Convênio' && !form.convenioId.trim()) {
+            AppToast.error('Erro de Validação', {
+              description: 'O Convênio é obrigatório quando o Tipo de Serviço é Convênio.'
+            });
+            return;
+          }
+          
+          // Validar campos obrigatórios baseados no convênio selecionado
+          const { isValid, errors } = validarFormularioPaciente(form);
+          
+          if (!isValid) {
+            AppToast.error('Campos obrigatórios', {
+              description: errors.join(' ')
             });
             return;
           }
