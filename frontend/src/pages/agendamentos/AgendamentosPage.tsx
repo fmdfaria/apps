@@ -27,7 +27,8 @@ import {
   FilterX,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  Video
 } from 'lucide-react';
 import type { Agendamento, StatusAgendamento } from '@/types/Agendamento';
 import { getAgendamentos, deleteAgendamento, IPaginatedAgendamentos } from '@/services/agendamentos';
@@ -613,6 +614,18 @@ export const AgendamentosPage = () => {
                       <Badge variant="outline" className="text-xs px-1 py-0">
                         {agendamento.tipoAtendimento}
                       </Badge>
+                      {agendamento.tipoAtendimento === 'online' && agendamento.urlMeet && (
+                        <a 
+                          href={agendamento.urlMeet} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs underline"
+                          title="Acessar reunião no Google Meet"
+                        >
+                          <Video className="w-3 h-3" />
+                          Meet
+                        </a>
+                      )}
                     </div>
                   </div>
                   
@@ -790,13 +803,27 @@ export const AgendamentosPage = () => {
                     <span className="text-sm">{agendamento.servicoNome}</span>
                   </TableCell>
                   <TableCell className="py-2">
-                    <span className={`text-sm px-3 py-1 rounded-full font-medium ${
-                      agendamento.tipoAtendimento === 'presencial' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {agendamento.tipoAtendimento}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm px-3 py-1 rounded-full font-medium ${
+                        agendamento.tipoAtendimento === 'presencial' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {agendamento.tipoAtendimento}
+                      </span>
+                      {agendamento.tipoAtendimento === 'online' && agendamento.urlMeet && (
+                        <a 
+                          href={agendamento.urlMeet} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs underline"
+                          title="Acessar reunião no Google Meet"
+                        >
+                          <Video className="w-3 h-3" />
+                          Meet
+                        </a>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="py-2">
                     <Badge className={`text-xs ${getStatusColor(agendamento.status)}`}>

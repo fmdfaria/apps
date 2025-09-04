@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Stethoscope, User, Calendar, Clock, FileText, CreditCard, UserCheck, Monitor, MapPin, CheckCircle2 } from 'lucide-react';
+import { Stethoscope, User, Calendar, Clock, FileText, CreditCard, UserCheck, Monitor, MapPin, CheckCircle2, Video } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { atenderAgendamento } from '@/services/agendamentos';
 import { AppToast } from '@/services/toast';
@@ -136,6 +136,22 @@ export const AtenderAgendamentoModal: React.FC<AtenderAgendamentoModalProps> = (
                 <span className="font-medium">Recurso:</span>
                 <span className="text-gray-700">{agendamento.recursoNome || '-'}</span>
               </div>
+
+              {/* Meet Link for online appointments */}
+              {agendamento.tipoAtendimento === 'online' && agendamento.urlMeet && (
+                <div className="flex items-center gap-2 col-span-2">
+                  <Video className="w-4 h-4 text-blue-500" />
+                  <span className="font-medium">Link da Reunião:</span>
+                  <a 
+                    href={agendamento.urlMeet} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 underline break-all"
+                  >
+                    Acessar Google Meet
+                  </a>
+                </div>
+              )}
               
               {/* Data de Liberação */}
               <div className="flex items-center gap-2">

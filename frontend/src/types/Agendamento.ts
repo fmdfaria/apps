@@ -44,6 +44,9 @@ export interface Agendamento {
   assinaturaPaciente?: boolean | null;
   assinaturaProfissional?: boolean | null;
   
+  // Google Calendar/Meet integration
+  urlMeet?: string | null;
+  
   // Etapa 4 - Aprovar
   dataAprovacao?: string;
   motivoCancelamento?: string;

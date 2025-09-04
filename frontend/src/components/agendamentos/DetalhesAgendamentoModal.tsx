@@ -19,7 +19,8 @@ import {
   Key,
   CalendarCheck,
   Stethoscope,
-  AlertTriangle
+  AlertTriangle,
+  Video
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { getAgendamentos } from '@/services/agendamentos';
@@ -161,6 +162,22 @@ export const DetalhesAgendamentoModal: React.FC<DetalhesAgendamentoModalProps> =
                 <span className="font-medium">Recurso:</span>
                 <span className="text-gray-700">{agendamento.recursoNome || '-'}</span>
               </div>
+
+              {/* Meet Link for online appointments */}
+              {agendamento.tipoAtendimento === 'online' && agendamento.urlMeet && (
+                <div className="flex items-center gap-2 col-span-2">
+                  <Video className="w-4 h-4 text-blue-500" />
+                  <span className="font-medium">Link da Reunião:</span>
+                  <a 
+                    href={agendamento.urlMeet} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 underline break-all"
+                  >
+                    Acessar Google Meet
+                  </a>
+                </div>
+              )}
               
               {/* Linha 5 */}
               {(agendamento.codLiberacao || agendamento.dataCodLiberacao) && (

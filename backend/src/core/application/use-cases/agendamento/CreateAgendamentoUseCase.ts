@@ -3,6 +3,11 @@ import { AppError } from '../../../../shared/errors/AppError';
 import { IAgendamentosRepository, ICreateAgendamentoDTO, IRecorrenciaAgendamento } from '../../../domain/repositories/IAgendamentosRepository';
 import { Agendamento } from '../../../domain/entities/Agendamento';
 import { IServicosRepository } from '../../../domain/repositories/IServicosRepository';
+import { IPacientesRepository } from '../../../domain/repositories/IPacientesRepository';
+import { IProfissionaisRepository } from '../../../domain/repositories/IProfissionaisRepository';
+import { IConveniosRepository } from '../../../domain/repositories/IConveniosRepository';
+import { IRecursosRepository } from '../../../domain/repositories/IRecursosRepository';
+import { GoogleCalendarService, CalendarEventData } from '../../../../shared/services/GoogleCalendarService';
 
 @injectable()
 export class CreateAgendamentoUseCase {
@@ -10,7 +15,17 @@ export class CreateAgendamentoUseCase {
     @inject('AgendamentosRepository')
     private agendamentosRepository: IAgendamentosRepository,
     @inject('ServicosRepository')
-    private servicosRepository: IServicosRepository
+    private servicosRepository: IServicosRepository,
+    @inject('PacientesRepository')
+    private pacientesRepository: IPacientesRepository,
+    @inject('ProfissionaisRepository')
+    private profissionaisRepository: IProfissionaisRepository,
+    @inject('ConveniosRepository')
+    private conveniosRepository: IConveniosRepository,
+    @inject('RecursosRepository')
+    private recursosRepository: IRecursosRepository,
+    @inject('GoogleCalendarService')
+    private googleCalendarService: GoogleCalendarService
   ) {}
 
   async execute(data: Omit<ICreateAgendamentoDTO, 'dataHoraFim'>): Promise<Agendamento | Agendamento[]> {
@@ -52,7 +67,29 @@ export class CreateAgendamentoUseCase {
         throw new AppError('Serviço não encontrado.', 404);
       }
       const dataHoraFim = new Date(new Date(agendamentoData.dataHoraInicio).getTime() + servico.duracaoMinutos * 60000);
-      return this.agendamentosRepository.create({ ...agendamentoData, dataHoraFim });
+      
+      // Create the agendamento first
+      const agendamento = await this.agendamentosRepository.create({ ...agendamentoData, dataHoraFim });
+      
+      // Create Google Calendar event if it's an online appointment
+      if (agendamentoData.tipoAtendimento === 'online') {
+        try {
+          const eventData = await this.prepareEventData(agendamento);
+          const calendarEvent = await this.googleCalendarService.createCalendarEvent(eventData);
+          
+          if (calendarEvent?.meetUrl) {
+            // Update the agendamento with the Meet URL
+            return this.agendamentosRepository.update(agendamento.id, { 
+              urlMeet: calendarEvent.meetUrl 
+            });
+          }
+        } catch (error) {
+          console.error('Failed to create Google Calendar event:', error);
+          // Don't fail the appointment creation if Google Calendar fails
+        }
+      }
+      
+      return agendamento;
     }
 
     // --- Lógica de recorrência ---
@@ -119,9 +156,58 @@ export class CreateAgendamentoUseCase {
     const agendamentosCriados: Agendamento[] = [];
     for (const dataHoraInicio of datas) {
       const dataHoraFim = new Date(dataHoraInicio.getTime() + servico.duracaoMinutos * 60000);
-      const agendamento = await this.agendamentosRepository.create({ ...baseData, dataHoraInicio, dataHoraFim });
+      let agendamento = await this.agendamentosRepository.create({ ...baseData, dataHoraInicio, dataHoraFim });
+      
+      // Create Google Calendar event for online appointments
+      if (baseData.tipoAtendimento === 'online') {
+        try {
+          const eventData = await this.prepareEventData(agendamento);
+          const calendarEvent = await this.googleCalendarService.createCalendarEvent(eventData);
+          
+          if (calendarEvent?.meetUrl) {
+            // Update the agendamento with the Meet URL
+            agendamento = await this.agendamentosRepository.update(agendamento.id, { 
+              urlMeet: calendarEvent.meetUrl 
+            });
+          }
+        } catch (error) {
+          console.error('Failed to create Google Calendar event for recurring appointment:', error);
+          // Don't fail the appointment creation if Google Calendar fails
+        }
+      }
+      
       agendamentosCriados.push(agendamento);
     }
     return agendamentosCriados;
+  }
+
+  private async prepareEventData(agendamento: Agendamento): Promise<CalendarEventData> {
+    // Fetch related data for the event
+    const [paciente, profissional, convenio, servico, recurso] = await Promise.all([
+      this.pacientesRepository.findById(agendamento.pacienteId),
+      this.profissionaisRepository.findById(agendamento.profissionalId),
+      this.conveniosRepository.findById(agendamento.convenioId),
+      this.servicosRepository.findById(agendamento.servicoId),
+      this.recursosRepository.findById(agendamento.recursoId),
+    ]);
+
+    if (!paciente || !profissional || !convenio || !servico || !recurso) {
+      throw new AppError('Dados relacionados não encontrados para criar evento do Google Calendar.', 404);
+    }
+
+    return {
+      agendamentoId: agendamento.id,
+      pacienteNome: paciente.nomeCompleto,
+      pacienteWhatsapp: paciente.whatsapp,
+      pacienteEmail: paciente.email || undefined,
+      profissionalNome: profissional.nome,
+      convenioNome: convenio.nome,
+      servicoNome: servico.nome,
+      recursoNome: recurso.nome,
+      dataHoraInicio: agendamento.dataHoraInicio,
+      dataHoraFim: agendamento.dataHoraFim,
+      tipoAtendimento: agendamento.tipoAtendimento,
+      observacoes: undefined,
+    };
   }
 } 

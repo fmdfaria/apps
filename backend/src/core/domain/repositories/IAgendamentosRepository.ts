@@ -19,6 +19,7 @@ export interface ICreateAgendamentoDTO {
   statusCodLiberacao?: string | null;
   dataCodLiberacao?: Date | null;
   status?: string;
+  urlMeet?: string | null;
   recebimento?: boolean;
   pagamento?: boolean;
   recorrencia?: IRecorrenciaAgendamento;
