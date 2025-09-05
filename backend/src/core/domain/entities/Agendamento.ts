@@ -25,6 +25,20 @@ export class Agendamento {
   pagamento?: boolean;
   urlMeet?: string | null;
   googleEventId?: string | null;
+  
+  // Campos para gerenciamento de séries recorrentes
+  serieId?: string | null;
+  serieMaster?: boolean;
+  instanciaData?: Date | null;
+  
+  // Campos adicionais
+  compareceu?: boolean | null;
+  assinaturaPaciente?: boolean | null;
+  assinaturaProfissional?: boolean | null;
+  dataAtendimento?: Date | null;
+  observacoes?: string | null;
+  resultadoConsulta?: string | null;
+  
   createdAt!: Date;
   updatedAt!: Date;
 

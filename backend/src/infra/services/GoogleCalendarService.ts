@@ -437,37 +437,75 @@ export class GoogleCalendarService {
         dataOriginalEvento.getMilliseconds()
       );
       
-      if (dataLimiteOriginal <= dataOriginalEvento) {
-        console.warn('⚠️ Debug - Data limite seria anterior ao início da série original, ajustando...');
-        // Se estamos editando o primeiro evento da série, não podemos usar UNTIL
-        // Neste caso, vamos deletar a série original e criar uma nova
-        console.log('🗑️ Debug - Deletando série original completamente pois não há eventos anteriores para preservar');
-        await this.deletarEvento(eventId);
-      } else {
-        const dataFormatada = this.formatDateForRRule(dataLimiteOriginal);
+      // Nova abordagem: Em vez de tentar usar UNTIL (que está causando problemas),
+      // vamos deletar a série original e criar duas séries separadas
+      console.log('🔄 DEBUG - Nova estratégia: Deletando série original e recriando séries separadas');
+      
+      // Primeiro, salvar informações do evento original para recriar a série anterior
+      const dadosEventoOriginal = {
+        summary: eventoOriginal.data.summary,
+        description: eventoOriginal.data.description,
+        start: eventoOriginal.data.start,
+        end: eventoOriginal.data.end,
+        attendees: eventoOriginal.data.attendees,
+        conferenceData: eventoOriginal.data.conferenceData,
+        location: eventoOriginal.data.location
+      };
+      
+      console.log('💾 DEBUG - Salvando dados do evento original:', {
+        summary: dadosEventoOriginal.summary,
+        startTime: dadosEventoOriginal.start?.dateTime,
+        temConferenceData: !!dadosEventoOriginal.conferenceData,
+        temAtendees: !!dadosEventoOriginal.attendees
+      });
+      
+      // Deletar a série original completamente
+      await this.deletarEvento(eventId);
+      
+      // Agora vamos recriar a série anterior (se houver eventos anteriores ao atual)
+      if (dataLimiteOriginal > dataOriginalEvento) {
+        console.log('📅 DEBUG - Recriando série original até data limite');
         
-        // Atualizar o evento original para terminar antes da nova data
-        const rruleOriginal = eventoOriginal.data.recurrence[0].split(';');
-        const novaRRuleOriginal = rruleOriginal.filter((part: string) => !part.startsWith('UNTIL') && !part.startsWith('COUNT'));
-        novaRRuleOriginal.push(`UNTIL=${dataFormatada}`);
-
-        console.log('🔧 Debug - Terminando série original:', {
-          eventoOriginal: eventId,
-          dataInicioOriginalEvento: dataOriginalEvento.toISOString(),
-          dataLimite: dataFormatada,
-          dataLimiteOriginalISO: dataLimiteOriginal.toISOString(),
-          rruleOriginal: eventoOriginal.data.recurrence[0],
-          novaRRuleOriginal: novaRRuleOriginal.join(';')
+        // Calcular quantos eventos existiam antes do evento atual
+        const dataAtual = new Date(dataInicio);
+        const diasEntreDatas = Math.floor((dataAtual.getTime() - dataOriginalEvento.getTime()) / (1000 * 60 * 60 * 24));
+        const eventosAnteriores = Math.floor(diasEntreDatas / 7) + 1; // Assumindo recorrência semanal
+        
+        console.log('🔢 DEBUG - Calculando eventos anteriores:', {
+          dataOriginal: dataOriginalEvento.toISOString(),
+          dataAtual: dataAtual.toISOString(),
+          diasEntreDatas,
+          eventosAnteriores
         });
-
-        await this.calendar.events.update({
-          calendarId,
-          eventId: eventId,
-          resource: {
-            recurrence: [novaRRuleOriginal.join(';')]
-          },
-          sendUpdates: 'none'
-        });
+        
+        if (eventosAnteriores > 0) {
+          // Criar nova série para os eventos anteriores
+          const novaSerieAnterior = {
+            summary: dadosEventoOriginal.summary,
+            description: dadosEventoOriginal.description,
+            start: dadosEventoOriginal.start,
+            end: dadosEventoOriginal.end,
+            attendees: dadosEventoOriginal.attendees,
+            conferenceData: dadosEventoOriginal.conferenceData,
+            location: dadosEventoOriginal.location,
+            recurrence: [`RRULE:FREQ=WEEKLY;COUNT=${eventosAnteriores}`],
+            guestsCanInviteOthers: false,
+            guestsCanModify: false,
+            guestsCanSeeOtherGuests: true
+          };
+          
+          console.log('🔄 DEBUG - Criando nova série anterior:', {
+            recorrencia: `RRULE:FREQ=WEEKLY;COUNT=${eventosAnteriores}`,
+            startTime: dadosEventoOriginal.start?.dateTime
+          });
+          
+          await this.calendar.events.insert({
+            calendarId,
+            resource: novaSerieAnterior,
+            conferenceDataVersion: 1,
+            sendUpdates: 'none'
+          });
+        }
       }
 
       // 2. Criar uma nova série a partir da data especificada
