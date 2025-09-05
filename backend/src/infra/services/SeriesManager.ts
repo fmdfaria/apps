@@ -218,21 +218,26 @@ export class SeriesManager {
       }
     }
 
-    // Calcular delta de tempo se mudou dataHoraInicio
-    let deltaMilliseconds = 0;
-    if (dados.dataHoraInicio) {
-      deltaMilliseconds = dados.dataHoraInicio.getTime() - agendamento.dataHoraInicio.getTime();
-    }
-
     // Atualizar todos os agendamentos desta data em diante
     const updatePromises = agendamentosParaAtualizar.map((ag, index) => {
       const dadosParaEsteAgendamento = { ...dados };
 
-      // Se mudou horário, aplicar o delta para manter o padrão
-      if (deltaMilliseconds !== 0 && ag.id !== agendamentoId) {
-        dadosParaEsteAgendamento.dataHoraInicio = new Date(ag.dataHoraInicio.getTime() + deltaMilliseconds);
-        dadosParaEsteAgendamento.dataHoraFim = new Date(ag.dataHoraFim.getTime() + deltaMilliseconds);
-        dadosParaEsteAgendamento.instanciaData = new Date(dadosParaEsteAgendamento.dataHoraInicio);
+      // Para "esta e futuras", aplicar os novos dados para todos os agendamentos
+      // mantendo a mesma diferença de dias entre eles
+      if (dados.dataHoraInicio && ag.id !== agendamentoId) {
+        // Calcular a diferença de dias entre o agendamento atual e este agendamento
+        const diasDiferenca = Math.ceil((ag.instanciaData.getTime() - agendamentoAtual.instanciaData.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Aplicar a diferença de dias ao novo horário
+        const novaDataHoraInicio = new Date(dados.dataHoraInicio);
+        novaDataHoraInicio.setDate(novaDataHoraInicio.getDate() + diasDiferenca);
+        
+        const novaDataHoraFim = new Date(dados.dataHoraFim || ag.dataHoraFim);
+        novaDataHoraFim.setDate(novaDataHoraFim.getDate() + diasDiferenca);
+        
+        dadosParaEsteAgendamento.dataHoraInicio = novaDataHoraInicio;
+        dadosParaEsteAgendamento.dataHoraFim = novaDataHoraFim;
+        dadosParaEsteAgendamento.instanciaData = new Date(novaDataHoraInicio);
         dadosParaEsteAgendamento.instanciaData.setHours(0, 0, 0, 0);
       }
 
