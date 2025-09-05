@@ -28,6 +28,24 @@ interface GoogleMeetEventResponse {
 
 export class GoogleCalendarService {
   private oauth2Client: OAuth2Client;
+
+  /**
+   * Converte uma data para o formato RRULE UNTIL (YYYYMMDDTHHMMSSZ) em UTC
+   */
+  private formatDateForRRule(date: Date): string {
+    // Garantir que a data está ajustada para o final do dia se não tiver horário específico
+    const adjustedDate = new Date(date);
+    if (adjustedDate.getHours() === 0 && adjustedDate.getMinutes() === 0 && adjustedDate.getSeconds() === 0) {
+      adjustedDate.setHours(23, 59, 59, 999);
+    }
+    
+    const dataUTC = adjustedDate.toISOString();
+    const [datePart, timePart] = dataUTC.split('T');
+    const [ano, mes, dia] = datePart.split('-');
+    const [hora, min, secPart] = timePart.split(':');
+    const sec = secPart.split('.')[0];
+    return `${ano}${mes}${dia}T${hora}${min}${sec}Z`;
+  }
   private calendar: any;
   
   constructor() {
@@ -289,15 +307,12 @@ export class GoogleCalendarService {
       // Terminar a série original antes da data de início
       const dataLimiteOriginal = new Date(dataInicio);
       dataLimiteOriginal.setDate(dataLimiteOriginal.getDate() - 1);
-      
-      const ano = dataLimiteOriginal.getFullYear();
-      const mes = (dataLimiteOriginal.getMonth() + 1).toString().padStart(2, '0');
-      const dia = dataLimiteOriginal.getDate().toString().padStart(2, '0');
+      const dataFormatada = this.formatDateForRRule(dataLimiteOriginal);
       
       // Atualizar o evento original para terminar antes da nova data
       const rruleOriginal = eventoOriginal.data.recurrence[0].split(';');
       const novaRRuleOriginal = rruleOriginal.filter((part: string) => !part.startsWith('UNTIL') && !part.startsWith('COUNT'));
-      novaRRuleOriginal.push(`UNTIL=${ano}${mes}${dia}`);
+      novaRRuleOriginal.push(`UNTIL=${dataFormatada}`);
 
       await this.calendar.events.update({
         calendarId,
@@ -401,19 +416,17 @@ export class GoogleCalendarService {
       // 1. Terminar a série original antes da data de início da nova série
       const dataLimiteOriginal = new Date(dataInicio);
       dataLimiteOriginal.setDate(dataLimiteOriginal.getDate() - 1);
-      
-      const ano = dataLimiteOriginal.getFullYear();
-      const mes = (dataLimiteOriginal.getMonth() + 1).toString().padStart(2, '0');
-      const dia = dataLimiteOriginal.getDate().toString().padStart(2, '0');
+      const dataFormatada = this.formatDateForRRule(dataLimiteOriginal);
       
       // Atualizar o evento original para terminar antes da nova data
       const rruleOriginal = eventoOriginal.data.recurrence[0].split(';');
       const novaRRuleOriginal = rruleOriginal.filter((part: string) => !part.startsWith('UNTIL') && !part.startsWith('COUNT'));
-      novaRRuleOriginal.push(`UNTIL=${ano}${mes}${dia}`);
+      novaRRuleOriginal.push(`UNTIL=${dataFormatada}`);
 
       console.log('🔧 Debug - Terminando série original:', {
         eventoOriginal: eventId,
-        dataLimite: `${ano}${mes}${dia}`,
+        dataLimite: dataFormatada,
+        dataLimiteOriginalISO: dataLimiteOriginal.toISOString(),
         rruleOriginal: eventoOriginal.data.recurrence[0],
         novaRRuleOriginal: novaRRuleOriginal.join(';')
       });
@@ -443,11 +456,8 @@ export class GoogleCalendarService {
         }
 
         if (recurrenceData.recorrencia.ate) {
-          const dataLimite = recurrenceData.recorrencia.ate;
-          const anoLimite = dataLimite.getFullYear();
-          const mesLimite = (dataLimite.getMonth() + 1).toString().padStart(2, '0');
-          const diaLimite = dataLimite.getDate().toString().padStart(2, '0');
-          rrule += `;UNTIL=${anoLimite}${mesLimite}${diaLimite}`;
+          const dataFormatada = this.formatDateForRRule(recurrenceData.recorrencia.ate);
+          rrule += `;UNTIL=${dataFormatada}`;
         } else if (recurrenceData.recorrencia.repeticoes) {
           rrule += `;COUNT=${recurrenceData.recorrencia.repeticoes}`;
         }
@@ -636,11 +646,8 @@ export class GoogleCalendarService {
         }
 
         if (recurrenceData.recorrencia.ate) {
-          const dataLimite = recurrenceData.recorrencia.ate;
-          const ano = dataLimite.getFullYear();
-          const mes = (dataLimite.getMonth() + 1).toString().padStart(2, '0');
-          const dia = dataLimite.getDate().toString().padStart(2, '0');
-          rrule += `;UNTIL=${ano}${mes}${dia}`;
+          const dataFormatada = this.formatDateForRRule(recurrenceData.recorrencia.ate);
+          rrule += `;UNTIL=${dataFormatada}`;
         } else if (recurrenceData.recorrencia.repeticoes) {
           rrule += `;COUNT=${recurrenceData.recorrencia.repeticoes}`;
         }
@@ -683,12 +690,8 @@ export class GoogleCalendarService {
 
       // Adicionar limite por data ou por número de repetições
       if (recurrenceData.recorrencia.ate) {
-        // Converter data limite para formato YYYYMMDD
-        const dataLimite = recurrenceData.recorrencia.ate;
-        const ano = dataLimite.getFullYear();
-        const mes = (dataLimite.getMonth() + 1).toString().padStart(2, '0');
-        const dia = dataLimite.getDate().toString().padStart(2, '0');
-        rrule += `;UNTIL=${ano}${mes}${dia}`;
+        const dataFormatada = this.formatDateForRRule(recurrenceData.recorrencia.ate);
+        rrule += `;UNTIL=${dataFormatada}`;
       } else if (recurrenceData.recorrencia.repeticoes) {
         rrule += `;COUNT=${recurrenceData.recorrencia.repeticoes}`;
       }
