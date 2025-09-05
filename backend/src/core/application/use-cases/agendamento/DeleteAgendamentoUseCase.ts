@@ -110,10 +110,12 @@ export class DeleteAgendamentoUseCase {
       }
     }
 
-    // Deletar o agendamento do banco apenas se não foi uma série recorrente
-    // (pois séries recorrentes já foram tratadas acima)
-    if (!(agendamento.tipoAtendimento === 'online' && agendamento.googleEventId)) {
-      await this.agendamentosRepository.delete(id);
-    }
+    // Deletar o agendamento do banco
+    // Se chegou até aqui, significa que:
+    // 1. Não é série recorrente OU
+    // 2. É série recorrente mas foi escolhido "apenas_esta" OU
+    // 3. Não tem Google Calendar integrado
+    // Em todos os casos, deve deletar este agendamento específico
+    await this.agendamentosRepository.delete(id);
   }
 } 
