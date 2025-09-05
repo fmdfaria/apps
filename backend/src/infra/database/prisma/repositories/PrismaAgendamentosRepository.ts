@@ -52,12 +52,6 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     // Separar os campos que precisam de mapeamento
     const { serieId, serieMaster, instanciaData, recorrencia, ...prismaData } = data;
     
-    console.log('🔍 PrismaRepository.create - Dados da série:', {
-      serieId,
-      serieMaster,
-      instanciaData,
-      hasRecorrencia: !!recorrencia
-    });
     
     const agendamento = await this.prisma.agendamento.create({
       data: {
@@ -78,12 +72,10 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
       },
     });
     
-    console.log('✅ PrismaRepository.create - Agendamento criado:', {
-      id: agendamento.id,
-      serie_id: agendamento.serie_id,
-      serie_master: agendamento.serie_master,
-      instancia_data: agendamento.instancia_data
-    });
+    // Verificar se os dados foram salvos corretamente
+    if (serieId) {
+      console.log('🔍 Série criada:', { id: agendamento.id, serie_id: agendamento.serie_id, serie_master: agendamento.serie_master });
+    }
     
     return toDomain(agendamento);
   }
