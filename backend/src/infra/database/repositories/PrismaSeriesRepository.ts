@@ -1,16 +1,19 @@
-import { Injectable } from 'tsyringe';
+import { injectable, inject } from 'tsyringe';
 import { PrismaClient } from '@prisma/client';
 import { ISeriesRepository } from '../../../core/domain/repositories/ISeriesRepository';
 import { Agendamento } from '../../../core/domain/entities/Agendamento';
 
-@Injectable()
+@injectable()
 export class PrismaSeriesRepository implements ISeriesRepository {
-  constructor(private prisma: PrismaClient) {}
+  constructor(
+    @inject('PrismaClient')
+    private prisma: PrismaClient
+  ) {}
 
   async findAgendamentosBySerieId(serieId: string): Promise<Agendamento[]> {
     const agendamentos = await this.prisma.agendamento.findMany({
       where: {
-        serieId: serieId
+        serie_id: serieId
       },
       include: {
         paciente: true,
@@ -30,10 +33,10 @@ export class PrismaSeriesRepository implements ISeriesRepository {
   async findSerieIdByAgendamentoId(agendamentoId: string): Promise<string | null> {
     const agendamento = await this.prisma.agendamento.findUnique({
       where: { id: agendamentoId },
-      select: { serieId: true }
+      select: { serie_id: true }
     });
 
-    return agendamento?.serieId || null;
+    return agendamento?.serie_id || null;
   }
 
   async updateMultipleAgendamentos(
@@ -68,8 +71,8 @@ export class PrismaSeriesRepository implements ISeriesRepository {
     
     const agendamentos = await this.prisma.agendamento.findMany({
       where: {
-        serieId: serieId,
-        instanciaData: {
+        serie_id: serieId,
+        instancia_data: {
           [operator]: fromDate
         }
       },
@@ -116,9 +119,9 @@ export class PrismaSeriesRepository implements ISeriesRepository {
       observacoes: prismaAgendamento.observacoes,
       resultadoConsulta: prismaAgendamento.resultadoConsulta,
       // Novos campos de série
-      serieId: prismaAgendamento.serieId,
-      serieMaster: prismaAgendamento.serieMaster,
-      instanciaData: prismaAgendamento.instanciaData,
+      serieId: prismaAgendamento.serie_id,
+      serieMaster: prismaAgendamento.serie_master,
+      instanciaData: prismaAgendamento.instancia_data,
       createdAt: prismaAgendamento.createdAt,
       updatedAt: prismaAgendamento.updatedAt,
       // Relações
@@ -153,7 +156,7 @@ export class PrismaSeriesRepository implements ISeriesRepository {
     if (domainData.motivoReprovacao !== undefined) prismaData.motivoReprovacao = domainData.motivoReprovacao;
     if (domainData.observacoes !== undefined) prismaData.observacoes = domainData.observacoes;
     if (domainData.resultadoConsulta !== undefined) prismaData.resultadoConsulta = domainData.resultadoConsulta;
-    if (domainData.instanciaData !== undefined) prismaData.instanciaData = domainData.instanciaData;
+    if (domainData.instanciaData !== undefined) prismaData.instancia_data = domainData.instanciaData;
 
     // Atualizar updatedAt
     prismaData.updatedAt = new Date();
