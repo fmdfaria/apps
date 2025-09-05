@@ -249,7 +249,7 @@ model Agendamento {
   // Campos para agendamentos recorrentes
   serieId            String?            @map("serie_id") @db.Uuid
   serieMaster        Boolean?           @default(false) @map("serie_master")
-  instanciaData      String?            @map("instancia_data") @db.VarChar(10)
+  instanciaData      DateTime?          @map("instancia_data") @db.Date
   // Novos campos de avaliação
   avaliadoPorId      String?            @map("avaliado_por_id") @db.Uuid
   motivoReprovacao   String?            @map("motivo_reprovacao")
