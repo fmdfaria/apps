@@ -501,9 +501,17 @@ export const editAgendamento = async (id: string, data: EditAgendamentoData): Pr
   }
 };
 
-export const deleteAgendamento = async (id: string): Promise<void> => {
+export const deleteAgendamento = async (id: string, tipoEdicaoRecorrencia?: 'apenas_esta' | 'esta_e_futuras' | 'toda_serie'): Promise<void> => {
   try {
-    await api.delete(`/agendamentos/${id}`);
+    const url = `/agendamentos/${id}`;
+    
+    if (tipoEdicaoRecorrencia) {
+      // Enviar como query parameter
+      await api.delete(`${url}?tipoEdicaoRecorrencia=${tipoEdicaoRecorrencia}`);
+    } else {
+      // Sem tipo de edição (comportamento padrão)
+      await api.delete(url);
+    }
   } catch (error) {
     console.error('Erro ao deletar agendamento na API:', error);
     throw error;

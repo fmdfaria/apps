@@ -188,6 +188,7 @@ export const AgendamentosPage = () => {
   const [showDeleteSeriesModal, setShowDeleteSeriesModal] = useState(false);
   const [showSimpleDeleteModal, setShowSimpleDeleteModal] = useState(false);
   const [seriesCount, setSeriesCount] = useState(1);
+  const [futureCount, setFutureCount] = useState(0);
   const [relatedSeriesIds, setRelatedSeriesIds] = useState<string[]>([]);
 
 
@@ -476,7 +477,7 @@ export const AgendamentosPage = () => {
     setShowDeleteSeriesModal(false);
     setAgendamentoExcluindo(agendamento);
     try {
-      // Buscar agendamentos FUTUROS para mesma combinação (paciente+profissional+serviço)
+      // Buscar agendamentos da série para mesma combinação (paciente+profissional+serviço)
       const [dataIso, horaIso] = agendamento.dataHoraInicio.split('T');
       const horaChave = horaIso.substring(0, 5);
       const result = await getAgendamentos({
@@ -487,15 +488,21 @@ export const AgendamentosPage = () => {
         orderBy: 'dataHoraInicio',
         orderDirection: 'asc'
       });
+      
       const relacionados = result.data
         .filter(a => a.id !== agendamento.id)
-        .filter(a => a.dataHoraInicio.split('T')[1]?.substring(0,5) === horaChave)
-        .map(a => a.id);
-      setRelatedSeriesIds(relacionados);
-      const count = relacionados.length + 1;
-      setSeriesCount(count);
+        .filter(a => a.dataHoraInicio.split('T')[1]?.substring(0, 5) === horaChave);
+      
+      const agendamentosFuturos = relacionados.filter(a => 
+        new Date(a.dataHoraInicio) > new Date(agendamento.dataHoraInicio)
+      );
+      
+      setRelatedSeriesIds(relacionados.map(a => a.id));
+      setSeriesCount(relacionados.length + 1);
+      setFutureCount(agendamentosFuturos.length);
+      
       // Decidir qual modal abrir
-      if (count > 1) {
+      if (relacionados.length > 0) {
         setShowDeleteSeriesModal(true);
       } else {
         setShowSimpleDeleteModal(true);
@@ -504,9 +511,8 @@ export const AgendamentosPage = () => {
       console.error('Falha ao identificar recorrência para exclusão:', e);
       setRelatedSeriesIds([]);
       setSeriesCount(1);
+      setFutureCount(0);
       setShowSimpleDeleteModal(true);
-    } finally {
-      // Nada aqui: já decidimos qual modal abrir acima
     }
   };
 
@@ -521,13 +527,17 @@ export const AgendamentosPage = () => {
     
     setDeleteLoading(true);
     try {
-      await deleteAgendamento(agendamentoExcluindo.id);
-      setAgendamentoExcluindo(null);
-      setShowSimpleDeleteModal(false);
-      carregarAgendamentos(); // Recarregar a lista após exclusão
+      await deleteAgendamento(agendamentoExcluindo.id, 'apenas_esta');
+      AppToast.success('Agendamento excluído', {
+        description: 'O agendamento foi excluído com sucesso.'
+      });
+      cancelarExclusao();
+      carregarAgendamentos();
     } catch (error) {
       console.error('Erro ao excluir agendamento:', error);
-      // Aqui você pode adicionar um toast de erro se desejar
+      AppToast.error('Erro ao excluir', {
+        description: 'Não foi possível excluir o agendamento.'
+      });
     } finally {
       setDeleteLoading(false);
     }
@@ -537,15 +547,37 @@ export const AgendamentosPage = () => {
     if (!agendamentoExcluindo) return;
     setDeleteLoading(true);
     try {
-      // Excluir o selecionado + relacionados
-      const ids = [agendamentoExcluindo.id, ...relatedSeriesIds];
-      await Promise.all(ids.map(id => deleteAgendamento(id)));
-      setAgendamentoExcluindo(null);
-      setShowDeleteSeriesModal(false);
-      setShowSimpleDeleteModal(false);
+      await deleteAgendamento(agendamentoExcluindo.id, 'toda_serie');
+      AppToast.success('Série excluída', {
+        description: `Toda a série de ${seriesCount} agendamentos foi excluída com sucesso.`
+      });
+      cancelarExclusao();
       carregarAgendamentos();
     } catch (error) {
-      console.error('Erro ao excluir recorrência de agendamentos:', error);
+      console.error('Erro ao excluir série de agendamentos:', error);
+      AppToast.error('Erro ao excluir série', {
+        description: 'Não foi possível excluir a série de agendamentos.'
+      });
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+  
+  const handleDeleteThisAndFuture = async () => {
+    if (!agendamentoExcluindo) return;
+    setDeleteLoading(true);
+    try {
+      await deleteAgendamento(agendamentoExcluindo.id, 'esta_e_futuras');
+      AppToast.success('Agendamentos excluídos', {
+        description: `${futureCount + 1} agendamentos (esta e futuras ocorrências) foram excluídos.`
+      });
+      cancelarExclusao();
+      carregarAgendamentos();
+    } catch (error) {
+      console.error('Erro ao excluir esta e futuras ocorrências:', error);
+      AppToast.error('Erro ao excluir', {
+        description: 'Não foi possível excluir os agendamentos.'
+      });
     } finally {
       setDeleteLoading(false);
     }
@@ -1114,9 +1146,11 @@ export const AgendamentosPage = () => {
         onClose={cancelarExclusao}
         onConfirmSingle={handleDelete}
         onConfirmSeries={handleDeleteSeries}
+        onConfirmThisAndFuture={futureCount > 0 ? handleDeleteThisAndFuture : undefined}
         isLoading={deleteLoading}
         entityName={agendamentoExcluindo?.pacienteNome || ''}
         seriesCount={seriesCount}
+        futureCount={futureCount}
       />
 
       {/* Modal unificado de agendamento */}

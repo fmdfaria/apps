@@ -185,22 +185,21 @@ export class UpdateAgendamentoUseCase {
                   agendamentoId: agendamentoAtualizado.id
                 });
 
-                // Atualizar TODOS os agendamentos da série no banco com a nova data/hora
-                const todosAgendamentosDaSerie = [agendamentoAtualizado, ...serieRecorrente];
-                const deltaHoras = agendamentoAtualizado.dataHoraInicio.getTime() - atual.dataHoraInicio.getTime();
+                // Calcular diferença de tempo entre nova e antiga data/hora
+                const deltaMilliseconds = agendamentoAtualizado.dataHoraInicio.getTime() - atual.dataHoraInicio.getTime();
                 
-                await Promise.all(
-                  todosAgendamentosDaSerie
-                    .filter(ag => ag.id !== agendamentoAtualizado.id) // Excluir o atual que já foi atualizado
-                    .map(ag => {
-                      const novaDataHoraInicio = new Date(ag.dataHoraInicio.getTime() + deltaHoras);
-                      const novaDataHoraFim = new Date(ag.dataHoraFim.getTime() + deltaHoras);
-                      return this.agendamentosRepository.update(ag.id, {
-                        dataHoraInicio: novaDataHoraInicio,
-                        dataHoraFim: novaDataHoraFim
-                      });
-                    })
-                );
+                // Atualizar TODOS os outros agendamentos da série no banco
+                const updatePromises = serieRecorrente.map(ag => {
+                  const novaDataHoraInicio = new Date(ag.dataHoraInicio.getTime() + deltaMilliseconds);
+                  const novaDataHoraFim = new Date(ag.dataHoraFim.getTime() + deltaMilliseconds);
+                  return this.agendamentosRepository.update(ag.id, {
+                    dataHoraInicio: novaDataHoraInicio,
+                    dataHoraFim: novaDataHoraFim
+                  });
+                });
+                
+                await Promise.all(updatePromises);
+                console.log(`✅ ${serieRecorrente.length + 1} agendamentos da série atualizados com sucesso`);
 
               } else if (tipoEdicao === 'esta_e_futuras' && agendamentosFuturos.length > 0) {
                 // Há agendamentos futuros - editar "esta e as futuras ocorrências"
@@ -249,17 +248,27 @@ export class UpdateAgendamentoUseCase {
                   }
                 );
 
-                // Atualizar TODOS os agendamentos futuros com o novo googleEventId
-                await Promise.all([
-                  this.agendamentosRepository.update(agendamentoAtualizado.id, {
+                // Calcular diferença de tempo entre nova e antiga data/hora
+                const deltaMilliseconds = agendamentoAtualizado.dataHoraInicio.getTime() - atual.dataHoraInicio.getTime();
+                
+                // Atualizar apenas os agendamentos futuros com nova data/hora e googleEventId
+                const updatePromises = agendamentosFuturos.map(ag => {
+                  const novaDataHoraInicio = new Date(ag.dataHoraInicio.getTime() + deltaMilliseconds);
+                  const novaDataHoraFim = new Date(ag.dataHoraFim.getTime() + deltaMilliseconds);
+                  return this.agendamentosRepository.update(ag.id, {
+                    dataHoraInicio: novaDataHoraInicio,
+                    dataHoraFim: novaDataHoraFim,
                     googleEventId: novoEventId
-                  }),
-                  ...agendamentosFuturos.map(ag =>
-                    this.agendamentosRepository.update(ag.id, {
-                      googleEventId: novoEventId
-                    })
-                  )
-                ]);
+                  });
+                });
+                
+                // Atualizar também o agendamento atual com o novo googleEventId
+                const currentUpdatePromise = this.agendamentosRepository.update(agendamentoAtualizado.id, {
+                  googleEventId: novoEventId
+                });
+                
+                await Promise.all([currentUpdatePromise, ...updatePromises]);
+                console.log(`✅ ${agendamentosFuturos.length + 1} agendamentos (esta e futuras) atualizados com sucesso`);
 
               } else {
                 // Editar apenas esta ocorrência (tipoEdicao === 'apenas_esta' ou não há futuros)

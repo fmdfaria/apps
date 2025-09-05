@@ -7,9 +7,11 @@ interface ConfirmDeleteAgendamentoModalProps {
   onClose: () => void;
   onConfirmSingle: () => void;
   onConfirmSeries: () => void;
+  onConfirmThisAndFuture?: () => void; // Nova opção
   isLoading?: boolean;
   entityName: string;
   seriesCount: number; // inclui o atual
+  futureCount?: number; // agendamentos futuros (para "esta e futuras")
 }
 
 export default function ConfirmDeleteAgendamentoModal({
@@ -17,9 +19,11 @@ export default function ConfirmDeleteAgendamentoModal({
   onClose,
   onConfirmSingle,
   onConfirmSeries,
+  onConfirmThisAndFuture,
   isLoading = false,
   entityName,
-  seriesCount
+  seriesCount,
+  futureCount = 0
 }: ConfirmDeleteAgendamentoModalProps) {
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && !isLoading && onClose()}>
@@ -49,6 +53,16 @@ export default function ConfirmDeleteAgendamentoModal({
             >
               {isLoading ? 'Excluindo...' : 'Excluir somente este'}
             </Button>
+            {futureCount > 0 && onConfirmThisAndFuture && (
+              <Button
+                disabled={isLoading}
+                onClick={onConfirmThisAndFuture}
+                variant="outline"
+                className="w-full border-2 border-orange-300 text-orange-700 bg-white hover:bg-orange-50 hover:text-orange-800 hover:border-orange-400 focus:ring-2 focus:ring-orange-200 font-semibold transition-all duration-200"
+              >
+                {isLoading ? 'Excluindo...' : `Excluir esta e futuras (${futureCount + 1})`}
+              </Button>
+            )}
             <Button
               disabled={isLoading || seriesCount <= 1}
               onClick={onConfirmSeries}

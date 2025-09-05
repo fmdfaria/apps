@@ -48,9 +48,8 @@ export class DeleteAgendamentoUseCase {
             new Date(ag.dataHoraInicio) > new Date(agendamento.dataHoraInicio)
           );
 
-          // Decidir tipo de exclusão
-          const tipoExclusao = tipoEdicaoRecorrencia || 
-            (agendamentosFuturos.length > 0 ? 'esta_e_futuras' : 'apenas_esta');
+          // Decidir tipo de exclusão (padrão é apenas_esta se não especificado)
+          const tipoExclusao = tipoEdicaoRecorrencia || 'apenas_esta';
 
           if (tipoExclusao === 'toda_serie') {
             // Excluir TODA a série
@@ -93,6 +92,10 @@ export class DeleteAgendamentoUseCase {
               agendamento.googleEventId,
               agendamento.dataHoraInicio
             );
+            
+            // Deletar apenas este agendamento do banco
+            await this.agendamentosRepository.delete(id);
+            return; // Sair aqui pois já deletou o necessário
           }
 
         } else {
@@ -107,7 +110,10 @@ export class DeleteAgendamentoUseCase {
       }
     }
 
-    // Deletar o agendamento do banco (apenas este, a menos que já tenha sido deletado acima)
-    await this.agendamentosRepository.delete(id);
+    // Deletar o agendamento do banco apenas se não foi uma série recorrente
+    // (pois séries recorrentes já foram tratadas acima)
+    if (!(agendamento.tipoAtendimento === 'online' && agendamento.googleEventId)) {
+      await this.agendamentosRepository.delete(id);
+    }
   }
 } 

@@ -73,14 +73,8 @@ const verificarHorarioOcupado = (
     
     const resultado = saoIguais || comparacaoAlternativa;
     
-    // Log quando encontrar conflito
-    if (resultado) {
-      console.log('🔵 Conflito encontrado:', {
-        horario,
-        agendamentoId: agendamento.id,
-        dataHoraInicio: agendamento.dataHoraInicio
-      });
-    }
+    // Log removido para melhorar performance
+    // if (resultado) console.log('🔵 Conflito:', horario);
     
     return resultado;
   });
@@ -101,6 +95,9 @@ const verificarDisponibilidadeHorario = (
   
   // Filtrar disponibilidades do profissional
   const disponibilidadesProfissional = disponibilidades.filter(d => d.profissionalId === profissionalId);
+  
+  // Debug removido para melhorar performance
+  // console.log('🔍 Verificando disponibilidade:', { profissionalId, horario, diaSemana });
   
   // Verificar se há alguma disponibilidade para este horário
   for (const disponibilidade of disponibilidadesProfissional) {
@@ -233,45 +230,14 @@ export const verificarHorariosProfissional = async (
 
     const dataSolicitadaStr = dataStr;
     
-    console.log('🔍 Debug de filtro de data:', {
-      dataSelecionadaOriginal: data,
-      dataSelecionadaFormatada: dataSolicitadaStr,
-      agendamentosParaComparar: agendamentos.map(a => ({
-        id: a.id,
-        dataHoraInicio: a.dataHoraInicio,
-        dataExtraida: a.dataHoraInicio.split('T')[0],
-        profissionalId: a.profissionalId
-      }))
-    });
+    // Debug removido para melhorar performance
+    // console.log('Debug de filtro de data:', { data: dataSolicitadaStr, agendamentos: agendamentos.length });
 
     // Já vem filtrado pelo backend, mas manter fallback defensivo
     const agendamentosDaData = agendamentos.filter(a => a.dataHoraInicio.split('T')[0] === dataSolicitadaStr);
 
-    // Debug apenas se necessário
-    if (agendamentosDaData.length > 0) {
-      console.log('📋 Agendamentos encontrados na data:', {
-        data: data.toDateString(),
-        profissionalId,
-        total: agendamentosDaData.length,
-        agendamentos: agendamentosDaData.map(a => {
-          // Parse manual igual ao CalendarioPage
-          const [datePart, timePart] = a.dataHoraInicio.split('T');
-          const [hora, minuto] = timePart.split(':');
-          return {
-            id: a.id,
-            horario: `${hora}:${minuto}`,
-            status: a.status
-          };
-        })
-      });
-    } else {
-      console.log('📋 Nenhum agendamento encontrado na data:', {
-        data: data.toDateString(),  
-        profissionalId,
-        totalAgendamentosDisponiveisDoProfissional: agendamentos.length,
-        datasComAgendamentos: agendamentos.map(a => a.dataHoraInicio.split('T')[0])
-      });
-    }
+    // Debug removido para melhorar performance
+    // console.log(`📋 Agendamentos na data ${data.toDateString()}:`, agendamentosDaData.length);
 
     // Lista de horários padrão (de 07:00 às 18:00, de 30 em 30 minutos)
     const horarios = [];
@@ -291,7 +257,7 @@ export const verificarHorariosProfissional = async (
     // Log para debug se encontrar horários ocupados
     const ocupados = resultados.filter(r => r.verificacao.status === 'ocupado');
     if (ocupados.length > 0) {
-      console.log('🔵 Horários ocupados encontrados:', ocupados.map(r => r.horario));
+      // console.log('🔵 Horários ocupados encontrados:', ocupados.map(r => r.horario));
     }
 
     return resultados;
@@ -356,7 +322,7 @@ export const verificarProfissionaisDisponibilidade = async (
 
     // Debug simplificado para profissionais
     if (agendamentosDaDataHorario.length > 0) {
-      console.log('📅 Verificando profissionais - agendamentos encontrados:', agendamentosDaDataHorario.length);
+      // console.log('📅 Verificando profissionais - agendamentos encontrados:', agendamentosDaDataHorario.length);
     }
 
     // Verificar cada profissional

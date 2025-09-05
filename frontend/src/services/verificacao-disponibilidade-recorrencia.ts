@@ -73,6 +73,9 @@ const verificarDisponibilidadeHorario = (
   
   // Filtrar disponibilidades do profissional
   const disponibilidadesProfissional = disponibilidades.filter(d => d.profissionalId === profissionalId);
+
+  // Debug apenas se necessário (remover logs excessivos)
+  // console.log('🔍 Debug - Verificando disponibilidade:', { profissionalId, horario });
   
   // Verificar se há alguma disponibilidade para este horário
   for (const disponibilidade of disponibilidadesProfissional) {
@@ -173,7 +176,19 @@ const gerarDatasRecorrencia = (
   let contador = 1;
 
   // Determinar limite
-  const dataLimite = ate ? new Date(ate + 'T23:59:59') : null;
+  let dataLimite = null;
+  if (ate) {
+    try {
+      dataLimite = new Date(ate + 'T23:59:59');
+      if (isNaN(dataLimite.getTime())) {
+        console.error('❌ Data limite inválida:', ate);
+        dataLimite = null;
+      }
+    } catch (error) {
+      console.error('❌ Erro ao criar data limite:', ate, error);
+      dataLimite = null;
+    }
+  }
   const maxRepeticoes = repeticoes || 52; // Máximo padrão
 
   while (contador < maxRepeticoes) {
@@ -214,12 +229,25 @@ export const verificarConflitosRecorrencia = async (
   }
 ): Promise<ConflitosRecorrencia> => {
   try {
-    // Usar formatarDataHoraLocal para parsing correto (sem conversões timezone)
-    const { data: dataStr, hora: horario } = formatarDataHoraLocal(dataHoraInicio);
-    
-    // Converter data string para objeto Date
-    const [ano, mes, dia] = dataStr.split('-').map(Number);
+    // Parse direto do ISO para evitar problemas de formato
+    const dataISO = dataHoraInicio.split('T')[0]; // Ex: "2025-09-10T11:00:00.000-03:00" -> "2025-09-10"
+    const [ano, mes, dia] = dataISO.split('-').map(Number);
     const dataInicial = new Date(ano, mes - 1, dia); // mes é 0-indexed
+    
+    // Validar se a data inicial é válida
+    if (isNaN(dataInicial.getTime())) {
+      console.error('❌ Data inicial inválida:', { dataHoraInicio, dataISO, ano, mes, dia });
+      return {
+        datasComConflito: [],
+        totalConflitos: 0,
+        totalDatas: 0
+      };
+    }
+    
+    // Extrair horário do ISO original
+    const [, timePart] = dataHoraInicio.split('T');
+    const [hora, minuto] = timePart.split(':').map(Number);
+    const horario = `${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
 
     // Gerar todas as datas da recorrência
     const todasDatas = gerarDatasRecorrencia(
@@ -309,7 +337,8 @@ export const verificarConflitosParaDatas = async (
   profissionalId: string,
   recursoId: string,
   datasHorasISO: string[],
-  pacienteId?: string
+  pacienteId?: string,
+  agendamentosParaIgnorar?: string[] // IDs dos agendamentos que devem ser ignorados (ex: série sendo editada)
 ): Promise<ConflitosRecorrencia> => {
   try {
     const [disponibilidades, agendamentosProf, agendamentosRecurso, agendamentosPaciente] = await Promise.all([
@@ -323,17 +352,55 @@ export const verificarConflitosParaDatas = async (
     for (const ag of [...agendamentosProf.data, ...agendamentosRecurso.data, ...agendamentosPaciente.data]) {
       if (!mergeMap.has(ag.id)) mergeMap.set(ag.id, ag);
     }
-    const agendamentos = Array.from(mergeMap.values());
+    let agendamentos = Array.from(mergeMap.values());
+    
+    // Filtrar agendamentos que devem ser ignorados (ex: série sendo editada)
+    if (agendamentosParaIgnorar && agendamentosParaIgnorar.length > 0) {
+      agendamentos = agendamentos.filter(ag => !agendamentosParaIgnorar.includes(ag.id));
+      // Log apenas quando necessário para debug de edição de série
+      // console.log('🔧 Agendamentos ignorados:', agendamentosParaIgnorar.length);
+    }
 
     const datasComConflito: ConflitosRecorrencia['datasComConflito'] = [];
 
+    // Debug apenas para investigação de problemas específicos
+    // console.log('🚀 Debug - Início verificação de conflitos para datas:', datasHorasISO.length);
+
     for (const iso of datasHorasISO) {
-      // Usar formatarDataHoraLocal para parsing correto (sem conversões de timezone)
-      const { data: dataStr, hora: horario } = formatarDataHoraLocal(iso);
+      // Verificar se o ISO é válido
+      if (!iso || typeof iso !== 'string') {
+        console.error('❌ ISO inválido recebido:', { iso });
+        continue;
+      }
+
+      // Parse direto do ISO sem usar formatarDataHoraLocal para evitar problemas de formato
+      // console.log('🔍 Debug - Parse da data:', { iso });
       
-      // Converter data string para objeto Date
-      const [ano, mes, dia] = dataStr.split('-').map(Number);
+      // Converter data string para objeto Date - usar parsing direto do ISO original
+      // Usar apenas a parte da data (YYYY-MM-DD) do ISO original, sem usar formatarDataHoraLocal
+      const dataISO = iso.split('T')[0]; // Ex: "2025-09-10T11:00:00.000-03:00" -> "2025-09-10"
+      const [ano, mes, dia] = dataISO.split('-').map(Number);
       const data = new Date(ano, mes - 1, dia); // mes é 0-indexed
+      
+      // Extrair horário do ISO original
+      const [, timePart] = iso.split('T');
+      const [hora, minuto] = timePart.split(':').map(Number);
+      const horario = `${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
+
+      // Verificar se a data é válida
+      if (isNaN(data.getTime())) {
+        console.error('❌ Data inválida encontrada:', {
+          isoOriginal: iso,
+          dataISO: dataISO,
+          parsedValues: { ano, mes, dia },
+          horario: horario,
+          dataObject: data
+        });
+        continue; // Pular esta data inválida
+      }
+
+      // Debug removido para melhorar performance do modal
+      // console.log('🔧 Debug - Validação:', { dataStr, horario });
 
       const verificacao = verificarStatusCompleto(
         profissionalId,
@@ -344,15 +411,29 @@ export const verificarConflitosParaDatas = async (
         agendamentos
       );
 
+      // Debug apenas para problemas críticos
+      // console.log('🔧 Debug - Resultado:', { horario, status: verificacao.status });
+
       if (verificacao.status === 'ocupado' || verificacao.status === 'indisponivel') {
         // Criar data correta para formatação usando o ISO original
         const dataParaFormatacao = new Date(iso.split('T')[0] + 'T00:00:00');
-        const dataFormatada = dataParaFormatacao.toLocaleDateString('pt-BR', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
+        
+        // Verificar se a data de formatação é válida
+        let dataFormatada = 'Data inválida';
+        if (!isNaN(dataParaFormatacao.getTime())) {
+          dataFormatada = dataParaFormatacao.toLocaleDateString('pt-BR', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+        } else {
+          console.error('❌ Data de formatação inválida:', {
+            isoOriginal: iso,
+            isoParaFormatacao: iso.split('T')[0] + 'T00:00:00',
+            dataParaFormatacao
+          });
+        }
 
         const conflito: any = {
           data: iso.split('T')[0],

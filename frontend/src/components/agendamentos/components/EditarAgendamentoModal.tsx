@@ -334,11 +334,15 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
           });
 
           // Verificar conflitos para todas as datas alvo da série
+          // Ignorar agendamentos da própria série que está sendo editada
+          const idsParaIgnorar = [agendamento.id, ...agendamentosRelacionados.map(ag => ag.id)];
+          
           const conflitos = await verificarConflitosParaDatas(
             agendamento.profissionalId,
             agendamento.recursoId,
             datasAlvoISO,
-            agendamento.pacienteId
+            agendamento.pacienteId,
+            idsParaIgnorar
           );
 
           if (conflitos.totalConflitos > 0) {
@@ -362,31 +366,19 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
         }
 
         // Se não há conflitos, prosseguir com edição da série
-        const promises = agendamentosParaEditar.map(async (agendamentoId, index) => {
-          const agendamentoAlvo = index === 0 ? agendamento : agendamentosRelacionados[index - 1];
-          const dataOriginalAlvo = new Date(agendamentoAlvo.dataHoraInicio);
-          const novaDataAlvo = new Date(dataOriginalAlvo);
-          novaDataAlvo.setDate(novaDataAlvo.getDate() + diferencaDias);
-          
-          // Aplicar a nova hora para TODOS os agendamentos da série
-          novaDataAlvo.setHours(novaData.getHours(), novaData.getMinutes(), 0, 0);
-          
-          return api.put(`/agendamentos/${agendamentoId}`, {
-            // Enviar com offset local em vez de UTC (Z)
-            dataHoraInicio: buildOffsetFromDate(novaDataAlvo),
-            pacienteId: agendamentoAlvo.pacienteId,
-            profissionalId: agendamentoAlvo.profissionalId,
-            servicoId: agendamentoAlvo.servicoId,
-            convenioId: agendamentoAlvo.convenioId,
-            recursoId: agendamentoAlvo.recursoId,
-            tipoAtendimento: agendamentoAlvo.tipoAtendimento,
-            status: agendamentoAlvo.status,
-            // Informar ao backend que é edição de toda a série
-            tipoEdicaoRecorrencia: 'esta_e_futuras'
-          });
+        // Enviar uma única requisição para o agendamento atual - o backend se encarrega do resto
+        await api.put(`/agendamentos/${agendamento.id}`, {
+          dataHoraInicio: novaDataHora,
+          pacienteId: agendamento.pacienteId,
+          profissionalId: agendamento.profissionalId,
+          servicoId: agendamento.servicoId,
+          convenioId: agendamento.convenioId,
+          recursoId: agendamento.recursoId,
+          tipoAtendimento: agendamento.tipoAtendimento,
+          status: agendamento.status,
+          // Informar ao backend o tipo de edição baseado na escolha do usuário
+          tipoEdicaoRecorrencia: 'toda_serie'
         });
-        
-        await Promise.all(promises);
       }
 
       AppToast.success(
