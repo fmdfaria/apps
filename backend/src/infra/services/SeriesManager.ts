@@ -37,18 +37,34 @@ export class SeriesManager {
       return null;
     }
 
-    // Verificar se tem Google Calendar (qualquer agendamento da série com googleEventId)
-    const temGoogleCalendar = agendamentos.some(ag => ag.googleEventId);
-    const googleEventId = agendamentos.find(ag => ag.googleEventId)?.googleEventId;
-    
     // Encontrar o master
     const masterAgendamento = agendamentos.find(ag => ag.serieMaster);
+    
+    // O googleEventId da série deve vir SEMPRE do master, não de instâncias específicas
+    // Instâncias específicas têm IDs como "original_id_20250910T103000Z" 
+    // O master deve manter o ID original da série recorrente
+    let googleEventId = masterAgendamento?.googleEventId;
+    
+    // Se o master não tem googleEventId, buscar um ID que NÃO seja de instância específica
+    if (!googleEventId) {
+      googleEventId = agendamentos.find(ag => 
+        ag.googleEventId && !ag.googleEventId.includes('_202')
+      )?.googleEventId;
+    }
+    
+    // Se ainda não achou, pegar qualquer um (fallback)
+    if (!googleEventId) {
+      googleEventId = agendamentos.find(ag => ag.googleEventId)?.googleEventId;
+    }
+    
+    const temGoogleCalendar = !!googleEventId;
     
     console.log('📊 SeriesManager - Série encontrada:', {
       serieId,
       totalAgendamentos: agendamentos.length,
       temGoogleCalendar,
-      temMaster: !!masterAgendamento
+      temMaster: !!masterAgendamento,
+      googleEventId: googleEventId
     });
 
     return {
@@ -147,7 +163,13 @@ export class SeriesManager {
         
         let novoEventId: string;
         
-        // Se o agendamento já tem um googleEventId próprio (de edições anteriores),
+        console.log('🔍 SeriesManager - Verificando tipo de evento:', {
+          agendamentoGoogleEventId: agendamento.googleEventId,
+          serieGoogleEventId: serie.googleEventId,
+          saoIguais: agendamento.googleEventId === serie.googleEventId
+        });
+
+        // Se o agendamento tem um googleEventId DIFERENTE do da série,
         // significa que já é uma instância individual - usar atualizarEvento
         if (agendamento.googleEventId && agendamento.googleEventId !== serie.googleEventId) {
           console.log('🔄 SeriesManager - Agendamento já tem instância própria, usando atualizarEvento');
@@ -188,8 +210,18 @@ export class SeriesManager {
           );
         }
 
-        // Atualizar com o novo eventId da instância
-        dados.googleEventId = novoEventId;
+        // CRÍTICO: Se o agendamento é o MASTER da série, NÃO alterar seu googleEventId
+        // pois isso corromperia a referência da série inteira
+        const eMasterDaSerie = serie.agendamentos.find(ag => ag.id === agendamentoId)?.isMaster;
+        
+        if (eMasterDaSerie) {
+          console.log('⚠️ SeriesManager - Agendamento é MASTER da série, mantendo googleEventId original');
+          // Para o master, não alteramos o googleEventId para preservar a série
+          // O Google Calendar vai ter tanto o evento master quanto a instância específica
+        } else {
+          console.log('✅ SeriesManager - Agendamento não é master, atualizando googleEventId');
+          dados.googleEventId = novoEventId;
+        }
       } catch (error) {
         console.error('❌ SeriesManager - Erro ao atualizar Google Calendar:', error);
         // Continuar com atualização local
