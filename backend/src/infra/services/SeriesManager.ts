@@ -130,13 +130,16 @@ export class SeriesManager {
           novaData: dados.dataHoraInicio?.toISOString()
         });
         
-        const novoEventId = await this.googleCalendarService.editarOcorrenciaEspecifica(
-          serie.googleEventId,
-          dataOriginalInstancia, // Data/hora atual do agendamento (antes da edição)
-          {
+        let novoEventId: string;
+        
+        // Se o agendamento já tem um googleEventId próprio (de edições anteriores),
+        // significa que já é uma instância individual - usar atualizarEvento
+        if (agendamento.googleEventId && agendamento.googleEventId !== serie.googleEventId) {
+          console.log('🔄 SeriesManager - Agendamento já tem instância própria, usando atualizarEvento');
+          
+          await this.googleCalendarService.atualizarEvento(agendamento.googleEventId, {
             dataHoraInicio: dados.dataHoraInicio || agendamento.dataHoraInicio,
             dataHoraFim: dados.dataHoraFim || agendamento.dataHoraFim,
-            // Outros dados necessários para Google Calendar...
             pacienteNome: agendamento.paciente?.nomeCompleto || '',
             profissionalNome: agendamento.profissional?.nome || '',
             servicoNome: agendamento.servico?.nome || '',
@@ -144,8 +147,31 @@ export class SeriesManager {
             agendamentoId: agendamento.id,
             profissionalEmail: agendamento.profissional?.email || '',
             pacienteEmail: agendamento.paciente?.email
-          }
-        );
+          });
+          
+          novoEventId = agendamento.googleEventId; // Mantém o mesmo ID
+          
+          // url_meet não muda pois é o mesmo evento (já tem Meet configurado)
+        } else {
+          console.log('🆕 SeriesManager - Criando nova instância específica da série');
+          
+          novoEventId = await this.googleCalendarService.editarOcorrenciaEspecifica(
+            serie.googleEventId,
+            dataOriginalInstancia, // Data/hora atual do agendamento (antes da edição)
+            {
+              dataHoraInicio: dados.dataHoraInicio || agendamento.dataHoraInicio,
+              dataHoraFim: dados.dataHoraFim || agendamento.dataHoraFim,
+              // Outros dados necessários para Google Calendar...
+              pacienteNome: agendamento.paciente?.nomeCompleto || '',
+              profissionalNome: agendamento.profissional?.nome || '',
+              servicoNome: agendamento.servico?.nome || '',
+              convenioNome: agendamento.convenio?.nome || '',
+              agendamentoId: agendamento.id,
+              profissionalEmail: agendamento.profissional?.email || '',
+              pacienteEmail: agendamento.paciente?.email
+            }
+          );
+        }
 
         // Atualizar com o novo eventId da instância
         dados.googleEventId = novoEventId;

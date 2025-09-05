@@ -256,9 +256,21 @@ export class GoogleCalendarService {
    */
   async atualizarEvento(eventId: string, eventData: Partial<EventData>): Promise<void> {
     try {
-      const updateData: any = {};
+      const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
       const timezone = process.env.GOOGLE_TIMEZONE || 'America/Sao_Paulo';
-      
+
+      // Primeiro, buscar o evento atual para preservar dados existentes
+      const currentEvent = await this.calendar.events.get({
+        calendarId,
+        eventId: eventId
+      });
+
+      const updateData: any = {
+        // Preservar dados existentes
+        ...currentEvent.data,
+        // Sobrescrever apenas os campos que mudaram
+      };
+
       if (eventData.dataHoraInicio) {
         updateData.start = {
           dateTime: eventData.dataHoraInicio.toISOString(),
@@ -283,16 +295,20 @@ export class GoogleCalendarService {
         updateData.description = this.formatarDescricao(eventData as EventData);
       }
 
-      const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
+      // IMPORTANTE: Preservar o conferenceData (Meet URL)
+      if (currentEvent.data.conferenceData) {
+        updateData.conferenceData = currentEvent.data.conferenceData;
+      }
       
       await this.calendar.events.update({
         calendarId,
         eventId: eventId,
         resource: updateData,
+        conferenceDataVersion: 1, // Necessário para manter o Meet
         sendUpdates: 'none'
       });
 
-      console.log('✅ Evento Google Calendar atualizado:', eventId);
+      console.log('✅ Evento Google Calendar atualizado (com Meet preservado):', eventId);
     } catch (error) {
       console.error('❌ Erro ao atualizar evento Google Calendar:', error);
       throw new Error('Falha ao atualizar evento no Google Calendar');
