@@ -181,40 +181,49 @@ export class SeriesManager {
 
     console.log(`📊 SeriesManager - Atualizando ${agendamentosParaAtualizar.length} agendamentos (esta e futuras)`);
 
-    // Se tem Google Calendar, fazer split da série
+    // Se tem Google Calendar, editar instâncias específicas
     if (serie.temGoogleCalendar && serie.googleEventId && this.googleCalendarService.isIntegracaoAtiva()) {
-      try {
-        console.log('🌐 SeriesManager - Fazendo split da série no Google Calendar');
-        
-        // Detectar tipo de recorrência
-        const tipoRecorrencia = this.detectarTipoRecorrencia(serie.agendamentos);
-        
-        const novoEventId = await this.googleCalendarService.editarSerieAPartirDe(
-          serie.googleEventId,
-          dados.dataHoraInicio || agendamento.dataHoraInicio,
-          {
-            dataHoraInicio: dados.dataHoraInicio || agendamento.dataHoraInicio,
-            dataHoraFim: dados.dataHoraFim || agendamento.dataHoraFim,
-            recorrencia: {
-              tipo: tipoRecorrencia,
-              repeticoes: agendamentosParaAtualizar.length
-            },
-            // Outros dados...
-            pacienteNome: agendamento.paciente?.nomeCompleto || '',
-            profissionalNome: agendamento.profissional?.nome || '',
-            servicoNome: agendamento.servico?.nome || '',
-            convenioNome: agendamento.convenio?.nome || '',
-            agendamentoId: agendamento.id,
-            profissionalEmail: agendamento.profissional?.email || '',
-            pacienteEmail: agendamento.paciente?.email
+      console.log('🌐 SeriesManager - Editando instâncias específicas no Google Calendar para "esta e futuras"');
+      
+      // Para cada agendamento que será atualizado, criar uma instância específica no Google Calendar
+      for (const ag of agendamentosParaAtualizar) {
+        try {
+          // Calcular o novo horário para este agendamento específico
+          let novaDataHoraInicio = dados.dataHoraInicio || ag.dataHoraInicio;
+          let novaDataHoraFim = dados.dataHoraFim || ag.dataHoraFim;
+          
+          // Se não é o agendamento sendo editado, aplicar a diferença de dias
+          if (ag.id !== agendamentoId && dados.dataHoraInicio) {
+            const diasDiferenca = Math.ceil((ag.instanciaData.getTime() - agendamentoAtual.instanciaData.getTime()) / (1000 * 60 * 60 * 24));
+            
+            novaDataHoraInicio = new Date(dados.dataHoraInicio);
+            novaDataHoraInicio.setDate(novaDataHoraInicio.getDate() + diasDiferenca);
+            
+            novaDataHoraFim = new Date(dados.dataHoraFim || ag.dataHoraFim);
+            novaDataHoraFim.setDate(novaDataHoraFim.getDate() + diasDiferenca);
           }
-        );
-
-        // Adicionar novo googleEventId aos dados que serão atualizados
-        dados.googleEventId = novoEventId;
-      } catch (error) {
-        console.error('❌ SeriesManager - Erro ao fazer split da série Google Calendar:', error);
-        // Continuar com atualização local
+          
+          await this.googleCalendarService.editarOcorrenciaEspecifica(
+            serie.googleEventId,
+            ag.dataHoraInicio, // Data original da instância
+            {
+              dataHoraInicio: novaDataHoraInicio,
+              dataHoraFim: novaDataHoraFim,
+              pacienteNome: agendamento.paciente?.nomeCompleto || '',
+              profissionalNome: agendamento.profissional?.nome || '',
+              servicoNome: agendamento.servico?.nome || '',
+              convenioNome: agendamento.convenio?.nome || '',
+              agendamentoId: ag.id,
+              profissionalEmail: agendamento.profissional?.email || '',
+              pacienteEmail: agendamento.paciente?.email
+            }
+          );
+          
+          console.log(`✅ SeriesManager - Instância do Google Calendar editada para agendamento: ${ag.id}`);
+        } catch (error) {
+          console.error(`❌ SeriesManager - Erro ao editar instância no Google Calendar para agendamento ${ag.id}:`, error);
+          // Continuar com outros agendamentos
+        }
       }
     }
 
