@@ -426,8 +426,16 @@ export class GoogleCalendarService {
       const dataLimiteOriginal = new Date(dataInicio);
       dataLimiteOriginal.setDate(dataLimiteOriginal.getDate() - 1);
       
-      // IMPORTANTE: Verificar se a data limite não é antes do início da série original
+      // IMPORTANTE: Usar o mesmo horário do evento original para o UNTIL
       const dataOriginalEvento = new Date(eventoOriginal.data.start?.dateTime || eventoOriginal.data.start?.date || dataInicio);
+      
+      // Ajustar a data limite para usar o mesmo horário do evento original
+      dataLimiteOriginal.setHours(
+        dataOriginalEvento.getHours(), 
+        dataOriginalEvento.getMinutes(), 
+        dataOriginalEvento.getSeconds(), 
+        dataOriginalEvento.getMilliseconds()
+      );
       
       if (dataLimiteOriginal <= dataOriginalEvento) {
         console.warn('⚠️ Debug - Data limite seria anterior ao início da série original, ajustando...');
