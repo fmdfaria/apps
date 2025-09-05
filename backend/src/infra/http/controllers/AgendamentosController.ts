@@ -142,6 +142,15 @@ export class AgendamentosController {
     return reply.status(204).send();
   }
 
+  async getSeriesInfo(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const paramsSchema = z.object({ id: z.string().uuid() });
+    const { id } = paramsSchema.parse(request.params);
+    
+    const useCase = container.resolve(DeleteAgendamentoUseCase);
+    const seriesInfo = await useCase.getSeriesDeleteInfo(id);
+    return reply.status(200).send(seriesInfo);
+  }
+
   async liberar(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const paramsSchema = z.object({ id: z.string().uuid() });
     const { id } = paramsSchema.parse(request.params);
