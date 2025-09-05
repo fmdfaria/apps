@@ -187,7 +187,7 @@ export class CreateAgendamentoUseCase {
         dataHoraFim,
         serieId: serieId,
         serieMaster: i === 0, // Primeiro agendamento é o master
-        instanciaData: dataHoraInicio.toISOString().split('T')[0] // Data no formato YYYY-MM-DD
+        instanciaData: new Date(dataHoraInicio.toISOString().split('T')[0]) // Converte para Date
       };
       
       

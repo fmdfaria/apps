@@ -29,7 +29,7 @@ export class Agendamento {
   // Campos para gerenciamento de séries recorrentes
   serieId?: string | null;
   serieMaster?: boolean;
-  instanciaData?: string | null;
+  instanciaData?: Date | null;
   
   // Campos adicionais
   compareceu?: boolean | null;

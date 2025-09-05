@@ -27,7 +27,7 @@ export interface ICreateAgendamentoDTO {
   // Novos campos para séries
   serieId?: string | null;
   serieMaster?: boolean;
-  instanciaData?: string | null;
+  instanciaData?: Date | null;
 }
 
 export interface IUpdateAgendamentoDTO extends Partial<ICreateAgendamentoDTO> {
