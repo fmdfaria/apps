@@ -13,7 +13,7 @@ export class PrismaSeriesRepository implements ISeriesRepository {
   async findAgendamentosBySerieId(serieId: string): Promise<Agendamento[]> {
     const agendamentos = await this.prisma.agendamento.findMany({
       where: {
-        serie_id: serieId
+        serieId: serieId
       },
       include: {
         paciente: true,
@@ -33,10 +33,10 @@ export class PrismaSeriesRepository implements ISeriesRepository {
   async findSerieIdByAgendamentoId(agendamentoId: string): Promise<string | null> {
     const agendamento = await this.prisma.agendamento.findUnique({
       where: { id: agendamentoId },
-      select: { serie_id: true }
+      select: { serieId: true }
     });
 
-    return agendamento?.serie_id || null;
+    return agendamento?.serieId || null;
   }
 
   async updateMultipleAgendamentos(
@@ -71,8 +71,8 @@ export class PrismaSeriesRepository implements ISeriesRepository {
     
     const agendamentos = await this.prisma.agendamento.findMany({
       where: {
-        serie_id: serieId,
-        instancia_data: {
+        serieId: serieId,
+        instanciaData: {
           [operator]: fromDate
         }
       },
@@ -119,9 +119,9 @@ export class PrismaSeriesRepository implements ISeriesRepository {
       observacoes: prismaAgendamento.observacoes,
       resultadoConsulta: prismaAgendamento.resultadoConsulta,
       // Novos campos de série
-      serieId: prismaAgendamento.serie_id,
-      serieMaster: prismaAgendamento.serie_master,
-      instanciaData: prismaAgendamento.instancia_data,
+      serieId: prismaAgendamento.serieId,
+      serieMaster: prismaAgendamento.serieMaster,
+      instanciaData: prismaAgendamento.instanciaData,
       createdAt: prismaAgendamento.createdAt,
       updatedAt: prismaAgendamento.updatedAt,
       // Relações
@@ -156,7 +156,7 @@ export class PrismaSeriesRepository implements ISeriesRepository {
     if (domainData.motivoReprovacao !== undefined) prismaData.motivoReprovacao = domainData.motivoReprovacao;
     if (domainData.observacoes !== undefined) prismaData.observacoes = domainData.observacoes;
     if (domainData.resultadoConsulta !== undefined) prismaData.resultadoConsulta = domainData.resultadoConsulta;
-    if (domainData.instanciaData !== undefined) prismaData.instancia_data = domainData.instanciaData;
+    if (domainData.instanciaData !== undefined) prismaData.instanciaData = domainData.instanciaData;
 
     // Atualizar updatedAt
     prismaData.updatedAt = new Date();
