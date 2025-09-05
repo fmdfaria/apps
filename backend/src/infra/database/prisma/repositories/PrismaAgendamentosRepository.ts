@@ -35,9 +35,9 @@ function toDomain(agendamento: any): Agendamento {
     recurso: agendamento.recurso,
     convenio: agendamento.convenio,
     // Mapear os novos campos da série
-    serieId: agendamento.serie_id,
-    serieMaster: agendamento.serie_master,
-    instanciaData: agendamento.instancia_data,
+    serieId: agendamento.serieId,
+    serieMaster: agendamento.serieMaster,
+    instanciaData: agendamento.instanciaData,
   };
 }
 
@@ -58,9 +58,9 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
         ...prismaData,
         dataHoraInicio: data.dataHoraInicio,
         dataHoraFim: data.dataHoraFim,
-        serie_id: serieId,
-        serie_master: serieMaster,
-        instancia_data: instanciaData,
+        serieId: serieId,
+        serieMaster: serieMaster,
+        instanciaData: instanciaData,
         // recorrencia não é campo do banco, então não incluir
       },
       include: { 
@@ -74,7 +74,7 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     
     // Verificar se os dados foram salvos corretamente
     if (serieId) {
-      console.log('🔍 Série criada:', { id: agendamento.id, serie_id: agendamento.serie_id, serie_master: agendamento.serie_master });
+      console.log('🔍 Série criada:', { id: agendamento.id, serieId: agendamento.serieId, serieMaster: agendamento.serieMaster });
     }
     
     return toDomain(agendamento);
