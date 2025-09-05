@@ -120,9 +120,19 @@ export class SeriesManager {
       try {
         console.log('🌐 SeriesManager - Atualizando instância específica no Google Calendar');
         
+        // Para o Google Calendar, usar a data/hora atual do agendamento (antes da edição)
+        // como referência da instância original que será editada
+        const dataOriginalInstancia = agendamento.dataHoraInicio;
+        
+        console.log('🔍 SeriesManager - Editando instância Google Calendar:', {
+          agendamentoId: agendamento.id,
+          dataOriginalInstancia: dataOriginalInstancia.toISOString(),
+          novaData: dados.dataHoraInicio?.toISOString()
+        });
+        
         const novoEventId = await this.googleCalendarService.editarOcorrenciaEspecifica(
           serie.googleEventId,
-          agendamento.dataHoraInicio,
+          dataOriginalInstancia, // Data/hora atual do agendamento (antes da edição)
           {
             dataHoraInicio: dados.dataHoraInicio || agendamento.dataHoraInicio,
             dataHoraFim: dados.dataHoraFim || agendamento.dataHoraFim,
@@ -143,6 +153,12 @@ export class SeriesManager {
         console.error('❌ SeriesManager - Erro ao atualizar Google Calendar:', error);
         // Continuar com atualização local
       }
+    }
+
+    // Se mudou a dataHoraInicio, atualizar o instanciaData também
+    if (dados.dataHoraInicio) {
+      dados.instanciaData = new Date(dados.dataHoraInicio);
+      dados.instanciaData.setHours(0, 0, 0, 0);
     }
 
     return await this.agendamentosRepository.update(agendamentoId, dados);
