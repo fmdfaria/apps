@@ -34,7 +34,7 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
   const [dataAgendamento, setDataAgendamento] = useState('');
   const [horaAgendamento, setHoraAgendamento] = useState('');
   const [saving, setSaving] = useState(false);
-  const [tipoEdicao, setTipoEdicao] = useState<'individual' | 'serie'>('individual');
+  const [tipoEdicao, setTipoEdicao] = useState<'individual' | 'esta_e_futuras' | 'toda_serie'>('individual');
   const [agendamentosRelacionados, setAgendamentosRelacionados] = useState<Agendamento[]>([]);
   const [loadingAgendamentosRelacionados, setLoadingAgendamentosRelacionados] = useState(false);
   const [isAgendamentoPassado, setIsAgendamentoPassado] = useState(false);
@@ -89,13 +89,17 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
   const buscarAgendamentosRelacionados = async (agendamento: Agendamento) => {
     setLoadingAgendamentosRelacionados(true);
     try {
-      // Buscar agendamentos futuros com mesmo profissional, paciente e serviço
+      // Buscar TODOS os agendamentos com mesmo profissional, paciente e serviço (não só futuros)
+      // Precisamos buscar toda a série para decidir corretamente o tipo de edição
+      const dataAgendamentoBase = agendamento.dataHoraInicio.split('T')[0];
       const response = await api.get('/agendamentos', {
         params: {
           profissionalId: agendamento.profissionalId,
           pacienteId: agendamento.pacienteId,
           servicoId: agendamento.servicoId,
-          dataInicio: agendamento.dataHoraInicio.split('T')[0],
+          // Buscar uma janela maior para capturar toda a série possível
+          dataInicio: new Date(new Date(dataAgendamentoBase).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          dataFim: new Date(new Date(dataAgendamentoBase).getTime() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           status: 'AGENDADO'
         }
       });
@@ -107,8 +111,8 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
       const agendamentos = lista.filter((ag: Agendamento) => {
         if (ag.id === agendamento.id) return false;
         const mesmaHora = ag.dataHoraInicio.split('T')[1]?.substring(0,5) === horaChave;
-        return mesmaHora && new Date(ag.dataHoraInicio) > new Date(agendamento.dataHoraInicio);
-      });
+        return mesmaHora; // Remover filtro temporal - buscar TODA a série
+      }).sort((a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime());
       
       setAgendamentosRelacionados(agendamentos);
     } catch (error) {
@@ -314,8 +318,22 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
           tipoEdicaoRecorrencia: 'apenas_esta'
         });
       } else {
-        // Verificar conflitos antes de editar toda a série
-        const agendamentosParaEditar = [agendamento.id, ...agendamentosRelacionados.map(ag => ag.id)];
+        // Determinar quais agendamentos serão editados baseado no tipo
+        let agendamentosParaEditar: string[] = [];
+        let tipoEdicaoBackend: 'esta_e_futuras' | 'toda_serie' = 'toda_serie';
+        
+        if (tipoEdicao === 'esta_e_futuras') {
+          // Editar apenas este agendamento e os futuros
+          const agendamentosFuturos = agendamentosRelacionados.filter(ag => 
+            new Date(ag.dataHoraInicio) > new Date(agendamento.dataHoraInicio)
+          );
+          agendamentosParaEditar = [agendamento.id, ...agendamentosFuturos.map(ag => ag.id)];
+          tipoEdicaoBackend = 'esta_e_futuras';
+        } else {
+          // Editar toda a série
+          agendamentosParaEditar = [agendamento.id, ...agendamentosRelacionados.map(ag => ag.id)];
+          tipoEdicaoBackend = 'toda_serie';
+        }
         
         // Calcular as novas datas mantendo o intervalo entre elas
         const dataOriginal = new Date(agendamento.dataHoraInicio);
@@ -323,19 +341,23 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
         const diferencaDias = Math.floor((novaData.getTime() - dataOriginal.getTime()) / (1000 * 60 * 60 * 24));
         
         try {
-          // Construir as datas alvo exatas da série mantendo offsets locais
-          const datasAlvoISO = agendamentosParaEditar.map((_, index) => {
-            const origem = index === 0 ? agendamento : agendamentosRelacionados[index - 1];
-            const dataOrigem = new Date(origem.dataHoraInicio);
+          // Construir as datas alvo para verificação de conflitos
+          const agendamentosAlvo = agendamentosParaEditar.map(id => {
+            if (id === agendamento.id) return agendamento;
+            return agendamentosRelacionados.find(ag => ag.id === id)!;
+          }).filter(Boolean);
+          
+          const datasAlvoISO = agendamentosAlvo.map(agendamentoAlvo => {
+            const dataOrigem = new Date(agendamentoAlvo.dataHoraInicio);
             const destino = new Date(dataOrigem);
             destino.setDate(destino.getDate() + diferencaDias);
             destino.setHours(novaData.getHours(), novaData.getMinutes(), 0, 0);
             return buildOffsetFromDate(destino);
           });
 
-          // Verificar conflitos para todas as datas alvo da série
-          // Ignorar agendamentos da própria série que está sendo editada
-          const idsParaIgnorar = [agendamento.id, ...agendamentosRelacionados.map(ag => ag.id)];
+          // Verificar conflitos para as datas alvo
+          // Ignorar apenas os agendamentos que estão sendo editados
+          const idsParaIgnorar = agendamentosParaEditar;
           
           const conflitos = await verificarConflitosParaDatas(
             agendamento.profissionalId,
@@ -376,17 +398,26 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
           recursoId: agendamento.recursoId,
           tipoAtendimento: agendamento.tipoAtendimento,
           status: agendamento.status,
-          // Informar ao backend o tipo de edição baseado na escolha do usuário
-          tipoEdicaoRecorrencia: 'toda_serie'
+          // Informar ao backend o tipo de edição correto
+          tipoEdicaoRecorrencia: tipoEdicaoBackend
         });
       }
 
       AppToast.success(
         tipoEdicao === 'individual' ? 'Agendamento atualizado' : 'Série de agendamentos atualizada',
         {
-          description: tipoEdicao === 'individual' 
-            ? 'O agendamento foi atualizado com sucesso.' 
-            : `${agendamentosRelacionados.length + 1} agendamentos foram atualizados com sucesso.`
+          description: (() => {
+            if (tipoEdicao === 'individual') {
+              return 'O agendamento foi atualizado com sucesso.';
+            } else if (tipoEdicao === 'esta_e_futuras') {
+              const agendamentosFuturos = agendamentosRelacionados.filter(ag => 
+                new Date(ag.dataHoraInicio) > new Date(agendamento.dataHoraInicio)
+              );
+              return `${agendamentosFuturos.length + 1} agendamentos (esta e futuras) foram atualizados com sucesso.`;
+            } else {
+              return `${agendamentosRelacionados.length + 1} agendamentos (toda a série) foram atualizados com sucesso.`;
+            }
+          })()
         }
       );
       
@@ -538,27 +569,57 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
               {agendamentosRelacionados.length > 0 ? (
                 <>
                   <p className="text-xs text-gray-600 mb-3">
-                    {agendamentosRelacionados.length + 1} agendamentos encontrados
+                    {agendamentosRelacionados.length + 1} agendamentos encontrados na série
                   </p>
                   
-                  <RadioGroup value={tipoEdicao} onValueChange={(value: 'individual' | 'serie') => setTipoEdicao(value)} className="space-y-2">
+                  <RadioGroup value={tipoEdicao} onValueChange={(value: 'individual' | 'esta_e_futuras' | 'toda_serie') => setTipoEdicao(value)} className="space-y-2">
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="individual" id="individual" />
                       <Label htmlFor="individual" className="text-sm">
                         Apenas este agendamento
                       </Label>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="serie" id="serie" disabled={isAgendamentoPassado} />
-                      <Label htmlFor="serie" className={`text-sm ${isAgendamentoPassado ? 'text-gray-400 cursor-not-allowed' : ''}`}>
-                        Toda a série ({agendamentosRelacionados.length + 1} agendamentos)
-                        {isAgendamentoPassado && (
-                          <div className="text-xs text-red-500 mt-1">
-                            Não permitido para agendamentos passados
+                    
+                    {(() => {
+                      // Determinar quantos agendamentos existem antes e depois do atual
+                      const agendamentoAtual = agendamento;
+                      const agendamentosAnteriores = agendamentosRelacionados.filter(ag => 
+                        new Date(ag.dataHoraInicio) < new Date(agendamentoAtual.dataHoraInicio)
+                      );
+                      const agendamentosFuturos = agendamentosRelacionados.filter(ag => 
+                        new Date(ag.dataHoraInicio) > new Date(agendamentoAtual.dataHoraInicio)
+                      );
+                      
+                      return (
+                        <>
+                          {agendamentosFuturos.length > 0 && (
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="esta_e_futuras" id="esta_e_futuras" disabled={isAgendamentoPassado} />
+                              <Label htmlFor="esta_e_futuras" className={`text-sm ${isAgendamentoPassado ? 'text-gray-400 cursor-not-allowed' : ''}`}>
+                                Esta e futuras ({agendamentosFuturos.length + 1} agendamentos)
+                                {agendamentosAnteriores.length > 0 && (
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {agendamentosAnteriores.length} agendamento(s) anterior(es) não será(ão) alterado(s)
+                                  </div>
+                                )}
+                              </Label>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="toda_serie" id="toda_serie" disabled={isAgendamentoPassado} />
+                            <Label htmlFor="toda_serie" className={`text-sm ${isAgendamentoPassado ? 'text-gray-400 cursor-not-allowed' : ''}`}>
+                              Toda a série ({agendamentosRelacionados.length + 1} agendamentos)
+                              {isAgendamentoPassado && (
+                                <div className="text-xs text-red-500 mt-1">
+                                  Não permitido para agendamentos passados
+                                </div>
+                              )}
+                            </Label>
                           </div>
-                        )}
-                      </Label>
-                    </div>
+                        </>
+                      );
+                    })()}
                   </RadioGroup>
                 </>
               ) : (

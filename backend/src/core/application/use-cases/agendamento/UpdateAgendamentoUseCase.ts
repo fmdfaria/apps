@@ -114,21 +114,55 @@ export class UpdateAgendamentoUseCase {
             });
           }
         }
-        // Se já tem evento e mudou data/hora, verificar se é série recorrente
-        else if (atual.googleEventId && mudouDataHora) {
-          // Buscar agendamentos com mesmo googleEventId (série recorrente)
-          const agendamentosDoMesmoEvento = await this.agendamentosRepository.findAll({
-            // Buscar por googleEventId seria ideal, mas vamos usar uma busca mais ampla
-            profissionalId: agendamentoAtualizado.profissionalId,
-            pacienteId: agendamentoAtualizado.pacienteId,
-            servicoId: agendamentoAtualizado.servicoId,
-            limit: 100
-          });
+        // Se mudou data/hora, verificar se é série recorrente (online ou presencial)
+        else if (mudouDataHora) {
+          // Para agendamentos online: usar googleEventId
+          // Para agendamentos presenciais: usar lógica de paciente+profissional+serviço+horário
+          let serieRecorrente: any[] = [];
+          
+          if (atual.googleEventId && this.googleCalendarService.isIntegracaoAtiva()) {
+            // Buscar agendamentos com mesmo googleEventId (série recorrente online)
+            const agendamentosDoMesmoEvento = await this.agendamentosRepository.findAll({
+              profissionalId: agendamentoAtualizado.profissionalId,
+              pacienteId: agendamentoAtualizado.pacienteId,
+              servicoId: agendamentoAtualizado.servicoId,
+              limit: 100
+            });
 
-          // Filtrar apenas os que tem o mesmo googleEventId
-          const serieRecorrente = agendamentosDoMesmoEvento.data.filter(ag => 
-            ag.googleEventId === atual.googleEventId && ag.id !== atual.id
-          );
+            // Filtrar apenas os que tem o mesmo googleEventId
+            serieRecorrente = agendamentosDoMesmoEvento.data.filter(ag => 
+              ag.googleEventId === atual.googleEventId && ag.id !== atual.id
+            );
+          } else {
+            // Para agendamentos presenciais, usar lógica similar ao frontend
+            // Buscar agendamentos com mesmo profissional, paciente, serviço e MESMA HORA
+            const dataAtual = atual.dataHoraInicio;
+            const horaAtual = `${dataAtual.getHours().toString().padStart(2, '0')}:${dataAtual.getMinutes().toString().padStart(2, '0')}`;
+            
+            // Buscar em uma janela temporal mais ampla para capturar toda a série
+            const dataInicio = new Date(dataAtual);
+            dataInicio.setDate(dataInicio.getDate() - 30); // 30 dias antes
+            
+            const dataFim = new Date(dataAtual);
+            dataFim.setDate(dataFim.getDate() + 90); // 90 dias depois
+            
+            const agendamentosCandidatos = await this.agendamentosRepository.findAll({
+              profissionalId: agendamentoAtualizado.profissionalId,
+              pacienteId: agendamentoAtualizado.pacienteId,
+              servicoId: agendamentoAtualizado.servicoId,
+              dataInicio: dataInicio,
+              dataFim: dataFim,
+              status: 'AGENDADO',
+              limit: 100
+            });
+            
+            // Filtrar apenas os que têm a mesma hora e não são o agendamento atual
+            serieRecorrente = agendamentosCandidatos.data.filter(ag => {
+              if (ag.id === atual.id) return false;
+              const horaAg = `${ag.dataHoraInicio.getHours().toString().padStart(2, '0')}:${ag.dataHoraInicio.getMinutes().toString().padStart(2, '0')}`;
+              return horaAg === horaAtual;
+            });
+          }
 
           const [profissional, paciente, convenio, servicoCompleto] = await Promise.all([
             this.profissionaisRepository.findById(agendamentoAtualizado.profissionalId),
@@ -138,36 +172,36 @@ export class UpdateAgendamentoUseCase {
           ]);
 
           if (profissional && paciente && convenio && servicoCompleto) {
-            if (serieRecorrente.length > 0) {
-              // É uma série recorrente - precisamos decidir como editar
-              console.log('🔍 Detectada edição em série recorrente:', {
-                agendamentoEditado: agendamentoAtualizado.id,
-                totalNaSerie: serieRecorrente.length + 1,
-                googleEventId: atual.googleEventId,
-                tipoEdicao: tipoEdicaoRecorrencia
-              });
+          if (serieRecorrente.length > 0) {
+            // É uma série recorrente - precisamos decidir como editar
+            console.log('🔍 Detectada edição em série recorrente:', {
+              agendamentoEditado: agendamentoAtualizado.id,
+              totalNaSerie: serieRecorrente.length + 1,
+              googleEventId: atual.googleEventId || 'N/A (presencial)',
+              tipoEdicao: tipoEdicaoRecorrencia
+            });
 
-              // Verificar se há agendamentos futuros na série
-              const agendamentosFuturos = serieRecorrente.filter(ag => 
-                new Date(ag.dataHoraInicio) > new Date(agendamentoAtualizado.dataHoraInicio)
-              );
+            // Separar agendamentos anteriores e futuros
+            const agendamentosAnteriores = serieRecorrente.filter(ag => 
+              new Date(ag.dataHoraInicio) < new Date(agendamentoAtualizado.dataHoraInicio)
+            );
+            const agendamentosFuturos = serieRecorrente.filter(ag => 
+              new Date(ag.dataHoraInicio) > new Date(agendamentoAtualizado.dataHoraInicio)
+            );
 
-              // Mapear as opções do modal do frontend:
-              // Modal: "Apenas este agendamento" = 'apenas_esta'
-              // Modal: "Toda a série (x agendamentos) para frente" = 'esta_e_futuras'
-              const tipoEdicao = tipoEdicaoRecorrencia || 'apenas_esta';
-              
-              console.log('🎯 Decisão de edição (Modal):', {
-                tipoEdicaoFornecido: tipoEdicaoRecorrencia,
-                tipoEdicaoEscolhido: tipoEdicao,
-                temFuturos: agendamentosFuturos.length > 0,
-                totalFuturos: agendamentosFuturos.length,
-                opcoesMobile: {
-                  'apenas_esta': 'Apenas este agendamento',
-                  'esta_e_futuras': `Toda a série (${agendamentosFuturos.length + 1} agendamentos) para frente`,
-                  'toda_serie': `TODA a série recorrente`
-                }
-              });
+            // Mapear as opções do modal do frontend:
+            // Modal: "Apenas este agendamento" = 'apenas_esta'
+            // Modal: "Esta e futuras" = 'esta_e_futuras' (não altera anteriores)
+            // Modal: "Toda a série" = 'toda_serie' (altera todos)
+            const tipoEdicao = tipoEdicaoRecorrencia || 'apenas_esta';
+            
+            console.log('🎯 Decisão de edição:', {
+              tipoEdicaoFornecido: tipoEdicaoRecorrencia,
+              tipoEdicaoEscolhido: tipoEdicao,
+              totalAnteriores: agendamentosAnteriores.length,
+              totalFuturos: agendamentosFuturos.length,
+              totalSerie: serieRecorrente.length + 1
+            });
 
               if (tipoEdicao === 'toda_serie') {
                 // Editar TODA a série (todos os agendamentos)
@@ -201,16 +235,19 @@ export class UpdateAgendamentoUseCase {
                 await Promise.all(updatePromises);
                 console.log(`✅ ${serieRecorrente.length + 1} agendamentos da série atualizados com sucesso`);
 
-              } else if (tipoEdicao === 'esta_e_futuras' && agendamentosFuturos.length > 0) {
-                // Há agendamentos futuros - editar "esta e as futuras ocorrências"
-                console.log('📅 Editando esta e futuras ocorrências da série');
-                
+            } else if (tipoEdicao === 'esta_e_futuras') {
+              // Editar apenas "esta e as futuras ocorrências" (não altera anteriores)
+              console.log('📅 Editando esta e futuras ocorrências da série');
+              console.log(`ℹ️ Agendamentos anteriores (${agendamentosAnteriores.length}) NÃO serão alterados`);
+              
+              // Para agendamentos online, atualizar Google Calendar se necessário
+              if (atual.googleEventId && this.googleCalendarService.isIntegracaoAtiva()) {
                 // Detectar tipo de recorrência baseado no intervalo entre agendamentos
                 let tipoRecorrencia: 'semanal' | 'quinzenal' | 'mensal' = 'semanal';
-                if (serieRecorrente.length > 0) {
-                  const primeiroAgendamento = new Date(atual.dataHoraInicio);
-                  const segundoAgendamento = new Date(serieRecorrente[0].dataHoraInicio);
-                  const diferencaDias = Math.abs(segundoAgendamento.getTime() - primeiroAgendamento.getTime()) / (1000 * 60 * 60 * 24);
+                if (agendamentosFuturos.length > 0) {
+                  const agendamentoAtual = new Date(atual.dataHoraInicio);
+                  const proximoAgendamento = new Date(agendamentosFuturos[0].dataHoraInicio);
+                  const diferencaDias = Math.abs(proximoAgendamento.getTime() - agendamentoAtual.getTime()) / (1000 * 60 * 60 * 24);
                   
                   if (diferencaDias <= 8) {
                     tipoRecorrencia = 'semanal';
@@ -220,13 +257,6 @@ export class UpdateAgendamentoUseCase {
                     tipoRecorrencia = 'mensal';
                   }
                 }
-                
-                console.log('🔍 Detectado tipo de recorrência:', {
-                  tipoRecorrencia,
-                  totalFuturos: agendamentosFuturos.length,
-                  dataAtual: atual.dataHoraInicio,
-                  proximaData: serieRecorrente.length > 0 ? serieRecorrente[0].dataHoraInicio : 'N/A'
-                });
                 
                 const novoEventId = await this.googleCalendarService.editarSerieAPartirDe(
                   atual.googleEventId,
@@ -263,12 +293,29 @@ export class UpdateAgendamentoUseCase {
                 });
                 
                 // Atualizar também o agendamento atual com o novo googleEventId
-                const currentUpdatePromise = this.agendamentosRepository.update(agendamentoAtualizado.id, {
+                await this.agendamentosRepository.update(agendamentoAtualizado.id, {
                   googleEventId: novoEventId
                 });
                 
-                await Promise.all([currentUpdatePromise, ...updatePromises]);
-                console.log(`✅ ${agendamentosFuturos.length + 1} agendamentos (esta e futuras) atualizados com sucesso`);
+                await Promise.all(updatePromises);
+              } else {
+                // Para agendamentos presenciais, apenas atualizar no banco
+                const deltaMilliseconds = agendamentoAtualizado.dataHoraInicio.getTime() - atual.dataHoraInicio.getTime();
+                
+                // Atualizar apenas os agendamentos futuros com nova data/hora
+                const updatePromises = agendamentosFuturos.map(ag => {
+                  const novaDataHoraInicio = new Date(ag.dataHoraInicio.getTime() + deltaMilliseconds);
+                  const novaDataHoraFim = new Date(ag.dataHoraFim.getTime() + deltaMilliseconds);
+                  return this.agendamentosRepository.update(ag.id, {
+                    dataHoraInicio: novaDataHoraInicio,
+                    dataHoraFim: novaDataHoraFim
+                  });
+                });
+                
+                await Promise.all(updatePromises);
+              }
+              
+              console.log(`✅ ${agendamentosFuturos.length + 1} agendamentos (esta e futuras) atualizados com sucesso`);
 
               } else {
                 // Editar apenas esta ocorrência (tipoEdicao === 'apenas_esta' ou não há futuros)
