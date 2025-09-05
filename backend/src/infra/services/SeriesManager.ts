@@ -297,23 +297,31 @@ export class SeriesManager {
       }
     }
 
-    // Calcular delta de tempo se mudou dataHoraInicio
-    let deltaMilliseconds = 0;
-    if (dados.dataHoraInicio) {
-      deltaMilliseconds = dados.dataHoraInicio.getTime() - agendamento.dataHoraInicio.getTime();
-    }
-
     // Atualizar todos os agendamentos da série
     const todosAgendamentos = await this.seriesRepository.findAgendamentosBySerieId(serie.serieId);
     const updatePromises = todosAgendamentos.map((ag, index) => {
       const dadosParaEsteAgendamento = { ...dados };
 
-      // Se mudou horário, aplicar o delta para manter o padrão
-      if (deltaMilliseconds !== 0 && ag.id !== agendamentoId) {
-        dadosParaEsteAgendamento.dataHoraInicio = new Date(ag.dataHoraInicio.getTime() + deltaMilliseconds);
-        dadosParaEsteAgendamento.dataHoraFim = new Date(ag.dataHoraFim.getTime() + deltaMilliseconds);
-        dadosParaEsteAgendamento.instanciaData = new Date(dadosParaEsteAgendamento.dataHoraInicio);
-        dadosParaEsteAgendamento.instanciaData.setHours(0, 0, 0, 0);
+      // Para "toda a série", aplicar o mesmo horário para todos os agendamentos
+      // mantendo apenas a diferença de datas
+      if (dados.dataHoraInicio && ag.id !== agendamentoId) {
+        // Calcular a diferença de dias entre o agendamento de referência e este agendamento
+        const agendamentoReferencia = todosAgendamentos.find(a => a.id === agendamentoId);
+        if (agendamentoReferencia) {
+          const diasDiferenca = Math.ceil((ag.instanciaData.getTime() - agendamentoReferencia.instanciaData.getTime()) / (1000 * 60 * 60 * 24));
+          
+          // Aplicar a diferença de dias ao novo horário
+          const novaDataHoraInicio = new Date(dados.dataHoraInicio);
+          novaDataHoraInicio.setDate(novaDataHoraInicio.getDate() + diasDiferenca);
+          
+          const novaDataHoraFim = new Date(dados.dataHoraFim || ag.dataHoraFim);
+          novaDataHoraFim.setDate(novaDataHoraFim.getDate() + diasDiferenca);
+          
+          dadosParaEsteAgendamento.dataHoraInicio = novaDataHoraInicio;
+          dadosParaEsteAgendamento.dataHoraFim = novaDataHoraFim;
+          dadosParaEsteAgendamento.instanciaData = new Date(novaDataHoraInicio);
+          dadosParaEsteAgendamento.instanciaData.setHours(0, 0, 0, 0);
+        }
       }
 
       console.log(`📝 SeriesManager - Atualizando agendamento ${index + 1}/${todosAgendamentos.length}:`, ag.id);
