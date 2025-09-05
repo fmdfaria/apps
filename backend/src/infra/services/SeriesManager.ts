@@ -106,7 +106,11 @@ export class SeriesManager {
    * Atualiza apenas esta ocorrência
    */
   async updateApenaEsta(agendamentoId: string, dados: any): Promise<Agendamento> {
-    console.log('📝 SeriesManager - Atualizando apenas esta ocorrência:', agendamentoId);
+    console.log('📝 SeriesManager - Atualizando APENAS ESTA ocorrência:', {
+      agendamentoId,
+      dadosRecebidos: Object.keys(dados),
+      temDataHoraInicio: !!dados.dataHoraInicio
+    });
 
     const agendamento = await this.agendamentosRepository.findById(agendamentoId);
     if (!agendamento) {
@@ -120,9 +124,20 @@ export class SeriesManager {
       try {
         console.log('🌐 SeriesManager - Atualizando instância específica no Google Calendar');
         
-        // Para o Google Calendar, usar a data/hora atual do agendamento (antes da edição)
-        // como referência da instância original que será editada
-        const dataOriginalInstancia = agendamento.dataHoraInicio;
+        // Para o Google Calendar, precisamos da data/hora EXATA da instância original na série
+        // Usar instanciaData (data da série) + horário original da série para identificar a instância correta
+        const dataOriginalInstancia = new Date(agendamento.instanciaData || agendamento.dataHoraInicio);
+        
+        // Encontrar o horário original da série (do evento master ou primeiro agendamento master)
+        const agendamentoMaster = serie.agendamentos.find(ag => ag.isMaster) || serie.agendamentos[0];
+        if (agendamentoMaster) {
+          dataOriginalInstancia.setHours(
+            agendamentoMaster.dataHoraInicio.getHours(),
+            agendamentoMaster.dataHoraInicio.getMinutes(),
+            agendamentoMaster.dataHoraInicio.getSeconds(),
+            agendamentoMaster.dataHoraInicio.getMilliseconds()
+          );
+        }
         
         console.log('🔍 SeriesManager - Editando instância Google Calendar:', {
           agendamentoId: agendamento.id,
@@ -194,7 +209,11 @@ export class SeriesManager {
    * Atualiza esta e todas as futuras ocorrências
    */
   async updateEstaEFuturas(agendamentoId: string, dados: any): Promise<void> {
-    console.log('📅 SeriesManager - Atualizando esta e futuras ocorrências:', agendamentoId);
+    console.log('📅 SeriesManager - Atualizando ESTA E FUTURAS ocorrências:', {
+      agendamentoId,
+      dadosRecebidos: Object.keys(dados),
+      temDataHoraInicio: !!dados.dataHoraInicio
+    });
 
     const agendamento = await this.agendamentosRepository.findById(agendamentoId);
     if (!agendamento) {
@@ -305,7 +324,11 @@ export class SeriesManager {
    * Atualiza toda a série
    */
   async updateTodaSerie(agendamentoId: string, dados: any): Promise<void> {
-    console.log('🎯 SeriesManager - Atualizando toda a série para agendamento:', agendamentoId);
+    console.log('🎯 SeriesManager - Atualizando TODA A SÉRIE para agendamento:', {
+      agendamentoId,
+      dadosRecebidos: Object.keys(dados),
+      temDataHoraInicio: !!dados.dataHoraInicio
+    });
 
     const agendamento = await this.agendamentosRepository.findById(agendamentoId);
     if (!agendamento) {
