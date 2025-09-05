@@ -414,31 +414,53 @@ export class GoogleCalendarService {
       }
 
       // 1. Terminar a série original antes da data de início da nova série
+      console.log('🔍 Debug - Informações do evento original:', {
+        eventoId: eventId,
+        dataInicioOriginal: eventoOriginal.data.start?.dateTime || eventoOriginal.data.start?.date,
+        recorrenciaOriginal: eventoOriginal.data.recurrence,
+        dataInicioNovaSerie: dataInicio.toISOString()
+      });
+
+      // O dataInicio aqui é a nova data/hora da série que queremos criar
+      // Precisamos terminar a série original até o dia ANTERIOR à nova série
       const dataLimiteOriginal = new Date(dataInicio);
       dataLimiteOriginal.setDate(dataLimiteOriginal.getDate() - 1);
-      const dataFormatada = this.formatDateForRRule(dataLimiteOriginal);
       
-      // Atualizar o evento original para terminar antes da nova data
-      const rruleOriginal = eventoOriginal.data.recurrence[0].split(';');
-      const novaRRuleOriginal = rruleOriginal.filter((part: string) => !part.startsWith('UNTIL') && !part.startsWith('COUNT'));
-      novaRRuleOriginal.push(`UNTIL=${dataFormatada}`);
+      // IMPORTANTE: Verificar se a data limite não é antes do início da série original
+      const dataOriginalEvento = new Date(eventoOriginal.data.start?.dateTime || eventoOriginal.data.start?.date || dataInicio);
+      
+      if (dataLimiteOriginal <= dataOriginalEvento) {
+        console.warn('⚠️ Debug - Data limite seria anterior ao início da série original, ajustando...');
+        // Se estamos editando o primeiro evento da série, não podemos usar UNTIL
+        // Neste caso, vamos deletar a série original e criar uma nova
+        console.log('🗑️ Debug - Deletando série original completamente pois não há eventos anteriores para preservar');
+        await this.deletarEvento(eventId);
+      } else {
+        const dataFormatada = this.formatDateForRRule(dataLimiteOriginal);
+        
+        // Atualizar o evento original para terminar antes da nova data
+        const rruleOriginal = eventoOriginal.data.recurrence[0].split(';');
+        const novaRRuleOriginal = rruleOriginal.filter((part: string) => !part.startsWith('UNTIL') && !part.startsWith('COUNT'));
+        novaRRuleOriginal.push(`UNTIL=${dataFormatada}`);
 
-      console.log('🔧 Debug - Terminando série original:', {
-        eventoOriginal: eventId,
-        dataLimite: dataFormatada,
-        dataLimiteOriginalISO: dataLimiteOriginal.toISOString(),
-        rruleOriginal: eventoOriginal.data.recurrence[0],
-        novaRRuleOriginal: novaRRuleOriginal.join(';')
-      });
+        console.log('🔧 Debug - Terminando série original:', {
+          eventoOriginal: eventId,
+          dataInicioOriginalEvento: dataOriginalEvento.toISOString(),
+          dataLimite: dataFormatada,
+          dataLimiteOriginalISO: dataLimiteOriginal.toISOString(),
+          rruleOriginal: eventoOriginal.data.recurrence[0],
+          novaRRuleOriginal: novaRRuleOriginal.join(';')
+        });
 
-      await this.calendar.events.update({
-        calendarId,
-        eventId: eventId,
-        resource: {
-          recurrence: [novaRRuleOriginal.join(';')]
-        },
-        sendUpdates: 'none'
-      });
+        await this.calendar.events.update({
+          calendarId,
+          eventId: eventId,
+          resource: {
+            recurrence: [novaRRuleOriginal.join(';')]
+          },
+          sendUpdates: 'none'
+        });
+      }
 
       // 2. Criar uma nova série a partir da data especificada
       let rrule = '';
