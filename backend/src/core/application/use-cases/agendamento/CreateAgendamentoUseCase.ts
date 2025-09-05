@@ -7,6 +7,7 @@ import { GoogleCalendarService } from '../../../../infra/services/GoogleCalendar
 import { IProfissionaisRepository } from '../../../domain/repositories/IProfissionaisRepository';
 import { IPacientesRepository } from '../../../domain/repositories/IPacientesRepository';
 import { IConveniosRepository } from '../../../domain/repositories/IConveniosRepository';
+import { randomUUID } from 'crypto';
 
 @injectable()
 export class CreateAgendamentoUseCase {
@@ -171,10 +172,25 @@ export class CreateAgendamentoUseCase {
     // Se não houver conflitos, criar todos
     const agendamentosCriados: Agendamento[] = [];
     
+    // Gerar um série_id único para todos os agendamentos da série
+    const serieId = randomUUID();
+    
     // Criar todos os agendamentos primeiro
-    for (const dataHoraInicio of datas) {
+    for (let i = 0; i < datas.length; i++) {
+      const dataHoraInicio = datas[i];
       const dataHoraFim = new Date(dataHoraInicio.getTime() + servico.duracaoMinutos * 60000);
-      const agendamento = await this.agendamentosRepository.create({ ...baseData, dataHoraInicio, dataHoraFim });
+      
+      // Preparar dados com os novos campos da série
+      const agendamentoData = {
+        ...baseData,
+        dataHoraInicio,
+        dataHoraFim,
+        serieId: serieId,
+        serieMaster: i === 0, // Primeiro agendamento é o master
+        instanciaData: dataHoraInicio.toISOString().split('T')[0] // Data no formato YYYY-MM-DD
+      };
+      
+      const agendamento = await this.agendamentosRepository.create(agendamentoData);
       agendamentosCriados.push(agendamento);
     }
 

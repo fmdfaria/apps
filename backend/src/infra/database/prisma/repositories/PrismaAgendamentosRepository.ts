@@ -34,6 +34,10 @@ function toDomain(agendamento: any): Agendamento {
     profissional: agendamento.profissional,
     recurso: agendamento.recurso,
     convenio: agendamento.convenio,
+    // Mapear os novos campos da série
+    serieId: agendamento.serie_id,
+    serieMaster: agendamento.serie_master,
+    instanciaData: agendamento.instancia_data,
   };
 }
 
@@ -50,6 +54,9 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
         ...data,
         dataHoraInicio: data.dataHoraInicio,
         dataHoraFim: data.dataHoraFim,
+        serie_id: data.serieId,
+        serie_master: data.serieMaster,
+        instancia_data: data.instanciaData,
       },
       include: { 
         servico: true, 

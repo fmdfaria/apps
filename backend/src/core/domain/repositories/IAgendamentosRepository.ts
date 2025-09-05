@@ -24,6 +24,10 @@ export interface ICreateAgendamentoDTO {
   urlMeet?: string | null;
   googleEventId?: string | null;
   recorrencia?: IRecorrenciaAgendamento;
+  // Novos campos para séries
+  serieId?: string | null;
+  serieMaster?: boolean;
+  instanciaData?: string | null;
 }
 
 export interface IUpdateAgendamentoDTO extends Partial<ICreateAgendamentoDTO> {
