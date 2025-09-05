@@ -190,6 +190,13 @@ export class CreateAgendamentoUseCase {
         instanciaData: dataHoraInicio.toISOString().split('T')[0] // Data no formato YYYY-MM-DD
       };
       
+      console.log(`🔍 Criando agendamento ${i + 1}/${datas.length}:`, {
+        serieId,
+        serieMaster: agendamentoData.serieMaster,
+        instanciaData: agendamentoData.instanciaData,
+        dataHoraInicio: agendamentoData.dataHoraInicio
+      });
+      
       const agendamento = await this.agendamentosRepository.create(agendamentoData);
       agendamentosCriados.push(agendamento);
     }

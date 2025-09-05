@@ -49,14 +49,25 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
   ) {}
 
   async create(data: ICreateAgendamentoDTO): Promise<Agendamento> {
+    // Separar os campos que precisam de mapeamento
+    const { serieId, serieMaster, instanciaData, recorrencia, ...prismaData } = data;
+    
+    console.log('🔍 PrismaRepository.create - Dados da série:', {
+      serieId,
+      serieMaster,
+      instanciaData,
+      hasRecorrencia: !!recorrencia
+    });
+    
     const agendamento = await this.prisma.agendamento.create({
       data: {
-        ...data,
+        ...prismaData,
         dataHoraInicio: data.dataHoraInicio,
         dataHoraFim: data.dataHoraFim,
-        serie_id: data.serieId,
-        serie_master: data.serieMaster,
-        instancia_data: data.instanciaData,
+        serie_id: serieId,
+        serie_master: serieMaster,
+        instancia_data: instanciaData,
+        // recorrencia não é campo do banco, então não incluir
       },
       include: { 
         servico: true, 
@@ -66,6 +77,14 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
         convenio: true 
       },
     });
+    
+    console.log('✅ PrismaRepository.create - Agendamento criado:', {
+      id: agendamento.id,
+      serie_id: agendamento.serie_id,
+      serie_master: agendamento.serie_master,
+      instancia_data: agendamento.instancia_data
+    });
+    
     return toDomain(agendamento);
   }
 

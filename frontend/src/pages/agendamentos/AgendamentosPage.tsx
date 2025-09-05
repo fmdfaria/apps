@@ -189,7 +189,6 @@ export const AgendamentosPage = () => {
   const [showSimpleDeleteModal, setShowSimpleDeleteModal] = useState(false);
   const [seriesCount, setSeriesCount] = useState(1);
   const [futureCount, setFutureCount] = useState(0);
-  const [relatedSeriesIds, setRelatedSeriesIds] = useState<string[]>([]);
 
 
   // Funções de controle do modal unificado
@@ -477,39 +476,27 @@ export const AgendamentosPage = () => {
     setShowDeleteSeriesModal(false);
     setAgendamentoExcluindo(agendamento);
     try {
-      // Buscar agendamentos da série para mesma combinação (paciente+profissional+serviço)
-      const [dataIso, horaIso] = agendamento.dataHoraInicio.split('T');
-      const horaChave = horaIso.substring(0, 5);
-      const result = await getAgendamentos({
-        pacienteId: agendamento.pacienteId,
-        profissionalId: agendamento.profissionalId,
-        servicoId: agendamento.servicoId,
-        dataInicio: dataIso,
-        orderBy: 'dataHoraInicio',
-        orderDirection: 'asc'
-      });
+      // Usar novo endpoint para obter informações da série
+      const response = await api.get(`/agendamentos/${agendamento.id}/series-info`);
+      const serieInfo = response.data;
       
-      const relacionados = result.data
-        .filter(a => a.id !== agendamento.id)
-        .filter(a => a.dataHoraInicio.split('T')[1]?.substring(0, 5) === horaChave);
-      
-      const agendamentosFuturos = relacionados.filter(a => 
-        new Date(a.dataHoraInicio) > new Date(agendamento.dataHoraInicio)
-      );
-      
-      setRelatedSeriesIds(relacionados.map(a => a.id));
-      setSeriesCount(relacionados.length + 1);
-      setFutureCount(agendamentosFuturos.length);
-      
-      // Decidir qual modal abrir
-      if (relacionados.length > 0) {
+      if (serieInfo.isSeries) {
+        // É uma série - mostrar modal de séries
+        setSeriesCount(serieInfo.totalAgendamentos);
+        // Calcular futuros baseado na posição na série
+        const futureCount = serieInfo.posicaoNaSerie?.isFuturo ? 
+          Math.max(0, serieInfo.totalAgendamentos - serieInfo.posicaoNaSerie.posicao) : 0;
+        setFutureCount(futureCount);
         setShowDeleteSeriesModal(true);
       } else {
+        // Agendamento individual
+        setSeriesCount(1);
+        setFutureCount(0);
         setShowSimpleDeleteModal(true);
       }
     } catch (e) {
-      console.error('Falha ao identificar recorrência para exclusão:', e);
-      setRelatedSeriesIds([]);
+      console.error('Falha ao obter informações da série para exclusão:', e);
+      // Fallback: abrir modal simples se houver erro
       setSeriesCount(1);
       setFutureCount(0);
       setShowSimpleDeleteModal(true);
