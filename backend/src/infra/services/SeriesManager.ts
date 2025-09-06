@@ -490,7 +490,9 @@ export class SeriesManager {
    * Exclui apenas esta ocorrência
    */
   async deleteApenaEsta(agendamentoId: string): Promise<void> {
-    console.log('🗑️ SeriesManager - Excluindo apenas esta ocorrência:', agendamentoId);
+    console.log('🗑️ SeriesManager - Excluindo APENAS ESTA ocorrência:', {
+      agendamentoId
+    });
 
     const agendamento = await this.agendamentosRepository.findById(agendamentoId);
     if (!agendamento) {
@@ -503,10 +505,63 @@ export class SeriesManager {
     if (serie?.temGoogleCalendar && serie.googleEventId && this.googleCalendarService.isIntegracaoAtiva()) {
       try {
         console.log('🌐 SeriesManager - Excluindo instância específica no Google Calendar');
-        await this.googleCalendarService.deletarOcorrenciaEspecifica(
-          serie.googleEventId,
-          agendamento.dataHoraInicio
-        );
+        
+        // CRÍTICO: Usar a mesma lógica do editar - buscar horário original da série
+        let dataOriginalInstancia: Date;
+        
+        try {
+          const horarioOriginalSerie = await this.googleCalendarService.buscarHorarioOriginalSerie(serie.googleEventId);
+          
+          if (horarioOriginalSerie) {
+            // Usar a data do agendamento atual + horário original da série
+            dataOriginalInstancia = new Date(agendamento.instanciaData || agendamento.dataHoraInicio);
+            dataOriginalInstancia.setHours(
+              horarioOriginalSerie.getHours(),
+              horarioOriginalSerie.getMinutes(),
+              horarioOriginalSerie.getSeconds(),
+              horarioOriginalSerie.getMilliseconds()
+            );
+            
+            console.log('✅ SeriesManager - Usando horário original do Google Calendar para exclusão:', horarioOriginalSerie.toISOString());
+          } else {
+            // Fallback: usar horário do agendamento atual
+            dataOriginalInstancia = agendamento.dataHoraInicio;
+            console.log('⚠️ SeriesManager - Fallback: usando horário atual do agendamento para exclusão');
+          }
+        } catch (error) {
+          console.error('❌ SeriesManager - Erro ao buscar horário original para exclusão, usando fallback:', error);
+          dataOriginalInstancia = agendamento.dataHoraInicio;
+        }
+        
+        console.log('🔍 SeriesManager - Excluindo instância Google Calendar:', {
+          agendamentoId: agendamento.id,
+          dataOriginalInstancia: dataOriginalInstancia.toISOString(),
+          agendamentoGoogleEventId: agendamento.googleEventId,
+          serieGoogleEventId: serie.googleEventId,
+          temEventoProprio: agendamento.googleEventId !== serie.googleEventId
+        });
+        
+        // Se o agendamento tem googleEventId próprio (foi editado antes), deletar o evento individual
+        if (agendamento.googleEventId && agendamento.googleEventId !== serie.googleEventId) {
+          console.log('🔄 SeriesManager - Agendamento tem evento próprio, deletando evento individual');
+          await this.googleCalendarService.deletarEvento(agendamento.googleEventId);
+        } else {
+          console.log('🆕 SeriesManager - Cancelando instância específica da série');
+          
+          try {
+            await this.googleCalendarService.deletarOcorrenciaEspecifica(
+              serie.googleEventId,
+              dataOriginalInstancia
+            );
+          } catch (instanceError) {
+            console.error('❌ SeriesManager - Erro ao cancelar instância específica:', instanceError);
+            console.log('⚠️ SeriesManager - Instância pode já estar modificada ou não encontrada');
+            
+            // Se falhar, pode ser porque a instância já foi modificada antes
+            // Neste caso, a exclusão do banco de dados será suficiente
+            console.log('ℹ️ SeriesManager - Continuando com exclusão apenas no banco de dados');
+          }
+        }
       } catch (error) {
         console.error('❌ SeriesManager - Erro ao excluir do Google Calendar:', error);
         // Continuar com exclusão local
