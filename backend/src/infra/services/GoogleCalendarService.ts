@@ -413,6 +413,64 @@ export class GoogleCalendarService {
   }
 
   /**
+   * Busca o horário original de uma série recorrente
+   * Usado para identificar corretamente instâncias específicas
+   */
+  async buscarHorarioOriginalSerie(masterEventId: string): Promise<Date | null> {
+    try {
+      const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
+
+      console.log('🔍 Buscando horário original da série:', masterEventId);
+
+      const masterEvent = await this.calendar.events.get({
+        calendarId,
+        eventId: masterEventId
+      });
+
+      if (masterEvent.data.start?.dateTime) {
+        const horarioOriginal = new Date(masterEvent.data.start.dateTime);
+        console.log('✅ Horário original da série encontrado:', horarioOriginal.toISOString());
+        return horarioOriginal;
+      }
+
+      console.log('⚠️ Evento master não tem horário definido');
+      return null;
+    } catch (error) {
+      console.error('❌ Erro ao buscar horário original da série:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Estratégia alternativa: Criar evento individual quando editarOcorrenciaEspecifica falha
+   * Usado como fallback para "apenas este agendamento"
+   */
+  async criarEventoIndividualComoFallback(originalEventId: string, instanceDate: Date, eventData: Partial<EventData>): Promise<string> {
+    try {
+      console.log('🔄 Criando evento individual como fallback para instância específica');
+      
+      // Criar um evento individual completamente novo
+      const novoEvento = await this.criarEventoComMeet({
+        pacienteNome: eventData.pacienteNome || '',
+        profissionalNome: eventData.profissionalNome || '',
+        servicoNome: eventData.servicoNome || '',
+        convenioNome: eventData.convenioNome || '',
+        dataHoraInicio: eventData.dataHoraInicio || instanceDate,
+        dataHoraFim: eventData.dataHoraFim || new Date(instanceDate.getTime() + 30 * 60000),
+        agendamentoId: eventData.agendamentoId || '',
+        profissionalEmail: eventData.profissionalEmail || '',
+        pacienteEmail: eventData.pacienteEmail
+      });
+
+      console.log('✅ Evento individual criado como fallback:', novoEvento.eventId);
+      return novoEvento.eventId;
+    } catch (error) {
+      console.error('❌ Erro ao criar evento individual como fallback:', error);
+      throw new Error('Falha no fallback de criação de evento individual');
+    }
+  }
+
+  /**
    * Edita toda a série recorrente
    * USA UPDATE DIRETO NO MASTER EVENT (nativo)
    */

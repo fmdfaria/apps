@@ -140,19 +140,32 @@ export class SeriesManager {
       try {
         console.log('🌐 SeriesManager - Atualizando instância específica no Google Calendar');
         
-        // Para o Google Calendar, precisamos da data/hora EXATA da instância original na série
-        // Usar instanciaData (data da série) + horário original da série para identificar a instância correta
-        const dataOriginalInstancia = new Date(agendamento.instanciaData || agendamento.dataHoraInicio);
+        // CRÍTICO: Para identificar a instância correta, precisamos do horário ORIGINAL da série
+        // Buscar diretamente do Google Calendar para ter a referência exata
+        let dataOriginalInstancia: Date;
         
-        // Encontrar o horário original da série (do evento master ou primeiro agendamento master)
-        const agendamentoMaster = serie.agendamentos.find(ag => ag.isMaster) || serie.agendamentos[0];
-        if (agendamentoMaster) {
-          dataOriginalInstancia.setHours(
-            agendamentoMaster.dataHoraInicio.getHours(),
-            agendamentoMaster.dataHoraInicio.getMinutes(),
-            agendamentoMaster.dataHoraInicio.getSeconds(),
-            agendamentoMaster.dataHoraInicio.getMilliseconds()
-          );
+        try {
+          const horarioOriginalSerie = await this.googleCalendarService.buscarHorarioOriginalSerie(serie.googleEventId);
+          
+          if (horarioOriginalSerie) {
+            // Usar a data do agendamento atual + horário original da série
+            dataOriginalInstancia = new Date(agendamento.instanciaData || agendamento.dataHoraInicio);
+            dataOriginalInstancia.setHours(
+              horarioOriginalSerie.getHours(),
+              horarioOriginalSerie.getMinutes(),
+              horarioOriginalSerie.getSeconds(),
+              horarioOriginalSerie.getMilliseconds()
+            );
+            
+            console.log('✅ SeriesManager - Usando horário original do Google Calendar:', horarioOriginalSerie.toISOString());
+          } else {
+            // Fallback: usar horário do agendamento atual
+            dataOriginalInstancia = agendamento.dataHoraInicio;
+            console.log('⚠️ SeriesManager - Fallback: usando horário atual do agendamento');
+          }
+        } catch (error) {
+          console.error('❌ SeriesManager - Erro ao buscar horário original, usando fallback:', error);
+          dataOriginalInstancia = agendamento.dataHoraInicio;
         }
         
         console.log('🔍 SeriesManager - Editando instância Google Calendar:', {
@@ -192,22 +205,50 @@ export class SeriesManager {
         } else {
           console.log('🆕 SeriesManager - Criando nova instância específica da série');
           
-          novoEventId = await this.googleCalendarService.editarOcorrenciaEspecifica(
-            serie.googleEventId,
-            dataOriginalInstancia, // Data/hora atual do agendamento (antes da edição)
-            {
-              dataHoraInicio: dados.dataHoraInicio || agendamento.dataHoraInicio,
-              dataHoraFim: dados.dataHoraFim || agendamento.dataHoraFim,
-              // Outros dados necessários para Google Calendar...
-              pacienteNome: agendamento.paciente?.nomeCompleto || '',
-              profissionalNome: agendamento.profissional?.nome || '',
-              servicoNome: agendamento.servico?.nome || '',
-              convenioNome: agendamento.convenio?.nome || '',
-              agendamentoId: agendamento.id,
-              profissionalEmail: agendamento.profissional?.email || '',
-              pacienteEmail: agendamento.paciente?.email
+          try {
+            novoEventId = await this.googleCalendarService.editarOcorrenciaEspecifica(
+              serie.googleEventId,
+              dataOriginalInstancia, // Data/hora atual do agendamento (antes da edição)
+              {
+                dataHoraInicio: dados.dataHoraInicio || agendamento.dataHoraInicio,
+                dataHoraFim: dados.dataHoraFim || agendamento.dataHoraFim,
+                // Outros dados necessários para Google Calendar...
+                pacienteNome: agendamento.paciente?.nomeCompleto || '',
+                profissionalNome: agendamento.profissional?.nome || '',
+                servicoNome: agendamento.servico?.nome || '',
+                convenioNome: agendamento.convenio?.nome || '',
+                agendamentoId: agendamento.id,
+                profissionalEmail: agendamento.profissional?.email || '',
+                pacienteEmail: agendamento.paciente?.email
+              }
+            );
+          } catch (instanceError) {
+            console.error('❌ SeriesManager - Erro ao editar instância específica:', instanceError);
+            console.log('🔄 SeriesManager - Tentando estratégia alternativa: evento individual');
+            
+            try {
+              novoEventId = await this.googleCalendarService.criarEventoIndividualComoFallback(
+                serie.googleEventId,
+                dataOriginalInstancia,
+                {
+                  dataHoraInicio: dados.dataHoraInicio || agendamento.dataHoraInicio,
+                  dataHoraFim: dados.dataHoraFim || agendamento.dataHoraFim,
+                  pacienteNome: agendamento.paciente?.nomeCompleto || '',
+                  profissionalNome: agendamento.profissional?.nome || '',
+                  servicoNome: agendamento.servico?.nome || '',
+                  convenioNome: agendamento.convenio?.nome || '',
+                  agendamentoId: agendamento.id,
+                  profissionalEmail: agendamento.profissional?.email || '',
+                  pacienteEmail: agendamento.paciente?.email
+                }
+              );
+              
+              console.log('✅ SeriesManager - Fallback bem-sucedido, evento individual criado');
+            } catch (fallbackError) {
+              console.error('❌ SeriesManager - Fallback também falhou:', fallbackError);
+              throw fallbackError; // Re-throw para o catch externo
             }
-          );
+          }
         }
 
         // CRÍTICO: Se o agendamento é o MASTER da série, NÃO alterar seu googleEventId
@@ -224,7 +265,13 @@ export class SeriesManager {
         }
       } catch (error) {
         console.error('❌ SeriesManager - Erro ao atualizar Google Calendar:', error);
-        // Continuar com atualização local
+        console.log('⚠️ SeriesManager - Continuando com atualização apenas no banco de dados');
+        
+        // Mesmo com erro no Google Calendar, garantir que o banco seja atualizado
+        // Remove googleEventId dos dados para não corromper referências
+        if (dados.googleEventId) {
+          delete dados.googleEventId;
+        }
       }
     }
 
