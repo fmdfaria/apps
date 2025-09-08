@@ -9,7 +9,7 @@ export class PrecosParticulares {
   preco!: number;
   tipoPagamento?: string | null;
   pagamentoAntecipado?: boolean | null;
-  dataPagamento?: Date | null;
+  diaPagamento?: number | null;
   createdAt!: Date;
   updatedAt!: Date;
 

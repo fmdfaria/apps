@@ -9,5 +9,5 @@ export interface PrecoParticular {
   precoPaciente?: number;
   tipoPagamento?: string | null;
   pagamentoAntecipado?: boolean | null;
-  dataPagamento?: string | null; // Formato YYYY-MM-DD
+  diaPagamento?: number | null; // Dia do mês (1-31)
 } 
