@@ -42,12 +42,9 @@ export const FormularioPorData: React.FC<FormularioPorDataProps> = ({ context })
     if (todosProfissionais.length > 0) return; // Já carregados
     
     try {
-      console.log('🔄 Carregando todos os profissionais...');
       const lista = await getProfissionais({ ativo: true });
       setTodosProfissionais(lista);
-      console.log('✅ Profissionais carregados:', lista.length);
     } catch (error) {
-      console.error('❌ Erro ao carregar todos os profissionais:', error);
     }
   };
 
@@ -67,12 +64,10 @@ export const FormularioPorData: React.FC<FormularioPorDataProps> = ({ context })
       const listaProfissionais = todosProfissionais.length > 0 ? todosProfissionais : profissionais;
       
       if (listaProfissionais.length === 0) {
-        console.warn('⚠️ Nenhum profissional disponível para verificar');
         setProfissionaisDisponiveis([]);
         return;
       }
 
-      console.log('🔍 Verificando disponibilidade de', listaProfissionais.length, 'profissionais para', dataAgendamento, horaAgendamento);
       
       // Parse manual para evitar problemas de timezone
       const [ano, mes, dia] = dataAgendamento.split('-').map(Number);
@@ -105,14 +100,8 @@ export const FormularioPorData: React.FC<FormularioPorDataProps> = ({ context })
       const disponiveis = profissionaisSimplificados.filter(p => p.disponivel).length;
       const indisponiveis = profissionaisSimplificados.filter(p => !p.disponivel).length;
       
-      console.log('✅ Disponibilidade verificada:', {
-        total: profissionaisSimplificados.length,
-        disponíveis: disponiveis,
-        indisponíveis: indisponiveis
-      });
       setProfissionaisDisponiveis(profissionaisSimplificados);
     } catch (error) {
-      console.error('❌ Erro ao buscar profissionais disponíveis:', error);
       setProfissionaisDisponiveis([]);
     } finally {
       setCarregandoProfissionaisDisponiveis(false);

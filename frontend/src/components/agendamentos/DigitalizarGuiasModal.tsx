@@ -64,7 +64,6 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
       
       return userName;
     } catch (error) {
-      console.error('Erro ao buscar nome do usuário:', error);
       // Se falhar, armazenar no cache como "Usuário" para evitar requests repetidos
       setUserNamesCache(prev => ({
         ...prev,
@@ -120,7 +119,6 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
           await Promise.all(promises);
           // Os nomes já foram atualizados no cache pela função fetchUserName
         } catch (error) {
-          console.error('Erro ao carregar nomes dos usuários:', error);
         }
       }
     };
@@ -146,7 +144,6 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
         setModoDigitalizacao(true);
       }
     } catch (error) {
-      console.error('Erro ao carregar anexos:', error);
       AppToast.error('Erro ao carregar anexos', {
         description: 'Não foi possível carregar os anexos existentes.'
       });
@@ -173,7 +170,6 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
         setModoDigitalizacao(true);
       }
     } catch (error) {
-      console.error('Erro ao deletar anexo:', error);
       AppToast.error('Erro ao remover documento', {
         description: 'Não foi possível remover o documento digitalizado.'
       });
@@ -216,7 +212,6 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
       setNomeArquivo(gerarNomeCompleto(nomeArquivoBase, usarPadraoRA, true));
     }
     
-    console.log('PDF recebido do scanner:', fileName, pdfBlob.size, 'bytes');
   };
 
   // Função para abrir o scanner de documentos
@@ -300,11 +295,9 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
         // Usar PDF gerado pelo DocumentScanner com nome personalizado
         const pdfFileName = nomeArquivo || capturedPdf.fileName;
         file = new File([capturedPdf.blob], pdfFileName, { type: 'application/pdf' });
-        console.log('Enviando PDF:', pdfFileName);
       } else if (capturedImage) {
         // Usar imagem (funcionalidade antiga)
         file = dataURLtoFile(capturedImage, nomeArquivo);
-        console.log('Enviando imagem:', nomeArquivo);
       } else {
         throw new Error('Nenhum arquivo para upload');
       }
@@ -331,7 +324,6 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
         });
       }, 100);
     } catch (error: unknown) {
-      console.error('Erro ao salvar documento:', error);
       let message = 'Erro ao salvar o documento digitalizado.';
       if (error && typeof error === 'object' && 'response' in error) {
         const errorResponse = error as { response?: { data?: { message?: string } } };

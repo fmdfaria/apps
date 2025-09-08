@@ -16,10 +16,6 @@ export class DeleteAgendamentoUseCase {
   ) {}
 
   async execute(id: string, tipoEdicaoRecorrencia?: 'apenas_esta' | 'esta_e_futuras' | 'toda_serie'): Promise<void> {
-    console.log('🗑️ DeleteAgendamentoUseCase - Iniciado:', {
-      agendamentoId: id,
-      tipoEdicaoRecorrencia: tipoEdicaoRecorrencia || 'auto-detect'
-    });
 
     // 1. Verificar se agendamento existe
     const agendamento = await this.agendamentosRepository.findById(id);
@@ -27,45 +23,29 @@ export class DeleteAgendamentoUseCase {
       throw new AppError('Agendamento não encontrado.', 404);
     }
 
-    console.log('📋 Agendamento encontrado:', {
-      id: agendamento.id,
-      dataHoraInicio: agendamento.dataHoraInicio,
-      tipoAtendimento: agendamento.tipoAtendimento,
-      googleEventId: agendamento.googleEventId,
-      serieId: agendamento.serieId
-    });
 
     // 2. Verificar se faz parte de uma série
     const serie = await this.seriesManager.findSerieByAgendamentoId(id);
     
     if (!serie) {
       // AGENDAMENTO INDIVIDUAL
-      console.log('📄 Processando exclusão de agendamento individual');
       await this.excluirAgendamentoIndividual(agendamento);
     } else {
       // AGENDAMENTO DE SÉRIE
-      console.log('📅 Processando exclusão de agendamento de série:', {
-        serieId: serie.serieId,
-        totalAgendamentos: serie.totalAgendamentos,
-        tipoEdicaoSolicitado: tipoEdicaoRecorrencia
-      });
       
       await this.excluirAgendamentoSerie(id, serie, tipoEdicaoRecorrencia);
     }
 
-    console.log('✅ Exclusão concluída com sucesso');
   }
 
   /**
    * Exclui agendamento individual (não faz parte de série)
    */
   private async excluirAgendamentoIndividual(agendamento: any): Promise<void> {
-    console.log('📄 Excluindo agendamento individual');
 
     // Se tem Google Calendar, deletar evento
     if (agendamento.googleEventId && this.googleCalendarService.isIntegracaoAtiva()) {
       try {
-        console.log('🌐 Deletando evento do Google Calendar:', agendamento.googleEventId);
         await this.googleCalendarService.deletarEvento(agendamento.googleEventId);
       } catch (error) {
         console.error('❌ Erro ao deletar evento Google Calendar:', error);
@@ -76,7 +56,6 @@ export class DeleteAgendamentoUseCase {
     // Deletar do banco de dados
     await this.agendamentosRepository.delete(agendamento.id);
     
-    console.log('✅ Agendamento individual excluído com sucesso');
   }
 
   /**
@@ -90,7 +69,6 @@ export class DeleteAgendamentoUseCase {
     // Determinar tipo de exclusão
     const tipoEdicao = this.determinarTipoEdicaoExclusao(serie, tipoEdicaoRecorrencia);
     
-    console.log('📅 Processando série com tipo de exclusão:', tipoEdicao);
 
     switch (tipoEdicao) {
       case 'apenas_esta':
@@ -109,7 +87,6 @@ export class DeleteAgendamentoUseCase {
         throw new AppError(`Tipo de exclusão inválido: ${tipoEdicao}`, 400);
     }
 
-    console.log('✅ Série excluída com sucesso');
   }
 
   /**
@@ -121,18 +98,15 @@ export class DeleteAgendamentoUseCase {
   ): 'apenas_esta' | 'esta_e_futuras' | 'toda_serie' {
     // Se o usuário especificou explicitamente, usar a escolha dele
     if (tipoEdicaoRecorrencia) {
-      console.log('👤 Usando tipo de edição especificado pelo usuário:', tipoEdicaoRecorrencia);
       return tipoEdicaoRecorrencia as 'apenas_esta' | 'esta_e_futuras' | 'toda_serie';
     }
 
     // Auto-detecção baseada na série
     if (serie.totalAgendamentos === 1) {
-      console.log('🔍 Auto-detecção: Apenas 1 agendamento na série, usando "apenas_esta"');
       return 'apenas_esta';
     }
 
     // Se não especificado e é série com múltiplos agendamentos, usar padrão
-    console.log('🔍 Auto-detecção: Série com múltiplos agendamentos, usando padrão "apenas_esta"');
     return 'apenas_esta';
   }
 
@@ -149,7 +123,6 @@ export class DeleteAgendamentoUseCase {
    * (útil para limpezas ou operações administrativas)
    */
   async forceDeleteSingle(id: string): Promise<void> {
-    console.log('⚠️ Exclusão forçada de agendamento individual:', id);
     
     const agendamento = await this.agendamentosRepository.findById(id);
     if (!agendamento) {

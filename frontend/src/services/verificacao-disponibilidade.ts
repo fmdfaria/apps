@@ -51,7 +51,6 @@ const verificarHorarioOcupado = (
     // Interpretar ISO com sufixo Z como horário local correto (ex.: 10:30Z => 07:30 -03:00)
     const dataHoraAgendamento = new Date(agendamento.dataHoraInicio);
     if (isNaN(dataHoraAgendamento.getTime())) {
-      console.error('❌ Data inválida:', agendamento.dataHoraInicio);
       return false;
     }
     
@@ -74,7 +73,6 @@ const verificarHorarioOcupado = (
     const resultado = saoIguais || comparacaoAlternativa;
     
     // Log removido para melhorar performance
-    // if (resultado) console.log('🔵 Conflito:', horario);
     
     return resultado;
   });
@@ -97,7 +95,6 @@ const verificarDisponibilidadeHorario = (
   const disponibilidadesProfissional = disponibilidades.filter(d => d.profissionalId === profissionalId);
   
   // Debug removido para melhorar performance
-  // console.log('🔍 Verificando disponibilidade:', { profissionalId, horario, diaSemana });
   
   // Verificar se há alguma disponibilidade para este horário
   for (const disponibilidade of disponibilidadesProfissional) {
@@ -231,13 +228,11 @@ export const verificarHorariosProfissional = async (
     const dataSolicitadaStr = dataStr;
     
     // Debug removido para melhorar performance
-    // console.log('Debug de filtro de data:', { data: dataSolicitadaStr, agendamentos: agendamentos.length });
 
     // Já vem filtrado pelo backend, mas manter fallback defensivo
     const agendamentosDaData = agendamentos.filter(a => a.dataHoraInicio.split('T')[0] === dataSolicitadaStr);
 
     // Debug removido para melhorar performance
-    // console.log(`📋 Agendamentos na data ${data.toDateString()}:`, agendamentosDaData.length);
 
     // Lista de horários padrão (de 07:00 às 18:00, de 30 em 30 minutos)
     const horarios = [];

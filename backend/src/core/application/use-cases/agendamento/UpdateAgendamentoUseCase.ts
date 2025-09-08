@@ -29,12 +29,6 @@ export class UpdateAgendamentoUseCase {
   ) {}
 
   async execute(id: string, data: IUpdateAgendamentoDTO): Promise<Agendamento> {
-    console.log('🔍 UpdateAgendamentoUseCase - Iniciado:', {
-      agendamentoId: id,
-      tipoEdicaoRecorrencia: data.tipoEdicaoRecorrencia,
-      temDataHoraInicio: !!data.dataHoraInicio,
-      dadosRecebidos: Object.keys(data)
-    });
 
     // 1. Carregar agendamento atual
     const agendamentoAtual = await this.agendamentosRepository.findById(id);
@@ -42,13 +36,6 @@ export class UpdateAgendamentoUseCase {
       throw new AppError('Agendamento não encontrado.', 404);
     }
 
-    console.log('📋 Agendamento encontrado:', {
-      id: agendamentoAtual.id,
-      dataHoraInicio: agendamentoAtual.dataHoraInicio,
-      tipoAtendimento: agendamentoAtual.tipoAtendimento,
-      googleEventId: agendamentoAtual.googleEventId,
-      serieId: agendamentoAtual.serieId
-    });
 
     // 2. Validações de conflito
     await this.validarConflitos(id, data, agendamentoAtual);
@@ -64,15 +51,9 @@ export class UpdateAgendamentoUseCase {
     
     if (!serie) {
       // AGENDAMENTO INDIVIDUAL
-      console.log('📄 Processando agendamento individual');
       return await this.processarAgendamentoIndividual(id, dadosParaBanco, agendamentoAtual);
     } else {
       // AGENDAMENTO DE SÉRIE
-      console.log('📅 Processando agendamento de série:', {
-        serieId: serie.serieId,
-        totalAgendamentos: serie.totalAgendamentos,
-        tipoEdicao: tipoEdicaoRecorrencia || 'apenas_esta'
-      });
       
       return await this.processarAgendamentoSerie(id, dadosParaBanco, tipoEdicaoRecorrencia, agendamentoAtual);
     }
@@ -157,7 +138,6 @@ export class UpdateAgendamentoUseCase {
     dados: any, 
     agendamentoAtual: Agendamento
   ): Promise<Agendamento> {
-    console.log('📄 Atualizando agendamento individual');
 
     // Atualizar no banco
     const agendamentoAtualizado = await this.agendamentosRepository.update(id, dados);
@@ -165,7 +145,6 @@ export class UpdateAgendamentoUseCase {
     // Verificar se precisa criar/atualizar Google Calendar
     await this.processarGoogleCalendarIndividual(agendamentoAtualizado, agendamentoAtual, dados);
 
-    console.log('✅ Agendamento individual atualizado com sucesso');
     return agendamentoAtualizado;
   }
 
@@ -180,7 +159,6 @@ export class UpdateAgendamentoUseCase {
   ): Promise<Agendamento> {
     const tipoEdicao = tipoEdicaoRecorrencia || 'apenas_esta';
 
-    console.log('📅 Processando série com tipo:', tipoEdicao);
 
     switch (tipoEdicao) {
       case 'apenas_esta':
@@ -205,7 +183,6 @@ export class UpdateAgendamentoUseCase {
       throw new AppError('Erro ao recuperar agendamento atualizado', 500);
     }
 
-    console.log('✅ Série atualizada com sucesso');
     return agendamentoAtualizado;
   }
 
@@ -226,12 +203,6 @@ export class UpdateAgendamentoUseCase {
       const mudouParaOnline = dados.tipoAtendimento === 'online' && agendamentoAtual.tipoAtendimento !== 'online';
       const mudouDataHora = dados.dataHoraInicio && dados.dataHoraInicio.getTime() !== agendamentoAtual.dataHoraInicio.getTime();
 
-      console.log('🔍 Verificando mudanças Google Calendar:', {
-        statusMudouParaLiberado,
-        mudouParaOnline,
-        mudouDataHora,
-        temGoogleEventId: !!agendamentoAtualizado.googleEventId
-      });
 
       // Se mudou para online ou status LIBERADO e não tem evento ainda, criar novo evento
       if ((statusMudouParaLiberado || mudouParaOnline) && !agendamentoAtualizado.urlMeet) {
@@ -290,7 +261,6 @@ export class UpdateAgendamentoUseCase {
       googleEventId: googleEvent.eventId
     });
 
-    console.log('✅ Evento Google Calendar criado para agendamento individual');
   }
 
   /**
@@ -323,6 +293,5 @@ export class UpdateAgendamentoUseCase {
       agendamentoId: agendamento.id
     });
 
-    console.log('✅ Evento Google Calendar atualizado');
   }
 }

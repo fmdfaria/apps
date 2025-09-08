@@ -75,7 +75,6 @@ const verificarDisponibilidadeHorario = (
   const disponibilidadesProfissional = disponibilidades.filter(d => d.profissionalId === profissionalId);
 
   // Debug apenas se necessário (remover logs excessivos)
-  // console.log('🔍 Debug - Verificando disponibilidade:', { profissionalId, horario });
   
   // Verificar se há alguma disponibilidade para este horário
   for (const disponibilidade of disponibilidadesProfissional) {
@@ -181,11 +180,9 @@ const gerarDatasRecorrencia = (
     try {
       dataLimite = new Date(ate + 'T23:59:59');
       if (isNaN(dataLimite.getTime())) {
-        console.error('❌ Data limite inválida:', ate);
         dataLimite = null;
       }
     } catch (error) {
-      console.error('❌ Erro ao criar data limite:', ate, error);
       dataLimite = null;
     }
   }
@@ -236,7 +233,6 @@ export const verificarConflitosRecorrencia = async (
     
     // Validar se a data inicial é válida
     if (isNaN(dataInicial.getTime())) {
-      console.error('❌ Data inicial inválida:', { dataHoraInicio, dataISO, ano, mes, dia });
       return {
         datasComConflito: [],
         totalConflitos: 0,
@@ -323,7 +319,6 @@ export const verificarConflitosRecorrencia = async (
     };
 
   } catch (error) {
-    console.error('Erro ao verificar conflitos de recorrência:', error);
     return {
       datasComConflito: [],
       totalConflitos: 0,

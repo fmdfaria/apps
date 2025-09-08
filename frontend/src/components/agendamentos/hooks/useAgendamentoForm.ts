@@ -119,7 +119,6 @@ export const useAgendamentoForm = ({
       }
 
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
       AppToast.error('Erro ao carregar dados do formulário', {
         description: 'Ocorreu um problema ao carregar os dados. Tente novamente.'
       });
@@ -138,7 +137,6 @@ export const useAgendamentoForm = ({
           const lista = await getProfissionais({ ativo: true });
           setProfissionais(lista);
         } catch (error) {
-          console.error('Erro ao carregar profissionais ativos:', error);
         } finally {
           setLoadingData(false);
         }
@@ -153,7 +151,6 @@ export const useAgendamentoForm = ({
       const profissionaisData = await getProfissionaisByServico(servicoId);
       setProfissionaisPorServico(profissionaisData);
     } catch (error) {
-      console.error('Erro ao carregar profissionais do serviço:', error);
       AppToast.error('Erro ao carregar profissionais do serviço', {
         description: 'Não foi possível carregar os profissionais deste serviço.'
       });
@@ -191,7 +188,6 @@ export const useAgendamentoForm = ({
       setServicosDoProfissional(servicosUnicos);
       
     } catch (error) {
-      console.error('Erro ao carregar dados do profissional:', error);
       AppToast.error('Erro ao carregar dados do profissional', {
         description: 'Não foi possível carregar os convênios e serviços deste profissional.'
       });
@@ -399,7 +395,6 @@ export const useAgendamentoForm = ({
           return; // PARAR EXECUÇÃO - não salvar nada
         }
       } catch (error) {
-        console.error('Erro ao verificar conflitos de recorrência:', error);
         AppToast.error('Erro ao verificar disponibilidade', {
           description: 'Não foi possível verificar conflitos de recorrência. Tente novamente.'
         });
@@ -417,7 +412,6 @@ export const useAgendamentoForm = ({
       onSuccess();
       onClose();
     } catch (error: any) {
-      console.error('Erro ao criar agendamento:', error);
       const backendMsg = error?.response?.data?.message;
       
       AppToast.error('Erro ao criar agendamento', {
@@ -442,7 +436,6 @@ export const useAgendamentoForm = ({
       onSuccess();
       onClose();
     } catch (error: any) {
-      console.error('Erro ao criar agendamento:', error);
       const backendMsg = error?.response?.data?.message;
       AppToast.error('Erro ao criar agendamento', {
         description: formatarDatasEmMensagem(backendMsg || 'Não foi possível criar o agendamento. Tente novamente.')
@@ -472,7 +465,6 @@ export const useAgendamentoForm = ({
     if (isOpen) {
       // Se há dados do double-click, usar dados externos sem chamar APIs
       if (dadosDoubleClick && dadosExternos) {
-        console.log('🚀 Usando dados externos do CalendarioPage - sem chamadas API');
         setProfissionais(dadosExternos.profissionais || []);
         setRecursos(dadosExternos.recursos || []);
         setDisponibilidades(dadosExternos.disponibilidades || []);
@@ -540,8 +532,6 @@ export const useAgendamentoForm = ({
   // Effect para lidar com dados do double-click
   useEffect(() => {
     if (isOpen && dadosDoubleClick) {
-      console.log('🖱️ Aplicando dados do double-click:', dadosDoubleClick);
-      
       // Definir tipo de fluxo como por-profissional
       setTipoFluxo('por-profissional');
       
@@ -564,7 +554,6 @@ export const useAgendamentoForm = ({
           const pacientesAtivos = await getPacientesAtivos();
           setPacientes(pacientesAtivos);
         } catch (error) {
-          console.error('Erro ao carregar pacientes:', error);
           AppToast.error('Erro ao carregar pacientes', {
             description: 'Não foi possível carregar a lista de pacientes.'
           });
@@ -597,12 +586,6 @@ export const useAgendamentoForm = ({
       // Buscar o serviço para obter seu convênio
       const servicoEncontrado = servicos.find(s => s.id === formData.servicoId);
       if (servicoEncontrado && servicoEncontrado.convenioId) {
-        console.log('🔗 Auto-preenchendo convênio baseado no serviço:', {
-          servicoId: formData.servicoId,
-          servicoNome: servicoEncontrado.nome,
-          convenioId: servicoEncontrado.convenioId
-        });
-        
         setFormData(prev => ({
           ...prev,
           convenioId: servicoEncontrado.convenioId
@@ -617,11 +600,6 @@ export const useAgendamentoForm = ({
       // Verificar se o convênio do preenchimento inicial existe na lista carregada
       const convenioExiste = convenios.find(c => c.id === preenchimentoInicial.convenioId);
       if (convenioExiste) {
-        console.log('🔗 Aplicando pré-preenchimento do convênio após carregamento:', {
-          convenioId: preenchimentoInicial.convenioId,
-          convenioNome: convenioExiste.nome
-        });
-        
         setFormData(prev => ({
           ...prev,
           convenioId: preenchimentoInicial.convenioId!
@@ -670,7 +648,6 @@ export const useAgendamentoForm = ({
         const lista = await getDisponibilidadesProfissional(formData.profissionalId);
         setDisponibilidades(lista || []);
       } catch (e) {
-        console.warn('Falha ao carregar disponibilidades do profissional:', e);
         setDisponibilidades([]);
       }
     };
@@ -910,15 +887,7 @@ export const useAgendamentoForm = ({
       // Criar datetime completo para a auto-seleção
       const dataHoraCompleta = `${dataAgendamento}T${horaAgendamento}`;
       
-      // Debug: Log da execução da auto-seleção
-      console.log('🎯 Executando auto-seleção de recursos:', {
-        profissional: formData.profissionalId,
-        data: dataAgendamento,
-        hora: horaAgendamento,
-        recursoAtual: formData.recursoId,
-        userSelectedResource
-      });
-
+      
       // Executar auto-seleção de recurso
       const recursoAutoSelecionado = autoSelecionarRecurso(formData.profissionalId, dataHoraCompleta);
       
@@ -933,12 +902,7 @@ export const useAgendamentoForm = ({
             tipoAtendimento = 'online';
           }
           
-          console.log('✅ Recurso auto-selecionado:', {
-            recursoId: recursoAutoSelecionado,
-            recursoNome: recurso?.nome,
-            tipoAtendimento
-          });
-
+          
           updateFormDataAuto({
             recursoId: recursoAutoSelecionado,
             tipoAtendimento
@@ -947,13 +911,10 @@ export const useAgendamentoForm = ({
       } else {
         // Se não há recurso compatível, limpar seleção atual
         if (formData.recursoId) {
-          console.log('🧹 Limpando recurso incompatível para nova seleção');
           updateFormDataAuto({
             recursoId: '',
             tipoAtendimento: 'presencial'
           });
-        } else {
-          console.log('⚠️ Nenhum recurso encontrado para esta combinação profissional/data/hora');
         }
       }
     }

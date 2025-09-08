@@ -46,9 +46,7 @@ export class GoogleCalendarService {
       this.oauth2Client.setCredentials({
         refresh_token: process.env.GOOGLE_REFRESH_TOKEN
       });
-      console.log('✅ Google Calendar Service configurado com refresh token.');
     } else {
-      console.log('⚠️ Google Calendar Service: GOOGLE_REFRESH_TOKEN não configurado.');
     }
   }
 
@@ -162,14 +160,12 @@ export class GoogleCalendarService {
         throw new Error('Falha ao criar link do Google Meet');
       }
 
-      console.log('✅ Evento Google Calendar criado:', response.data.id);
 
       return {
         eventId: response.data.id,
         urlMeet: meetUrl
       };
     } catch (error) {
-      console.error('❌ Erro ao criar evento Google Calendar:', error);
       throw new Error('Falha na integração com Google Calendar');
     }
   }
@@ -248,18 +244,12 @@ export class GoogleCalendarService {
         throw new Error('Falha ao criar link do Google Meet para evento recorrente');
       }
 
-      console.log('✅ Evento recorrente Google Calendar criado:', {
-        eventId: response.data.id,
-        rrule: rrule,
-        meetUrl: meetUrl
-      });
 
       return {
         eventId: response.data.id,
         urlMeet: meetUrl
       };
     } catch (error) {
-      console.error('❌ Erro ao criar evento recorrente Google Calendar:', error);
       throw new Error('Falha na integração com Google Calendar para evento recorrente');
     }
   }
@@ -321,9 +311,7 @@ export class GoogleCalendarService {
         sendUpdates: 'none'
       });
 
-      console.log('✅ Evento Google Calendar atualizado (com Meet preservado):', eventId);
     } catch (error) {
-      console.error('❌ Erro ao atualizar evento Google Calendar:', error);
       throw new Error('Falha ao atualizar evento no Google Calendar');
     }
   }
@@ -341,9 +329,7 @@ export class GoogleCalendarService {
         sendUpdates: 'none'
       });
 
-      console.log('✅ Evento Google Calendar deletado:', eventId);
     } catch (error) {
-      console.error('❌ Erro ao deletar evento Google Calendar:', error);
       // Não lança erro para não quebrar o fluxo de exclusão do agendamento
     }
   }
@@ -361,11 +347,6 @@ export class GoogleCalendarService {
       const timezone = process.env.GOOGLE_TIMEZONE || 'America/Sao_Paulo';
       const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
 
-      console.log('🔧 Editando instância específica:', {
-        masterEventId,
-        instanceDate: instanceDate.toISOString(),
-        hasNewDateTime: !!(eventData.dataHoraInicio)
-      });
 
       // Primeiro, buscar o evento mestre para obter dados base
       const masterEvent = await this.calendar.events.get({
@@ -412,15 +393,9 @@ export class GoogleCalendarService {
         sendUpdates: 'none'
       });
 
-      console.log('✅ Instância específica editada:', {
-        novoEventId: response.data.id,
-        masterEventId,
-        instanceDate: instanceDate.toISOString()
-      });
 
       return response.data.id;
     } catch (error) {
-      console.error('❌ Erro ao editar instância específica:', error);
       throw new Error('Falha ao editar instância específica no Google Calendar');
     }
   }
@@ -433,7 +408,6 @@ export class GoogleCalendarService {
     try {
       const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
 
-      console.log('🔍 Buscando horário original da série:', masterEventId);
 
       const masterEvent = await this.calendar.events.get({
         calendarId,
@@ -442,14 +416,11 @@ export class GoogleCalendarService {
 
       if (masterEvent.data.start?.dateTime) {
         const horarioOriginal = new Date(masterEvent.data.start.dateTime);
-        console.log('✅ Horário original da série encontrado:', horarioOriginal.toISOString());
         return horarioOriginal;
       }
 
-      console.log('⚠️ Evento master não tem horário definido');
       return null;
     } catch (error) {
-      console.error('❌ Erro ao buscar horário original da série:', error);
       return null;
     }
   }
@@ -460,7 +431,6 @@ export class GoogleCalendarService {
    */
   async criarEventoIndividualComoFallback(originalEventId: string, instanceDate: Date, eventData: Partial<EventData>): Promise<string> {
     try {
-      console.log('🔄 Criando evento individual como fallback para instância específica');
       
       // Criar um evento individual completamente novo
       const novoEvento = await this.criarEventoComMeet({
@@ -475,10 +445,8 @@ export class GoogleCalendarService {
         pacienteEmail: eventData.pacienteEmail
       });
 
-      console.log('✅ Evento individual criado como fallback:', novoEvento.eventId);
       return novoEvento.eventId;
     } catch (error) {
-      console.error('❌ Erro ao criar evento individual como fallback:', error);
       throw new Error('Falha no fallback de criação de evento individual');
     }
   }
@@ -489,7 +457,6 @@ export class GoogleCalendarService {
    */
   async editarTodaASerie(masterEventId: string, eventData: Partial<EventData>): Promise<void> {
     try {
-      console.log('🎯 Editando toda a série:', masterEventId);
 
       const updateData: any = {};
       const timezone = process.env.GOOGLE_TIMEZONE || 'America/Sao_Paulo';
@@ -527,9 +494,7 @@ export class GoogleCalendarService {
         sendUpdates: 'none'
       });
       
-      console.log('✅ Toda a série Google Calendar atualizada:', masterEventId);
     } catch (error) {
-      console.error('❌ Erro ao atualizar toda a série Google Calendar:', error);
       throw new Error('Falha ao atualizar toda a série no Google Calendar');
     }
   }
@@ -543,10 +508,6 @@ export class GoogleCalendarService {
       const timezone = process.env.GOOGLE_TIMEZONE || 'America/Sao_Paulo';
       const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
 
-      console.log('📅 Iniciando split da série "esta e futuras":', {
-        masterEventId,
-        fromDate: fromDate.toISOString()
-      });
 
       // 1. Buscar evento original
       const originalEvent = await this.calendar.events.get({
@@ -563,18 +524,15 @@ export class GoogleCalendarService {
       //    - Criar exceções (cancelled instances) para as datas que queremos modificar
       //    - Criar novos eventos individuais para as novas datas
 
-      console.log('🔄 Usando estratégia de exceções + novos eventos');
 
       // Para simplificar, vamos retornar o ID do evento original
       // O SeriesManager vai cuidar de atualizar os agendamentos no banco
       // com as novas datas/horários
 
       // Por enquanto, apenas loggar que recebemos a solicitação
-      console.log('ℹ️ Google Calendar: Série "esta e futuras" processada via exceções');
       
       return masterEventId; // Retornar o mesmo ID por simplicidade
     } catch (error) {
-      console.error('❌ Erro ao processar "esta e futuras":', error);
       throw new Error('Falha ao processar série "esta e futuras" no Google Calendar');
     }
   }
@@ -588,10 +546,6 @@ export class GoogleCalendarService {
       const timezone = process.env.GOOGLE_TIMEZONE || 'America/Sao_Paulo';
       const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
 
-      console.log('🗑️ Deletando instância específica:', {
-        masterEventId,
-        instanceDate: instanceDate.toISOString()
-      });
 
       // Buscar o evento recorrente original
       const originalEvent = await this.calendar.events.get({
@@ -631,9 +585,7 @@ export class GoogleCalendarService {
         sendUpdates: 'none'
       });
 
-      console.log('✅ Instância específica cancelada no Google Calendar');
     } catch (error) {
-      console.error('❌ Erro ao cancelar instância específica:', error);
       // Não lança erro para não quebrar o fluxo
     }
   }
@@ -643,17 +595,11 @@ export class GoogleCalendarService {
    */
   async deletarSerieAPartirDe(masterEventId: string, fromDate: Date): Promise<void> {
     try {
-      console.log('📅 Terminando série a partir de:', {
-        masterEventId,
-        fromDate: fromDate.toISOString()
-      });
 
       // Para simplificar, vamos apenas logar
       // O SeriesManager vai cuidar das exclusões no banco de dados
-      console.log('ℹ️ Google Calendar: Término da série processado via exclusões no banco');
       
     } catch (error) {
-      console.error('❌ Erro ao terminar série a partir de data:', error);
       // Não lança erro para não quebrar o fluxo
     }
   }

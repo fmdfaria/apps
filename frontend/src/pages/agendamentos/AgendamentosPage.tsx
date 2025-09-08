@@ -229,13 +229,6 @@ export const AgendamentosPage = () => {
   // Recarregamento quando dependências mudam (mas apenas após inicialização)
   useEffect(() => {
     if (initialized) {
-      console.log('🔄 carregarAgendamentos disparado por:', {
-        paginaAtual,
-        itensPorPagina,
-        filtroStatus,
-        filtrosAplicados,
-        buscaDebounced
-      });
       carregarAgendamentos();
     }
   }, [paginaAtual, itensPorPagina, filtroStatus, filtrosAplicados, buscaDebounced]);
@@ -331,7 +324,6 @@ export const AgendamentosPage = () => {
           const profissionalResponse = await api.get('/profissionais/me');
           filtrosAPI.profissionalId = profissionalResponse.data.id;
         } catch (profissionalError) {
-          console.error('Erro ao buscar dados do profissional:', profissionalError);
           AppToast.error('Erro ao carregar dados do profissional', {
             description: 'Não foi possível carregar os agendamentos do profissional.'
           });
@@ -416,12 +408,10 @@ export const AgendamentosPage = () => {
 
 
   const updateFiltro = (campo: keyof typeof filtros, valor: string) => {
-    console.log('📝 updateFiltro chamado:', { campo, valor });
     setFiltros(prev => ({ ...prev, [campo]: valor }));
   };
 
   const aplicarFiltros = () => {
-    console.log('✅ aplicarFiltros chamado:', { filtros });
     setFiltrosAplicados(filtros);
     setPaginaAtual(1);
   };
@@ -495,7 +485,6 @@ export const AgendamentosPage = () => {
         setShowSimpleDeleteModal(true);
       }
     } catch (e) {
-      console.error('Falha ao obter informações da série para exclusão:', e);
       // Fallback: abrir modal simples se houver erro
       setSeriesCount(1);
       setFutureCount(0);
@@ -521,7 +510,6 @@ export const AgendamentosPage = () => {
       cancelarExclusao();
       carregarAgendamentos();
     } catch (error) {
-      console.error('Erro ao excluir agendamento:', error);
       AppToast.error('Erro ao excluir', {
         description: 'Não foi possível excluir o agendamento.'
       });
@@ -541,7 +529,6 @@ export const AgendamentosPage = () => {
       cancelarExclusao();
       carregarAgendamentos();
     } catch (error) {
-      console.error('Erro ao excluir série de agendamentos:', error);
       AppToast.error('Erro ao excluir série', {
         description: 'Não foi possível excluir a série de agendamentos.'
       });
@@ -561,7 +548,6 @@ export const AgendamentosPage = () => {
       cancelarExclusao();
       carregarAgendamentos();
     } catch (error) {
-      console.error('Erro ao excluir esta e futuras ocorrências:', error);
       AppToast.error('Erro ao excluir', {
         description: 'Não foi possível excluir os agendamentos.'
       });

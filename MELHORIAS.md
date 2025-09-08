@@ -11,6 +11,3 @@
 - Utilize os componentes já existentes na pasta ui/
 - Utilize sempre o AppToast para manter o padrão de notificação.
 - Não defina nada no frontend que afete o backend, veja sempre a estrutura do backend no arquivo @apps/backend/prisma/schema.prisma .. lá contém toda estrutura do meu banco de dados.
-
-
-### Funcionalidade Online

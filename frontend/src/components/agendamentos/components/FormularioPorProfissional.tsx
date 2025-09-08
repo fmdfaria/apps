@@ -132,7 +132,6 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
       
       setRecursosVerificados(verificacoes);
     } catch (error) {
-      console.error('Erro ao verificar disponibilidade dos recursos:', error);
       setRecursosVerificados({});
     }
   };
@@ -426,12 +425,6 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                       const shouldClearResource = !formData.recursoId;
                       const shouldResetTipoAtendimento = formData.tipoAtendimento === 'presencial';
                       
-                      console.log('🔄 Alterando serviço:', {
-                        novoServico: selected?.nome,
-                        servicoId: novoServicoId,
-                        shouldClearResource,
-                        recursoAtual: formData.recursoId
-                      });
                       
                       updateFormData({
                         servicoId: novoServicoId,

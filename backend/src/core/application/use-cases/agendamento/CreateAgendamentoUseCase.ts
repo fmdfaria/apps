@@ -195,9 +195,8 @@ export class CreateAgendamentoUseCase {
       agendamentosCriados.push(agendamento);
     }
 
-    // Integrar com Google Calendar - criar UM evento recorrente para toda a série
+    // Integrar with Google Calendar - criar UM evento recorrente para toda a série
     if (baseData.tipoAtendimento === 'online' && this.googleCalendarService.isIntegracaoAtiva()) {
-      console.log('🔍 Recorrente: Criando evento recorrente no Google Calendar');
       try {
         const [profissional, paciente, convenio] = await Promise.all([
           this.profissionaisRepository.findById(baseData.profissionalId),
@@ -221,8 +220,6 @@ export class CreateAgendamentoUseCase {
             agendamentoId: primeiroAgendamento.id,
             recorrencia: recorrencia
           });
-
-          console.log('📝 Atualizando TODOS os agendamentos da série com dados do Google Calendar');
 
           // Atualizar TODOS os agendamentos da série com o mesmo urlMeet e googleEventId
           // Todos compartilham o mesmo evento recorrente do Google Calendar

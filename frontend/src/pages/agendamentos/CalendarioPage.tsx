@@ -167,7 +167,6 @@ export const CalendarioPage = () => {
       tipoAtendimento
     };
 
-    console.log('🖱️ Duplo clique - Dados para preenchimento manual:', dadosDoubleClick);
     
     setDadosDoubleClick(dadosDoubleClick);
     setShowAgendamentoModal(true);
@@ -224,7 +223,6 @@ export const CalendarioPage = () => {
     } catch (error: any) {
       // Em caso de erro, desabilita criação por segurança
       setCanCreate(false);
-      console.error('Erro ao verificar permissões:', error);
     }
   };
 
@@ -245,18 +243,12 @@ export const CalendarioPage = () => {
         getAllDisponibilidades()
       ]);
       
-      console.log('🔍 CalendarioPage - Agendamentos recebidos da API:', {
-        total: agendamentosData.data.length,
-        pagination: agendamentosData.pagination,
-        agendamentos: agendamentosData.data
-      });
       setAgendamentos(agendamentosData.data);
       setProfissionais(profissionaisData);
       setConvenios(conveniosData);
       setRecursos(recursosData);
       setDisponibilidades(disponibilidadesData);
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
     } finally {
       setLoading(false);
     }
@@ -624,7 +616,6 @@ export const CalendarioPage = () => {
       };
     });
 
-  console.log('🔍 CalendarioPage - Agendamentos após filtro para o grid:', calendarAgendamentos.length);
   
   const handleVerDetalhes = (agendamento: CalendarAgendamento) => {
     const agendamentoCompleto = agendamentos.find(a => a.id === agendamento.id);
