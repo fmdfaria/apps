@@ -348,31 +348,17 @@ export const AgendamentosPage = () => {
     }
   };
 
-  // Aplicar apenas filtro de busca textual no frontend (se necessário)
-  const agendamentosFiltrados = busca 
-    ? paginatedData.data.filter(a => 
-        a.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||
-        a.profissionalNome?.toLowerCase().includes(busca.toLowerCase()) ||
-        a.servicoNome?.toLowerCase().includes(busca.toLowerCase()) ||
-        a.convenioNome?.toLowerCase().includes(busca.toLowerCase()) ||
-        a.status?.toLowerCase().includes(busca.toLowerCase())
-      )
-    : paginatedData.data;
+  // Os dados já vêm filtrados e paginados da API (server-side)
+  // Não precisamos fazer filtro nem paginação local
+  const agendamentosFiltrados = paginatedData.data;
 
   // Para compatibilidade, mantemos a variável agendamentos referenciando os dados paginados
   const agendamentos = paginatedData.data;
 
-  // Para busca textual, usar paginação local. Para filtros avançados, usar server-side
-  const totalPaginas = busca 
-    ? Math.ceil(agendamentosFiltrados.length / itensPorPagina)
-    : paginatedData.pagination.totalPages;
+  // Sempre usar paginação server-side (dados já vêm paginados da API)
+  const totalPaginas = paginatedData.pagination.totalPages;
   
-  const agendamentosPaginados = busca
-    ? agendamentosFiltrados.slice(
-        (paginaAtual - 1) * itensPorPagina,
-        paginaAtual * itensPorPagina
-      )
-    : agendamentosFiltrados;
+  const agendamentosPaginados = agendamentosFiltrados;
 
   const formatarDataHora = formatarDataHoraLocal;
 

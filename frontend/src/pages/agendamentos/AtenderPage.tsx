@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,8 @@ import {
   UserCheck,
   PenTool,
   UserCheck2,
-  AlertCircle
+  AlertCircle,
+  Check
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Agendamento } from '@/types/Agendamento';
@@ -46,6 +47,7 @@ import api from '@/services/api';
 import { AppToast } from '@/services/toast';
 import { useAuthStore } from '@/store/auth';
 import { formatarDataHoraLocal } from '@/utils/dateUtils';
+import { useMultipleConfiguracoesAtenderPage } from '@/hooks/useConfiguracoesAtenderPage';
 
 // Opções estáticas (movidas para fora do componente)
 const tipoAtendimentoOptions = [
@@ -152,8 +154,81 @@ export const AtenderPage = () => {
   const [filtros, setFiltros] = useState<Record<string, string>>({});
   const [filtrosAplicados, setFiltrosAplicados] = useState<Record<string, string>>({});
 
+  // Função helper para renderizar indicador de status nos botões
+  const renderStatusIndicator = (status: boolean | null | undefined, isEnabled: boolean = true) => {
+    // Se o botão está desabilitado, não mostrar indicador
+    if (!isEnabled) {
+      return null;
+    }
+
+    if (status === true) {
+      return (
+        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+          <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+        </div>
+      );
+    } else if (status === false) {
+      return (
+        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+          <X className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Função helper específica para indicador de evolução
+  const renderEvolucaoIndicator = (temEvolucao: boolean | undefined, isEnabled: boolean = true) => {
+    // Se o botão está desabilitado, não mostrar indicador
+    if (!isEnabled) {
+      return null;
+    }
+
+    // Para evolução: só mostra indicador verde se tem evolução (true)
+    // Se não tem evolução (false), não mostra indicador (botão original)
+    if (temEvolucao === true) {
+      return (
+        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+          <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+        </div>
+      );
+    }
+    
+    // Para false ou undefined, não mostra indicador
+    return null;
+  };
+
   // Estado para controle de inicialização (mesmo padrão da AgendamentosPage)
   const [initialized, setInitialized] = useState(false);
+
+  // Hook para configurações por convênio e tipo de atendimento
+  const agendamentosInfo = useMemo(() => {
+    return agendamentos.map(agendamento => ({
+      id: agendamento.id,
+      convenioId: agendamento.convenioId,
+      tipoAtendimento: agendamento.tipoAtendimento
+    }));
+  }, [agendamentos]);
+
+  const { 
+    configuracoesMap, 
+    loading: loadingConfiguracoes 
+  } = useMultipleConfiguracoesAtenderPage(agendamentosInfo);
+
+  // Função helper para obter configurações de um agendamento específico
+  const getConfiguracoesPorAgendamento = useCallback((agendamento: Agendamento) => {
+    return configuracoesMap.get(agendamento.id) || {
+      evolucao: true,
+      compareceu: true,
+      assinatura_paciente: true,
+      assinatura_profissional: true,
+    };
+  }, [configuracoesMap]);
+
+  // Função helper para verificar se as configurações estão carregando para um agendamento
+  const isConfiguracoesLoading = useCallback((agendamento: Agendamento) => {
+    return loadingConfiguracoes && !configuracoesMap.has(agendamento.id);
+  }, [loadingConfiguracoes, configuracoesMap]);
 
   // Inicialização única (mesmo padrão da AgendamentosPage)
   useEffect(() => {
@@ -522,26 +597,35 @@ export const AtenderPage = () => {
   // Função para validar se pode finalizar o atendimento
   const validarFinalizacaoAtendimento = (agendamento: Agendamento): { podeFinalizarAtendimento: boolean; problemas: string[] } => {
     const problemas: string[] = [];
+    const configuracoes = getConfiguracoesPorAgendamento(agendamento);
     
-    // Verificar se tem evolução
-    const temEvolucao = evolucoesMap.get(agendamento.id) === true;
-    if (!temEvolucao) {
-      problemas.push('• Evolução não foi registrada');
+    // Verificar evolução - apenas se estiver habilitada nas configurações
+    if (configuracoes.evolucao) {
+      const temEvolucao = evolucoesMap.get(agendamento.id) === true;
+      if (!temEvolucao) {
+        problemas.push('• Evolução não foi registrada');
+      }
     }
     
-    // Verificar comparecimento
-    if (agendamento.compareceu === null || agendamento.compareceu === undefined) {
-      problemas.push('• Status de comparecimento não foi definido');
+    // Verificar comparecimento - apenas se estiver habilitado nas configurações
+    if (configuracoes.compareceu) {
+      if (agendamento.compareceu === null || agendamento.compareceu === undefined) {
+        problemas.push('• Status de comparecimento não foi definido');
+      }
     }
     
-    // Verificar assinatura do paciente
-    if (agendamento.assinaturaPaciente !== true) {
-      problemas.push('• Paciente não assinou a guia');
+    // Verificar assinatura do paciente - apenas se estiver habilitada nas configurações
+    if (configuracoes.assinatura_paciente) {
+      if (agendamento.assinaturaPaciente !== true) {
+        problemas.push('• Paciente não assinou a guia');
+      }
     }
     
-    // Verificar assinatura do profissional
-    if (agendamento.assinaturaProfissional !== true) {
-      problemas.push('• Profissional não assinou a guia');
+    // Verificar assinatura do profissional - apenas se estiver habilitada nas configurações
+    if (configuracoes.assinatura_profissional) {
+      if (agendamento.assinaturaProfissional !== true) {
+        problemas.push('• Profissional não assinou a guia');
+      }
     }
     
     return {
@@ -643,64 +727,6 @@ export const AtenderPage = () => {
                   </div>
                 </div>
 
-                {/* Status dos Processos */}
-                <div className="bg-gray-50 p-3 rounded-lg space-y-2">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Status dos Processos</h4>
-                  
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-gray-600">Evolução:</span>
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        evolucoesMap.get(agendamento.id) 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {evolucoesMap.get(agendamento.id) ? 'SIM' : 'PEND'}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-gray-600">Compareceu:</span>
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        agendamento.compareceu === true
-                          ? 'bg-green-100 text-green-800' 
-                          : agendamento.compareceu === false
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {agendamento.compareceu === true ? 'SIM' : agendamento.compareceu === false ? 'NÃO' : 'PENDENTE'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-gray-600">Pac. Assinou:</span>
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        agendamento.assinaturaPaciente === true
-                          ? 'bg-green-100 text-green-800' 
-                          : agendamento.assinaturaPaciente === false
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {agendamento.assinaturaPaciente === true ? 'SIM' : agendamento.assinaturaPaciente === false ? 'NÃO' : 'PENDENTE'}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-gray-600">Prof. Assinou:</span>
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        agendamento.assinaturaProfissional === true
-                          ? 'bg-green-100 text-green-800' 
-                          : agendamento.assinaturaProfissional === false
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {agendamento.assinaturaProfissional === true ? 'SIM' : agendamento.assinaturaProfissional === false ? 'NÃO' : 'PENDENTE'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
 
                 {/* Botões de Ação */}
                 <div className="flex flex-col gap-1 pt-2 border-t">
@@ -732,11 +758,13 @@ export const AtenderPage = () => {
                       <Button 
                         size="sm" 
                         variant="outline"
-                        className="group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                        onClick={() => handleAbrirProntuario(agendamento)}
-                        title="Prontuário"
+                        disabled={!getConfiguracoesPorAgendamento(agendamento).evolucao}
+                        className={`group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!getConfiguracoesPorAgendamento(agendamento).evolucao ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={getConfiguracoesPorAgendamento(agendamento).evolucao ? () => handleAbrirProntuario(agendamento) : undefined}
+                        title={getConfiguracoesPorAgendamento(agendamento).evolucao ? "Prontuário" : "Prontuário desabilitado para este convênio"}
                       >
                         <ClipboardList className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
+                        {renderEvolucaoIndicator(evolucoesMap.get(agendamento.id), getConfiguracoesPorAgendamento(agendamento).evolucao)}
                       </Button>
                     ) : (
                       <TooltipProvider>
@@ -763,29 +791,35 @@ export const AtenderPage = () => {
                     <Button 
                       size="sm" 
                       variant="outline"
-                      className="group border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                      onClick={() => handleCompareceu(agendamento)}
-                      title="Marcar comparecimento"
+                      disabled={!getConfiguracoesPorAgendamento(agendamento).compareceu}
+                      className={`group border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!getConfiguracoesPorAgendamento(agendamento).compareceu ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      onClick={getConfiguracoesPorAgendamento(agendamento).compareceu ? () => handleCompareceu(agendamento) : undefined}
+                      title={getConfiguracoesPorAgendamento(agendamento).compareceu ? "Marcar comparecimento" : "Comparecimento desabilitado para este convênio"}
                     >
                       <UserCheck className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
+                      {renderStatusIndicator(agendamento.compareceu, getConfiguracoesPorAgendamento(agendamento).compareceu)}
                     </Button>
                     <Button 
                       size="sm" 
                       variant="outline"
-                      className="group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                      onClick={() => handleAssinaturaPaciente(agendamento)}
-                      title="Assinatura do paciente"
+                      disabled={!getConfiguracoesPorAgendamento(agendamento).assinatura_paciente}
+                      className={`group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!getConfiguracoesPorAgendamento(agendamento).assinatura_paciente ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      onClick={getConfiguracoesPorAgendamento(agendamento).assinatura_paciente ? () => handleAssinaturaPaciente(agendamento) : undefined}
+                      title={getConfiguracoesPorAgendamento(agendamento).assinatura_paciente ? "Assinatura do paciente" : "Assinatura do paciente desabilitada para este convênio"}
                     >
                       <PenTool className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
+                      {renderStatusIndicator(agendamento.assinaturaPaciente, getConfiguracoesPorAgendamento(agendamento).assinatura_paciente)}
                     </Button>
                     <Button 
                       size="sm" 
                       variant="outline"
-                      className="group border-2 border-indigo-300 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 focus:ring-4 focus:ring-indigo-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                      onClick={() => handleAssinaturaProfissional(agendamento)}
-                      title="Sua assinatura"
+                      disabled={!getConfiguracoesPorAgendamento(agendamento).assinatura_profissional}
+                      className={`group border-2 border-indigo-300 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 focus:ring-4 focus:ring-indigo-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!getConfiguracoesPorAgendamento(agendamento).assinatura_profissional ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      onClick={getConfiguracoesPorAgendamento(agendamento).assinatura_profissional ? () => handleAssinaturaProfissional(agendamento) : undefined}
+                      title={getConfiguracoesPorAgendamento(agendamento).assinatura_profissional ? "Sua assinatura" : "Sua assinatura desabilitada para este convênio"}
                     >
                       <UserCheck2 className="w-4 h-4 text-indigo-600 group-hover:text-white transition-colors" />
+                      {renderStatusIndicator(agendamento.assinaturaProfissional, getConfiguracoesPorAgendamento(agendamento).assinatura_profissional)}
                     </Button>
                     {canAtender ? (
                       <Button 
@@ -851,18 +885,6 @@ export const AtenderPage = () => {
                   Serviço
                 </div>
               </TableHead>
-              <TableHead className="py-3 text-xs font-semibold text-gray-700 text-center w-20">
-                <span>Evolução</span>
-              </TableHead>
-              <TableHead className="py-3 text-xs font-semibold text-gray-700 text-center w-20">
-                <span>Compareceu</span>
-              </TableHead>
-              <TableHead className="py-3 text-xs font-semibold text-gray-700 text-center w-24">
-                <span>Pac. Assinou</span>
-              </TableHead>
-              <TableHead className="py-3 text-xs font-semibold text-gray-700 text-center w-24">
-                <span>Prof. Assinou</span>
-              </TableHead>
               <TableHead className="py-3 text-sm font-semibold text-gray-700">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">⚙️</span>
@@ -874,7 +896,7 @@ export const AtenderPage = () => {
         <TableBody>
           {agendamentosPaginados.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={10} className="py-12 text-center">
+              <TableCell colSpan={6} className="py-12 text-center">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                     <span className="text-3xl">🩺</span>
@@ -912,48 +934,6 @@ export const AtenderPage = () => {
                   <TableCell className="py-2">
                     <span className="text-sm">{agendamento.servicoNome}</span>
                   </TableCell>
-                  <TableCell className="py-1 text-center w-20">
-                    <span className={`text-xs px-1 py-0.5 rounded font-medium ${
-                      evolucoesMap.get(agendamento.id) 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {evolucoesMap.get(agendamento.id) ? 'SIM' : 'PEND'}
-                    </span>
-                  </TableCell>
-                  <TableCell className="py-1 text-center w-20">
-                    <span className={`text-xs px-1 py-0.5 rounded font-medium ${
-                      agendamento.compareceu === true
-                        ? 'bg-green-100 text-green-800' 
-                        : agendamento.compareceu === false
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {agendamento.compareceu === true ? 'SIM' : agendamento.compareceu === false ? 'NÃO' : 'PEND'}
-                    </span>
-                  </TableCell>
-                  <TableCell className="py-1 text-center w-24">
-                    <span className={`text-xs px-1 py-0.5 rounded font-medium ${
-                      agendamento.assinaturaPaciente === true
-                        ? 'bg-green-100 text-green-800' 
-                        : agendamento.assinaturaPaciente === false
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {agendamento.assinaturaPaciente === true ? 'SIM' : agendamento.assinaturaPaciente === false ? 'NÃO' : 'PEND'}
-                    </span>
-                  </TableCell>
-                  <TableCell className="py-1 text-center w-24">
-                    <span className={`text-xs px-1 py-0.5 rounded font-medium ${
-                      agendamento.assinaturaProfissional === true
-                        ? 'bg-green-100 text-green-800' 
-                        : agendamento.assinaturaProfissional === false
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {agendamento.assinaturaProfissional === true ? 'SIM' : agendamento.assinaturaProfissional === false ? 'NÃO' : 'PEND'}
-                    </span>
-                  </TableCell>
                   <TableCell className="text-right py-2">
                     <div className="flex justify-end gap-1">
                       {/* Botão Meet para agendamentos online */}
@@ -982,11 +962,13 @@ export const AtenderPage = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                          onClick={() => handleAbrirProntuario(agendamento)}
-                          title="Evolução"
+                          disabled={!getConfiguracoesPorAgendamento(agendamento).evolucao}
+                          className={`group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!getConfiguracoesPorAgendamento(agendamento).evolucao ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          onClick={getConfiguracoesPorAgendamento(agendamento).evolucao ? () => handleAbrirProntuario(agendamento) : undefined}
+                          title={getConfiguracoesPorAgendamento(agendamento).evolucao ? "Evolução" : "Evolução desabilitada para este convênio"}
                         >
                           <ClipboardList className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
+                          {renderEvolucaoIndicator(evolucoesMap.get(agendamento.id), getConfiguracoesPorAgendamento(agendamento).evolucao)}
                         </Button>
                       ) : (
                         <TooltipProvider>
@@ -1013,29 +995,35 @@ export const AtenderPage = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="group border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                        onClick={() => handleCompareceu(agendamento)}
-                        title="Marcar comparecimento"
+                        disabled={!getConfiguracoesPorAgendamento(agendamento).compareceu}
+                        className={`group border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!getConfiguracoesPorAgendamento(agendamento).compareceu ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={getConfiguracoesPorAgendamento(agendamento).compareceu ? () => handleCompareceu(agendamento) : undefined}
+                        title={getConfiguracoesPorAgendamento(agendamento).compareceu ? "Marcar comparecimento" : "Comparecimento desabilitado para este convênio"}
                       >
                         <UserCheck className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
+                        {renderStatusIndicator(agendamento.compareceu, getConfiguracoesPorAgendamento(agendamento).compareceu)}
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                        onClick={() => handleAssinaturaPaciente(agendamento)}
-                        title="Assinatura do paciente"
+                        disabled={!getConfiguracoesPorAgendamento(agendamento).assinatura_paciente}
+                        className={`group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!getConfiguracoesPorAgendamento(agendamento).assinatura_paciente ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={getConfiguracoesPorAgendamento(agendamento).assinatura_paciente ? () => handleAssinaturaPaciente(agendamento) : undefined}
+                        title={getConfiguracoesPorAgendamento(agendamento).assinatura_paciente ? "Assinatura do paciente" : "Assinatura do paciente desabilitada para este convênio"}
                       >
                         <PenTool className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
+                        {renderStatusIndicator(agendamento.assinaturaPaciente, getConfiguracoesPorAgendamento(agendamento).assinatura_paciente)}
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="group border-2 border-indigo-300 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 focus:ring-4 focus:ring-indigo-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                        onClick={() => handleAssinaturaProfissional(agendamento)}
-                        title="Sua assinatura"
+                        disabled={!getConfiguracoesPorAgendamento(agendamento).assinatura_profissional}
+                        className={`group border-2 border-indigo-300 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 focus:ring-4 focus:ring-indigo-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!getConfiguracoesPorAgendamento(agendamento).assinatura_profissional ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={getConfiguracoesPorAgendamento(agendamento).assinatura_profissional ? () => handleAssinaturaProfissional(agendamento) : undefined}
+                        title={getConfiguracoesPorAgendamento(agendamento).assinatura_profissional ? "Sua assinatura" : "Sua assinatura desabilitada para este convênio"}
                       >
                         <UserCheck2 className="w-4 h-4 text-indigo-600 group-hover:text-white transition-colors" />
+                        {renderStatusIndicator(agendamento.assinaturaProfissional, getConfiguracoesPorAgendamento(agendamento).assinatura_profissional)}
                       </Button>
                       {canAtender ? (
                         <Button
@@ -1103,6 +1091,16 @@ export const AtenderPage = () => {
 
   return (
     <div className="pt-2 pl-6 pr-6 h-full flex flex-col">
+      {/* Indicador de loading das configurações */}
+      {loadingConfiguracoes && (
+        <div className="sticky top-0 z-50 bg-blue-50 border-b border-blue-200 px-4 py-2">
+          <div className="flex items-center justify-center gap-2 text-blue-700 text-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            Carregando configurações por convênio...
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
         <div>
