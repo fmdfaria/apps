@@ -85,6 +85,25 @@ export class GoogleCalendarService {
       .replace(/\\n/g, '\n');
   }
 
+  private getRemindersConfig() {
+    const useDefault = process.env.GOOGLE_USE_DEFAULT_REMINDERS === 'true';
+    const reminderMinutes = parseInt(process.env.GOOGLE_REMINDER_MINUTES || '15');
+    
+    if (useDefault) {
+      return {
+        useDefault: true,
+      };
+    }
+    
+    return {
+      useDefault: false,
+      overrides: [
+        { method: 'email', minutes: reminderMinutes },
+        { method: 'popup', minutes: reminderMinutes }
+      ],
+    };
+  }
+
   // ========================================
   // MÉTODOS BÁSICOS (MANTIDOS)
   // ========================================
@@ -125,10 +144,7 @@ export class GoogleCalendarService {
         guestsCanInviteOthers: false,
         guestsCanModify: false,
         guestsCanSeeOtherGuests: true,
-        reminders: {
-          useDefault: false,
-          overrides: [],
-        },
+        reminders: this.getRemindersConfig(),
       };
 
       const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
@@ -137,7 +153,7 @@ export class GoogleCalendarService {
         calendarId,
         resource: event,
         conferenceDataVersion: 1,
-        sendUpdates: 'none'
+        sendUpdates: process.env.GOOGLE_SEND_UPDATES || 'all'
       });
 
       const meetUrl = response.data.conferenceData?.entryPoints?.[0]?.uri;
@@ -214,10 +230,7 @@ export class GoogleCalendarService {
         guestsCanInviteOthers: false,
         guestsCanModify: false,
         guestsCanSeeOtherGuests: true,
-        reminders: {
-          useDefault: false,
-          overrides: [],
-        },
+        reminders: this.getRemindersConfig(),
       };
 
       const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
@@ -226,7 +239,7 @@ export class GoogleCalendarService {
         calendarId,
         resource: event,
         conferenceDataVersion: 1,
-        sendUpdates: 'none'
+        sendUpdates: process.env.GOOGLE_SEND_UPDATES || 'all'
       });
 
       const meetUrl = response.data.conferenceData?.entryPoints?.[0]?.uri;
