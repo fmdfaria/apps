@@ -6,6 +6,7 @@ export interface ICreatePrecoParticularDTO {
   preco: number;
   tipoPagamento?: string | null;
   pagamentoAntecipado?: boolean | null;
+  dataPagamento?: Date | null;
 }
 
 export interface IUpdatePrecoParticularDTO extends Partial<ICreatePrecoParticularDTO> {}

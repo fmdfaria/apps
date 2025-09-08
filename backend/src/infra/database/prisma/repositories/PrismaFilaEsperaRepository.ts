@@ -62,7 +62,7 @@ export class PrismaFilaEsperaRepository implements IFilaEsperaRepository {
 
   async findAll(): Promise<FilaEspera[]> {
     const items = await this.prisma.filaEspera.findMany({ 
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
       include: {
         paciente: {
           select: {
@@ -96,7 +96,7 @@ export class PrismaFilaEsperaRepository implements IFilaEsperaRepository {
   async findAllActive(): Promise<FilaEspera[]> {
     const items = await this.prisma.filaEspera.findMany({ 
       where: { ativo: true }, 
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
       include: {
         paciente: {
           select: {

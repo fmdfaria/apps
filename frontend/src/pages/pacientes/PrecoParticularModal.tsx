@@ -21,6 +21,7 @@ interface PrecoParticularModalProps {
     precoPaciente: string;
     tipoPagamento: string;
     pagamentoAntecipado: boolean;
+    dataPagamento: string;
   };
   formError: string;
   formLoading: boolean;
@@ -224,16 +225,12 @@ export default function PrecoParticularModal({
                   required
                 />
               </div>
-              <p className="text-xs text-gray-600 mt-2 flex items-center gap-1">
-                <span className="text-sm">💡</span>
-                Este será o valor cobrado especificamente deste paciente
-              </p>
             </div>
           </div>
 
           {/* Linha campos pagamento */}
           <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <div className="md:col-span-2">
+            <div>
               <label className="flex text-sm font-semibold text-gray-700 mb-2 items-center gap-2">
                 <span className="text-lg">💳</span>
                 Tipo de pagamento
@@ -255,6 +252,18 @@ export default function PrecoParticularModal({
                 onChange={(selected) => onFormChange({ tipoPagamento: selected?.id || '' })}
                 placeholder="Selecione o tipo"
                 headerText="Tipos de pagamento"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Data de Pagamento
+              </label>
+              <input
+                type="date"
+                value={form.dataPagamento || ''}
+                onChange={(e) => onFormChange({ dataPagamento: e.target.value })}
+                disabled={formLoading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
               />
             </div>
             <div className="flex items-end">

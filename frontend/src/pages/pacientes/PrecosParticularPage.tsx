@@ -30,7 +30,7 @@ export default function PrecosParticularPage() {
   const [canDelete, setCanDelete] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState<PrecoParticular | null>(null);
-  const [form, setForm] = useState({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true });
+  const [form, setForm] = useState({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true, dataPagamento: '' });
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [excluindo, setExcluindo] = useState<PrecoParticular | null>(null);
@@ -428,7 +428,7 @@ export default function PrecosParticularPage() {
 
   const abrirModalNovo = () => {
     setEditando(null);
-    setForm({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true });
+    setForm({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true, dataPagamento: '' });
     setFormError('');
     setShowModal(true);
   };
@@ -448,6 +448,7 @@ export default function PrecosParticularPage() {
         : '',
       tipoPagamento: p.tipoPagamento || '',
       pagamentoAntecipado: p.pagamentoAntecipado ?? true,
+      dataPagamento: p.dataPagamento || '',
     });
     setFormError('');
     setShowModal(true);
@@ -456,7 +457,7 @@ export default function PrecosParticularPage() {
   const fecharModal = () => {
     setShowModal(false);
     setEditando(null);
-    setForm({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true });
+    setForm({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true, dataPagamento: '' });
     setFormError('');
   };
 
@@ -494,6 +495,7 @@ export default function PrecosParticularPage() {
           percentualProfissional: form.percentualProfissional ? Number(form.percentualProfissional) : undefined,
           tipoPagamento: form.tipoPagamento || undefined,
           pagamentoAntecipado: form.pagamentoAntecipado ?? undefined,
+          dataPagamento: form.dataPagamento || undefined,
         });
       } else {
         await createPrecoParticular({
@@ -505,6 +507,7 @@ export default function PrecosParticularPage() {
           percentualProfissional: form.percentualProfissional ? Number(form.percentualProfissional) : undefined,
           tipoPagamento: form.tipoPagamento || undefined,
           pagamentoAntecipado: form.pagamentoAntecipado ?? undefined,
+          dataPagamento: form.dataPagamento || undefined,
         });
       }
       fecharModal();
