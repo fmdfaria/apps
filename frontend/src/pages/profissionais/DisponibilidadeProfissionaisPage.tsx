@@ -433,15 +433,16 @@ export default function DisponibilidadeProfissionaisPage() {
     setSalvando(true);
 
     try {
-      const dataCompleta = new Date(dataEspecifica);
+      // Não usar new Date() para evitar conversão de timezone
+      // dataEspecifica já está no formato correto YYYY-MM-DD
+      const [ano, mes, dia] = dataEspecifica.split('-').map(Number);
+      const dataCompleta = new Date(ano, mes - 1, dia); // mes - 1 porque Date usa meses 0-indexed
+      
       const [horaInicio, minutoInicio] = horarioInicioEspecificoSelecionado.nome.split(':').map(Number);
       const [horaFim, minutoFim] = horarioFimEspecificoSelecionado.nome.split(':').map(Number);
 
-      const dataHoraInicio = new Date(dataCompleta);
-      dataHoraInicio.setHours(horaInicio, minutoInicio, 0, 0);
-
-      const dataHoraFim = new Date(dataCompleta);
-      dataHoraFim.setHours(horaFim, minutoFim, 0, 0);
+      const dataHoraInicio = new Date(ano, mes - 1, dia, horaInicio, minutoInicio, 0, 0);
+      const dataHoraFim = new Date(ano, mes - 1, dia, horaFim, minutoFim, 0, 0);
 
       const novaDisponibilidade: CreateDisponibilidadeDto = {
         profissionalId: profissionalSelecionado.id,
@@ -451,8 +452,8 @@ export default function DisponibilidadeProfissionaisPage() {
         horaFim: gerarHorarioParaAPI(dataCompleta, horarioFimEspecificoSelecionado.nome),
         tipo: tipoEdicao,
         diaSemana: null,
-        // Enviar apenas a data (YYYY-MM-DD) para evitar offset ao salvar DATE
-        dataEspecifica: formatDateOnly(dataCompleta),
+        // Enviar a data diretamente sem conversão adicional
+        dataEspecifica: dataEspecifica, // Já está no formato YYYY-MM-DD correto
         observacao: observacaoEspecifica || null
       };
 
