@@ -2,6 +2,7 @@ import { inject, injectable } from 'tsyringe';
 import { AppError } from '../../../../shared/errors/AppError';
 import { DisponibilidadeProfissional } from '../../../domain/entities/DisponibilidadeProfissional';
 import { IProfissionaisRepository } from '../../../domain/repositories/IProfissionaisRepository';
+import { IRecursosRepository } from '../../../domain/repositories/IRecursosRepository';
 import {
   IDisponibilidadesProfissionaisRepository,
   ICreateDisponibilidadeProfissionalDTO,
@@ -13,7 +14,9 @@ export class CreateDisponibilidadeProfissionalUseCase {
     @inject('DisponibilidadesProfissionaisRepository')
     private disponibilidadesRepository: IDisponibilidadesProfissionaisRepository,
     @inject('ProfissionaisRepository')
-    private profissionaisRepository: IProfissionaisRepository
+    private profissionaisRepository: IProfissionaisRepository,
+    @inject('RecursosRepository')
+    private recursosRepository: IRecursosRepository
   ) {}
 
   async execute(data: ICreateDisponibilidadeProfissionalDTO): Promise<DisponibilidadeProfissional> {
@@ -37,22 +40,24 @@ export class CreateDisponibilidadeProfissionalUseCase {
     }
 
     // Validação 2: Verificar conflito de recurso (apenas para atendimentos presenciais)
-    // Para atendimentos online, múltiplos profissionais podem usar o mesmo "recurso" simultaneamente
+    // Para atendimentos online e recurso "Online", múltiplos profissionais podem usar simultaneamente
     if (recursoId && diaSemana !== null && diaSemana !== undefined && !dataEspecifica) {
-      const resourceConflict = await this.disponibilidadesRepository.findResourceConflict({
-        recursoId,
-        diaSemana,
-        dataEspecifica,
-        horaInicio,
-        horaFim,
-      });
+      // Buscar o recurso para verificar se é "Online"
+      const recurso = await this.recursosRepository.findById(recursoId);
+      const isRecursoOnline = recurso?.nome?.toLowerCase() === 'online';
       
-      if (resourceConflict && resourceConflict.profissional) {
-        // Verificar se é atendimento online - se for, permitir múltiplos profissionais
-        const isOnline = data.tipo === 'online';
+      // Se o recurso é "Online" ou o tipo é "online", não verificar conflitos
+      if (!isRecursoOnline && data.tipo !== 'online') {
+        const resourceConflict = await this.disponibilidadesRepository.findResourceConflict({
+          recursoId,
+          diaSemana,
+          dataEspecifica,
+          horaInicio,
+          horaFim,
+        });
         
-        if (!isOnline) {
-          // Apenas bloquear para atendimentos presenciais
+        if (resourceConflict && resourceConflict.profissional) {
+          // Apenas bloquear para atendimentos presenciais com recursos físicos
           const nomeProfissional = resourceConflict.profissional.nome;
           const nomeRecurso = resourceConflict.recurso?.nome || 'o recurso';
           throw new AppError(
@@ -60,7 +65,6 @@ export class CreateDisponibilidadeProfissionalUseCase {
             409
           );
         }
-        // Para atendimentos online, não bloquear - permite múltiplos profissionais simultaneamente
       }
     }
 
