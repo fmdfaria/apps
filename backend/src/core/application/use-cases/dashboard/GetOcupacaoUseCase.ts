@@ -78,6 +78,9 @@ export class GetOcupacaoUseCase {
     // Calcular ocupação dos recursos (manter lógica atual)
     const ocupacoesRecursos = this.calcularOcupacaoRecursos(recursos, agendamentos, hoje);
 
+    // Debug final - verificar se os dados estão corretos antes de retornar
+    console.log('[DEBUG] Retornando ocupações - primeiro recurso:', JSON.stringify(ocupacoesRecursos[0], null, 2));
+
     return {
       ocupacoesProfissionais,
       ocupacoesRecursos
@@ -146,6 +149,7 @@ export class GetOcupacaoUseCase {
         // Debug para Luana
         if (profissional.nome.includes('Luana de Fátima')) {
           console.log(`[DEBUG] ${dia.toISOString().split('T')[0]}: disponíveis=${slotsDisponiveisNoDia}, folga=${slotsFolgaNoDia}, líquido=${slotsLiquidosNoDia}, total acumulado=${totalSlotsDisponiveis}`);
+          console.log(`[DEBUG] ${dia.toISOString().split('T')[0]}: ${disponibilidadesDoDia.length} disponibilidades encontradas:`, disponibilidadesDoDia.map(d => `${d.tipo} ${d.horaInicio}-${d.horaFim} ${d.dataEspecifica ? 'específica' : 'semanal'}`));
         }
       }
 
