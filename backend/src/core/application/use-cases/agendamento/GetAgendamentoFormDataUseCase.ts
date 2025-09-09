@@ -152,26 +152,39 @@ export class GetAgendamentoFormDataUseCase {
       for (let dia = new Date(inicioDaSemana); dia <= fimDaSemana; dia.setDate(dia.getDate() + 1)) {
         const diaSemanaNum = dia.getDay();
         
-        const disponibilidadesDoDia = disponibilidadesProfissional.filter(d => {
-          // Data específica tem prioridade
+        // PRIORIDADE: Data específica tem prioridade sobre dia da semana
+        // 1. Primeiro buscar disponibilidades específicas para este dia
+        let disponibilidadesDoDia = disponibilidadesProfissional.filter(d => {
           if (d.dataEspecifica) {
             const dataDisp = new Date(d.dataEspecifica);
             return dataDisp.getDate() === dia.getDate() && 
                    dataDisp.getMonth() === dia.getMonth() && 
                    dataDisp.getFullYear() === dia.getFullYear();
           }
-          return d.diaSemana === diaSemanaNum;
+          return false;
         });
 
-        // Somar slots disponíveis (apenas presencial e online)
-        disponibilidadesDoDia.forEach(d => {
-          if (d.tipo === 'presencial' || d.tipo === 'online') {
-            const horaInicio = d.horaInicio.getHours() * 60 + d.horaInicio.getMinutes();
-            const horaFim = d.horaFim.getHours() * 60 + d.horaFim.getMinutes();
-            const slotsNoPeriodo = (horaFim - horaInicio) / 30; // Slots de 30 min
-            totalSlotsDisponiveis += slotsNoPeriodo;
-          }
-        });
+        // 2. Se não houver disponibilidades específicas, buscar por dia da semana
+        if (disponibilidadesDoDia.length === 0) {
+          disponibilidadesDoDia = disponibilidadesProfissional.filter(d => {
+            return d.diaSemana === diaSemanaNum && !d.dataEspecifica;
+          });
+        }
+
+        // 3. Verificar se há folga específica - se sim, não contar slots
+        const temFolgaEspecifica = disponibilidadesDoDia.some(d => d.tipo === 'folga');
+        
+        if (!temFolgaEspecifica) {
+          // Somar slots disponíveis (apenas presencial e online)
+          disponibilidadesDoDia.forEach(d => {
+            if (d.tipo === 'presencial' || d.tipo === 'online') {
+              const horaInicio = d.horaInicio.getHours() * 60 + d.horaInicio.getMinutes();
+              const horaFim = d.horaFim.getHours() * 60 + d.horaFim.getMinutes();
+              const slotsNoPeriodo = (horaFim - horaInicio) / 30; // Slots de 30 min
+              totalSlotsDisponiveis += slotsNoPeriodo;
+            }
+          });
+        }
       }
 
       // Filtrar agendamentos do profissional na semana

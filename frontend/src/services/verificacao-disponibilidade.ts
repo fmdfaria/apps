@@ -96,17 +96,17 @@ const verificarDisponibilidadeHorario = (
   
   // Debug removido para melhorar performance
   
-  // Verificar se há alguma disponibilidade para este horário
+  // PRIORIDADE: Primeiro verificar datas específicas, depois dias da semana
+  
+  // 1. Verificar se há disponibilidade de data específica (tem prioridade)
   for (const disponibilidade of disponibilidadesProfissional) {
-    // Verificar se é uma data específica ou dia da semana
     const isDataEspecifica = disponibilidade.dataEspecifica && 
       disponibilidade.dataEspecifica.toDateString() === data.toDateString();
-    const isDiaSemana = disponibilidade.diaSemana !== null && disponibilidade.diaSemana === diaSemana;
     
-    if (isDataEspecifica || isDiaSemana) {
+    if (isDataEspecifica) {
       let inicioDisponibilidade, fimDisponibilidade;
       
-      // Tratar diferentes formatos de horário (mesmo código da versão recorrência)
+      // Tratar diferentes formatos de horário
       const horaInicioRaw = disponibilidade.horaInicio;
       const horaFimRaw = disponibilidade.horaFim;
       
@@ -127,21 +127,65 @@ const verificarDisponibilidadeHorario = (
         continue; // Formato não reconhecido, pular esta disponibilidade
       }
       
-      // Se o horário está dentro do intervalo da disponibilidade
+      // Se o horário está dentro do intervalo da disponibilidade específica
       if (horarioMinutos >= inicioDisponibilidade && horarioMinutos < fimDisponibilidade) {
-        // Se é tipo 'folga', retornar folga
         if (disponibilidade.tipo === 'folga') {
           return 'folga';
         }
-        // Se é tipo 'presencial', retornar presencial
         if (disponibilidade.tipo === 'presencial') {
           return 'presencial';
         }
-        // Se é tipo 'online', retornar online
         if (disponibilidade.tipo === 'online') {
           return 'online';
         }
-        // Para compatibilidade com versões antigas, tratar 'disponivel' como 'presencial'
+        if (disponibilidade.tipo === 'disponivel') {
+          return 'presencial';
+        }
+      }
+    }
+  }
+  
+  // 2. Se não houver disponibilidade específica, verificar disponibilidade semanal
+  for (const disponibilidade of disponibilidadesProfissional) {
+    const isDiaSemana = disponibilidade.diaSemana !== null && 
+      disponibilidade.diaSemana === diaSemana && 
+      !disponibilidade.dataEspecifica; // Garantir que não seja data específica
+    
+    if (isDiaSemana) {
+      let inicioDisponibilidade, fimDisponibilidade;
+      
+      // Tratar diferentes formatos de horário
+      const horaInicioRaw = disponibilidade.horaInicio;
+      const horaFimRaw = disponibilidade.horaFim;
+      
+      if (typeof horaInicioRaw === 'string' && horaInicioRaw.includes('T')) {
+        const dataInicio = new Date(horaInicioRaw);
+        const dataFim = new Date(horaFimRaw as any);
+        inicioDisponibilidade = dataInicio.getHours() * 60 + dataInicio.getMinutes();
+        fimDisponibilidade = dataFim.getHours() * 60 + dataFim.getMinutes();
+      } else if (typeof horaInicioRaw === 'object' && (horaInicioRaw as any).getHours) {
+        inicioDisponibilidade = (horaInicioRaw as Date).getHours() * 60 + (horaInicioRaw as Date).getMinutes();
+        fimDisponibilidade = (horaFimRaw as Date).getHours() * 60 + (horaFimRaw as Date).getMinutes();
+      } else if (typeof horaInicioRaw === 'string' && horaInicioRaw.includes(':')) {
+        const [hI, mI] = (horaInicioRaw as string).split(':').map(Number);
+        const [hF, mF] = (horaFimRaw as string).split(':').map(Number);
+        inicioDisponibilidade = hI * 60 + mI;
+        fimDisponibilidade = hF * 60 + mF;
+      } else {
+        continue; // Formato não reconhecido, pular esta disponibilidade
+      }
+      
+      // Se o horário está dentro do intervalo da disponibilidade semanal
+      if (horarioMinutos >= inicioDisponibilidade && horarioMinutos < fimDisponibilidade) {
+        if (disponibilidade.tipo === 'folga') {
+          return 'folga';
+        }
+        if (disponibilidade.tipo === 'presencial') {
+          return 'presencial';
+        }
+        if (disponibilidade.tipo === 'online') {
+          return 'online';
+        }
         if (disponibilidade.tipo === 'disponivel') {
           return 'presencial';
         }

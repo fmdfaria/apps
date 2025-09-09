@@ -76,14 +76,14 @@ const verificarDisponibilidadeHorario = (
 
   // Debug apenas se necessário (remover logs excessivos)
   
-  // Verificar se há alguma disponibilidade para este horário
+  // PRIORIDADE: Primeiro verificar datas específicas, depois dias da semana
+  
+  // 1. Verificar se há disponibilidade de data específica (tem prioridade)
   for (const disponibilidade of disponibilidadesProfissional) {
-    // Verificar se é uma data específica ou dia da semana
     const isDataEspecifica = disponibilidade.dataEspecifica && 
       new Date(disponibilidade.dataEspecifica).toDateString() === data.toDateString();
-    const isDiaSemana = disponibilidade.diaSemana !== null && disponibilidade.diaSemana === diaSemana;
     
-    if (isDataEspecifica || isDiaSemana) {
+    if (isDataEspecifica) {
       let inicioDisponibilidade, fimDisponibilidade;
       
       // Tratar diferentes formatos de horário
@@ -104,7 +104,44 @@ const verificarDisponibilidadeHorario = (
         continue;
       }
       
-      // Se o horário está dentro do intervalo da disponibilidade
+      // Se o horário está dentro do intervalo da disponibilidade específica
+      if (horarioMinutos >= inicioDisponibilidade && horarioMinutos < fimDisponibilidade) {
+        if (disponibilidade.tipo === 'folga') return 'folga';
+        if (disponibilidade.tipo === 'presencial') return 'presencial';
+        if (disponibilidade.tipo === 'online') return 'online';
+        if (disponibilidade.tipo === 'disponivel') return 'presencial'; // Compatibilidade
+      }
+    }
+  }
+  
+  // 2. Se não houver disponibilidade específica, verificar disponibilidade semanal
+  for (const disponibilidade of disponibilidadesProfissional) {
+    const isDiaSemana = disponibilidade.diaSemana !== null && 
+      disponibilidade.diaSemana === diaSemana && 
+      !disponibilidade.dataEspecifica; // Garantir que não seja data específica
+    
+    if (isDiaSemana) {
+      let inicioDisponibilidade, fimDisponibilidade;
+      
+      // Tratar diferentes formatos de horário
+      if (typeof disponibilidade.horaInicio === 'string' && disponibilidade.horaInicio.includes('T')) {
+        const dataInicio = new Date(disponibilidade.horaInicio);
+        const dataFim = new Date(disponibilidade.horaFim);
+        inicioDisponibilidade = dataInicio.getHours() * 60 + dataInicio.getMinutes();
+        fimDisponibilidade = dataFim.getHours() * 60 + dataFim.getMinutes();
+      } else if (typeof disponibilidade.horaInicio === 'object' && disponibilidade.horaInicio.getHours) {
+        inicioDisponibilidade = disponibilidade.horaInicio.getHours() * 60 + disponibilidade.horaInicio.getMinutes();
+        fimDisponibilidade = disponibilidade.horaFim.getHours() * 60 + disponibilidade.horaFim.getMinutes();
+      } else if (typeof disponibilidade.horaInicio === 'string' && disponibilidade.horaInicio.includes(':')) {
+        const [hI, mI] = disponibilidade.horaInicio.split(':').map(Number);
+        const [hF, mF] = disponibilidade.horaFim.split(':').map(Number);
+        inicioDisponibilidade = hI * 60 + mI;
+        fimDisponibilidade = hF * 60 + mF;
+      } else {
+        continue;
+      }
+      
+      // Se o horário está dentro do intervalo da disponibilidade semanal
       if (horarioMinutos >= inicioDisponibilidade && horarioMinutos < fimDisponibilidade) {
         if (disponibilidade.tipo === 'folga') return 'folga';
         if (disponibilidade.tipo === 'presencial') return 'presencial';
