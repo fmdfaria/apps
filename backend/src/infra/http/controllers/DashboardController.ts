@@ -8,8 +8,6 @@ export class DashboardController {
       const getOcupacaoUseCase = container.resolve(GetOcupacaoUseCase);
       const result = await getOcupacaoUseCase.execute();
 
-      // Log temporário para verificar o que está sendo enviado
-      console.log('[CONTROLLER DEBUG] Primeiro recurso antes do send:', JSON.stringify(result.ocupacoesRecursos[0], null, 2));
 
       return reply.status(200).send(result);
     } catch (error) {

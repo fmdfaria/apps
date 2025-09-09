@@ -46,7 +46,9 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
                   agendamentosHoje: { type: 'number' },
                   agendamentosProximos7: { type: 'number' },
                   percentualOcupacao: { type: 'number' },
-                  disponivel: { type: 'boolean' }
+                  disponivel: { type: 'boolean' },
+                  ocupados: { type: 'number' },
+                  total: { type: 'number' }
                 }
               }
             }

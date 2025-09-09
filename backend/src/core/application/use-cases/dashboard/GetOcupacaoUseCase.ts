@@ -233,7 +233,7 @@ export class GetOcupacaoUseCase {
         : 0;
 
 
-      const resultado = {
+      return {
         id: recurso.id,
         nome: recurso.nome,
         tipo: 'Recurso',
@@ -244,13 +244,6 @@ export class GetOcupacaoUseCase {
         ocupados: agendamentosRecursoProx7.length,
         total: totalSlotsDisponiveis
       };
-      
-      // Log temporário para debug
-      if (recurso.nome === 'Sala 01') {
-        console.log('[TEMP DEBUG] Sala 01 resultado:', JSON.stringify(resultado, null, 2));
-      }
-      
-      return resultado;
     });
   }
 }
