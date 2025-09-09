@@ -142,6 +142,11 @@ export class GetOcupacaoUseCase {
         // Saldo final: disponibilidades - folgas (não pode ser negativo)
         const slotsLiquidosNoDia = Math.max(0, slotsDisponiveisNoDia - slotsFolgaNoDia);
         totalSlotsDisponiveis += slotsLiquidosNoDia;
+        
+        // Debug para Luana
+        if (profissional.nome.includes('Luana de Fátima')) {
+          console.log(`[DEBUG] ${dia.toISOString().split('T')[0]}: disponíveis=${slotsDisponiveisNoDia}, folga=${slotsFolgaNoDia}, líquido=${slotsLiquidosNoDia}, total acumulado=${totalSlotsDisponiveis}`);
+        }
       }
 
       // Calcular agendamentos hoje
@@ -165,6 +170,11 @@ export class GetOcupacaoUseCase {
 
       const ocupadosReais = agendamentosProximos7.length;
       const percentualReal = totalSlotsDisponiveis > 0 ? Math.round((ocupadosReais / totalSlotsDisponiveis) * 100) : 0;
+
+      // Debug detalhado para Luana
+      if (profissional.nome.includes('Luana de Fátima')) {
+        console.log(`[DEBUG LUANA FINAL] Agendamentos: ${ocupadosReais}, Slots totais: ${totalSlotsDisponiveis}, Percentual: ${percentualReal}%`);
+      }
 
       ocupacoes.push({
         profissionalId: profissional.id,
@@ -227,6 +237,9 @@ export class GetOcupacaoUseCase {
       const percentualOcupacao = totalSlotsDisponiveis > 0 
         ? Math.min(100, Math.round((agendamentosRecursoProx7.length / totalSlotsDisponiveis) * 100))
         : 0;
+
+      // Debug para recursos
+      console.log(`[DEBUG RECURSO] ${recurso.nome}: ocupados=${agendamentosRecursoProx7.length}, total=${totalSlotsDisponiveis}, percentual=${percentualOcupacao}%`);
 
       return {
         id: recurso.id,
