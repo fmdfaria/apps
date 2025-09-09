@@ -55,7 +55,7 @@ export class GetOcupacaoUseCase {
     const [profissionais, disponibilidades, agendamentosResp, recursos] = await Promise.all([
       this.profissionaisRepository.findAll(),
       this.disponibilidadesRepository.findAll(),
-      this.agendamentosRepository.findAll({ dataInicio: hoje, dataFim: proximosSete, limit: 10000 }),
+      this.agendamentosRepository.findAll({ dataInicio: hoje, dataFim: proximosSete }),
       this.recursosRepository.findAll()
     ]);
 
