@@ -189,7 +189,12 @@ export class GetOcupacaoUseCase {
     agendamentos: any[],
     dataInicio: Date
   ): IOcupacaoRecurso[] {
-    return recursos.map(recurso => {
+    // Filtrar recursos - excluir 'Online' pois não precisa medir ocupação
+    const recursosParaOcupacao = recursos.filter(recurso => 
+      recurso.nome.toLowerCase() !== 'online'
+    );
+    
+    return recursosParaOcupacao.map(recurso => {
       // Calcular agendamentos hoje
       const fimHoje = new Date(dataInicio);
       fimHoje.setDate(fimHoje.getDate() + 1);
