@@ -22,6 +22,8 @@ interface IOcupacaoRecurso {
   agendamentosProximos7: number;
   percentualOcupacao: number;
   disponivel: boolean;
+  ocupados: number;
+  total: number;
 }
 
 interface IResponse {
@@ -102,9 +104,6 @@ export class GetOcupacaoUseCase {
         dia.setDate(dia.getDate() + i);
         const diaSemanaNum = dia.getDay();
         
-        // Debug: Log do dia sendo processado
-        console.log(`[DEBUG] Processando dia ${dia.toISOString().split('T')[0]} (${diaSemanaNum}) para profissional ${profissional.nome}`);
-        
         // PRIORIDADE: Data específica tem prioridade sobre dia da semana
         // 1. Primeiro buscar disponibilidades específicas para este dia
         let disponibilidadesDoDia = disponibilidadesProfissional.filter(d => {
@@ -124,27 +123,25 @@ export class GetOcupacaoUseCase {
           });
         }
 
-        // 3. Verificar se há folga específica - se sim, não contar slots
-        const temFolgaEspecifica = disponibilidadesDoDia.some(d => d.tipo === 'folga');
+        // 3. Calcular slots: somar disponibilidades e subtrair folgas
+        let slotsDisponiveisNoDia = 0;
+        let slotsFolgaNoDia = 0;
         
-        console.log(`[DEBUG] Dia ${dia.toISOString().split('T')[0]}: ${disponibilidadesDoDia.length} disponibilidades, folga: ${temFolgaEspecifica}`);
+        disponibilidadesDoDia.forEach(d => {
+          const horaInicio = d.horaInicio.getHours() * 60 + d.horaInicio.getMinutes();
+          const horaFim = d.horaFim.getHours() * 60 + d.horaFim.getMinutes();
+          const slotsNoPeriodo = (horaFim - horaInicio) / 30; // Slots de 30 min
+          
+          if (d.tipo === 'presencial' || d.tipo === 'online') {
+            slotsDisponiveisNoDia += slotsNoPeriodo;
+          } else if (d.tipo === 'folga') {
+            slotsFolgaNoDia += slotsNoPeriodo;
+          }
+        });
         
-        if (!temFolgaEspecifica) {
-          let slotsNoDia = 0;
-          // Somar slots disponíveis (apenas presencial e online)
-          disponibilidadesDoDia.forEach(d => {
-            if (d.tipo === 'presencial' || d.tipo === 'online') {
-              const horaInicio = d.horaInicio.getHours() * 60 + d.horaInicio.getMinutes();
-              const horaFim = d.horaFim.getHours() * 60 + d.horaFim.getMinutes();
-              const slotsNoPeriodo = (horaFim - horaInicio) / 30; // Slots de 30 min
-              totalSlotsDisponiveis += slotsNoPeriodo;
-              slotsNoDia += slotsNoPeriodo;
-            }
-          });
-          console.log(`[DEBUG] Dia ${dia.toISOString().split('T')[0]}: ${slotsNoDia} slots adicionados (total: ${totalSlotsDisponiveis})`);
-        } else {
-          console.log(`[DEBUG] Dia ${dia.toISOString().split('T')[0]}: FOLGA - 0 slots adicionados`);
-        }
+        // Saldo final: disponibilidades - folgas (não pode ser negativo)
+        const slotsLiquidosNoDia = Math.max(0, slotsDisponiveisNoDia - slotsFolgaNoDia);
+        totalSlotsDisponiveis += slotsLiquidosNoDia;
       }
 
       // Calcular agendamentos hoje
@@ -209,10 +206,26 @@ export class GetOcupacaoUseCase {
         return dataAgendamento >= dataInicio && dataAgendamento < fimSete;
       });
       
-      // Estimar ocupação baseada nos agendamentos (assumindo 8 slots por dia para recursos)
-      const slotsDisponiveis = 7 * 8; // 7 dias × 8 slots por dia
-      const percentualOcupacao = slotsDisponiveis > 0 
-        ? Math.min(100, Math.round((agendamentosRecursoProx7.length / slotsDisponiveis) * 100))
+      // Calcular slots fixos baseados no horário de funcionamento da clínica
+      let totalSlotsDisponiveis = 0;
+      
+      for (let i = 0; i < 7; i++) {
+        const dia = new Date(dataInicio);
+        dia.setDate(dia.getDate() + i);
+        const diaSemana = dia.getDay(); // 0=domingo, 1=segunda, ..., 6=sábado
+        
+        if (diaSemana >= 1 && diaSemana <= 5) {
+          // Segunda a sexta: 07:30 às 20:00 = 12.5 horas = 25 slots de 30min
+          totalSlotsDisponiveis += 25;
+        } else if (diaSemana === 6) {
+          // Sábado: 08:00 às 13:00 = 5 horas = 10 slots de 30min
+          totalSlotsDisponiveis += 10;
+        }
+        // Domingo: 0 slots (não funciona)
+      }
+      
+      const percentualOcupacao = totalSlotsDisponiveis > 0 
+        ? Math.min(100, Math.round((agendamentosRecursoProx7.length / totalSlotsDisponiveis) * 100))
         : 0;
 
       return {
@@ -222,7 +235,9 @@ export class GetOcupacaoUseCase {
         agendamentosHoje: agendamentosRecursoHoje.length,
         agendamentosProximos7: agendamentosRecursoProx7.length,
         percentualOcupacao,
-        disponivel: true
+        disponivel: true,
+        ocupados: agendamentosRecursoProx7.length,
+        total: totalSlotsDisponiveis
       };
     });
   }

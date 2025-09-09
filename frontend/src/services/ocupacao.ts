@@ -34,6 +34,8 @@ export interface OcupacaoRecurso {
   agendamentosProximos7: number;
   percentualOcupacao: number;
   disponivel: boolean;
+  ocupados: number;
+  total: number;
 }
 
 export interface DadosOcupacao {

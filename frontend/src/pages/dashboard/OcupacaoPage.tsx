@@ -412,10 +412,7 @@ export const OcupacaoPage: React.FC = () => {
                     <td className="px-6 py-2 text-center">
                       <div className="space-y-2">
                         <div className="text-sm font-medium">
-                          {tipoVisualizacao === 'profissionais' 
-                            ? formatarOcupacao(item.ocupados, item.total)
-                            : `${item.percentualOcupacao}%`
-                          }
+                          {formatarOcupacao(item.ocupados, item.total)}
                         </div>
                         <Progress 
                           value={tipoVisualizacao === 'profissionais' ? item.percentual : item.percentualOcupacao} 
@@ -491,10 +488,7 @@ export const OcupacaoPage: React.FC = () => {
                   <div className="flex justify-between text-sm mb-1">
                     <span>Ocupação</span>
                     <span className="font-medium">
-                      {tipoVisualizacao === 'profissionais' 
-                        ? `${item.ocupados}/${item.total}`
-                        : `${item.percentualOcupacao}%`
-                      }
+                      {`${item.ocupados}/${item.total}`}
                     </span>
                   </div>
                   <Progress 
