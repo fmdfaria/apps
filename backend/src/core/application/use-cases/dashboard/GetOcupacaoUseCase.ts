@@ -102,6 +102,9 @@ export class GetOcupacaoUseCase {
         dia.setDate(dia.getDate() + i);
         const diaSemanaNum = dia.getDay();
         
+        // Debug: Log do dia sendo processado
+        console.log(`[DEBUG] Processando dia ${dia.toISOString().split('T')[0]} (${diaSemanaNum}) para profissional ${profissional.nome}`);
+        
         // PRIORIDADE: Data específica tem prioridade sobre dia da semana
         // 1. Primeiro buscar disponibilidades específicas para este dia
         let disponibilidadesDoDia = disponibilidadesProfissional.filter(d => {
@@ -124,7 +127,10 @@ export class GetOcupacaoUseCase {
         // 3. Verificar se há folga específica - se sim, não contar slots
         const temFolgaEspecifica = disponibilidadesDoDia.some(d => d.tipo === 'folga');
         
+        console.log(`[DEBUG] Dia ${dia.toISOString().split('T')[0]}: ${disponibilidadesDoDia.length} disponibilidades, folga: ${temFolgaEspecifica}`);
+        
         if (!temFolgaEspecifica) {
+          let slotsNoDia = 0;
           // Somar slots disponíveis (apenas presencial e online)
           disponibilidadesDoDia.forEach(d => {
             if (d.tipo === 'presencial' || d.tipo === 'online') {
@@ -132,8 +138,12 @@ export class GetOcupacaoUseCase {
               const horaFim = d.horaFim.getHours() * 60 + d.horaFim.getMinutes();
               const slotsNoPeriodo = (horaFim - horaInicio) / 30; // Slots de 30 min
               totalSlotsDisponiveis += slotsNoPeriodo;
+              slotsNoDia += slotsNoPeriodo;
             }
           });
+          console.log(`[DEBUG] Dia ${dia.toISOString().split('T')[0]}: ${slotsNoDia} slots adicionados (total: ${totalSlotsDisponiveis})`);
+        } else {
+          console.log(`[DEBUG] Dia ${dia.toISOString().split('T')[0]}: FOLGA - 0 slots adicionados`);
         }
       }
 
