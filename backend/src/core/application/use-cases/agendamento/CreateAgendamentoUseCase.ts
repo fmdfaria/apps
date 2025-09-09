@@ -7,6 +7,7 @@ import { GoogleCalendarService } from '../../../../infra/services/GoogleCalendar
 import { IProfissionaisRepository } from '../../../domain/repositories/IProfissionaisRepository';
 import { IPacientesRepository } from '../../../domain/repositories/IPacientesRepository';
 import { IConveniosRepository } from '../../../domain/repositories/IConveniosRepository';
+import { IRecursosRepository } from '../../../domain/repositories/IRecursosRepository';
 import { randomUUID } from 'crypto';
 
 @injectable()
@@ -23,7 +24,9 @@ export class CreateAgendamentoUseCase {
     @inject('PacientesRepository')
     private pacientesRepository: IPacientesRepository,
     @inject('ConveniosRepository')
-    private conveniosRepository: IConveniosRepository
+    private conveniosRepository: IConveniosRepository,
+    @inject('RecursosRepository')
+    private recursosRepository: IRecursosRepository
   ) {}
 
   async execute(data: Omit<ICreateAgendamentoDTO, 'dataHoraFim'>): Promise<Agendamento | Agendamento[]> {
@@ -35,25 +38,32 @@ export class CreateAgendamentoUseCase {
 
     // Se não for recorrente, segue fluxo normal
     if (!agendamentoData.recorrencia) {
-      // Regras de conflito: Profissional, Recurso, Paciente na mesma Data/Hora
-      const [existenteProf, existenteRecurso, existentePaciente] = await Promise.all([
+      // Buscar o recurso para verificar se é 'Online'
+      const recurso = await this.recursosRepository.findById(agendamentoData.recursoId);
+      const isOnlineResource = recurso?.nome?.toLowerCase() === 'online';
+      
+      // Regras de conflito: Profissional, Recurso (exceto Online), Paciente na mesma Data/Hora
+      const conflictChecks = [
         this.agendamentosRepository.findByProfissionalAndDataHoraInicio(
           agendamentoData.profissionalId,
           agendamentoData.dataHoraInicio
         ),
-        this.agendamentosRepository.findByRecursoAndDataHoraInicio(
+        // Só verifica conflito de recurso se não for 'Online'
+        !isOnlineResource ? this.agendamentosRepository.findByRecursoAndDataHoraInicio(
           agendamentoData.recursoId,
           agendamentoData.dataHoraInicio
-        ),
+        ) : Promise.resolve(null),
         this.agendamentosRepository.findByPacienteAndDataHoraInicio(
           agendamentoData.pacienteId,
           agendamentoData.dataHoraInicio
         ),
-      ]);
+      ];
+      
+      const [existenteProf, existenteRecurso, existentePaciente] = await Promise.all(conflictChecks);
       if (existenteProf) {
         throw new AppError('Conflito: profissional já possui agendamento nesta data e hora.', 400);
       }
-      if (existenteRecurso) {
+      if (existenteRecurso && !isOnlineResource) {
         throw new AppError('Conflito: recurso já possui agendamento nesta data e hora.', 400);
       }
       if (existentePaciente) {
@@ -115,6 +125,10 @@ export class CreateAgendamentoUseCase {
     if (!servico) {
       throw new AppError('Serviço não encontrado.', 404);
     }
+    
+    // Buscar o recurso para verificar se é 'Online' na recorrência
+    const recurso = await this.recursosRepository.findById(baseData.recursoId);
+    const isOnlineResource = recurso?.nome?.toLowerCase() === 'online';
     const datas: Date[] = [];
     // Preservar a data original exatamente como recebida
     const dataOriginal = baseData.dataHoraInicio instanceof Date ? baseData.dataHoraInicio : new Date(baseData.dataHoraInicio);
@@ -143,26 +157,29 @@ export class CreateAgendamentoUseCase {
       datas.push(proximaData);
       count++;
     }
-    // Verificar conflitos para todas as datas (profissional, recurso, paciente) no exato horário
+    // Verificar conflitos para todas as datas (profissional, recurso exceto Online, paciente) no exato horário
     for (const dataHoraInicio of datas) {
-      const [existeProf, existeRecurso, existePaciente] = await Promise.all([
+      const conflictChecks = [
         this.agendamentosRepository.findByProfissionalAndDataHoraInicio(
           baseData.profissionalId,
           dataHoraInicio
         ),
-        this.agendamentosRepository.findByRecursoAndDataHoraInicio(
+        // Só verifica conflito de recurso se não for 'Online'
+        !isOnlineResource ? this.agendamentosRepository.findByRecursoAndDataHoraInicio(
           baseData.recursoId,
           dataHoraInicio
-        ),
+        ) : Promise.resolve(null),
         this.agendamentosRepository.findByPacienteAndDataHoraInicio(
           baseData.pacienteId,
           dataHoraInicio
         ),
-      ]);
+      ];
+      
+      const [existeProf, existeRecurso, existePaciente] = await Promise.all(conflictChecks);
       if (existeProf) {
         throw new AppError(`Conflito: profissional já possui agendamento em ${dataHoraInicio.toISOString()}`);
       }
-      if (existeRecurso) {
+      if (existeRecurso && !isOnlineResource) {
         throw new AppError(`Conflito: recurso já possui agendamento em ${dataHoraInicio.toISOString()}`);
       }
       if (existePaciente) {

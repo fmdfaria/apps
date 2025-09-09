@@ -7,6 +7,7 @@ import { GoogleCalendarService } from '../../../../infra/services/GoogleCalendar
 import { IProfissionaisRepository } from '../../../domain/repositories/IProfissionaisRepository';
 import { IPacientesRepository } from '../../../domain/repositories/IPacientesRepository';
 import { IConveniosRepository } from '../../../domain/repositories/IConveniosRepository';
+import { IRecursosRepository } from '../../../domain/repositories/IRecursosRepository';
 import { SeriesManager } from '../../../../infra/services/SeriesManager';
 
 @injectable()
@@ -24,6 +25,8 @@ export class UpdateAgendamentoUseCase {
     private pacientesRepository: IPacientesRepository,
     @inject('ConveniosRepository')
     private conveniosRepository: IConveniosRepository,
+    @inject('RecursosRepository')
+    private recursosRepository: IRecursosRepository,
     @inject('SeriesManager')
     private seriesManager: SeriesManager
   ) {}
@@ -85,12 +88,19 @@ export class UpdateAgendamentoUseCase {
     }
 
     if (data.dataHoraInicio || data.recursoId) {
-      const existenteRecurso = await this.agendamentosRepository.findByRecursoAndDataHoraInicio(
-        recursoAlvo, 
-        dataHoraInicioAlvo
-      );
-      if (existenteRecurso && existenteRecurso.id !== agendamentoId) {
-        throw new AppError('Conflito: recurso já possui agendamento nesta data e hora.', 400);
+      // Buscar o recurso para verificar se é 'Online'
+      const recurso = await this.recursosRepository.findById(recursoAlvo);
+      const isOnlineResource = recurso?.nome?.toLowerCase() === 'online';
+      
+      // Só verifica conflito de recurso se não for 'Online'
+      if (!isOnlineResource) {
+        const existenteRecurso = await this.agendamentosRepository.findByRecursoAndDataHoraInicio(
+          recursoAlvo, 
+          dataHoraInicioAlvo
+        );
+        if (existenteRecurso && existenteRecurso.id !== agendamentoId) {
+          throw new AppError('Conflito: recurso já possui agendamento nesta data e hora.', 400);
+        }
       }
     }
 
