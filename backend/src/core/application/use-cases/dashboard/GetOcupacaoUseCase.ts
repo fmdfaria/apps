@@ -78,8 +78,6 @@ export class GetOcupacaoUseCase {
     // Calcular ocupação dos recursos (manter lógica atual)
     const ocupacoesRecursos = this.calcularOcupacaoRecursos(recursos, agendamentos, hoje);
 
-    // Debug final - verificar se os dados estão corretos antes de retornar
-    console.log('[DEBUG] Retornando ocupações - primeiro recurso:', JSON.stringify(ocupacoesRecursos[0], null, 2));
 
     return {
       ocupacoesProfissionais,
@@ -147,12 +145,6 @@ export class GetOcupacaoUseCase {
         const slotsLiquidosNoDia = Math.max(0, slotsDisponiveisNoDia - slotsFolgaNoDia);
         totalSlotsDisponiveis += slotsLiquidosNoDia;
         
-        // Debug para Luana
-        if (profissional.nome.includes('Luana de Fátima')) {
-          console.log(`[DEBUG] ${dia.toISOString().split('T')[0]}: disponíveis=${slotsDisponiveisNoDia}, folga=${slotsFolgaNoDia}, líquido=${slotsLiquidosNoDia}, total acumulado=${totalSlotsDisponiveis}`);
-          console.log(`[DEBUG] ${dia.toISOString().split('T')[0]}: ${disponibilidadesSemana.length} semanais + ${disponibilidadesEspecificas.length} específicas = ${disponibilidadesDoDia.length} total`);
-          console.log(`[DEBUG] ${dia.toISOString().split('T')[0]} detalhes:`, disponibilidadesDoDia.map(d => `${d.tipo} ${d.horaInicio}-${d.horaFim} ${d.dataEspecifica ? 'específica' : 'semanal'}`));
-        }
       }
 
       // Calcular agendamentos hoje
@@ -177,10 +169,6 @@ export class GetOcupacaoUseCase {
       const ocupadosReais = agendamentosProximos7.length;
       const percentualReal = totalSlotsDisponiveis > 0 ? Math.round((ocupadosReais / totalSlotsDisponiveis) * 100) : 0;
 
-      // Debug detalhado para Luana
-      if (profissional.nome.includes('Luana de Fátima')) {
-        console.log(`[DEBUG LUANA FINAL] Agendamentos: ${ocupadosReais}, Slots totais: ${totalSlotsDisponiveis}, Percentual: ${percentualReal}%`);
-      }
 
       ocupacoes.push({
         profissionalId: profissional.id,
@@ -244,13 +232,11 @@ export class GetOcupacaoUseCase {
         ? Math.min(100, Math.round((agendamentosRecursoProx7.length / totalSlotsDisponiveis) * 100))
         : 0;
 
-      // Debug para recursos
-      console.log(`[DEBUG RECURSO] ${recurso.nome}: ocupados=${agendamentosRecursoProx7.length}, total=${totalSlotsDisponiveis}, percentual=${percentualOcupacao}%`);
 
       return {
         id: recurso.id,
         nome: recurso.nome,
-        tipo: recurso.tipo || 'Consultório',
+        tipo: 'Recurso',
         agendamentosHoje: agendamentosRecursoHoje.length,
         agendamentosProximos7: agendamentosRecursoProx7.length,
         percentualOcupacao,

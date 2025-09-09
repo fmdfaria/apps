@@ -255,7 +255,11 @@ export const OcupacaoPage: React.FC = () => {
         <div className="mb-6">
           <Tabs 
             value={tipoVisualizacao} 
-            onValueChange={(value) => setTipoVisualizacao(value as TipoVisualizacao)}
+            onValueChange={(value) => {
+              setTipoVisualizacao(value as TipoVisualizacao);
+              // Forçar nova requisição para garantir dados atualizados
+              carregarDadosOcupacao();
+            }}
             className="w-full"
           >
             <TabsList className="grid w-full grid-cols-2 h-12">
@@ -412,7 +416,6 @@ export const OcupacaoPage: React.FC = () => {
                     <td className="px-6 py-2 text-center">
                       <div className="space-y-2">
                         <div className="text-sm font-medium">
-                          {console.log('DEBUG FRONTEND ITEM:', item)}
                           {formatarOcupacao(item.ocupados || 0, item.total || 0)}
                         </div>
                         <Progress 
