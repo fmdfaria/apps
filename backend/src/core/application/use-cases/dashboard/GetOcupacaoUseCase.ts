@@ -107,9 +107,14 @@ export class GetOcupacaoUseCase {
         dia.setDate(dia.getDate() + i);
         const diaSemanaNum = dia.getDay();
         
-        // PRIORIDADE: Data específica tem prioridade sobre dia da semana
-        // 1. Primeiro buscar disponibilidades específicas para este dia
-        let disponibilidadesDoDia = disponibilidadesProfissional.filter(d => {
+        // LÓGICA CORRIGIDA: Combinar horários semanais + específicos
+        // 1. Buscar horários semanais para este dia da semana
+        const disponibilidadesSemana = disponibilidadesProfissional.filter(d => {
+          return d.diaSemana === diaSemanaNum && !d.dataEspecifica;
+        });
+
+        // 2. Buscar disponibilidades específicas para este dia
+        const disponibilidadesEspecificas = disponibilidadesProfissional.filter(d => {
           if (d.dataEspecifica) {
             const dataDisp = new Date(d.dataEspecifica);
             return dataDisp.getDate() === dia.getDate() && 
@@ -119,14 +124,10 @@ export class GetOcupacaoUseCase {
           return false;
         });
 
-        // 2. Se não houver disponibilidades específicas, buscar por dia da semana
-        if (disponibilidadesDoDia.length === 0) {
-          disponibilidadesDoDia = disponibilidadesProfissional.filter(d => {
-            return d.diaSemana === diaSemanaNum && !d.dataEspecifica;
-          });
-        }
+        // 3. Combinar ambas (semanal + específica)
+        const disponibilidadesDoDia = [...disponibilidadesSemana, ...disponibilidadesEspecificas];
 
-        // 3. Calcular slots: somar disponibilidades e subtrair folgas
+        // 4. Calcular slots: somar disponibilidades e subtrair folgas
         let slotsDisponiveisNoDia = 0;
         let slotsFolgaNoDia = 0;
         
@@ -149,7 +150,8 @@ export class GetOcupacaoUseCase {
         // Debug para Luana
         if (profissional.nome.includes('Luana de Fátima')) {
           console.log(`[DEBUG] ${dia.toISOString().split('T')[0]}: disponíveis=${slotsDisponiveisNoDia}, folga=${slotsFolgaNoDia}, líquido=${slotsLiquidosNoDia}, total acumulado=${totalSlotsDisponiveis}`);
-          console.log(`[DEBUG] ${dia.toISOString().split('T')[0]}: ${disponibilidadesDoDia.length} disponibilidades encontradas:`, disponibilidadesDoDia.map(d => `${d.tipo} ${d.horaInicio}-${d.horaFim} ${d.dataEspecifica ? 'específica' : 'semanal'}`));
+          console.log(`[DEBUG] ${dia.toISOString().split('T')[0]}: ${disponibilidadesSemana.length} semanais + ${disponibilidadesEspecificas.length} específicas = ${disponibilidadesDoDia.length} total`);
+          console.log(`[DEBUG] ${dia.toISOString().split('T')[0]} detalhes:`, disponibilidadesDoDia.map(d => `${d.tipo} ${d.horaInicio}-${d.horaFim} ${d.dataEspecifica ? 'específica' : 'semanal'}`));
         }
       }
 
