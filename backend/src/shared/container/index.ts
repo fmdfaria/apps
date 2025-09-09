@@ -118,6 +118,9 @@ import { ListRoutesUseCase } from '../../core/application/use-cases/route/ListRo
 import { UpdateRouteUseCase } from '../../core/application/use-cases/route/UpdateRouteUseCase';
 import { DeleteRouteUseCase } from '../../core/application/use-cases/route/DeleteRouteUseCase';
 import { AssignRoleToUserUseCase } from '../../core/application/use-cases/user-role/AssignRoleToUserUseCase';
+
+// Dashboard Use Cases
+import { GetOcupacaoUseCase } from '../../core/application/use-cases/dashboard/GetOcupacaoUseCase';
 import { ListUserRolesUseCase } from '../../core/application/use-cases/user-role/ListUserRolesUseCase';
 import { RemoveRoleFromUserUseCase } from '../../core/application/use-cases/user-role/RemoveRoleFromUserUseCase';
 import { UpdateUserRoleUseCase } from '../../core/application/use-cases/user-role/UpdateUserRoleUseCase';
@@ -359,3 +362,6 @@ container.register('ListConfiguracaoUseCase', ListConfiguracaoUseCase);
 container.register('UpdateConfiguracaoUseCase', UpdateConfiguracaoUseCase);
 container.register('DeleteConfiguracaoUseCase', DeleteConfiguracaoUseCase);
 container.register('GetConfiguracoesUseCase', GetConfiguracoesUseCase);
+
+// Dashboard Use Cases
+container.register('GetOcupacaoUseCase', GetOcupacaoUseCase);

@@ -43,101 +43,32 @@ export interface DadosOcupacao {
 }
 
 /**
- * Busca dados completos de ocupação usando APIs individuais otimizadas
+ * Busca dados completos de ocupação usando endpoint otimizado do backend
  */
 export const getDadosOcupacao = async (): Promise<DadosOcupacao> => {
   try {
-    // Calcular período de análise (próximos 7 dias)
-    const hoje = new Date();
-    const inicioHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-    const proximosSete = new Date(inicioHoje);
-    proximosSete.setDate(proximosSete.getDate() + 7);
+    // Usar novo endpoint que calcula os slots baseados nas disponibilidades reais
+    const response = await api.get('/dashboard/ocupacao');
+    const { ocupacoesProfissionais, ocupacoesRecursos } = response.data;
 
-    const inicioStr = inicioHoje.toISOString().split('T')[0];
-    const fimStr = proximosSete.toISOString().split('T')[0];
-
-    // Buscar dados usando APIs individuais otimizadas (sem form-data)
-    const [profissionais, recursos, agendamentosResponse] = await Promise.all([
-      getProfissionais({ ativo: true }),
-      getRecursos(),
-      getAgendamentos({ dataInicio: inicioStr, dataFim: fimStr })
-    ]);
-
-    const todosAgendamentos = agendamentosResponse.data;
-
-    // Calcular períodos para filtragem
-    const fimHoje = new Date(inicioHoje);
-    fimHoje.setDate(fimHoje.getDate() + 1);
-
-    // Filtrar agendamentos por período específico
-    const agendamentosHoje = todosAgendamentos.filter((ag: Agendamento) => {
-      const dataAg = new Date(ag.dataHoraInicio);
-      return dataAg >= inicioHoje && dataAg < fimHoje;
-    });
-
-    const agendamentosProximosSete = todosAgendamentos;
-
-    // Calcular estatísticas gerais - todos os profissionais são considerados ativos
-    const recursosDisponiveis = recursos;
-
-    // Processar ocupações dos profissionais com estimativa de slots
-    const ocupacoesProfissionais: OcupacaoProfissional[] = profissionais.map(prof => {
-      // Calcular agendamentos do profissional
-      const agendamentosProfHoje = agendamentosHoje.filter((ag: Agendamento) => ag.profissionalId === prof.id);
-      const agendamentosProfProx7 = agendamentosProximosSete.filter((ag: Agendamento) => ag.profissionalId === prof.id);
-
-      // Estimar total de slots disponíveis (8 slots/dia × 7 dias = 56 slots)
-      const totalSlots = 56;
-      const ocupadosReais = agendamentosProfProx7.length;
-      const percentualReal = totalSlots > 0 ? Math.round((ocupadosReais / totalSlots) * 100) : 0;
-
-      return {
-        profissionalId: prof.id,
-        nome: prof.nome,
-        ocupados: ocupadosReais,
-        total: totalSlots,
-        percentual: percentualReal,
-        agendamentosHoje: agendamentosProfHoje.length,
-        agendamentosProximos7: agendamentosProfProx7.length
-      };
-    }).filter(prof => prof.total > 0);
-
-    // Calcular média de ocupação
+    // Calcular estatísticas gerais baseadas nos dados retornados
+    const totalProfissionais = ocupacoesProfissionais.length;
+    const profissionaisAtivos = ocupacoesProfissionais.length;
+    const totalRecursos = ocupacoesRecursos.length;
+    const recursosDisponiveis = ocupacoesRecursos.filter((r: OcupacaoRecurso) => r.disponivel).length;
+    const agendamentosProximosSete = ocupacoesProfissionais.reduce((acc: number, prof: OcupacaoProfissional) => acc + prof.agendamentosProximos7, 0);
     const mediaOcupacao = ocupacoesProfissionais.length > 0 
-      ? ocupacoesProfissionais.reduce((acc, prof) => acc + prof.percentual, 0) / ocupacoesProfissionais.length 
+      ? ocupacoesProfissionais.reduce((acc: number, prof: OcupacaoProfissional) => acc + prof.percentual, 0) / ocupacoesProfissionais.length 
       : 0;
 
     const estatisticas: EstatisticasOcupacao = {
-      totalProfissionais: profissionais.length,
-      profissionaisAtivos: profissionais.length, // Todos os profissionais são considerados ativos
-      totalRecursos: recursos.length,
-      recursosDisponiveis: recursosDisponiveis.length,
-      agendamentosProximosSete: agendamentosProximosSete.length,
+      totalProfissionais,
+      profissionaisAtivos,
+      totalRecursos,
+      recursosDisponiveis,
+      agendamentosProximosSete,
       mediaOcupacaoProfissionais: Math.round(mediaOcupacao)
     };
-
-    // Processar ocupações dos recursos com dados reais
-    const ocupacoesRecursos: OcupacaoRecurso[] = recursos.map(recurso => {
-      // Calcular agendamentos do recurso
-      const agendamentosRecursoHoje = agendamentosHoje.filter((ag: Agendamento) => ag.recursoId === recurso.id);
-      const agendamentosRecursoProx7 = agendamentosProximosSete.filter((ag: Agendamento) => ag.recursoId === recurso.id);
-      
-      // Estimar ocupação baseada nos agendamentos (assumindo 8 slots por dia)
-      const slotsDisponiveis = 7 * 8; // 7 dias × 8 slots por dia
-      const percentualOcupacao = slotsDisponiveis > 0 
-        ? Math.min(100, Math.round((agendamentosRecursoProx7.length / slotsDisponiveis) * 100))
-        : 0;
-
-      return {
-        id: recurso.id,
-        nome: recurso.nome,
-        tipo: recurso.tipo || 'Consultório',
-        agendamentosHoje: agendamentosRecursoHoje.length,
-        agendamentosProximos7: agendamentosRecursoProx7.length,
-        percentualOcupacao,
-        disponivel: true // Todos os recursos são considerados disponíveis
-      };
-    });
 
     return {
       estatisticas,
