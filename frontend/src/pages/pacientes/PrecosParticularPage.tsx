@@ -103,6 +103,7 @@ export default function PrecosParticularPage() {
     setPrecos([]); // Limpa dados para evitar mostrar dados antigos
     try {
       const data = await getPrecosParticulares();
+      // Os dados já vêm ordenados do backend por nome do paciente (A-Z)
       setPrecos(data);
     } catch (error: any) {
       if (error?.response?.status === 403) {

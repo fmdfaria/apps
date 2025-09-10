@@ -93,6 +93,11 @@ export class PrismaPrecosParticularesRepository
     const precos = await this.prisma.precosParticulares.findMany({
       where: filters,
       include: includeData,
+      orderBy: {
+        paciente: {
+          nomeCompleto: 'asc'
+        }
+      }
     });
     return precos.map(toDomain);
   }

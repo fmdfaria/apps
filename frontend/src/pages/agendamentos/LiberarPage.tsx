@@ -52,6 +52,14 @@ const tipoAtendimentoOptions = [
   { id: 'online', nome: 'Online' }
 ];
 
+// Função para buscar convênios excluindo o particular (para filtro avançado)
+const getConveniosNaoParticulares = async () => {
+  const convenios = await getConvenios();
+  return convenios.filter(convenio => 
+    !convenio.nome.toLowerCase().includes('particular')
+  );
+};
+
 // Configuração dos campos de filtro para o AdvancedFilter (movida para fora do componente)
 const filterFields: FilterField[] = [
   { 
@@ -68,7 +76,7 @@ const filterFields: FilterField[] = [
     key: 'convenioId', 
     type: 'api-select', 
     label: 'Convênio',
-    apiService: getConvenios,
+    apiService: getConveniosNaoParticulares,
     placeholder: 'Selecione um convênio...',
     searchFields: ['nome']
   },
@@ -331,44 +339,53 @@ export const LiberarPage = () => {
           c.nome.toLowerCase().includes('particular')
         );
         convenioParticularId = convenioParticular?.id;
+        console.log('🔍 Convênio particular encontrado:', { convenioParticular, convenioParticularId });
       } catch (convenioError) {
         console.error('Erro ao buscar convênios:', convenioError);
         // Se não conseguir buscar convênios, usar ID hardcoded como fallback
         convenioParticularId = 'f4af6586-8b56-4cf3-8b87-d18605cea381';
+        console.log('⚠️ Usando ID hardcoded para convênio particular:', convenioParticularId);
       }
 
       // Buscar duas listas paginadas por status relevantes para liberação, excluindo convênio particular
+      const agendadosParams = { 
+        page: paginaAtual, 
+        limit: itensPorPagina, 
+        status: 'AGENDADO',
+        // Só excluir convênio particular se NÃO há filtro de convênio específico aplicado
+        ...(convenioParticularId && !filtrosAplicados.convenioId ? { convenioIdExcluir: convenioParticularId } : {}),
+        ...(buscaDebounced ? { search: buscaDebounced } : {}),
+        ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
+        ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
+        ...(filtrosAplicados.tipoAtendimento ? { tipoAtendimento: filtrosAplicados.tipoAtendimento } : {}),
+        ...(filtrosAplicados.convenioId ? { convenioId: filtrosAplicados.convenioId } : {}),
+        ...(filtrosAplicados.servicoId ? { servicoId: filtrosAplicados.servicoId } : {}),
+        ...(filtrosAplicados.pacienteId ? { pacienteId: filtrosAplicados.pacienteId } : {}),
+        ...(filtrosAplicados.profissionalId && !profissionalIdFiltro ? { profissionalId: filtrosAplicados.profissionalId } : {}),
+        ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
+      };
+      const solicitadosParams = { 
+        page: paginaAtual, 
+        limit: itensPorPagina, 
+        status: 'SOLICITADO',
+        // Só excluir convênio particular se NÃO há filtro de convênio específico aplicado
+        ...(convenioParticularId && !filtrosAplicados.convenioId ? { convenioIdExcluir: convenioParticularId } : {}),
+        ...(buscaDebounced ? { search: buscaDebounced } : {}),
+        ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
+        ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
+        ...(filtrosAplicados.tipoAtendimento ? { tipoAtendimento: filtrosAplicados.tipoAtendimento } : {}),
+        ...(filtrosAplicados.convenioId ? { convenioId: filtrosAplicados.convenioId } : {}),
+        ...(filtrosAplicados.servicoId ? { servicoId: filtrosAplicados.servicoId } : {}),
+        ...(filtrosAplicados.pacienteId ? { pacienteId: filtrosAplicados.pacienteId } : {}),
+        ...(filtrosAplicados.profissionalId && !profissionalIdFiltro ? { profissionalId: filtrosAplicados.profissionalId } : {}),
+        ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
+      };
+      
+      console.log('📡 API calls LiberarPage:', { agendadosParams, solicitadosParams });
+      
       const [agendadosRes, solicitadosRes] = await Promise.all([
-        getAgendamentos({ 
-          page: paginaAtual, 
-          limit: itensPorPagina, 
-          status: 'AGENDADO',
-          ...(convenioParticularId ? { convenioIdExcluir: convenioParticularId } : {}),
-          ...(buscaDebounced ? { search: buscaDebounced } : {}),
-          ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
-          ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
-          ...(filtrosAplicados.tipoAtendimento ? { tipoAtendimento: filtrosAplicados.tipoAtendimento } : {}),
-          ...(filtrosAplicados.convenioId ? { convenioId: filtrosAplicados.convenioId } : {}),
-          ...(filtrosAplicados.servicoId ? { servicoId: filtrosAplicados.servicoId } : {}),
-          ...(filtrosAplicados.pacienteId ? { pacienteId: filtrosAplicados.pacienteId } : {}),
-          ...(filtrosAplicados.profissionalId && !profissionalIdFiltro ? { profissionalId: filtrosAplicados.profissionalId } : {}),
-          ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
-        }),
-        getAgendamentos({ 
-          page: paginaAtual, 
-          limit: itensPorPagina, 
-          status: 'SOLICITADO',
-          ...(convenioParticularId ? { convenioIdExcluir: convenioParticularId } : {}),
-          ...(buscaDebounced ? { search: buscaDebounced } : {}),
-          ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
-          ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
-          ...(filtrosAplicados.tipoAtendimento ? { tipoAtendimento: filtrosAplicados.tipoAtendimento } : {}),
-          ...(filtrosAplicados.convenioId ? { convenioId: filtrosAplicados.convenioId } : {}),
-          ...(filtrosAplicados.servicoId ? { servicoId: filtrosAplicados.servicoId } : {}),
-          ...(filtrosAplicados.pacienteId ? { pacienteId: filtrosAplicados.pacienteId } : {}),
-          ...(filtrosAplicados.profissionalId && !profissionalIdFiltro ? { profissionalId: filtrosAplicados.profissionalId } : {}),
-          ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
-        }),
+        getAgendamentos(agendadosParams),
+        getAgendamentos(solicitadosParams),
       ]);
       
       const lista = [...agendadosRes.data, ...solicitadosRes.data];

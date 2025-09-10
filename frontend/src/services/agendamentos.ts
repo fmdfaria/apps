@@ -352,6 +352,7 @@ export interface IAgendamentoFilters {
   pacienteId?: string;
   recursoId?: string;
   convenioId?: string;
+  convenioIdExcluir?: string;
   servicoId?: string;
   dataInicio?: string;
   dataFim?: string;
@@ -381,6 +382,7 @@ export const getAgendamentos = async (filtros?: IAgendamentoFilters): Promise<IP
       if (filtros.pacienteId) params.append('pacienteId', filtros.pacienteId);
       if (filtros.recursoId) params.append('recursoId', filtros.recursoId);
       if (filtros.convenioId) params.append('convenioId', filtros.convenioId);
+      if (filtros.convenioIdExcluir) params.append('convenioIdExcluir', filtros.convenioIdExcluir);
       if (filtros.servicoId) params.append('servicoId', filtros.servicoId);
       if (filtros.dataInicio) params.append('dataInicio', filtros.dataInicio);
       if (filtros.dataFim) params.append('dataFim', filtros.dataFim);
