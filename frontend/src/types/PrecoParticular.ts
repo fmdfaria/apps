@@ -11,4 +11,5 @@ export interface PrecoParticular {
   pagamentoAntecipado?: boolean | null;
   diaPagamento?: number | null; // Dia do mês (1-31)
   notaFiscal?: boolean | null;
+  recibo?: boolean | null;
 } 

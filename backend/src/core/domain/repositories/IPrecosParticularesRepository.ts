@@ -8,6 +8,7 @@ export interface ICreatePrecoParticularDTO {
   pagamentoAntecipado?: boolean | null;
   diaPagamento?: number | null;
   notaFiscal?: boolean | null;
+  recibo?: boolean | null;
 }
 
 export interface IUpdatePrecoParticularDTO extends Partial<ICreatePrecoParticularDTO> {}

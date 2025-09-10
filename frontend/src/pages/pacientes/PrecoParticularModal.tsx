@@ -23,6 +23,7 @@ interface PrecoParticularModalProps {
     pagamentoAntecipado: boolean;
     diaPagamento: string;
     notaFiscal: boolean;
+    recibo: boolean;
   };
   formError: string;
   formLoading: boolean;
@@ -275,9 +276,9 @@ export default function PrecoParticularModal({
               </div>
             </div>
 
-            {/* Linha 4 - Pagamento antecipado | Emitir Nota Fiscal */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div className="flex items-center justify-end">
+            {/* Linha 4 - Pagamento antecipado | Emitir Nota Fiscal | Emitir Recibo */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+              <div className="flex items-center justify-start">
                 <label className="flex items-center gap-3 text-sm font-semibold text-gray-700">
                   <Switch
                     checked={form.pagamentoAntecipado}
@@ -297,6 +298,17 @@ export default function PrecoParticularModal({
                   />
                   <span className="text-lg">🧾</span>
                   <span>Emitir Nota Fiscal</span>
+                </label>
+              </div>
+              <div className="flex items-center justify-start">
+                <label className="flex items-center gap-3 text-sm font-semibold text-gray-700">
+                  <Switch
+                    checked={form.recibo}
+                    onCheckedChange={(v) => onFormChange({ recibo: Boolean(v) })}
+                    disabled={formLoading}
+                  />
+                  <span className="text-lg">📄</span>
+                  <span>Emitir Recibo</span>
                 </label>
               </div>
             </div>

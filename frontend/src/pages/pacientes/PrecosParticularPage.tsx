@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2 } from 'lucide-react';
-import { PageContainer, PageHeader, PageContent, ResponsiveTable, ResponsiveCards, ResponsivePagination, ViewToggle, SearchBar, FilterButton, DynamicFilterPanel, ActionButton } from '@/components/layout';
+import { PageContainer, PageHeader, PageContent, ResponsiveTable, ResponsiveCards, ResponsivePagination, ViewToggle, SearchBar, ActionButton } from '@/components/layout';
 import type { PrecoParticular } from '@/types/PrecoParticular';
 import { getPrecosParticulares, createPrecoParticular, updatePrecoParticular, deletePrecoParticular } from '@/services/precos-particulares';
 import { getPacientes } from '@/services/pacientes';
@@ -13,10 +13,8 @@ import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import PrecoParticularModal from './PrecoParticularModal';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
-import { useTableFilters } from '@/hooks/useTableFilters';
 import { getModuleTheme } from '@/types/theme';
 import api from '@/services/api';
-import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AppToast } from '@/services/toast';
 
@@ -24,13 +22,12 @@ export default function PrecosParticularPage() {
   const [precos, setPrecos] = useState<PrecoParticular[]>([]);
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
-  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [canCreate, setCanCreate] = useState(true);
   const [canUpdate, setCanUpdate] = useState(true);
   const [canDelete, setCanDelete] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState<PrecoParticular | null>(null);
-  const [form, setForm] = useState({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true, diaPagamento: '', notaFiscal: false });
+  const [form, setForm] = useState({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true, diaPagamento: '', notaFiscal: false, recibo: false });
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [excluindo, setExcluindo] = useState<PrecoParticular | null>(null);
@@ -38,7 +35,6 @@ export default function PrecosParticularPage() {
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [convenioParticularId, setConvenioParticularId] = useState<string | null>(null);
-  const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [busca, setBusca] = useState('');
   const theme = getModuleTheme('pacientes');
 
@@ -108,14 +104,7 @@ export default function PrecosParticularPage() {
     } catch (error: any) {
       if (error?.response?.status === 403) {
         setAccessDenied(true);
-        // Buscar informações da rota para mensagem mais específica
-        try {
-          const info = await getRouteInfo('/precos-particulares', 'GET');
-          setRouteInfo(info);
-        } catch (routeError) {
-          // Erro ao buscar informações da rota
-        }
-        // Não mostra toast aqui pois o interceptor já cuida disso
+        // O toast já será mostrado pelo interceptor
       } else {
         console.error('Erro ao carregar dados:', error);
         AppToast.error('Erro ao carregar dados', {
@@ -152,6 +141,12 @@ export default function PrecosParticularPage() {
           <span>Nota Fiscal:</span>
           <span className={`text-xs px-2 py-1 rounded ${p.notaFiscal ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
             {p.notaFiscal ? 'Sim' : 'Não'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <span>Recibo:</span>
+          <span className={`text-xs px-2 py-1 rounded ${p.recibo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+            {p.recibo ? 'Sim' : 'Não'}
           </span>
         </div>
         <div className="flex gap-1.5 flex-wrap mt-2">
@@ -234,7 +229,6 @@ export default function PrecosParticularPage() {
         return paciente ? paciente.nomeCompleto : p.pacienteId;
       },
       essential: true,
-      filterable: { type: 'text', placeholder: 'Buscar por paciente...' },
     },
     {
       key: 'servico',
@@ -244,7 +238,6 @@ export default function PrecosParticularPage() {
         return servico ? servico.nome : p.servicoId;
       },
       essential: true,
-      filterable: { type: 'text', placeholder: 'Buscar por serviço...' },
     },
     {
       key: 'duracao',
@@ -254,7 +247,6 @@ export default function PrecosParticularPage() {
         return servico?.duracaoMinutos ? `${servico.duracaoMinutos} min` : '-';
       },
       className: 'text-center',
-      filterable: { type: 'text', placeholder: 'Ex.: 30 min' },
     },
     {
       key: 'preco',
@@ -263,14 +255,12 @@ export default function PrecosParticularPage() {
         <span className={`text-sm font-medium ${theme.hoverTextColor.replace('hover:', '')} ${theme.headerBg} px-2 py-1 rounded`}>{p.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
       ),
       className: 'text-center',
-      filterable: { type: 'currency', placeholder: 'Valor em R$' },
     },
     {
       key: 'tipoPagamento',
       header: '💳 Tipo pagamento',
       render: (p: PrecoParticular) => p.tipoPagamento || '-',
       className: 'text-center',
-      filterable: { type: 'text', placeholder: 'Ex.: PIX, Cartão' },
     },
     {
       key: 'pagamentoAntecipado',
@@ -293,6 +283,21 @@ export default function PrecosParticularPage() {
       render: (p: PrecoParticular) => (
         <span className={`text-xs px-2 py-1 rounded ${p.notaFiscal ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
           {p.notaFiscal ? 'Sim' : 'Não'}
+        </span>
+      ),
+      className: 'text-center',
+      filterable: { type: 'select', options: [
+        { label: 'Todos', value: '' },
+        { label: 'Sim', value: 'true' },
+        { label: 'Não', value: 'false' },
+      ] },
+    },
+    {
+      key: 'recibo',
+      header: '📄 Recibo',
+      render: (p: PrecoParticular) => (
+        <span className={`text-xs px-2 py-1 rounded ${p.recibo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+          {p.recibo ? 'Sim' : 'Não'}
         </span>
       ),
       className: 'text-center',
@@ -378,25 +383,38 @@ export default function PrecosParticularPage() {
     },
   ];
 
-  // Filtros dinâmicos
-  const {
-    activeFilters,
-    filterConfigs,
-    activeFiltersCount,
-    setFilter,
-    clearAllFilters,
-    applyFilters
-  } = useTableFilters(columns);
 
   // Integração busca rápida com filtro de paciente/serviço
-  const handleBusca = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setBusca(e.target.value);
-    setFilter('paciente', { text: e.target.value });
-    setFilter('servico', { text: e.target.value });
+  const handleBusca = (value: string) => {
+    setBusca(value);
   };
 
-  // Dados filtrados
-  const precosFiltrados = applyFilters(precos);
+  // Dados filtrados - aplicar busca global primeiro, depois filtros específicos
+  const precosFiltradosPorBusca = precos.filter(preco => {
+    if (!busca.trim()) return true;
+    
+    const termoBusca = busca.toLowerCase();
+    
+    // Buscar no nome do paciente
+    const paciente = pacientes.find(p => p.id === preco.pacienteId);
+    const nomePaciente = paciente?.nomeCompleto?.toLowerCase() || '';
+    
+    // Buscar no nome do serviço
+    const servico = servicos.find(s => s.id === preco.servicoId);
+    const nomeServico = servico?.nome?.toLowerCase() || '';
+    
+    // Buscar no valor (formatado)
+    const valorFormatado = preco.preco.toLocaleString('pt-BR', { 
+      style: 'currency', 
+      currency: 'BRL' 
+    }).toLowerCase();
+    
+    return nomePaciente.includes(termoBusca) || 
+           nomeServico.includes(termoBusca) || 
+           valorFormatado.includes(termoBusca);
+  });
+
+  const precosFiltrados = precosFiltradosPorBusca;
 
   // Responsividade e paginação
   const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'precos-particular-view' });
@@ -414,7 +432,7 @@ export default function PrecosParticularPage() {
 
   const abrirModalNovo = () => {
     setEditando(null);
-    setForm({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true, diaPagamento: '', notaFiscal: false });
+    setForm({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true, diaPagamento: '', notaFiscal: false, recibo: false });
     setFormError('');
     setShowModal(true);
   };
@@ -436,6 +454,7 @@ export default function PrecosParticularPage() {
       pagamentoAntecipado: p.pagamentoAntecipado ?? true,
       diaPagamento: p.diaPagamento ? String(p.diaPagamento) : '',
       notaFiscal: p.notaFiscal ?? false,
+      recibo: p.recibo ?? false,
     });
     setFormError('');
     setShowModal(true);
@@ -444,7 +463,7 @@ export default function PrecosParticularPage() {
   const fecharModal = () => {
     setShowModal(false);
     setEditando(null);
-    setForm({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true, diaPagamento: '', notaFiscal: false });
+    setForm({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true, diaPagamento: '', notaFiscal: false, recibo: false });
     setFormError('');
   };
 
@@ -484,6 +503,7 @@ export default function PrecosParticularPage() {
           pagamentoAntecipado: form.pagamentoAntecipado ?? undefined,
           diaPagamento: form.diaPagamento ? Number(form.diaPagamento) : undefined,
           notaFiscal: form.notaFiscal ?? undefined,
+          recibo: form.recibo ?? undefined,
         });
       } else {
         await createPrecoParticular({
@@ -497,6 +517,7 @@ export default function PrecosParticularPage() {
           pagamentoAntecipado: form.pagamentoAntecipado ?? undefined,
           diaPagamento: form.diaPagamento ? Number(form.diaPagamento) : undefined,
           notaFiscal: form.notaFiscal ?? undefined,
+          recibo: form.recibo ?? undefined,
         });
       }
       fecharModal();
@@ -543,19 +564,15 @@ export default function PrecosParticularPage() {
           module="pacientes"
           icon={<span className="text-4xl">💰</span>}
         >
-          <SearchBar
+          <div className="relative w-full sm:w-64 md:w-80 lg:w-96">
+            <input
+              type="text"
               value={busca}
-            onChange={handleBusca}
-            placeholder="Buscar por paciente, serviço ou valor..."
-            className="w-full sm:w-64 md:w-80 lg:w-96"
-            module="pacientes"
-          />
-          <FilterButton
-            showFilters={mostrarFiltros}
-            onToggleFilters={() => setMostrarFiltros(v => !v)}
-            activeFiltersCount={activeFiltersCount}
-            module="pacientes"
-          />
+              onChange={(e) => handleBusca(e.target.value)}
+              placeholder="Buscar por paciente, serviço ou valor..."
+              className="w-full h-10 pl-4 pr-4 border-2 border-gray-200 rounded-lg bg-white hover:border-gray-300 focus:ring-2 focus:ring-rose-200 focus:border-transparent transition-all duration-200 font-medium placeholder:text-gray-400"
+            />
+          </div>
           <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} module="pacientes" />
           {canCreate ? (
             <Button 
@@ -586,15 +603,6 @@ export default function PrecosParticularPage() {
             </TooltipProvider>
           )}
         </PageHeader>
-        <DynamicFilterPanel
-          isVisible={mostrarFiltros}
-          filterConfigs={filterConfigs}
-          activeFilters={activeFilters}
-          onFilterChange={setFilter}
-          onClearAll={clearAllFilters}
-          onClose={() => setMostrarFiltros(false)}
-          module="pacientes"
-        />
         <PageContent scrollRef={isMobile ? targetRef : undefined}>
           {accessDenied ? (
             <div className="flex flex-col items-center justify-center py-20 px-4">
@@ -605,18 +613,6 @@ export default function PrecosParticularPage() {
               <p className="text-gray-600 text-center mb-6 max-w-md">
                 Você não tem permissão para acessar esta página.
               </p>
-              {routeInfo && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-md">
-                  <p className="text-sm text-red-700">
-                    <strong>Rota:</strong> {routeInfo.path} ({routeInfo.method})
-                  </p>
-                  {routeInfo.descricao && (
-                    <p className="text-sm text-red-600 mt-1">
-                      <strong>Descrição:</strong> {routeInfo.descricao}
-                    </p>
-                  )}
-                </div>
-              )}
             </div>
           ) : (
             <>

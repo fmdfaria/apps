@@ -14,6 +14,7 @@ const createPrecoSchema = z.object({
   pagamentoAntecipado: z.boolean().optional().nullable(),
   diaPagamento: z.number().min(1).max(31).optional().nullable(),
   notaFiscal: z.boolean().optional().nullable(),
+  recibo: z.boolean().optional().nullable(),
 });
 
 const updatePrecoSchema = z.object({
@@ -22,6 +23,7 @@ const updatePrecoSchema = z.object({
   pagamentoAntecipado: z.boolean().optional().nullable(),
   diaPagamento: z.number().min(1).max(31).optional().nullable(),
   notaFiscal: z.boolean().optional().nullable(),
+  recibo: z.boolean().optional().nullable(),
 });
 
 const paramsSchema = z.object({
