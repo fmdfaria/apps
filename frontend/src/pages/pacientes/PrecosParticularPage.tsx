@@ -137,6 +137,22 @@ export default function PrecosParticularPage() {
         <div className={`flex items-center gap-2`}>
           <span className={`font-bold text-lg ${theme.hoverTextColor.replace('hover:', '')}`}>{p.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
         </div>
+        {(p.tipoPagamento || p.diaPagamento) && (
+          <div className="flex items-center gap-4 text-sm text-gray-600">
+            {p.tipoPagamento && (
+              <div className="flex items-center gap-1">
+                <span>💳</span>
+                <span>{p.tipoPagamento}</span>
+              </div>
+            )}
+            {p.diaPagamento && (
+              <div className="flex items-center gap-1">
+                <span>📅</span>
+                <span>Dia {p.diaPagamento}</span>
+              </div>
+            )}
+          </div>
+        )}
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <span>Nota Fiscal:</span>
           <span className={`text-xs px-2 py-1 rounded ${p.notaFiscal ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
@@ -260,6 +276,12 @@ export default function PrecosParticularPage() {
       key: 'tipoPagamento',
       header: '💳 Tipo pagamento',
       render: (p: PrecoParticular) => p.tipoPagamento || '-',
+      className: 'text-center',
+    },
+    {
+      key: 'diaPagamento',
+      header: '📅 Dia Pagamento',
+      render: (p: PrecoParticular) => p.diaPagamento ? `Dia ${p.diaPagamento}` : '-',
       className: 'text-center',
     },
     {
@@ -499,9 +521,9 @@ export default function PrecosParticularPage() {
           duracaoMinutos: form.duracaoMinutos ? Number(form.duracaoMinutos) : undefined,
           percentualClinica: form.percentualClinica ? Number(form.percentualClinica) : undefined,
           percentualProfissional: form.percentualProfissional ? Number(form.percentualProfissional) : undefined,
-          tipoPagamento: form.tipoPagamento || undefined,
-          pagamentoAntecipado: form.pagamentoAntecipado ?? undefined,
-          diaPagamento: form.diaPagamento ? Number(form.diaPagamento) : undefined,
+          tipoPagamento: form.tipoPagamento.trim() || null,
+          pagamentoAntecipado: form.pagamentoAntecipado ?? null,
+          diaPagamento: form.diaPagamento.trim() ? Number(form.diaPagamento) : null,
           notaFiscal: form.notaFiscal ?? undefined,
           recibo: form.recibo ?? undefined,
         });
@@ -513,9 +535,9 @@ export default function PrecosParticularPage() {
           duracaoMinutos: form.duracaoMinutos ? Number(form.duracaoMinutos) : undefined,
           percentualClinica: form.percentualClinica ? Number(form.percentualClinica) : undefined,
           percentualProfissional: form.percentualProfissional ? Number(form.percentualProfissional) : undefined,
-          tipoPagamento: form.tipoPagamento || undefined,
-          pagamentoAntecipado: form.pagamentoAntecipado ?? undefined,
-          diaPagamento: form.diaPagamento ? Number(form.diaPagamento) : undefined,
+          tipoPagamento: form.tipoPagamento.trim() || null,
+          pagamentoAntecipado: form.pagamentoAntecipado ?? null,
+          diaPagamento: form.diaPagamento.trim() ? Number(form.diaPagamento) : null,
           notaFiscal: form.notaFiscal ?? undefined,
           recibo: form.recibo ?? undefined,
         });
