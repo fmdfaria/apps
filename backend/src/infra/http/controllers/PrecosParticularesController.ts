@@ -12,12 +12,16 @@ const createPrecoSchema = z.object({
   preco: z.number(),
   tipoPagamento: z.string().max(50).optional().nullable(),
   pagamentoAntecipado: z.boolean().optional().nullable(),
+  diaPagamento: z.number().min(1).max(31).optional().nullable(),
+  notaFiscal: z.boolean().optional().nullable(),
 });
 
 const updatePrecoSchema = z.object({
   preco: z.number().optional(),
   tipoPagamento: z.string().max(50).optional().nullable(),
   pagamentoAntecipado: z.boolean().optional().nullable(),
+  diaPagamento: z.number().min(1).max(31).optional().nullable(),
+  notaFiscal: z.boolean().optional().nullable(),
 });
 
 const paramsSchema = z.object({

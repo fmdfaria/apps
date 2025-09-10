@@ -10,6 +10,7 @@ export class PrecosParticulares {
   tipoPagamento?: string | null;
   pagamentoAntecipado?: boolean | null;
   diaPagamento?: number | null;
+  notaFiscal?: boolean | null;
   createdAt!: Date;
   updatedAt!: Date;
 

@@ -22,6 +22,7 @@ interface PrecoParticularModalProps {
     tipoPagamento: string;
     pagamentoAntecipado: boolean;
     diaPagamento: string;
+    notaFiscal: boolean;
   };
   formError: string;
   formLoading: boolean;
@@ -195,89 +196,109 @@ export default function PrecoParticularModal({
                 </div>
               </div>
             </div>
-            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-4 border-2 border-yellow-200">
-              <label className="flex text-sm font-semibold text-gray-700 mb-2 items-center gap-2">
-                <span className="text-lg">💵</span>
-                Preço Especial para o Paciente <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">R$</span>
-                <input
-                  type="text"
-                  value={form.precoPaciente ?? ''}
-                  onChange={e => {
-                    let valor = e.target.value.replace(/[^\d,]/g, '');
-                    valor = valor.replace(/,+/g, ',');
-                    onFormChange({ precoPaciente: valor });
-                  }}
-                  onBlur={e => {
-                    let valor = e.target.value.replace(/[^\d,]/g, '');
-                    valor = valor.replace(/,+/g, ',');
-                    if (!valor || isNaN(Number(valor.replace(',', '.')))) {
-                      onFormChange({ precoPaciente: '00,00' });
-                    } else {
-                      onFormChange({ precoPaciente: Number(valor.replace(',', '.')).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) });
-                    }
-                  }}
-                  placeholder="0,00"
-                  className="w-full pl-10 pr-4 py-3 border-2 border-yellow-300 rounded-xl focus:ring-4 focus:ring-yellow-100 focus:border-yellow-500 transition-all duration-200 font-semibold text-lg text-gray-800 bg-white hover:border-yellow-400"
-                  disabled={formLoading}
-                  required
+            
+            {/* Linha 3 - Preço Especial | Tipo de Pagamento | Dia do Pagamento */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="flex text-sm font-semibold text-gray-700 mb-2 items-center gap-2">
+                  <span className="text-lg">💵</span>
+                  Preço do Paciente<span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">R$</span>
+                  <input
+                    type="text"
+                    value={form.precoPaciente ?? ''}
+                    onChange={e => {
+                      let valor = e.target.value.replace(/[^\d,]/g, '');
+                      valor = valor.replace(/,+/g, ',');
+                      onFormChange({ precoPaciente: valor });
+                    }}
+                    onBlur={e => {
+                      let valor = e.target.value.replace(/[^\d,]/g, '');
+                      valor = valor.replace(/,+/g, ',');
+                      if (!valor || isNaN(Number(valor.replace(',', '.')))) {
+                        onFormChange({ precoPaciente: '00,00' });
+                      } else {
+                        onFormChange({ precoPaciente: Number(valor.replace(',', '.')).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) });
+                      }
+                    }}
+                    placeholder="0,00"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                    disabled={formLoading}
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="flex text-sm font-semibold text-gray-700 mb-2 items-center gap-2">
+                  <span className="text-lg">💳</span>
+                  Tipo de pagamento
+                </label>
+                <SingleSelectDropdown
+                  options={[
+                    { id: 'Avulso', nome: 'Avulso' },
+                    { id: 'Mensal', nome: 'Mensal' },
+                  ]}
+                  selected={(() => {
+                    const opts = [
+                      { id: 'Avulso', nome: 'Avulso' },
+                      { id: 'Mensal', nome: 'Mensal' },
+                    ];
+                    return form.tipoPagamento
+                      ? opts.find(o => o.id === form.tipoPagamento) || null
+                      : null;
+                  })()}
+                  onChange={(selected) => onFormChange({ tipoPagamento: selected?.id || '' })}
+                  placeholder="Selecione o tipo"
+                  headerText="Tipos de pagamento"
+                />
+              </div>
+              <div>
+                <label className="flex text-sm font-semibold text-gray-700 mb-2 items-center gap-2">
+                  <span className="text-lg">📅</span>
+                  Dia do Pagamento
+                </label>
+                <SingleSelectDropdown
+                  options={Array.from({ length: 31 }, (_, i) => ({
+                    id: String(i + 1).padStart(2, '0'),
+                    nome: String(i + 1).padStart(2, '0')
+                  }))}
+                  selected={form.diaPagamento ? {
+                    id: String(form.diaPagamento).padStart(2, '0'),
+                    nome: String(form.diaPagamento).padStart(2, '0')
+                  } : null}
+                  onChange={(selected) => onFormChange({ diaPagamento: selected?.id || '' })}
+                  placeholder="Selecione o dia"
+                  headerText="Dias do mês"
                 />
               </div>
             </div>
-          </div>
 
-          {/* Linha campos pagamento */}
-          <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <div>
-              <label className="flex text-sm font-semibold text-gray-700 mb-2 items-center gap-2">
-                <span className="text-lg">💳</span>
-                Tipo de pagamento
-              </label>
-              <SingleSelectDropdown
-                options={[
-                  { id: 'Avulso', nome: 'Avulso' },
-                  { id: 'Mensal', nome: 'Mensal' },
-                ]}
-                selected={(() => {
-                  const opts = [
-                    { id: 'Avulso', nome: 'Avulso' },
-                    { id: 'Mensal', nome: 'Mensal' },
-                  ];
-                  return form.tipoPagamento
-                    ? opts.find(o => o.id === form.tipoPagamento) || null
-                    : null;
-                })()}
-                onChange={(selected) => onFormChange({ tipoPagamento: selected?.id || '' })}
-                placeholder="Selecione o tipo"
-                headerText="Tipos de pagamento"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Dia do Pagamento
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="31"
-                value={form.diaPagamento || ''}
-                onChange={(e) => onFormChange({ diaPagamento: e.target.value })}
-                disabled={formLoading}
-                placeholder="Ex: 01, 02, 03, ... 31"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
-              />
-            </div>
-            <div className="flex items-end">
-              <label className="flex items-center gap-3 text-sm font-semibold text-gray-700 w-full">
-                <Switch
-                  checked={form.pagamentoAntecipado}
-                  onCheckedChange={(v) => onFormChange({ pagamentoAntecipado: Boolean(v) })}
-                  disabled={formLoading}
-                />
-                <span>Pagamento antecipado</span>
-              </label>
+            {/* Linha 4 - Pagamento antecipado | Emitir Nota Fiscal */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div className="flex items-center justify-end">
+                <label className="flex items-center gap-3 text-sm font-semibold text-gray-700">
+                  <Switch
+                    checked={form.pagamentoAntecipado}
+                    onCheckedChange={(v) => onFormChange({ pagamentoAntecipado: Boolean(v) })}
+                    disabled={formLoading}
+                  />
+                  <span className="text-lg">⏰</span>
+                  <span>Pagamento antecipado</span>
+                </label>
+              </div>
+              <div className="flex items-center justify-start">
+                <label className="flex items-center gap-3 text-sm font-semibold text-gray-700">
+                  <Switch
+                    checked={form.notaFiscal}
+                    onCheckedChange={(v) => onFormChange({ notaFiscal: Boolean(v) })}
+                    disabled={formLoading}
+                  />
+                  <span className="text-lg">🧾</span>
+                  <span>Emitir Nota Fiscal</span>
+                </label>
+              </div>
             </div>
           </div>
 

@@ -10,4 +10,5 @@ export interface PrecoParticular {
   tipoPagamento?: string | null;
   pagamentoAntecipado?: boolean | null;
   diaPagamento?: number | null; // Dia do mês (1-31)
+  notaFiscal?: boolean | null;
 } 

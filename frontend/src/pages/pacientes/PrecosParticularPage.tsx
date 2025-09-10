@@ -30,7 +30,7 @@ export default function PrecosParticularPage() {
   const [canDelete, setCanDelete] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState<PrecoParticular | null>(null);
-  const [form, setForm] = useState({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true, diaPagamento: '' });
+  const [form, setForm] = useState({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true, diaPagamento: '', notaFiscal: false });
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [excluindo, setExcluindo] = useState<PrecoParticular | null>(null);
@@ -148,20 +148,9 @@ export default function PrecosParticularPage() {
           <span className={`font-bold text-lg ${theme.hoverTextColor.replace('hover:', '')}`}>{p.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span>Whatsapp:</span>
-          <span className={`font-mono ${theme.headerBg} px-2 py-1 rounded ${theme.hoverTextColor.replace('hover:', '')}`}>
-            {(() => {
-              if (!paciente || !paciente.whatsapp) return '-';
-              const tel = paciente.whatsapp.replace(/\D/g, '');
-              if (tel.length > 12) {
-                return `(${tel.slice(0, 2)}) ${tel.slice(2, 4)} ${tel.slice(4, 9)}-${tel.slice(9, 13)}`;
-              } else if (tel.length === 11) {
-                return `(${tel.slice(0, 2)}) ${tel.slice(2, 7)}-${tel.slice(7, 11)}`;
-              } else if (tel.length === 10) {
-                return `(${tel.slice(0, 2)}) ${tel.slice(2, 6)}-${tel.slice(6, 10)}`;
-              }
-              return paciente.whatsapp;
-            })()}
+          <span>Nota Fiscal:</span>
+          <span className={`text-xs px-2 py-1 rounded ${p.notaFiscal ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+            {p.notaFiscal ? 'Sim' : 'Não'}
           </span>
         </div>
         <div className="flex gap-1.5 flex-wrap mt-2">
@@ -298,23 +287,19 @@ export default function PrecosParticularPage() {
       ] },
     },
     {
-      key: 'whatsapp',
-      header: '📱 Whatsapp',
-      render: (p: PrecoParticular) => {
-        const paciente = pacientes.find(pac => pac.id === p.pacienteId);
-        if (!paciente || !paciente.whatsapp) return '-';
-        const tel = paciente.whatsapp.replace(/\D/g, '');
-        if (tel.length > 12) {
-          return `(${tel.slice(0, 2)}) ${tel.slice(2, 4)} ${tel.slice(4, 9)}-${tel.slice(9, 13)}`;
-        } else if (tel.length === 11) {
-          return `(${tel.slice(0, 2)}) ${tel.slice(2, 7)}-${tel.slice(7, 11)}`;
-        } else if (tel.length === 10) {
-          return `(${tel.slice(0, 2)}) ${tel.slice(2, 6)}-${tel.slice(6, 10)}`;
-        }
-        return paciente.whatsapp;
-      },
+      key: 'notaFiscal',
+      header: '🧾 Nota Fiscal',
+      render: (p: PrecoParticular) => (
+        <span className={`text-xs px-2 py-1 rounded ${p.notaFiscal ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+          {p.notaFiscal ? 'Sim' : 'Não'}
+        </span>
+      ),
       className: 'text-center',
-      filterable: false,
+      filterable: { type: 'select', options: [
+        { label: 'Todos', value: '' },
+        { label: 'Sim', value: 'true' },
+        { label: 'Não', value: 'false' },
+      ] },
     },
     {
       key: 'acoes',
@@ -428,7 +413,7 @@ export default function PrecosParticularPage() {
 
   const abrirModalNovo = () => {
     setEditando(null);
-    setForm({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true, diaPagamento: '' });
+    setForm({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true, diaPagamento: '', notaFiscal: false });
     setFormError('');
     setShowModal(true);
   };
@@ -449,6 +434,7 @@ export default function PrecosParticularPage() {
       tipoPagamento: p.tipoPagamento || '',
       pagamentoAntecipado: p.pagamentoAntecipado ?? true,
       diaPagamento: p.diaPagamento ? String(p.diaPagamento) : '',
+      notaFiscal: p.notaFiscal ?? false,
     });
     setFormError('');
     setShowModal(true);
@@ -457,7 +443,7 @@ export default function PrecosParticularPage() {
   const fecharModal = () => {
     setShowModal(false);
     setEditando(null);
-    setForm({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true, diaPagamento: '' });
+    setForm({ pacienteId: '', servicoId: '', preco: '', duracaoMinutos: '', percentualClinica: '', percentualProfissional: '', precoPaciente: '', tipoPagamento: '', pagamentoAntecipado: true, diaPagamento: '', notaFiscal: false });
     setFormError('');
   };
 
@@ -496,6 +482,7 @@ export default function PrecosParticularPage() {
           tipoPagamento: form.tipoPagamento || undefined,
           pagamentoAntecipado: form.pagamentoAntecipado ?? undefined,
           diaPagamento: form.diaPagamento ? Number(form.diaPagamento) : undefined,
+          notaFiscal: form.notaFiscal ?? undefined,
         });
       } else {
         await createPrecoParticular({
@@ -508,6 +495,7 @@ export default function PrecosParticularPage() {
           tipoPagamento: form.tipoPagamento || undefined,
           pagamentoAntecipado: form.pagamentoAntecipado ?? undefined,
           diaPagamento: form.diaPagamento ? Number(form.diaPagamento) : undefined,
+          notaFiscal: form.notaFiscal ?? undefined,
         });
       }
       fecharModal();
