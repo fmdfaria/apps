@@ -65,14 +65,6 @@ const filterFields: FilterField[] = [
     label: 'Data Fim' 
   },
   { 
-    key: 'convenioId', 
-    type: 'api-select', 
-    label: 'Convênio',
-    apiService: getConvenios,
-    placeholder: 'Selecione um convênio...',
-    searchFields: ['nome']
-  },
-  { 
     key: 'servicoId', 
     type: 'api-select', 
     label: 'Serviço',
@@ -105,7 +97,7 @@ const filterFields: FilterField[] = [
   }
 ];
 
-export const LiberarPage = () => {
+export const LiberarParticularPage = () => {
   const { user } = useAuthStore();
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -323,47 +315,20 @@ export const LiberarPage = () => {
         }
       }
 
-      // Buscar convênios para identificar e excluir o convênio "Particular"
-      let convenioParticularId: string | undefined;
-      try {
-        const convenios = await getConvenios();
-        const convenioParticular = convenios.find(c => 
-          c.nome.toLowerCase().includes('particular')
-        );
-        convenioParticularId = convenioParticular?.id;
-      } catch (convenioError) {
-        console.error('Erro ao buscar convênios:', convenioError);
-        // Se não conseguir buscar convênios, usar ID hardcoded como fallback
-        convenioParticularId = 'f4af6586-8b56-4cf3-8b87-d18605cea381';
-      }
+      // ID fixo do convênio particular
+      const convenioParticularId = 'f4af6586-8b56-4cf3-8b87-d18605cea381';
 
-      // Buscar duas listas paginadas por status relevantes para liberação, excluindo convênio particular
-      const [agendadosRes, solicitadosRes] = await Promise.all([
+      // Buscar apenas agendamentos do convênio particular com status AGENDADO
+      const [agendadosRes] = await Promise.all([
         getAgendamentos({ 
           page: paginaAtual, 
           limit: itensPorPagina, 
           status: 'AGENDADO',
-          ...(convenioParticularId ? { convenioIdExcluir: convenioParticularId } : {}),
+          convenioId: convenioParticularId,
           ...(buscaDebounced ? { search: buscaDebounced } : {}),
           ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
           ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
           ...(filtrosAplicados.tipoAtendimento ? { tipoAtendimento: filtrosAplicados.tipoAtendimento } : {}),
-          ...(filtrosAplicados.convenioId ? { convenioId: filtrosAplicados.convenioId } : {}),
-          ...(filtrosAplicados.servicoId ? { servicoId: filtrosAplicados.servicoId } : {}),
-          ...(filtrosAplicados.pacienteId ? { pacienteId: filtrosAplicados.pacienteId } : {}),
-          ...(filtrosAplicados.profissionalId && !profissionalIdFiltro ? { profissionalId: filtrosAplicados.profissionalId } : {}),
-          ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
-        }),
-        getAgendamentos({ 
-          page: paginaAtual, 
-          limit: itensPorPagina, 
-          status: 'SOLICITADO',
-          ...(convenioParticularId ? { convenioIdExcluir: convenioParticularId } : {}),
-          ...(buscaDebounced ? { search: buscaDebounced } : {}),
-          ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
-          ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
-          ...(filtrosAplicados.tipoAtendimento ? { tipoAtendimento: filtrosAplicados.tipoAtendimento } : {}),
-          ...(filtrosAplicados.convenioId ? { convenioId: filtrosAplicados.convenioId } : {}),
           ...(filtrosAplicados.servicoId ? { servicoId: filtrosAplicados.servicoId } : {}),
           ...(filtrosAplicados.pacienteId ? { pacienteId: filtrosAplicados.pacienteId } : {}),
           ...(filtrosAplicados.profissionalId && !profissionalIdFiltro ? { profissionalId: filtrosAplicados.profissionalId } : {}),
@@ -371,13 +336,11 @@ export const LiberarPage = () => {
         }),
       ]);
       
-      const lista = [...agendadosRes.data, ...solicitadosRes.data];
+      const lista = agendadosRes.data;
       setAgendamentos(lista);
-      const totalFiltrado = (agendadosRes.pagination?.total || 0) + (solicitadosRes.pagination?.total || 0);
+      const totalFiltrado = agendadosRes.pagination?.total || 0;
       setTotalResultados(totalFiltrado);
-      // Usar totais das consultas já feitas (evita chamadas extras à API)
-      // Removidas as chamadas extras - usar dados já calculados
-      setTotalGlobal(totalFiltrado); // Usar o mesmo total já calculado
+      setTotalGlobal(totalFiltrado);
     } catch (e: any) {
       if (e?.response?.status === 403) {
         setAccessDenied(true);
@@ -425,11 +388,11 @@ export const LiberarPage = () => {
   };
 
   // Extrair listas únicas para os selects
-  const agendadosBase = agendamentos.filter(a => a.status === 'AGENDADO' || a.status === 'SOLICITADO');
+  const agendadosBase = agendamentos.filter(a => a.status === 'AGENDADO');
 
   // Com a busca via API, apenas ordenamos os dados recebidos
   const agendamentosFiltrados = agendamentos
-    .filter(a => a.status === 'AGENDADO' || a.status === 'SOLICITADO')
+    .filter(a => a.status === 'AGENDADO')
     .sort((a, b) => {
       // Ordenação personalizada: Data > Hora > Paciente
       
@@ -595,7 +558,7 @@ export const LiberarPage = () => {
             Nenhum agendamento encontrado
           </h3>
           <p className="text-sm">
-            {(busca || temFiltrosAtivos) ? 'Tente alterar os filtros de busca.' : 'Nenhum agendamento pendente de liberação.'}
+            {(busca || temFiltrosAtivos) ? 'Tente alterar os filtros de busca.' : 'Nenhum agendamento particular pendente de liberação.'}
           </p>
         </div>
       ) : (
@@ -603,19 +566,16 @@ export const LiberarPage = () => {
           const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
           
           return (
-            <Card key={agendamento.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
+            <Card key={agendamento.id} className="hover:shadow-md transition-shadow border-yellow-200">
+              <CardHeader className="pb-3 bg-gradient-to-r from-yellow-50 to-orange-50">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5" />
-                    <CardTitle className="text-lg">{agendamento.pacienteNome}</CardTitle>
+                    <CheckCircle className="w-5 h-5 text-yellow-600" />
+                    <CardTitle className="text-lg text-yellow-800">{agendamento.pacienteNome}</CardTitle>
                   </div>
                   <Badge 
-                    variant={agendamento.status === 'AGENDADO' ? 'outline' : 'default'}
-                    className={agendamento.status === 'AGENDADO' 
-                      ? 'border-blue-300 text-blue-700 bg-blue-50' 
-                      : 'border-orange-300 text-orange-700 bg-orange-50'
-                    }
+                    variant="outline"
+                    className="border-yellow-400 text-yellow-700 bg-yellow-100"
                   >
                     {agendamento.status}
                   </Badge>
@@ -641,7 +601,7 @@ export const LiberarPage = () => {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <CreditCard className="w-4 h-4" />
-                    <span>{agendamento.convenioNome}</span>
+                    <span className="text-yellow-700 font-medium">Particular</span>
                   </div>
                 </div>
                 
@@ -649,7 +609,7 @@ export const LiberarPage = () => {
                   <Button 
                     size="sm" 
                     variant="default"
-                    className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                    className="flex-1 h-7 text-xs bg-yellow-600 hover:bg-yellow-700"
                     onClick={() => handleVerDetalhes(agendamento)}
                   >
                     Visualizar
@@ -657,7 +617,7 @@ export const LiberarPage = () => {
                   <Button 
                     size="sm" 
                     variant="outline"
-                    className="flex-1 h-7 text-xs border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white"
+                    className="flex-1 h-7 text-xs border-yellow-400 text-yellow-700 hover:bg-yellow-600 hover:text-white"
                     onClick={() => handleSolicitarLiberacaoClick(agendamento)}
                     disabled={estaProcessando(agendamento.id)}
                   >
@@ -711,7 +671,7 @@ export const LiberarPage = () => {
     <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-sm border border-gray-100">
       <Table>
         <TableHeader>
-          <TableRow className="bg-gradient-to-r from-orange-50 to-red-50 border-b border-gray-200">
+          <TableRow className="bg-gradient-to-r from-yellow-50 to-orange-50 border-b border-gray-200">
             <TableHead className="py-3 text-sm font-semibold text-gray-700">
               <div className="flex items-center gap-2">
                 <span className="text-lg">📅</span>
@@ -744,12 +704,6 @@ export const LiberarPage = () => {
             </TableHead>
             <TableHead className="py-3 text-sm font-semibold text-gray-700">
               <div className="flex items-center gap-2">
-                <span className="text-lg">🏥</span>
-                Convênio
-              </div>
-            </TableHead>
-            <TableHead className="py-3 text-sm font-semibold text-gray-700">
-              <div className="flex items-center gap-2">
                 <span className="text-lg">🏷️</span>
                 Tipo
               </div>
@@ -771,13 +725,13 @@ export const LiberarPage = () => {
         <TableBody>
           {agendamentosPaginados.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="py-12 text-center">
+              <TableCell colSpan={8} className="py-12 text-center">
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                    <span className="text-3xl">🔓</span>
+                  <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
+                    <span className="text-3xl">💰</span>
                   </div>
                   <p className="text-gray-500 font-medium">
-                    {(busca || temFiltrosAtivos) ? 'Nenhum resultado encontrado' : 'Nenhum agendamento pendente de liberação'}
+                    {(busca || temFiltrosAtivos) ? 'Nenhum resultado encontrado' : 'Nenhum agendamento particular pendente'}
                   </p>
                   <p className="text-gray-400 text-sm">Tente ajustar os filtros de busca</p>
                 </div>
@@ -788,16 +742,16 @@ export const LiberarPage = () => {
               const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
               
               return (
-                <TableRow key={agendamento.id} className="hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 transition-all duration-200 h-12">
+                <TableRow key={agendamento.id} className="hover:bg-gradient-to-r hover:from-yellow-50 hover:to-orange-50 transition-all duration-200 h-12">
                   <TableCell className="py-2">
                     <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded text-gray-700">{data}</span>
                   </TableCell>
                   <TableCell className="py-2">
-                    <span className="text-sm font-mono bg-orange-100 px-2 py-1 rounded text-orange-700">{hora}</span>
+                    <span className="text-sm font-mono bg-yellow-100 px-2 py-1 rounded text-yellow-700">{hora}</span>
                   </TableCell>
                   <TableCell className="py-2">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                      <div className="w-8 h-8 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
                         {agendamento.pacienteNome?.charAt(0).toUpperCase()}
                       </div>
                       <span className="text-sm font-medium">{agendamento.pacienteNome}</span>
@@ -810,9 +764,6 @@ export const LiberarPage = () => {
                     <span className="text-sm">{agendamento.servicoNome}</span>
                   </TableCell>
                   <TableCell className="py-2">
-                    <span className="text-sm">{agendamento.convenioNome}</span>
-                  </TableCell>
-                  <TableCell className="py-2">
                     <span className={`text-xs px-3 py-1 rounded-full font-medium ${
                       agendamento.tipoAtendimento === 'presencial' 
                         ? 'bg-green-100 text-green-800' 
@@ -822,11 +773,7 @@ export const LiberarPage = () => {
                     </span>
                   </TableCell>
                   <TableCell className="py-2">
-                    <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-                      agendamento.status === 'AGENDADO' 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-orange-100 text-orange-800'
-                    }`}>
+                    <span className="text-xs px-3 py-1 rounded-full font-medium bg-yellow-100 text-yellow-800">
                       {agendamento.status}
                     </span>
                   </TableCell>
@@ -835,7 +782,7 @@ export const LiberarPage = () => {
                       <Button
                         variant="default"
                         size="sm"
-                        className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        className="bg-gradient-to-r from-yellow-600 to-orange-700 text-white hover:from-yellow-700 hover:to-orange-800 focus:ring-4 focus:ring-yellow-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                         onClick={() => handleVerDetalhes(agendamento)}
                         title="Visualizar Agendamento"
                       >
@@ -844,7 +791,7 @@ export const LiberarPage = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        className="group border-2 border-yellow-400 text-yellow-700 hover:bg-yellow-600 hover:text-white hover:border-yellow-600 focus:ring-4 focus:ring-yellow-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                         onClick={() => handleSolicitarLiberacaoClick(agendamento)}
                         disabled={estaProcessando(agendamento.id)}
                         title="Solicitar Liberação"
@@ -852,7 +799,7 @@ export const LiberarPage = () => {
                         {estaProcessando(agendamento.id) ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
-                          <Unlock className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
+                          <Unlock className="w-4 h-4 text-yellow-700 group-hover:text-white transition-colors" />
                         )}
                       </Button>
                       <Button
@@ -900,8 +847,8 @@ export const LiberarPage = () => {
     return (
       <div className="pt-2 pl-6 pr-6 h-full flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-          <p className="text-gray-500">Carregando agendamentos...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600 mx-auto mb-2"></div>
+          <p className="text-gray-500">Carregando agendamentos particulares...</p>
         </div>
       </div>
     );
@@ -945,14 +892,14 @@ export const LiberarPage = () => {
       <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <span className="text-4xl">🔓</span>
-            <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-              Liberações
+            <span className="text-4xl">💰</span>
+            <span className="bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
+              Liberações Particulares
             </span>
           </h1>
           <div className="flex items-center gap-3">
             {agendamentosProcessando.size > 0 && (
-              <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-300">
+              <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-300">
                 <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                 Processando {agendamentosProcessando.size}
               </Badge>
@@ -964,10 +911,10 @@ export const LiberarPage = () => {
             <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar agendamentos..."
+              placeholder="Buscar agendamentos particulares..."
               value={busca}
               onChange={e => setBusca(e.target.value)}
-              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
             />
           </div>
           
@@ -997,7 +944,7 @@ export const LiberarPage = () => {
           <Button
             variant="outline"
             onClick={() => setMostrarFiltros(!mostrarFiltros)}
-            className={`${mostrarFiltros ? 'bg-blue-50 border-blue-300' : ''} ${temFiltrosAtivos ? 'border-blue-500 bg-blue-50' : ''}`}
+            className={`${mostrarFiltros ? 'bg-yellow-50 border-yellow-300' : ''} ${temFiltrosAtivos ? 'border-yellow-500 bg-yellow-50' : ''}`}
           >
             <Filter className="w-4 h-4 mr-2" />
             Filtros
@@ -1037,7 +984,7 @@ export const LiberarPage = () => {
               Exibir
             </span>
             <select
-              className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transition-all duration-200 hover:border-orange-300"
+              className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-yellow-100 focus:border-yellow-500 transition-all duration-200 hover:border-yellow-300"
               value={itensPorPagina}
               onChange={e => {
                 setItensPorPagina(Number(e.target.value));
@@ -1064,10 +1011,10 @@ export const LiberarPage = () => {
             disabled={paginaAtual === 1 || totalPaginas === 1}
             className={(paginaAtual === 1 || totalPaginas === 1)
               ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50" 
-              : "border-2 border-gray-200 text-gray-700 hover:border-orange-500 hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 hover:text-orange-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+              : "border-2 border-gray-200 text-gray-700 hover:border-yellow-500 hover:bg-gradient-to-r hover:from-yellow-50 hover:to-orange-50 hover:text-yellow-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             }
           >
-            <span className="mr-1 text-gray-600 group-hover:text-orange-600 transition-colors">⬅️</span>
+            <span className="mr-1 text-gray-600 group-hover:text-yellow-600 transition-colors">⬅️</span>
             Anterior
           </Button>
           {(() => {
@@ -1081,10 +1028,10 @@ export const LiberarPage = () => {
                 onClick={() => totalPaginas > 1 ? setPaginaAtual(page) : undefined}
                 disabled={totalPaginas === 1}
                 className={page === paginaAtual 
-                  ? "bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg font-semibold" 
+                  ? "bg-gradient-to-r from-yellow-600 to-orange-600 text-white shadow-lg font-semibold" 
                   : totalPaginas === 1
                   ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
-                  : "border-2 border-gray-200 text-gray-700 hover:border-orange-500 hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 hover:text-orange-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+                  : "border-2 border-gray-200 text-gray-700 hover:border-yellow-500 hover:bg-gradient-to-r hover:from-yellow-50 hover:to-orange-50 hover:text-yellow-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
                 }
               >
                 {page}
@@ -1098,11 +1045,11 @@ export const LiberarPage = () => {
             disabled={paginaAtual === totalPaginas || totalPaginas === 1}
             className={(paginaAtual === totalPaginas || totalPaginas === 1)
               ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
-              : "border-2 border-gray-200 text-gray-700 hover:border-orange-500 hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 hover:text-orange-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+              : "border-2 border-gray-200 text-gray-700 hover:border-yellow-500 hover:bg-gradient-to-r hover:from-yellow-50 hover:to-orange-50 hover:text-yellow-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
             }
           >
             Próximo
-            <span className="ml-1 text-gray-600 group-hover:text-orange-600 transition-colors">➡️</span>
+            <span className="ml-1 text-gray-600 group-hover:text-yellow-600 transition-colors">➡️</span>
           </Button>
         </div>
         </div>
@@ -1143,4 +1090,4 @@ export const LiberarPage = () => {
       />
     </div>
   );
-}; 
+};

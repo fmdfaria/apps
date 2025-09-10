@@ -28,6 +28,7 @@ import { ConselhosPage } from '@/pages/conselhos/ConselhosPage';
 import { BancosPage } from '@/pages/bancos/BancosPage';
 import { AgendamentosPage } from '@/pages/agendamentos/AgendamentosPage';
 import { LiberarPage } from '@/pages/agendamentos/LiberarPage';
+import { LiberarParticularPage } from '@/pages/agendamentos/LiberarParticularPage';
 import { AtenderPage } from '@/pages/agendamentos/AtenderPage';
 import { AprovarPage } from '@/pages/agendamentos/AprovarPage';
 import PendenciaPage from '@/pages/agendamentos/PendenciaPage';
@@ -97,6 +98,7 @@ export default function App() {
             <Route path="agendamentos/calendario-profissional" element={<CalendarioProfissionalPage />} />
             <Route path="agendamentos/verificar-agenda" element={<VerificarAgendaPage />} />
             <Route path="agendamentos/liberacao" element={<LiberarPage />} />
+            <Route path="agendamentos/liberacao-particulares" element={<LiberarParticularPage />} />
             <Route path="agendamentos/atendimento" element={<AtenderPage />} />
             <Route path="agendamentos/conclusao" element={<AprovarPage />} />
             <Route path="agendamentos/pendencias" element={<PendenciaPage />} />

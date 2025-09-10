@@ -61,6 +61,7 @@ export class AgendamentosController {
       pacienteId: z.string().uuid().optional(),
       recursoId: z.string().uuid().optional(),
       convenioId: z.string().uuid().optional(),
+      convenioIdExcluir: z.string().uuid().optional(),
       servicoId: z.string().uuid().optional(),
       dataInicio: z.coerce.date().optional(),
       dataFim: z.coerce.date().optional(),

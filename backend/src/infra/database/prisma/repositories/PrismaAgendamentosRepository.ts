@@ -131,6 +131,9 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     if (filters?.status) whereConditions.status = filters.status;
     if (filters?.recursoId) whereConditions.recursoId = filters.recursoId;
     if (filters?.convenioId) whereConditions.convenioId = filters.convenioId;
+    if (filters?.convenioIdExcluir) {
+      whereConditions.convenioId = { not: filters.convenioIdExcluir };
+    }
     if (filters?.servicoId) whereConditions.servicoId = filters.servicoId;
     if (filters?.tipoAtendimento) whereConditions.tipoAtendimento = filters.tipoAtendimento;
     

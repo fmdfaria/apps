@@ -50,6 +50,7 @@ export interface IAgendamentoFilters {
   pacienteId?: string;
   recursoId?: string;
   convenioId?: string;
+  convenioIdExcluir?: string; // Novo filtro para excluir um convênio específico
   servicoId?: string;
   dataInicio?: Date;
   dataFim?: Date;
