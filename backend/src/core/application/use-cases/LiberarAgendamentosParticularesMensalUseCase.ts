@@ -71,33 +71,32 @@ export class LiberarAgendamentosParticularesMensalUseCase {
     const ultimoDiaDoMes = new Date(parseInt(ano), parseInt(mes), 0, 23, 59, 59, 999);
 
     // Buscar todos os agendamentos do grupo mensal
-    const agendamentosDoGrupo = await this.agendamentosRepository.findByFilters({
+    const agendamentosDoGrupo = await this.agendamentosRepository.findAll({
       pacienteId,
       profissionalId,
       servicoId,
       dataInicio: primeiroDiaDoMes,
       dataFim: ultimoDiaDoMes,
-      // Buscar apenas agendamentos que podem ser liberados
-      status: ['SOLICITADO', 'AGENDADO'].join(',')
+      limit: 100 // Limite alto para pegar todos os agendamentos do mês
     });
 
     if (!agendamentosDoGrupo || agendamentosDoGrupo.data.length === 0) {
       throw new Error('Nenhum agendamento encontrado para liberação no período especificado');
     }
 
-    // Validar se todos os agendamentos podem ser liberados
-    const agendamentosInvalidos = agendamentosDoGrupo.data.filter(ag => 
-      !['SOLICITADO', 'AGENDADO'].includes(ag.status)
+    // Filtrar apenas agendamentos que podem ser liberados
+    const agendamentosLiberaveis = agendamentosDoGrupo.data.filter(ag => 
+      ['SOLICITADO', 'AGENDADO'].includes(ag.status)
     );
 
-    if (agendamentosInvalidos.length > 0) {
-      throw new Error(`Existem ${agendamentosInvalidos.length} agendamento(s) que não podem ser liberados (status inválido)`);
+    if (agendamentosLiberaveis.length === 0) {
+      throw new Error('Nenhum agendamento pode ser liberado no período especificado (todos já foram processados ou estão em status inválido)');
     }
 
-    // Atualizar todos os agendamentos do grupo em uma operação
+    // Atualizar todos os agendamentos liberáveis do grupo
     const agendamentosAtualizados: Agendamento[] = [];
     
-    for (const agendamento of agendamentosDoGrupo.data) {
+    for (const agendamento of agendamentosLiberaveis) {
       try {
         const agendamentoAtualizado = await this.agendamentosRepository.update(agendamento.id, {
           status: 'LIBERADO',
