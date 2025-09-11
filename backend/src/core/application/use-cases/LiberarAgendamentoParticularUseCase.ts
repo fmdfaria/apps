@@ -52,7 +52,7 @@ export class LiberarAgendamentoParticularUseCase {
       throw new Error('Data da liberação é obrigatória');
     }
 
-    // Validar formato da data
+    // Validar e converter formato da data
     const dataLiberacaoDate = new Date(dataLiberacao);
     if (isNaN(dataLiberacaoDate.getTime())) {
       throw new Error('Data da liberação inválida');
@@ -69,7 +69,7 @@ export class LiberarAgendamentoParticularUseCase {
     const agendamentoAtualizado = await this.agendamentosRepository.update(agendamentoId, {
       status: 'LIBERADO',
       recebimento: recebimento,
-      dataCodLiberacao: dataLiberacao,
+      dataCodLiberacao: dataLiberacaoDate, // Usar objeto Date em vez de string
       updatedAt: new Date(),
       updatedBy: userId
     });
