@@ -515,13 +515,17 @@ export const PacientesPage = () => {
       const canViewEvolucoes = allowedRoutes.some((route: any) => {
         return route.path === '/evolucoes' && route.method.toLowerCase() === 'get';
       });
+
+      const canViewAnexos = allowedRoutes.some((route: any) => {
+        return route.path === '/anexos' && route.method.toLowerCase() === 'get';
+      });
       
       setCanCreate(canCreate);
       setCanUpdate(canUpdate);
       setCanToggle(canToggle);
       setCanDelete(canDelete);
       setCanViewEvolucoes(canViewEvolucoes);
-      setCanViewAnexos(canRead);
+      setCanViewAnexos(canViewAnexos);
       
       // Se não tem nem permissão de leitura, marca como access denied
       if (!canRead) {

@@ -9,7 +9,7 @@ import { File } from 'lucide-react';
 import { AppToast } from '@/services/toast';
 import type { Paciente } from '@/types/Paciente';
 import type { Anexo } from '@/types/Anexo';
-import { uploadAnexo, getAnexos, deleteAnexo } from '@/services/anexos';
+import { uploadAnexo, getAnexos, deleteAnexo, getAnexoDownloadUrl } from '@/services/anexos';
 
 interface AnexoPacientesModalProps {
   showModal: boolean;
@@ -52,11 +52,23 @@ export default function AnexoPacientesModal({
 }: AnexoPacientesModalProps) {
 
   const { hasPermission } = usePermissions();
-  const canPostAnexo = hasPermission('/anexos', 'POST');
-  const canPutPaciente = paciente ? hasPermission(`/pacientes/${paciente.id}`, 'PUT') : false;
-  const canUpload = canPostAnexo && canPutPaciente;
-  const canPostPaciente = hasPermission('/pacientes', 'POST');
-  const canDeleteAnexoForId = (id: string) => canPostPaciente && hasPermission(`/anexos/${id}`, 'DELETE');
+  const canGetAnexos = hasPermission('/anexos', 'GET');
+  const canUpload = hasPermission('/anexos', 'POST');
+  const canDeleteAnexoForId = (id: string) => hasPermission(`/anexos/${id}`, 'DELETE');
+
+  const handleDownloadAnexo = async (anexo: Anexo) => {
+    try {
+      const downloadUrl = await getAnexoDownloadUrl(anexo.id);
+      // Abrir em nova aba
+      window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error('Erro ao obter URL de download:', error);
+      AppToast.error('Erro ao baixar anexo', {
+        description: 'Não foi possível gerar o link para download. Tente novamente.'
+      });
+    }
+  };
+
   const handleSalvarAnexo = async () => {
     if (!canUpload) {
       AppToast.error('Permissão negada', { description: 'Você não tem permissão para enviar anexos.' });
@@ -157,13 +169,14 @@ export default function AnexoPacientesModal({
               </div>
   
               {/* Lista de anexos existentes */}
-              <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-3 border border-gray-200">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <span className="text-lg">📋</span>
-                  Anexos Enviados ({anexos.length})
-                </h4>
-                
-                {anexos.length === 0 ? (
+              {canGetAnexos ? (
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-3 border border-gray-200">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <span className="text-lg">📋</span>
+                    Anexos Enviados ({anexos.length})
+                  </h4>
+                  
+                  {anexos.length === 0 ? (
                   <div className="text-center py-4">
                     <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
                       <span className="text-2xl">📁</span>
@@ -178,15 +191,13 @@ export default function AnexoPacientesModal({
                         <File className="w-4 h-4 text-blue-500 flex-shrink-0" />
                         
                         <div className="flex-1 min-w-0">
-                          <a 
-                            href={anexo.url || '#'} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="text-blue-600 hover:text-blue-800 font-medium underline block truncate text-sm"
+                          <button
+                            onClick={() => handleDownloadAnexo(anexo)}
+                            className="text-blue-600 hover:text-blue-800 font-medium underline block truncate text-sm text-left w-full"
                             title={anexo.nomeArquivo}
                           >
                             {anexo.nomeArquivo}
-                          </a>
+                          </button>
                           {anexo.descricao && (
                             <p className="text-xs text-gray-500 truncate">{anexo.descricao}</p>
                           )}
@@ -231,7 +242,18 @@ export default function AnexoPacientesModal({
                     ))}
                   </div>
                 )}
-              </div>
+                </div>
+              ) : (
+                <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-xl p-3 border border-red-200">
+                  <div className="text-center py-4">
+                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <span className="text-2xl">🚫</span>
+                    </div>
+                    <p className="text-red-700 font-medium text-sm">Sem permissão para visualizar anexos</p>
+                    <p className="text-red-600 text-xs">Você não tem permissão para acessar os anexos deste paciente</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           

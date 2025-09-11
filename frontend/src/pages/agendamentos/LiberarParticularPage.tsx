@@ -838,7 +838,8 @@ export const LiberarParticularPage = () => {
         tipo: 'GRUPO_MENSAL',
         paciente: {
           id: grupo.pacienteId,
-          nome: grupo.pacienteNome
+          nome: grupo.pacienteNome,
+          whatsapp: agendamento.pacienteWhatsapp
         },
         servico: {
           id: grupo.servicoId,
