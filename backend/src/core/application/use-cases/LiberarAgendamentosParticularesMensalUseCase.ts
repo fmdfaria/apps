@@ -11,6 +11,7 @@ interface LiberarAgendamentosParticularesMensalRequest {
   userId: string;
   recebimento: boolean;
   dataLiberacao: string;
+  pagamentoAntecipado?: boolean; // Informação se o pagamento é antecipado ou não
 }
 
 interface LiberarAgendamentosParticularesMensalResponse {
@@ -35,7 +36,8 @@ export class LiberarAgendamentosParticularesMensalUseCase {
     mesAno,
     userId,
     recebimento,
-    dataLiberacao
+    dataLiberacao,
+    pagamentoAntecipado
   }: LiberarAgendamentosParticularesMensalRequest): Promise<LiberarAgendamentosParticularesMensalResponse> {
     // Verificar se o usuário existe
     const user = await this.usersRepository.findById(userId);
@@ -43,9 +45,9 @@ export class LiberarAgendamentosParticularesMensalUseCase {
       throw new Error('Usuário não encontrado');
     }
 
-    // Validar campos obrigatórios
-    if (!recebimento) {
-      throw new Error('É obrigatório confirmar o recebimento do pagamento');
+    // Validar campos obrigatórios baseado no tipo de pagamento
+    if (pagamentoAntecipado === true && !recebimento) {
+      throw new Error('Para pagamento antecipado é obrigatório confirmar o recebimento do pagamento');
     }
 
     if (!dataLiberacao) {

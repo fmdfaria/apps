@@ -20,12 +20,14 @@ interface GrupoMensal {
   mesAnoDisplay: string; // formato "Setembro 2024"
   quantidadeAgendamentos: number;
   precoTotal: number;
+  pagamentoAntecipado?: boolean; // Informação se é pagamento antecipado
 }
 
 interface LiberarParticularModalProps {
   isOpen: boolean;
   agendamento: Agendamento | null;
   grupo?: GrupoMensal | null; // Dados do grupo se for liberação mensal
+  pagamentoAntecipado?: boolean; // Para agendamentos individuais
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -34,6 +36,7 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
   isOpen,
   agendamento,
   grupo,
+  pagamentoAntecipado,
   onClose,
   onSuccess
 }) => {
@@ -57,9 +60,9 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
     
     if (!agendamento) return;
     
-    // Validações
-    if (!formData.recebimento) {
-      AppToast.validation('Campos obrigatórios', 'Marque o recebimento do pagamento para continuar.');
+    // Validações baseadas no tipo de pagamento
+    if (isPagamentoAntecipado && !formData.recebimento) {
+      AppToast.validation('Campos obrigatórios', 'Para pagamento antecipado é obrigatório marcar o recebimento do pagamento para continuar.');
       return;
     }
 
@@ -78,7 +81,8 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
           servicoId: grupo.servicoId,
           mesAno: grupo.mesAno,
           recebimento: formData.recebimento,
-          dataLiberacao: formData.dataLiberacao
+          dataLiberacao: formData.dataLiberacao,
+          pagamentoAntecipado: grupo.pagamentoAntecipado
         });
         
         AppToast.updated('Grupo Liberado', `${resultado.totalLiberados} agendamentos particulares foram liberados com sucesso para ${grupo.mesAnoDisplay}!`);
@@ -86,7 +90,8 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
         // Liberação individual
         await liberarAgendamentoParticular(agendamento.id, {
           recebimento: formData.recebimento,
-          dataLiberacao: formData.dataLiberacao
+          dataLiberacao: formData.dataLiberacao,
+          pagamentoAntecipado: pagamentoAntecipado
         });
         AppToast.updated('Agendamento', 'O agendamento particular foi liberado com sucesso!');
       }
@@ -162,6 +167,9 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
   if (!agendamento) return null;
 
   const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
+  
+  // Determinar se é pagamento antecipado
+  const isPagamentoAntecipado = grupo?.pagamentoAntecipado ?? pagamentoAntecipado ?? false;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -273,8 +281,12 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
               <div className="grid grid-cols-2 gap-4">
                 {/* Recebimento */}
                 <div className="space-y-2">
-                  <Label className="text-base font-medium">Recebimento *</Label>
-                  <div className="flex items-center space-x-3 p-3 border rounded-md">
+                  <Label className="text-base font-medium">
+                    Recebimento {isPagamentoAntecipado ? '*' : '(Opcional)'}
+                  </Label>
+                  <div className={`flex items-center space-x-3 p-3 border rounded-md ${
+                    isPagamentoAntecipado ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  }`}>
                     <Checkbox
                       id="recebimento"
                       checked={formData.recebimento}
@@ -282,12 +294,24 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
                         setFormData(prev => ({ ...prev, recebimento: !!checked }))
                       }
                     />
-                    <label 
-                      htmlFor="recebimento"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                    >
-                      Recebido do paciente
-                    </label>
+                    <div className="flex flex-col">
+                      <label 
+                        htmlFor="recebimento"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        Recebido do paciente
+                      </label>
+                      {isPagamentoAntecipado && (
+                        <span className="text-xs text-red-600 mt-1">
+                          ⚠️ Obrigatório para pagamento antecipado
+                        </span>
+                      )}
+                      {!isPagamentoAntecipado && (
+                        <span className="text-xs text-gray-500 mt-1">
+                          ℹ️ Opcional para pagamento não antecipado
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 

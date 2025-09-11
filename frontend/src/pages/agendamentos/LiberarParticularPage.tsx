@@ -1958,8 +1958,10 @@ export const LiberarParticularPage = () => {
           mesAno: grupoSelecionadoParaLiberacao.mesAno,
           mesAnoDisplay: grupoSelecionadoParaLiberacao.mesAnoDisplay,
           quantidadeAgendamentos: grupoSelecionadoParaLiberacao.quantidadeAgendamentos,
-          precoTotal: grupoSelecionadoParaLiberacao.precoTotal
+          precoTotal: grupoSelecionadoParaLiberacao.precoTotal,
+          pagamentoAntecipado: encontrarPreco(grupoSelecionadoParaLiberacao.pacienteId, grupoSelecionadoParaLiberacao.servicoId)?.pagamentoAntecipado ?? false
         } : null}
+        pagamentoAntecipado={agendamentoSelecionado ? encontrarPreco(agendamentoSelecionado.pacienteId, agendamentoSelecionado.servicoId)?.pagamentoAntecipado ?? false : false}
         onClose={() => {
           setShowLiberarAgendamento(false);
           setAgendamentoSelecionado(null);

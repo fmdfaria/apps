@@ -8,6 +8,7 @@ interface LiberarAgendamentoParticularRequest {
   userId: string;
   recebimento: boolean;
   dataLiberacao: string;
+  pagamentoAntecipado?: boolean; // Informação se o pagamento é antecipado ou não
 }
 
 @injectable()
@@ -24,7 +25,8 @@ export class LiberarAgendamentoParticularUseCase {
     agendamentoId,
     userId,
     recebimento,
-    dataLiberacao
+    dataLiberacao,
+    pagamentoAntecipado
   }: LiberarAgendamentoParticularRequest): Promise<Agendamento> {
     // Verificar se o usuário existe
     const user = await this.usersRepository.findById(userId);
@@ -43,9 +45,9 @@ export class LiberarAgendamentoParticularUseCase {
       throw new Error(`Não é possível liberar um agendamento com status ${agendamento.status}`);
     }
 
-    // Validar campos obrigatórios
-    if (!recebimento) {
-      throw new Error('É obrigatório confirmar o recebimento do pagamento');
+    // Validar campos obrigatórios baseado no tipo de pagamento
+    if (pagamentoAntecipado === true && !recebimento) {
+      throw new Error('Para pagamento antecipado é obrigatório confirmar o recebimento do pagamento');
     }
 
     if (!dataLiberacao) {
