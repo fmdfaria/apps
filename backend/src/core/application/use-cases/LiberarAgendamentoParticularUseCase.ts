@@ -70,8 +70,7 @@ export class LiberarAgendamentoParticularUseCase {
       status: 'LIBERADO',
       recebimento: recebimento,
       dataCodLiberacao: dataLiberacaoDate, // Usar objeto Date em vez de string
-      updatedAt: new Date(),
-      updatedBy: userId
+      updatedAt: new Date()
     });
 
     return agendamentoAtualizado;
