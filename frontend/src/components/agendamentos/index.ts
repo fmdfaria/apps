@@ -1,6 +1,7 @@
 // Componentes de agendamento
 export { AprovarAgendamentoModal } from './AprovarAgendamentoModal';
 export { LiberarAgendamentoModal } from './LiberarAgendamentoModal';
+export { LiberarParticularModal } from './LiberarParticularModal';
 export { DetalhesAgendamentoModal } from './DetalhesAgendamentoModal';
 export { AtenderAgendamentoModal } from './AtenderAgendamentoModal';
 export { DigitalizarGuiasModal } from './DigitalizarGuiasModal';

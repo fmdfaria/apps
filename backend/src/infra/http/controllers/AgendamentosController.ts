@@ -6,6 +6,7 @@ import { ListAgendamentosUseCase } from '../../../core/application/use-cases/age
 import { UpdateAgendamentoUseCase } from '../../../core/application/use-cases/agendamento/UpdateAgendamentoUseCase';
 import { DeleteAgendamentoUseCase } from '../../../core/application/use-cases/agendamento/DeleteAgendamentoUseCase';
 import { GetAgendamentoFormDataUseCase } from '../../../core/application/use-cases/agendamento/GetAgendamentoFormDataUseCase';
+import { LiberarAgendamentoParticularUseCase } from '../../../core/application/use-cases/LiberarAgendamentoParticularUseCase';
 
 const recorrenciaSchema = z.object({
   tipo: z.enum(['semanal', 'quinzenal', 'mensal']),
@@ -167,6 +168,36 @@ export class AgendamentosController {
     const data = liberarBodySchema.parse(request.body);
     const useCase = container.resolve(UpdateAgendamentoUseCase);
     const agendamento = await useCase.execute(id, data);
+    return reply.status(200).send(agendamento);
+  }
+
+  async liberarParticular(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const paramsSchema = z.object({ id: z.string().uuid() });
+    const { id } = paramsSchema.parse(request.params);
+    
+    // Schema específico para liberação particular - apenas campos permitidos
+    const liberarParticularBodySchema = z.object({
+      recebimento: z.boolean(),
+      dataLiberacao: z.string(),
+      status: z.literal('LIBERADO').optional() // Opcional, será definido automaticamente
+    });
+    
+    const data = liberarParticularBodySchema.parse(request.body);
+    const useCase = container.resolve(LiberarAgendamentoParticularUseCase);
+    
+    // Obter userId do request (assumindo que está disponível após autenticação)
+    const userId = (request as any).user?.id;
+    if (!userId) {
+      return reply.status(401).send({ error: 'Usuário não autenticado' });
+    }
+    
+    const agendamento = await useCase.execute({
+      agendamentoId: id,
+      userId,
+      recebimento: data.recebimento,
+      dataLiberacao: data.dataLiberacao
+    });
+    
     return reply.status(200).send(agendamento);
   }
 

@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { 
   CheckCircle,
   Clock,
@@ -28,7 +29,7 @@ import {
 import type { Agendamento } from '@/types/Agendamento';
 import { getAgendamentos, updateAgendamento } from '@/services/agendamentos';
 
-import { LiberarAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
+import { LiberarAgendamentoModal, DetalhesAgendamentoModal, LiberarParticularModal } from '@/components/agendamentos';
 import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
@@ -39,11 +40,35 @@ import { getConvenios } from '@/services/convenios';
 import { getServicos } from '@/services/servicos';
 import { getPacientes } from '@/services/pacientes';
 import { getProfissionais } from '@/services/profissionais';
+import { getPrecosParticulares } from '@/services/precos-particulares';
+import type { PrecoParticular } from '@/types/PrecoParticular';
 
 // Interface para item da fila de webhooks
 interface WebhookQueueItem {
   agendamento: Agendamento;
+  grupo?: AgendamentoAgrupado; // Informações do grupo se for um agendamento mensal
   timestamp: number;
+}
+
+// Interface para agendamentos agrupados (mensais)
+interface AgendamentoAgrupado {
+  id: string; // ID único gerado para o grupo
+  pacienteId: string;
+  pacienteNome: string;
+  servicoId: string;
+  servicoNome: string;
+  profissionalId: string;
+  profissionalNome: string;
+  agendamentos: Agendamento[]; // Array dos agendamentos originais
+  mesAno: string; // "2024-09" formato para agrupamento
+  mesAnoDisplay: string; // "Setembro 2024" para display completo
+  mesAnoOtimizado: string; // "Set24" para display otimizado na tabela
+  precoUnitario: number;
+  precoTotal: number;
+  quantidadeAgendamentos: number;
+  tipoPagamento: string;
+  status: string; // Status comum de todos os agendamentos
+  tipoAtendimento: string;
 }
 
 // Opções estáticas (movidas para fora do componente)
@@ -100,6 +125,7 @@ const filterFields: FilterField[] = [
 export const LiberarParticularPage = () => {
   const { user } = useAuthStore();
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
+  const [precosParticulares, setPrecosParticulares] = useState<PrecoParticular[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Estados para controle de permissões RBAC
@@ -114,6 +140,8 @@ export const LiberarParticularPage = () => {
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<Agendamento | null>(null);
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
+  const [showAgendamentosGrupo, setShowAgendamentosGrupo] = useState(false);
+  const [grupoSelecionado, setGrupoSelecionado] = useState<AgendamentoAgrupado | null>(null);
   const [itensPorPagina, setItensPorPagina] = useState(10);
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [totalResultados, setTotalResultados] = useState(0); // filtrado
@@ -124,6 +152,7 @@ export const LiberarParticularPage = () => {
   // Estados para confirmação de reenvio
   const [showConfirmacaoReenvio, setShowConfirmacaoReenvio] = useState(false);
   const [agendamentoParaReenvio, setAgendamentoParaReenvio] = useState<Agendamento | null>(null);
+  const [grupoParaReenvio, setGrupoParaReenvio] = useState<AgendamentoAgrupado | null>(null);
 
   // Sistema de fila para webhooks
   const [webhookQueue, setWebhookQueue] = useState<WebhookQueueItem[]>([]);
@@ -151,9 +180,10 @@ export const LiberarParticularPage = () => {
   };
 
   // Funções para gerenciar a fila de webhooks
-  const adicionarNaFila = (agendamento: Agendamento) => {
+  const adicionarNaFila = (agendamento: Agendamento, grupo?: AgendamentoAgrupado) => {
     const novoItem: WebhookQueueItem = {
       agendamento,
+      grupo,
       timestamp: Date.now()
     };
     
@@ -190,7 +220,7 @@ export const LiberarParticularPage = () => {
       }
 
       // Executar webhook e aguardar sucesso completo
-      await executarWebhook(proximoItem.agendamento);
+      await executarWebhook(proximoItem.agendamento, proximoItem.grupo);
       
       // Sucesso: remover da fila e do processamento
       setWebhookQueue(prev => prev.slice(1)); // Remove primeiro item
@@ -219,6 +249,7 @@ export const LiberarParticularPage = () => {
   useEffect(() => {
     checkPermissions();
     carregarAgendamentos();
+    carregarPrecosParticulares();
     setInitialized(true);
   }, []);
 
@@ -296,6 +327,156 @@ export const LiberarParticularPage = () => {
     }
   };
 
+  const carregarPrecosParticulares = async () => {
+    try {
+      const precos = await getPrecosParticulares();
+      setPrecosParticulares(precos);
+    } catch (error) {
+      console.error('Erro ao carregar preços particulares:', error);
+      // Não mostra erro pois não é crítico para o funcionamento da página
+    }
+  };
+
+  // Função para encontrar preço baseado em pacienteId e servicoId
+  const encontrarPreco = (pacienteId: string, servicoId: string): PrecoParticular | null => {
+    return precosParticulares.find(
+      preco => preco.pacienteId === pacienteId && preco.servicoId === servicoId
+    ) || null;
+  };
+
+  // Função para formatar informações de pagamento
+  const formatarPagamento = (precoInfo: PrecoParticular | null): string => {
+    if (!precoInfo) return '-';
+    
+    const parts: string[] = [];
+    
+    // Tipo de pagamento
+    if (precoInfo.tipoPagamento) {
+      parts.push(precoInfo.tipoPagamento);
+    }
+    
+    // Dia do pagamento
+    if (precoInfo.diaPagamento) {
+      parts.push(precoInfo.diaPagamento.toString());
+    }
+    
+    // Antecipado
+    const antecipado = precoInfo.pagamentoAntecipado ? 'SIM' : 'NÃO';
+    parts.push(antecipado);
+    
+    return parts.length > 0 ? parts.join(' - ') : '-';
+  };
+
+  // Função para formatar mês/ano para display
+  const formatarMesAno = (mesAno: string): string => {
+    const [ano, mes] = mesAno.split('-');
+    const meses = [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+    return `${meses[parseInt(mes) - 1]} ${ano}`;
+  };
+
+  // Função para formatar mês/ano de forma otimizada (ex: Set25)
+  const formatarMesAnoOtimizado = (mesAno: string): string => {
+    const [ano, mes] = mesAno.split('-');
+    const mesesAbrev = [
+      'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+      'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
+    ];
+    return `${mesesAbrev[parseInt(mes) - 1]}${ano.slice(-2)}`;
+  };
+
+  // Função helper para verificar se um item é agrupado
+  const isAgendamentoAgrupado = (item: Agendamento | AgendamentoAgrupado): item is AgendamentoAgrupado => {
+    return 'agendamentos' in item;
+  };
+
+  // Função para agrupar agendamentos mensais
+  const agruparAgendamentos = (agendamentos: Agendamento[]): (Agendamento | AgendamentoAgrupado)[] => {
+    const agrupados: { [key: string]: AgendamentoAgrupado } = {};
+    const individuais: Agendamento[] = [];
+
+    agendamentos.forEach(agendamento => {
+      const precoInfo = encontrarPreco(agendamento.pacienteId, agendamento.servicoId);
+      
+      // Se não tem preço ou não é mensal, mantém individual
+      if (!precoInfo || precoInfo.tipoPagamento !== 'Mensal') {
+        individuais.push(agendamento);
+        return;
+      }
+
+      // Extrair mês/ano da data do agendamento
+      const dataAgendamento = new Date(agendamento.dataHoraInicio);
+      const mesAno = `${dataAgendamento.getFullYear()}-${String(dataAgendamento.getMonth() + 1).padStart(2, '0')}`;
+      
+      // Chave única para agrupamento: paciente + serviço + mês/ano
+      const chaveAgrupamento = `${agendamento.pacienteId}-${agendamento.servicoId}-${mesAno}`;
+      
+      
+      if (!agrupados[chaveAgrupamento]) {
+        // Criar novo grupo
+        agrupados[chaveAgrupamento] = {
+          id: `grupo-${chaveAgrupamento}`,
+          pacienteId: agendamento.pacienteId,
+          pacienteNome: agendamento.pacienteNome || 'N/A',
+          servicoId: agendamento.servicoId,
+          servicoNome: agendamento.servicoNome || 'N/A',
+          profissionalId: agendamento.profissionalId,
+          profissionalNome: agendamento.profissionalNome || 'N/A',
+          agendamentos: [agendamento],
+          mesAno,
+          mesAnoDisplay: formatarMesAno(mesAno), // Versão completa para modal
+          mesAnoOtimizado: formatarMesAnoOtimizado(mesAno), // Versão otimizada para tabela
+          precoUnitario: precoInfo.preco,
+          precoTotal: precoInfo.preco,
+          quantidadeAgendamentos: 1,
+          tipoPagamento: precoInfo.tipoPagamento || 'Mensal',
+          status: agendamento.status,
+          tipoAtendimento: agendamento.tipoAtendimento
+        };
+      } else {
+        // Adicionar ao grupo existente
+        agrupados[chaveAgrupamento].agendamentos.push(agendamento);
+        agrupados[chaveAgrupamento].quantidadeAgendamentos += 1;
+        agrupados[chaveAgrupamento].precoTotal = agrupados[chaveAgrupamento].precoUnitario * agrupados[chaveAgrupamento].quantidadeAgendamentos;
+        
+        // Atualizar status do grupo: priorizar SOLICITADO > AGENDADO
+        if (agendamento.status === 'SOLICITADO' && agrupados[chaveAgrupamento].status !== 'SOLICITADO') {
+          agrupados[chaveAgrupamento].status = 'SOLICITADO';
+        }
+      }
+    });
+
+    // Atualizar status final de cada grupo baseado em todos os agendamentos
+    Object.values(agrupados).forEach(grupo => {
+      const statusAgendamentos = grupo.agendamentos.map(ag => ag.status);
+      
+      // Se todos estão solicitados, grupo fica SOLICITADO
+      // Se todos estão agendados, grupo fica AGENDADO
+      // Se tem mix, grupo fica SOLICITADO (status mais avançado)
+      if (statusAgendamentos.includes('SOLICITADO')) {
+        grupo.status = 'SOLICITADO';
+      } else {
+        grupo.status = 'AGENDADO';
+      }
+    });
+
+    // Combinar agrupados e individuais
+    const resultado: (Agendamento | AgendamentoAgrupado)[] = [
+      ...Object.values(agrupados),
+      ...individuais
+    ];
+
+
+    // Ordenar por data (usar primeira data do grupo para agrupados)
+    return resultado.sort((a, b) => {
+      const dataA = 'agendamentos' in a ? a.agendamentos[0].dataHoraInicio : a.dataHoraInicio;
+      const dataB = 'agendamentos' in b ? b.agendamentos[0].dataHoraInicio : b.dataHoraInicio;
+      return dataA.localeCompare(dataB);
+    });
+  };
+
   const carregarAgendamentos = async () => {
     // Não verifica canRead aqui pois a verificação é apenas para a permissão de liberação
     setLoading(true);
@@ -318,12 +499,22 @@ export const LiberarParticularPage = () => {
       // ID fixo do convênio particular
       const convenioParticularId = 'f4af6586-8b56-4cf3-8b87-d18605cea381';
 
-      // Buscar apenas agendamentos do convênio particular com status AGENDADO
-      const [agendadosRes] = await Promise.all([
+      // Buscar agendamentos do convênio particular com status AGENDADO e SOLICITADO (sem limit para agrupamento)
+      const [agendadosRes, solicitadosRes] = await Promise.all([
         getAgendamentos({ 
-          page: paginaAtual, 
-          limit: itensPorPagina, 
           status: 'AGENDADO',
+          convenioId: convenioParticularId,
+          ...(buscaDebounced ? { search: buscaDebounced } : {}),
+          ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
+          ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
+          ...(filtrosAplicados.tipoAtendimento ? { tipoAtendimento: filtrosAplicados.tipoAtendimento } : {}),
+          ...(filtrosAplicados.servicoId ? { servicoId: filtrosAplicados.servicoId } : {}),
+          ...(filtrosAplicados.pacienteId ? { pacienteId: filtrosAplicados.pacienteId } : {}),
+          ...(filtrosAplicados.profissionalId && !profissionalIdFiltro ? { profissionalId: filtrosAplicados.profissionalId } : {}),
+          ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
+        }),
+        getAgendamentos({ 
+          status: 'SOLICITADO',
           convenioId: convenioParticularId,
           ...(buscaDebounced ? { search: buscaDebounced } : {}),
           ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
@@ -336,7 +527,20 @@ export const LiberarParticularPage = () => {
         }),
       ]);
       
-      const lista = agendadosRes.data;
+      // Combinar as duas listas
+      const lista = [...agendadosRes.data, ...solicitadosRes.data];
+      
+      console.log('📊 Debug carregamento agendamentos:', {
+        agendados: agendadosRes.data.length,
+        solicitados: solicitadosRes.data.length,
+        total: lista.length,
+        exemploSolicitado: solicitadosRes.data[0] ? {
+          id: solicitadosRes.data[0].id,
+          paciente: solicitadosRes.data[0].pacienteNome,
+          status: solicitadosRes.data[0].status,
+          servico: solicitadosRes.data[0].servicoNome
+        } : 'Nenhum solicitado'
+      });
       setAgendamentos(lista);
       const totalFiltrado = agendadosRes.pagination?.total || 0;
       setTotalResultados(totalFiltrado);
@@ -388,41 +592,79 @@ export const LiberarParticularPage = () => {
   };
 
   // Extrair listas únicas para os selects
-  const agendadosBase = agendamentos.filter(a => a.status === 'AGENDADO');
+  const agendadosBase = agendamentos.filter(a => a.status === 'AGENDADO' || a.status === 'SOLICITADO');
 
-  // Com a busca via API, apenas ordenamos os dados recebidos
-  const agendamentosFiltrados = agendamentos
-    .filter(a => a.status === 'AGENDADO')
-    .sort((a, b) => {
-      // Ordenação personalizada: Data > Hora > Paciente
-      
-      // 1. Extrair data e hora de cada agendamento
-      const [dataA, horaA] = a.dataHoraInicio.split('T');
-      const [dataB, horaB] = b.dataHoraInicio.split('T');
-      
-      // 2. Comparar primeiro por data
-      const comparacaoData = dataA.localeCompare(dataB);
-      if (comparacaoData !== 0) {
-        return comparacaoData;
-      }
-      
-      // 3. Se datas iguais, comparar por hora
-      const comparacaoHora = horaA.localeCompare(horaB);
-      if (comparacaoHora !== 0) {
-        return comparacaoHora;
-      }
-      
-      // 4. Se data e hora iguais, comparar por nome do paciente
-      return (a.pacienteNome || '').localeCompare(b.pacienteNome || '', 'pt-BR', { 
-        sensitivity: 'base' 
-      });
+  // Processar agendamentos com agrupamento mensal (usando useMemo para aguardar preços)
+  const agendamentosFiltrados = useMemo(() => {
+    // Incluir agendamentos AGENDADO e SOLICITADO
+    const agendadosFiltered = agendamentos.filter(a => a.status === 'AGENDADO' || a.status === 'SOLICITADO');
+    
+    console.log('🔍 DEBUG: Total agendamentos:', agendadosFiltered.length);
+    console.log('🔍 DEBUG: Total preços:', precosParticulares.length);
+    
+    // Só executa agrupamento se tiver preços carregados
+    if (precosParticulares.length === 0) {
+      console.log('🔍 DEBUG: Sem preços, retornando todos individuais');
+      return agendadosFiltered;
+    }
+    
+    const resultado = agruparAgendamentos(agendadosFiltered);
+    
+    console.log('🔍 Debug agrupamento final:', {
+      agendamentosParaAgrupar: agendadosFiltered.length,
+      resultadoAgrupamento: resultado.length,
+      grupos: resultado.filter(item => isAgendamentoAgrupado(item)).length,
+      individuais: resultado.filter(item => !isAgendamentoAgrupado(item)).length,
+      statusDosAgendamentos: agendadosFiltered.map(ag => ({ 
+        paciente: ag.pacienteNome, 
+        status: ag.status,
+        tipoPagamento: encontrarPreco(ag.pacienteId, ag.servicoId)?.tipoPagamento 
+      })),
+      exemploGrupo: resultado.find(item => isAgendamentoAgrupado(item)) ? {
+        id: (resultado.find(item => isAgendamentoAgrupado(item)) as AgendamentoAgrupado).id,
+        paciente: (resultado.find(item => isAgendamentoAgrupado(item)) as AgendamentoAgrupado).pacienteNome,
+        status: (resultado.find(item => isAgendamentoAgrupado(item)) as AgendamentoAgrupado).status,
+        quantidade: (resultado.find(item => isAgendamentoAgrupado(item)) as AgendamentoAgrupado).quantidadeAgendamentos
+      } : 'Nenhum grupo encontrado'
     });
+    
+    return resultado;
+  }, [agendamentos, precosParticulares]);
 
-  // Usar paginação da API (não paginação local)
-  const totalPaginas = Math.ceil(totalResultados / itensPorPagina);
-  const agendamentosPaginados = agendamentosFiltrados;
+  // Aplicar paginação local após agrupamento
+  const totalPaginas = Math.ceil(agendamentosFiltrados.length / itensPorPagina);
+  const startIndex = (paginaAtual - 1) * itensPorPagina;
+  const endIndex = startIndex + itensPorPagina;
+  const agendamentosPaginados = agendamentosFiltrados.slice(startIndex, endIndex);
+  
+  // Atualizar total com base nos itens agrupados
+  const totalItensAgrupados = agendamentosFiltrados.length;
 
   const formatarDataHora = formatarDataHoraLocal;
+
+  // Função para determinar as cores do badge baseado no status
+  const getBadgeColors = (status: string) => {
+    switch (status) {
+      case 'AGENDADO':
+        return {
+          bg: 'bg-yellow-100',
+          text: 'text-yellow-700',
+          border: 'border-yellow-400'
+        };
+      case 'SOLICITADO':
+        return {
+          bg: 'bg-blue-100',
+          text: 'text-blue-700',
+          border: 'border-blue-400'
+        };
+      default:
+        return {
+          bg: 'bg-gray-100',
+          text: 'text-gray-700',
+          border: 'border-gray-400'
+        };
+    }
+  };
 
   const handleLiberar = (agendamento: Agendamento) => {
     setAgendamentoSelecionado(agendamento);
@@ -432,6 +674,11 @@ export const LiberarParticularPage = () => {
   const handleVerDetalhes = (agendamento: Agendamento) => {
     setAgendamentoDetalhes(agendamento);
     setShowDetalhesAgendamento(true);
+  };
+
+  const handleVerAgendamentosGrupo = (grupo: AgendamentoAgrupado) => {
+    setGrupoSelecionado(grupo);
+    setShowAgendamentosGrupo(true);
   };
 
   const handleWhatsApp = (agendamento: Agendamento) => {
@@ -452,47 +699,141 @@ export const LiberarParticularPage = () => {
     window.open(whatsappUrl, '_blank');
   };
 
-  const handleSolicitarLiberacaoClick = (agendamento: Agendamento) => {
+  const handleSolicitarLiberacaoClick = (agendamento: Agendamento, grupoEspecifico?: AgendamentoAgrupado) => {
     if (agendamento.status === 'SOLICITADO') {
       // Mostrar modal de confirmação para reenvio
       setAgendamentoParaReenvio(agendamento);
+      setGrupoParaReenvio(grupoEspecifico);
       setShowConfirmacaoReenvio(true);
     } else {
       // Prosseguir normalmente
-      handleSolicitarLiberacao(agendamento);
+      handleSolicitarLiberacao(agendamento, grupoEspecifico);
     }
   };
 
   const confirmarReenvio = () => {
     if (agendamentoParaReenvio) {
-      handleSolicitarLiberacao(agendamentoParaReenvio);
+      handleSolicitarLiberacao(agendamentoParaReenvio, grupoParaReenvio || undefined);
     }
     setShowConfirmacaoReenvio(false);
     setAgendamentoParaReenvio(null);
+    setGrupoParaReenvio(null);
   };
 
   const cancelarReenvio = () => {
     setShowConfirmacaoReenvio(false);
     setAgendamentoParaReenvio(null);
+    setGrupoParaReenvio(null);
+  };
+
+  // Função para converter data UTC para horário local brasileiro 
+  const converterParaHorarioLocal = (dataISO: string) => {
+    if (!dataISO) return dataISO;
+    
+    const data = new Date(dataISO);
+    if (isNaN(data.getTime())) return dataISO;
+    
+    // Converter para horário local brasileiro mantendo o formato ISO
+    return new Date(data.getTime() - (data.getTimezoneOffset() * 60000)).toISOString();
+  };
+
+  // Função para construir payload do webhook
+  const construirPayloadWebhook = (agendamento: Agendamento, grupo?: AgendamentoAgrupado) => {
+    console.log('📦 Construindo payload webhook:', {
+      agendamentoId: agendamento.id,
+      temGrupo: !!grupo,
+      grupoInfo: grupo ? {
+        id: grupo.id,
+        paciente: grupo.pacienteNome,
+        servico: grupo.servicoNome,
+        mesAno: grupo.mesAnoDisplay,
+        quantidade: grupo.quantidadeAgendamentos
+      } : null
+    });
+    
+    if (grupo) {
+      console.log('📜 Criando payload para GRUPO MENSAL');
+      // Payload para grupo mensal
+      const datas = grupo.agendamentos.map(ag => {
+        const data = new Date(ag.dataHoraInicio);
+        return data.toLocaleDateString('pt-BR');
+      }).sort();
+
+      return {
+        tipo: 'GRUPO_MENSAL',
+        paciente: {
+          id: grupo.pacienteId,
+          nome: grupo.pacienteNome
+        },
+        servico: {
+          id: grupo.servicoId,
+          nome: grupo.servicoNome
+        },
+        profissional: {
+          id: grupo.profissionalId,
+          nome: grupo.profissionalNome
+        },
+        resumoGrupo: {
+          mesAno: grupo.mesAnoDisplay,
+          quantidadeSessoes: grupo.quantidadeAgendamentos,
+          datasAgendamentos: datas,
+          valorUnitario: grupo.precoUnitario,
+          valorTotal: grupo.precoTotal,
+          tipoPagamento: grupo.tipoPagamento
+        },
+        agendamentosIndividuais: grupo.agendamentos.map(ag => ({
+          id: ag.id,
+          dataHoraInicio: converterParaHorarioLocal(ag.dataHoraInicio),
+          status: ag.status
+        }))
+      };
+    } else {
+      console.log('📜 Criando payload para AGENDAMENTO INDIVIDUAL');
+      
+      // Buscar informações de preço particular para o agendamento
+      const precoInfo = encontrarPreco(agendamento.pacienteId, agendamento.servicoId);
+      
+      // Payload para agendamento individual
+      return {
+        tipo: 'INDIVIDUAL',
+        agendamento: {
+          ...agendamento,
+          // Converter as datas para horário local brasileiro
+          dataHoraInicio: converterParaHorarioLocal(agendamento.dataHoraInicio),
+          dataHoraFim: converterParaHorarioLocal(agendamento.dataHoraFim)
+        },
+        precoParticular: precoInfo ? {
+          id: precoInfo.id,
+          preco: precoInfo.preco,
+          tipoPagamento: precoInfo.tipoPagamento,
+          diaPagamento: precoInfo.diaPagamento,
+          pagamentoAntecipado: precoInfo.pagamentoAntecipado,
+          notaFiscal: precoInfo.notaFiscal,
+          recibo: precoInfo.recibo
+        } : null
+      };
+    }
   };
 
   // Função para executar o webhook efetivamente
-  const executarWebhook = async (agendamento: Agendamento) => {
-    const webhookUrl = import.meta.env.VITE_WEBHOOK_SOLICITAR_LIBERACAO_URL;
+  const executarWebhook = async (agendamento: Agendamento, grupo?: AgendamentoAgrupado) => {
+    const webhookUrl = import.meta.env.VITE_WEBHOOK_SOLICITAR_LIBERACAO_PARTICULAR_URL;
     
     if (!webhookUrl) {
       AppToast.error("Erro de configuração", { 
-        description: "URL do webhook não configurada. Verifique o arquivo .env" 
+        description: "URL do webhook para liberação particular não configurada. Verifique o arquivo .env" 
       });
       throw new Error("URL do webhook não configurada");
     }
+
+    const payload = construirPayloadWebhook(agendamento, grupo);
 
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(agendamento)
+      body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
@@ -504,18 +845,43 @@ export const LiberarParticularPage = () => {
 
     // Atualizar o status no banco de dados
     try {
-      await updateAgendamento(agendamento.id, {
-        status: 'SOLICITADO'
-      });
+      if (grupo) {
+        // Para grupos mensais: atualizar TODOS os agendamentos do grupo
+        console.log('🔄 Atualizando todos os agendamentos do grupo para SOLICITADO:', grupo.agendamentos.length);
+        
+        // Atualizar todos os agendamentos do grupo no banco
+        await Promise.all(
+          grupo.agendamentos.map(ag => 
+            updateAgendamento(ag.id, { status: 'SOLICITADO' })
+          )
+        );
 
-      // Atualizar o status do agendamento localmente após sucesso no banco
-      setAgendamentos(prev => 
-        prev.map(a => 
-          a.id === agendamento.id 
-            ? { ...a, status: 'SOLICITADO' }
-            : a
-        )
-      );
+        // Atualizar todos os agendamentos do grupo localmente
+        const idsDoGrupo = grupo.agendamentos.map(ag => ag.id);
+        setAgendamentos(prev => 
+          prev.map(a => 
+            idsDoGrupo.includes(a.id)
+              ? { ...a, status: 'SOLICITADO' }
+              : a
+          )
+        );
+        
+        console.log('✅ Todos os agendamentos do grupo foram atualizados para SOLICITADO');
+      } else {
+        // Para agendamentos individuais: atualizar apenas o agendamento específico
+        await updateAgendamento(agendamento.id, {
+          status: 'SOLICITADO'
+        });
+
+        // Atualizar o status do agendamento localmente após sucesso no banco
+        setAgendamentos(prev => 
+          prev.map(a => 
+            a.id === agendamento.id 
+              ? { ...a, status: 'SOLICITADO' }
+              : a
+          )
+        );
+      }
 
       // Exibir o retorno do webhook no toast
       const mensagemWebhook = responseData.message || responseData.msg || responseData.description || JSON.stringify(responseData);
@@ -535,10 +901,46 @@ export const LiberarParticularPage = () => {
     }
   };
 
-  const handleSolicitarLiberacao = async (agendamento: Agendamento) => {
+  // Função para encontrar o grupo ao qual um agendamento pertence (usado apenas para agendamentos individuais)
+  const encontrarGrupoDoAgendamento = (agendamento: Agendamento): AgendamentoAgrupado | undefined => {
+    // Esta função agora é usada apenas como fallback para agendamentos individuais
+    // Para grupos, o grupo específico é passado diretamente
+    const precoInfo = encontrarPreco(agendamento.pacienteId, agendamento.servicoId);
+    
+    if (precoInfo?.tipoPagamento === 'Mensal') {
+      const agendamentosRelacionados = agendamentos.filter(ag => 
+        ag.pacienteId === agendamento.pacienteId && 
+        ag.servicoId === agendamento.servicoId &&
+        ag.profissionalId === agendamento.profissionalId
+      );
+      
+      if (agendamentosRelacionados.length > 1) {
+        const gruposEspecificos = agruparAgendamentos(agendamentosRelacionados);
+        return gruposEspecificos.find(grupo => 
+          isAgendamentoAgrupado(grupo) && 
+          grupo.agendamentos.some(ag => ag.id === agendamento.id)
+        ) as AgendamentoAgrupado | undefined;
+      }
+    }
+    
+    return undefined;
+  };
+
+  const handleSolicitarLiberacao = async (agendamento: Agendamento, grupoEspecifico?: AgendamentoAgrupado) => {
     // Adicionar na fila de webhooks em vez de executar imediatamente
     try {
-      adicionarNaFila(agendamento);
+      // Se um grupo específico foi passado, usar ele; senão tentar encontrar
+      const grupo = grupoEspecifico || encontrarGrupoDoAgendamento(agendamento);
+      console.log('🚀 Enviando para webhook:', {
+        temGrupoEspecifico: !!grupoEspecifico,
+        grupoFinal: grupo ? {
+          id: grupo.id,
+          paciente: grupo.pacienteNome,
+          mesAno: grupo.mesAnoDisplay,
+          quantidade: grupo.quantidadeAgendamentos
+        } : null
+      });
+      adicionarNaFila(agendamento, grupo);
     } catch (error) {
       AppToast.error("Erro", { 
         description: `Erro ao adicionar solicitação para ${agendamento.pacienteNome} na fila. Tente novamente.` 
@@ -562,106 +964,270 @@ export const LiberarParticularPage = () => {
           </p>
         </div>
       ) : (
-        agendamentosPaginados.map(agendamento => {
-          const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
+        agendamentosPaginados.map(item => {
+          const isGrupado = isAgendamentoAgrupado(item);
           
-          return (
-            <Card key={agendamento.id} className="hover:shadow-md transition-shadow border-yellow-200">
-              <CardHeader className="pb-3 bg-gradient-to-r from-yellow-50 to-orange-50">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-yellow-600" />
-                    <CardTitle className="text-lg text-yellow-800">{agendamento.pacienteNome}</CardTitle>
+          if (isGrupado) {
+            // Renderizar card para grupo mensal
+            const grupo = item as AgendamentoAgrupado;
+            const precoInfo = encontrarPreco(grupo.pacienteId, grupo.servicoId);
+            
+            return (
+              <Card key={grupo.id} className="hover:shadow-md transition-shadow border-blue-200">
+                <CardHeader className="pb-3 bg-gradient-to-r from-blue-50 to-purple-50">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-blue-600" />
+                      <CardTitle className="text-lg text-blue-800">{grupo.pacienteNome}</CardTitle>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200">
+                        {grupo.quantidadeAgendamentos}x
+                      </Badge>
+                      <Badge 
+                        variant="outline"
+                        className={`${getBadgeColors(grupo.status).bg} ${getBadgeColors(grupo.status).text} ${getBadgeColors(grupo.status).border}`}
+                      >
+                        {grupo.status}
+                      </Badge>
+                    </div>
                   </div>
-                  <Badge 
-                    variant="outline"
-                    className="border-yellow-400 text-yellow-700 bg-yellow-100"
-                  >
-                    {agendamento.status}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Users className="w-4 h-4" />
-                    <span>{agendamento.profissionalNome}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <FileText className="w-4 h-4" />
-                    <span>{agendamento.servicoNome}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar className="w-4 h-4" />
-                    <span>{data}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock className="w-4 h-4" />
-                    <span>{hora}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <CreditCard className="w-4 h-4" />
-                    <span className="text-yellow-700 font-medium">Particular</span>
-                  </div>
-                </div>
-                
-                <div className="flex gap-1">
-                  <Button 
-                    size="sm" 
-                    variant="default"
-                    className="flex-1 h-7 text-xs bg-yellow-600 hover:bg-yellow-700"
-                    onClick={() => handleVerDetalhes(agendamento)}
-                  >
-                    Visualizar
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    className="flex-1 h-7 text-xs border-yellow-400 text-yellow-700 hover:bg-yellow-600 hover:text-white"
-                    onClick={() => handleSolicitarLiberacaoClick(agendamento)}
-                    disabled={estaProcessando(agendamento.id)}
-                  >
-                    {estaProcessando(agendamento.id) ? (
-                      <>
-                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                        Enviando...
-                      </>
-                    ) : (
-                      'Solicitar Liberação'
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Users className="w-4 h-4" />
+                      <span>{grupo.profissionalNome}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <FileText className="w-4 h-4" />
+                      <span>{grupo.servicoNome}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Calendar className="w-4 h-4" />
+                      <span>{grupo.mesAnoDisplay}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <CreditCard className="w-4 h-4" />
+                      <span className="text-blue-700 font-medium">Mensal ({grupo.quantidadeAgendamentos} sessões)</span>
+                    </div>
+                    
+                    {/* Seção de preços - agrupado */}
+                    {precoInfo && (
+                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <h4 className="text-xs font-semibold text-blue-600 mb-2 flex items-center gap-1">
+                          <span>💰</span>
+                          Valor Total ({grupo.quantidadeAgendamentos} sessões)
+                        </h4>
+                        <div className="space-y-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">Unitário:</span>
+                            <span className="font-semibold text-gray-700">
+                              {grupo.precoUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-blue-600 font-medium">Total:</span>
+                            <span className="font-bold text-lg text-green-700">
+                              {grupo.precoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span>💳</span>
+                            <span className="text-blue-600 font-medium">
+                              {formatarPagamento(precoInfo)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     )}
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    className="flex-1 h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
-                    onClick={() => handleWhatsApp(agendamento)}
-                  >
-                    WhatsApp
-                  </Button>
-                  {canLiberar ? (
+                  </div>
+                  
+                  <div className="flex gap-1">
+                    <Button 
+                      size="sm" 
+                      variant="default"
+                      className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                      onClick={() => handleVerAgendamentosGrupo(grupo)}
+                    >
+                      Ver Detalhes
+                    </Button>
                     <Button 
                       size="sm" 
                       variant="outline"
-                      className="flex-1 h-7 text-xs border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white"
-                      onClick={() => handleLiberar(agendamento)}
-                      title="Liberado Atendimento"
+                      className="flex-1 h-7 text-xs border-yellow-400 text-yellow-700 hover:bg-yellow-600 hover:text-white"
+                      onClick={() => handleSolicitarLiberacaoClick(grupo.agendamentos[0], grupo)}
+                      disabled={grupo.agendamentos.some(ag => estaProcessando(ag.id))}
                     >
-                      Liberado Atendimento
+                      {grupo.agendamentos.some(ag => estaProcessando(ag.id)) ? (
+                        <>
+                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                          Enviando...
+                        </>
+                      ) : (
+                        'Solicitar Liberação'
+                      )}
                     </Button>
-                  ) : (
                     <Button 
                       size="sm" 
-                      disabled={true}
-                      className="flex-1 h-7 text-xs border-gray-300 text-gray-400 cursor-not-allowed"
-                      title="Você não tem permissão para liberar agendamentos"
+                      variant="outline"
+                      className="flex-1 h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
+                      onClick={() => handleWhatsApp(grupo.agendamentos[0])}
                     >
-                      Liberado Atendimento
+                      WhatsApp
                     </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          );
+                    {canLiberar ? (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="flex-1 h-7 text-xs border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white"
+                        onClick={() => handleLiberar(grupo.agendamentos[0])}
+                        title="Liberar Grupo"
+                      >
+                        Liberar Grupo
+                      </Button>
+                    ) : (
+                      <Button 
+                        size="sm" 
+                        disabled={true}
+                        className="flex-1 h-7 text-xs border-gray-300 text-gray-400 cursor-not-allowed"
+                        title="Você não tem permissão para liberar agendamentos"
+                      >
+                        Liberar Grupo
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          } else {
+            // Renderizar card para agendamento individual
+            const agendamento = item as Agendamento;
+            const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
+            const precoInfo = encontrarPreco(agendamento.pacienteId, agendamento.servicoId);
+            
+            return (
+              <Card key={agendamento.id} className="hover:shadow-md transition-shadow border-yellow-200">
+                <CardHeader className="pb-3 bg-gradient-to-r from-yellow-50 to-orange-50">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-yellow-600" />
+                      <CardTitle className="text-lg text-yellow-800">{agendamento.pacienteNome}</CardTitle>
+                    </div>
+                    <Badge 
+                      variant="outline"
+                      className={`${getBadgeColors(agendamento.status).bg} ${getBadgeColors(agendamento.status).text} ${getBadgeColors(agendamento.status).border}`}
+                    >
+                      {agendamento.status}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Users className="w-4 h-4" />
+                      <span>{agendamento.profissionalNome}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <FileText className="w-4 h-4" />
+                      <span>{agendamento.servicoNome}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Calendar className="w-4 h-4" />
+                      <span>{data}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Clock className="w-4 h-4" />
+                      <span>{hora}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <CreditCard className="w-4 h-4" />
+                      <span className="text-yellow-700 font-medium">Particular</span>
+                    </div>
+                    
+                    {/* Seção de preços - individual */}
+                    {precoInfo && (
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg border">
+                        <h4 className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1">
+                          <span>💰</span>
+                          Informações de Preços
+                        </h4>
+                        <div className="space-y-2 text-xs">
+                          <div className="flex items-center gap-1">
+                            <span>💵</span>
+                            <span className="font-semibold text-green-700">
+                              {precoInfo.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span>💳</span>
+                            <span className="text-blue-600 font-medium">
+                              {formatarPagamento(precoInfo)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-1">
+                    <Button 
+                      size="sm" 
+                      variant="default"
+                      className="flex-1 h-7 text-xs bg-yellow-600 hover:bg-yellow-700"
+                      onClick={() => handleVerDetalhes(agendamento)}
+                    >
+                      Visualizar
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="flex-1 h-7 text-xs border-yellow-400 text-yellow-700 hover:bg-yellow-600 hover:text-white"
+                      onClick={() => handleSolicitarLiberacaoClick(agendamento)}
+                      disabled={estaProcessando(agendamento.id)}
+                    >
+                      {estaProcessando(agendamento.id) ? (
+                        <>
+                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                          Enviando...
+                        </>
+                      ) : (
+                        'Solicitar Liberação'
+                      )}
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="flex-1 h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
+                      onClick={() => handleWhatsApp(agendamento)}
+                    >
+                      WhatsApp
+                    </Button>
+                    {canLiberar ? (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="flex-1 h-7 text-xs border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white"
+                        onClick={() => handleLiberar(agendamento)}
+                        title="Liberado Atendimento"
+                      >
+                        Liberado Atendimento
+                      </Button>
+                    ) : (
+                      <Button 
+                        size="sm" 
+                        disabled={true}
+                        className="flex-1 h-7 text-xs border-gray-300 text-gray-400 cursor-not-allowed"
+                        title="Você não tem permissão para liberar agendamentos"
+                      >
+                        Liberado Atendimento
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          }
         })
       )}
     </div>
@@ -710,6 +1276,24 @@ export const LiberarParticularPage = () => {
             </TableHead>
             <TableHead className="py-3 text-sm font-semibold text-gray-700">
               <div className="flex items-center gap-2">
+                <span className="text-lg">💰</span>
+                Preço
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🔢</span>
+                Qtd
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">💳</span>
+                Pag - Dia - Antec
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
                 <span className="text-lg">📊</span>
                 Status
               </div>
@@ -725,7 +1309,7 @@ export const LiberarParticularPage = () => {
         <TableBody>
           {agendamentosPaginados.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="py-12 text-center">
+              <TableCell colSpan={11} className="py-12 text-center">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
                     <span className="text-3xl">💰</span>
@@ -738,11 +1322,132 @@ export const LiberarParticularPage = () => {
               </TableCell>
             </TableRow>
           ) : (
-            agendamentosPaginados.map((agendamento) => {
-              const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
+            agendamentosPaginados.map((item) => {
+              const isGrupado = isAgendamentoAgrupado(item);
               
-              return (
-                <TableRow key={agendamento.id} className="hover:bg-gradient-to-r hover:from-yellow-50 hover:to-orange-50 transition-all duration-200 h-12">
+              if (isGrupado) {
+                // Renderizar grupo de agendamentos mensais
+                const grupo = item as AgendamentoAgrupado;
+                const precoInfo = encontrarPreco(grupo.pacienteId, grupo.servicoId);
+                
+                return (
+                  <TableRow key={grupo.id} className="hover:bg-gradient-to-r hover:from-yellow-50 hover:to-orange-50 transition-all duration-200 h-12 bg-blue-50">
+                    <TableCell className="py-2">
+                      <span className="text-sm font-mono bg-blue-100 px-2 py-1 rounded text-blue-700">
+                        {grupo.mesAnoOtimizado}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <span className="text-sm font-mono bg-blue-100 px-2 py-1 rounded text-blue-700">
+                        Mensal
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                          {grupo.pacienteNome?.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-sm font-medium">{grupo.pacienteNome}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <span className="text-sm text-blue-600 hover:text-blue-800 transition-colors">{grupo.profissionalNome}</span>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <span className="text-sm">{grupo.servicoNome}</span>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <span className="text-xs px-3 py-1 rounded-full font-medium bg-blue-100 text-blue-800">
+                        {grupo.tipoAtendimento}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <span className="text-sm font-semibold text-green-700">
+                        {grupo.precoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <span className="text-sm font-bold px-2 py-1 rounded bg-blue-100 text-blue-700">
+                        {grupo.quantidadeAgendamentos}x
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700">
+                        {formatarPagamento(precoInfo)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <span className={`text-xs px-3 py-1 rounded-full font-medium ${getBadgeColors(grupo.status).bg} ${getBadgeColors(grupo.status).text}`}>
+                        {grupo.status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <div className="flex gap-1.5">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="bg-gradient-to-r from-blue-600 to-purple-700 text-white hover:from-blue-700 hover:to-purple-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                          onClick={() => handleVerAgendamentosGrupo(grupo)}
+                          title="Visualizar Agendamentos do Grupo"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="group border-2 border-yellow-400 text-yellow-700 hover:bg-yellow-600 hover:text-white hover:border-yellow-600 focus:ring-4 focus:ring-yellow-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                          onClick={() => handleSolicitarLiberacaoClick(grupo.agendamentos[0], grupo)}
+                          disabled={grupo.agendamentos.some(ag => estaProcessando(ag.id))}
+                          title="Solicitar Liberação do Grupo"
+                        >
+                          {grupo.agendamentos.some(ag => estaProcessando(ag.id)) ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Unlock className="w-4 h-4 text-yellow-700 group-hover:text-white transition-colors" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                          onClick={() => handleWhatsApp(grupo.agendamentos[0])}
+                          title="WhatsApp"
+                        >
+                          <MessageCircle className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
+                        </Button>
+                        {canLiberar ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="group border-2 border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 focus:ring-4 focus:ring-emerald-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                            onClick={() => handleLiberar(grupo.agendamentos[0])}
+                            title="Liberar Agendamentos do Grupo"
+                          >
+                            <CheckSquare className="w-4 h-4 text-emerald-600 group-hover:text-white transition-colors" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={true}
+                            className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                            title="Você não tem permissão para liberar agendamentos"
+                          >
+                            <CheckSquare className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              } else {
+                // Renderizar agendamento individual
+                const agendamento = item as Agendamento;
+                const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
+                const precoInfo = encontrarPreco(agendamento.pacienteId, agendamento.servicoId);
+                
+                return (
+                  <TableRow key={agendamento.id} className="hover:bg-gradient-to-r hover:from-yellow-50 hover:to-orange-50 transition-all duration-200 h-12">
                   <TableCell className="py-2">
                     <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded text-gray-700">{data}</span>
                   </TableCell>
@@ -773,7 +1478,26 @@ export const LiberarParticularPage = () => {
                     </span>
                   </TableCell>
                   <TableCell className="py-2">
-                    <span className="text-xs px-3 py-1 rounded-full font-medium bg-yellow-100 text-yellow-800">
+                    {precoInfo ? (
+                      <span className="text-sm font-semibold text-green-700">
+                        {precoInfo.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <span className="text-sm text-gray-500">
+                      1x
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700">
+                      {formatarPagamento(precoInfo)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <span className={`text-xs px-3 py-1 rounded-full font-medium ${getBadgeColors(agendamento.status).bg} ${getBadgeColors(agendamento.status).text}`}>
                       {agendamento.status}
                     </span>
                   </TableCell>
@@ -836,6 +1560,7 @@ export const LiberarParticularPage = () => {
                   </TableCell>
                 </TableRow>
               );
+              }
             })
           )}
         </TableBody>
@@ -1000,7 +1725,7 @@ export const LiberarParticularPage = () => {
           
           <div className="text-sm text-gray-600 flex items-center gap-2">
             <span className="text-lg">📈</span>
-            Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, totalResultados)} de {totalResultados} resultados
+            Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, totalItensAgrupados)} de {totalItensAgrupados} resultados
           </div>
 
         <div className="flex gap-2">
@@ -1056,6 +1781,150 @@ export const LiberarParticularPage = () => {
       )}
 
       {/* Modais */}
+      {/* Modal de agendamentos do grupo */}
+      <Dialog open={showAgendamentosGrupo} onOpenChange={setShowAgendamentosGrupo}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader className="bg-gradient-to-r from-blue-50 to-purple-50 -mx-6 -mt-6 px-6 pt-6 pb-4 border-b border-gray-200">
+            <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
+              <span className="text-2xl">📅</span>
+              Agendamentos do Grupo - {grupoSelecionado?.mesAnoDisplay}
+            </DialogTitle>
+            <div className="text-sm text-gray-600 mt-2">
+              <div className="flex items-center gap-4">
+                <span><strong>Paciente:</strong> {grupoSelecionado?.pacienteNome}</span>
+                <span><strong>Serviço:</strong> {grupoSelecionado?.servicoNome}</span>
+                <span><strong>Total:</strong> {grupoSelecionado?.quantidadeAgendamentos} sessões</span>
+              </div>
+              <div className="flex items-center gap-4 mt-1">
+                <span><strong>Valor Unitário:</strong> {grupoSelecionado?.precoUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                <span><strong>Valor Total:</strong> {grupoSelecionado?.precoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto p-4 -mx-6">
+            <div className="bg-white rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gradient-to-r from-blue-50 to-purple-50">
+                    <TableHead className="py-2 text-xs font-semibold text-gray-700">📅 Data</TableHead>
+                    <TableHead className="py-2 text-xs font-semibold text-gray-700">⏰ Horário</TableHead>
+                    <TableHead className="py-2 text-xs font-semibold text-gray-700">👨‍⚕️ Profissional</TableHead>
+                    <TableHead className="py-2 text-xs font-semibold text-gray-700">🏷️ Tipo</TableHead>
+                    <TableHead className="py-2 text-xs font-semibold text-gray-700">📊 Status</TableHead>
+                    <TableHead className="py-2 text-xs font-semibold text-gray-700">⚙️ Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {grupoSelecionado?.agendamentos.map((agendamento, index) => {
+                    const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
+                    return (
+                      <TableRow key={agendamento.id} className="hover:bg-blue-50 transition-colors">
+                        <TableCell className="py-2 text-sm">
+                          <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs">
+                            {data}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-2 text-sm">
+                          <span className="font-mono bg-blue-100 px-2 py-1 rounded text-xs text-blue-700">
+                            {hora}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-2 text-sm">
+                          <span className="text-blue-600">{agendamento.profissionalNome}</span>
+                        </TableCell>
+                        <TableCell className="py-2">
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            agendamento.tipoAtendimento === 'presencial' 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {agendamento.tipoAtendimento}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-2">
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${getBadgeColors(agendamento.status).bg} ${getBadgeColors(agendamento.status).text}`}>
+                            {agendamento.status}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-2">
+                          <div className="flex gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 w-6 p-0 border-blue-300 text-blue-600 hover:bg-blue-100"
+                              onClick={() => handleVerDetalhes(agendamento)}
+                              title="Ver Detalhes"
+                            >
+                              <Eye className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 w-6 p-0 border-green-300 text-green-600 hover:bg-green-100"
+                              onClick={() => handleWhatsApp(agendamento)}
+                              title="WhatsApp"
+                            >
+                              <MessageCircle className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 w-6 p-0 border-yellow-300 text-yellow-600 hover:bg-yellow-100"
+                              onClick={() => handleSolicitarLiberacaoClick(agendamento)}
+                              disabled={estaProcessando(agendamento.id)}
+                              title="Solicitar Liberação Individual"
+                            >
+                              {estaProcessando(agendamento.id) ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Unlock className="w-3 h-3" />
+                              )}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          <DialogFooter className="border-t bg-gray-50 -mx-6 -mb-6 px-6 py-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowAgendamentosGrupo(false)}
+              className="border-gray-300 text-gray-700 hover:bg-gray-100"
+            >
+              Fechar
+            </Button>
+            <Button
+              variant="default"
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => {
+                if (grupoSelecionado) {
+                  handleSolicitarLiberacaoClick(grupoSelecionado.agendamentos[0], grupoSelecionado);
+                }
+              }}
+              disabled={grupoSelecionado?.agendamentos.some(ag => estaProcessando(ag.id))}
+            >
+              {grupoSelecionado?.agendamentos.some(ag => estaProcessando(ag.id)) ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Processando Grupo...
+                </>
+              ) : (
+                <>
+                  <Unlock className="w-4 h-4 mr-2" />
+                  Solicitar Liberação do Grupo
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Modal de confirmação de reenvio */}
       <ConfirmacaoModal
         open={showConfirmacaoReenvio}
@@ -1070,7 +1939,7 @@ export const LiberarParticularPage = () => {
         loadingText="Reenviando..."
       />
 
-      <LiberarAgendamentoModal
+      <LiberarParticularModal
         isOpen={showLiberarAgendamento}
         agendamento={agendamentoSelecionado}
         onClose={() => {

@@ -535,6 +535,18 @@ export const liberarAgendamento = async (id: string, dadosLiberacao: {
   return response.data;
 };
 
+export const liberarAgendamentoParticular = async (id: string, dadosLiberacao: {
+  recebimento: boolean;
+  dataLiberacao: string;
+}): Promise<Agendamento> => {
+  // Usar a nova rota específica para liberação de agendamentos particulares
+  const response = await api.put(`/agendamentos-liberar-particular/${id}`, {
+    ...dadosLiberacao,
+    status: 'LIBERADO'
+  });
+  return response.data;
+};
+
 export const atenderAgendamento = async (id: string, dadosAtendimento: {
   dataAtendimento?: string;
   observacoes?: string;
