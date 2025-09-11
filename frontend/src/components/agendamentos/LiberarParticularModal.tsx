@@ -5,15 +5,27 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, User, Calendar, Clock, FileText, CreditCard, UserCheck, Monitor, MapPin } from 'lucide-react';
+import { CheckCircle, User, Calendar, Clock, FileText, CreditCard, UserCheck, Monitor, MapPin, Users } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
-import { liberarAgendamentoParticular, getAgendamentos } from '@/services/agendamentos';
+import { liberarAgendamentoParticular, liberarAgendamentosParticularesMensal, getAgendamentos } from '@/services/agendamentos';
 import { AppToast } from '@/services/toast';
 import { formatarDataHoraLocal } from '@/utils/dateUtils';
+
+// Interface para dados do grupo mensal
+interface GrupoMensal {
+  pacienteId: string;
+  profissionalId: string;
+  servicoId: string;
+  mesAno: string; // formato "2024-09"
+  mesAnoDisplay: string; // formato "Setembro 2024"
+  quantidadeAgendamentos: number;
+  precoTotal: number;
+}
 
 interface LiberarParticularModalProps {
   isOpen: boolean;
   agendamento: Agendamento | null;
+  grupo?: GrupoMensal | null; // Dados do grupo se for liberação mensal
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -21,6 +33,7 @@ interface LiberarParticularModalProps {
 export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
   isOpen,
   agendamento,
+  grupo,
   onClose,
   onSuccess
 }) => {
@@ -57,11 +70,27 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
 
     setLoading(true);
     try {
-      await liberarAgendamentoParticular(agendamento.id, {
-        recebimento: formData.recebimento,
-        dataLiberacao: formData.dataLiberacao
-      });
-      AppToast.updated('Agendamento', 'O agendamento particular foi liberado com sucesso!');
+      if (grupo) {
+        // Liberação em grupo (mensal)
+        const resultado = await liberarAgendamentosParticularesMensal({
+          pacienteId: grupo.pacienteId,
+          profissionalId: grupo.profissionalId,
+          servicoId: grupo.servicoId,
+          mesAno: grupo.mesAno,
+          recebimento: formData.recebimento,
+          dataLiberacao: formData.dataLiberacao
+        });
+        
+        AppToast.updated('Grupo Liberado', `${resultado.totalLiberados} agendamentos particulares foram liberados com sucesso para ${grupo.mesAnoDisplay}!`);
+      } else {
+        // Liberação individual
+        await liberarAgendamentoParticular(agendamento.id, {
+          recebimento: formData.recebimento,
+          dataLiberacao: formData.dataLiberacao
+        });
+        AppToast.updated('Agendamento', 'O agendamento particular foi liberado com sucesso!');
+      }
+      
       resetForm();
       onSuccess();
       onClose();
@@ -141,22 +170,52 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
           <DialogTitle className="flex items-center justify-between">
             <span className="flex items-center gap-2 text-xl">
               <CheckCircle className="w-6 h-6 text-green-600" />
-              Liberação de Agendamento Particular
+              {grupo ? 'Liberação de Grupo Particular' : 'Liberação de Agendamento Particular'}
             </span>
             <span className="flex items-center gap-2 mr-8">
-              {sessionNumber !== null && (
+              {grupo && (
+                <Badge className="bg-purple-100 text-purple-700">
+                  {grupo.quantidadeAgendamentos} agendamentos
+                </Badge>
+              )}
+              {!grupo && sessionNumber !== null && (
                 <Badge className="bg-emerald-100 text-emerald-700">
                   Sessão #{sessionNumber}
                 </Badge>
               )}
               <Badge className="bg-blue-100 text-blue-700">
-                {agendamento.status}
+                {grupo ? grupo.mesAnoDisplay : agendamento.status}
               </Badge>
             </span>
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Informações específicas do grupo */}
+          {grupo && (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-purple-800 mb-2 flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Liberação em Grupo - {grupo.mesAnoDisplay}
+              </h4>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-purple-500" />
+                  <span className="font-medium">Quantidade:</span>
+                  <span className="text-purple-700">{grupo.quantidadeAgendamentos} agendamentos</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-purple-500" />
+                  <span className="font-medium">Valor Total:</span>
+                  <span className="text-purple-700">{grupo.precoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                </div>
+              </div>
+              <p className="text-xs text-purple-600 mt-2">
+                ⚠️ Esta ação irá liberar TODOS os agendamentos deste grupo mensal
+              </p>
+            </div>
+          )}
+
           {/* Informações do Agendamento */}
           <div>
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -177,9 +236,6 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
               <div className="flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-gray-500" />
                 <span className="font-medium">Particular</span>
-                <Badge className="bg-yellow-100 text-yellow-800 text-xs">
-                  Pagamento Direto
-                </Badge>
               </div>
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-gray-500" />
@@ -273,7 +329,7 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
                   ) : (
                     <>
                       <span className="mr-2">🟢</span>
-                      Liberar Particular
+                      {grupo ? `Liberar Grupo (${grupo.quantidadeAgendamentos})` : 'Liberar Particular'}
                     </>
                   )}
                 </Button>

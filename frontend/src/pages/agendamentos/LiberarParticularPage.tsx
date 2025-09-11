@@ -138,6 +138,7 @@ export const LiberarParticularPage = () => {
 
   const [showLiberarAgendamento, setShowLiberarAgendamento] = useState(false);
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<Agendamento | null>(null);
+  const [grupoSelecionadoParaLiberacao, setGrupoSelecionadoParaLiberacao] = useState<AgendamentoAgrupado | null>(null);
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
   const [agendamentoDetalhes, setAgendamentoDetalhes] = useState<Agendamento | null>(null);
   const [showAgendamentosGrupo, setShowAgendamentosGrupo] = useState(false);
@@ -666,8 +667,16 @@ export const LiberarParticularPage = () => {
     }
   };
 
-  const handleLiberar = (agendamento: Agendamento) => {
+  const handleLiberar = (agendamento: Agendamento, grupo?: AgendamentoAgrupado) => {
     setAgendamentoSelecionado(agendamento);
+    
+    if (grupo) {
+      // Preparar dados do grupo para o modal
+      setGrupoSelecionadoParaLiberacao(grupo);
+    } else {
+      setGrupoSelecionadoParaLiberacao(null);
+    }
+    
     setShowLiberarAgendamento(true);
   };
 
@@ -1081,7 +1090,7 @@ export const LiberarParticularPage = () => {
                         size="sm" 
                         variant="outline"
                         className="flex-1 h-7 text-xs border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white"
-                        onClick={() => handleLiberar(grupo.agendamentos[0])}
+                        onClick={() => handleLiberar(grupo.agendamentos[0], grupo)}
                         title="Liberar Grupo"
                       >
                         Liberar Grupo
@@ -1420,7 +1429,7 @@ export const LiberarParticularPage = () => {
                             variant="outline"
                             size="sm"
                             className="group border-2 border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 focus:ring-4 focus:ring-emerald-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                            onClick={() => handleLiberar(grupo.agendamentos[0])}
+                            onClick={() => handleLiberar(grupo.agendamentos[0], grupo)}
                             title="Liberar Agendamentos do Grupo"
                           >
                             <CheckSquare className="w-4 h-4 text-emerald-600 group-hover:text-white transition-colors" />
@@ -1942,9 +1951,19 @@ export const LiberarParticularPage = () => {
       <LiberarParticularModal
         isOpen={showLiberarAgendamento}
         agendamento={agendamentoSelecionado}
+        grupo={grupoSelecionadoParaLiberacao ? {
+          pacienteId: grupoSelecionadoParaLiberacao.pacienteId,
+          profissionalId: grupoSelecionadoParaLiberacao.profissionalId,
+          servicoId: grupoSelecionadoParaLiberacao.servicoId,
+          mesAno: grupoSelecionadoParaLiberacao.mesAno,
+          mesAnoDisplay: grupoSelecionadoParaLiberacao.mesAnoDisplay,
+          quantidadeAgendamentos: grupoSelecionadoParaLiberacao.quantidadeAgendamentos,
+          precoTotal: grupoSelecionadoParaLiberacao.precoTotal
+        } : null}
         onClose={() => {
           setShowLiberarAgendamento(false);
           setAgendamentoSelecionado(null);
+          setGrupoSelecionadoParaLiberacao(null);
         }}
         onSuccess={carregarAgendamentos}
       />

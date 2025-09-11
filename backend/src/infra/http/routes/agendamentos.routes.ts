@@ -40,6 +40,11 @@ export async function agendamentosRoutes(app: FastifyInstance) {
     preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos-liberar-particular/:id', 'PUT')] 
   }, controller.liberarParticular);
   
+  // Rota específica para liberação de agendamentos particulares mensais (grupo)
+  app.put('/agendamentos-liberar-particular-mensal', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos-liberar-particular-mensal', 'PUT')] 
+  }, controller.liberarParticularMensal);
+  
   // Rota específica para atendimento de agendamentos
   app.put('/agendamentos-atender/:id', { 
     preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos-atender/:id', 'PUT')] 

@@ -547,6 +547,22 @@ export const liberarAgendamentoParticular = async (id: string, dadosLiberacao: {
   return response.data;
 };
 
+export const liberarAgendamentosParticularesMensal = async (dadosLiberacao: {
+  pacienteId: string;
+  profissionalId: string;
+  servicoId: string;
+  mesAno: string; // formato "2024-09"
+  recebimento: boolean;
+  dataLiberacao: string;
+}): Promise<{
+  agendamentosAtualizados: Agendamento[];
+  totalLiberados: number;
+}> => {
+  // Usar a nova rota específica para liberação de agendamentos particulares mensais (grupo)
+  const response = await api.put('/agendamentos-liberar-particular-mensal', dadosLiberacao);
+  return response.data;
+};
+
 export const atenderAgendamento = async (id: string, dadosAtendimento: {
   dataAtendimento?: string;
   observacoes?: string;

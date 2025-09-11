@@ -7,6 +7,7 @@ import { UpdateAgendamentoUseCase } from '../../../core/application/use-cases/ag
 import { DeleteAgendamentoUseCase } from '../../../core/application/use-cases/agendamento/DeleteAgendamentoUseCase';
 import { GetAgendamentoFormDataUseCase } from '../../../core/application/use-cases/agendamento/GetAgendamentoFormDataUseCase';
 import { LiberarAgendamentoParticularUseCase } from '../../../core/application/use-cases/LiberarAgendamentoParticularUseCase';
+import { LiberarAgendamentosParticularesMensalUseCase } from '../../../core/application/use-cases/LiberarAgendamentosParticularesMensalUseCase';
 
 const recorrenciaSchema = z.object({
   tipo: z.enum(['semanal', 'quinzenal', 'mensal']),
@@ -199,6 +200,39 @@ export class AgendamentosController {
     });
     
     return reply.status(200).send(agendamento);
+  }
+
+  async liberarParticularMensal(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    // Schema específico para liberação mensal - recebe dados do grupo
+    const liberarMensalBodySchema = z.object({
+      pacienteId: z.string().uuid(),
+      profissionalId: z.string().uuid(),
+      servicoId: z.string().uuid(),
+      mesAno: z.string().regex(/^\d{4}-\d{2}$/, 'Formato deve ser YYYY-MM'),
+      recebimento: z.boolean(),
+      dataLiberacao: z.string()
+    });
+    
+    const data = liberarMensalBodySchema.parse(request.body);
+    const useCase = container.resolve(LiberarAgendamentosParticularesMensalUseCase);
+    
+    // Obter userId do request (assumindo que está disponível após autenticação)
+    const userId = (request as any).user?.id;
+    if (!userId) {
+      return reply.status(401).send({ error: 'Usuário não autenticado' });
+    }
+    
+    const resultado = await useCase.execute({
+      pacienteId: data.pacienteId,
+      profissionalId: data.profissionalId,
+      servicoId: data.servicoId,
+      mesAno: data.mesAno,
+      userId,
+      recebimento: data.recebimento,
+      dataLiberacao: data.dataLiberacao
+    });
+    
+    return reply.status(200).send(resultado);
   }
 
   async atender(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
