@@ -24,13 +24,22 @@ export class UpdatePrecoParticularUseCase {
     }
 
     // Impede a alteração das chaves estrangeiras
-    if (data.pacienteId || data.servicoId) {
+    if (data.pacienteId && data.pacienteId !== preco.pacienteId) {
       throw new AppError(
-        'Não é permitido alterar o paciente ou o serviço de um preço existente.'
+        'Não é permitido alterar o paciente de um preço existente.'
+      );
+    }
+    
+    if (data.servicoId && data.servicoId !== preco.servicoId) {
+      throw new AppError(
+        'Não é permitido alterar o serviço de um preço existente.'
       );
     }
 
-    const updatedPreco = await this.precosRepository.update(id, data);
+    // Remove os campos que não devem ser atualizados para evitar problemas no repository
+    const { pacienteId, servicoId, ...updateData } = data;
+
+    const updatedPreco = await this.precosRepository.update(id, updateData);
 
     return updatedPreco;
   }

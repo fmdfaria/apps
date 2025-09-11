@@ -18,6 +18,8 @@ const createPrecoSchema = z.object({
 });
 
 const updatePrecoSchema = z.object({
+  pacienteId: z.string().uuid().optional(),
+  servicoId: z.string().uuid().optional(),
   preco: z.number().optional(),
   tipoPagamento: z.string().max(50).optional().nullable(),
   pagamentoAntecipado: z.boolean().optional().nullable(),
