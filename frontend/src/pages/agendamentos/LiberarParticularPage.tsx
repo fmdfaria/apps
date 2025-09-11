@@ -26,6 +26,7 @@ import {
   CheckSquare,
   MessageCircle
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Agendamento } from '@/types/Agendamento';
 import { getAgendamentos, updateAgendamento } from '@/services/agendamentos';
 
@@ -343,6 +344,71 @@ export const LiberarParticularPage = () => {
     return precosParticulares.find(
       preco => preco.pacienteId === pacienteId && preco.servicoId === servicoId
     ) || null;
+  };
+
+  // Função para verificar se há preço cadastrado
+  const temPrecoCadastrado = (pacienteId: string, servicoId: string): boolean => {
+    return encontrarPreco(pacienteId, servicoId) !== null;
+  };
+
+  // Componente auxiliar para botões com validação de preço
+  const BotaoComValidacaoPreco = ({ 
+    pacienteId, 
+    servicoId, 
+    onClick, 
+    disabled = false, 
+    className = '', 
+    title = '', 
+    children,
+    variant = 'default' as any
+  }: {
+    pacienteId: string;
+    servicoId: string;
+    onClick: () => void;
+    disabled?: boolean;
+    className?: string;
+    title?: string;
+    children: React.ReactNode;
+    variant?: 'default' | 'outline';
+  }) => {
+    const haPreco = temPrecoCadastrado(pacienteId, servicoId);
+    const isDisabled = disabled || !haPreco;
+
+    if (!haPreco) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-block">
+                <Button
+                  variant={variant}
+                  disabled={true}
+                  className={`${className} opacity-50 cursor-not-allowed`}
+                  title="Sem preço cadastrado"
+                >
+                  {children}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Não é possível liberar um atendimento sem preço particular cadastrado</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    return (
+      <Button
+        variant={variant}
+        disabled={isDisabled}
+        onClick={onClick}
+        className={className}
+        title={title}
+      >
+        {children}
+      </Button>
+    );
   };
 
   // Função para formatar informações de pagamento
@@ -1061,12 +1127,13 @@ export const LiberarParticularPage = () => {
                     >
                       Ver Detalhes
                     </Button>
-                    <Button 
-                      size="sm" 
+                    <BotaoComValidacaoPreco
+                      pacienteId={grupo.pacienteId}
+                      servicoId={grupo.servicoId}
                       variant="outline"
-                      className="flex-1 h-7 text-xs border-yellow-400 text-yellow-700 hover:bg-yellow-600 hover:text-white"
                       onClick={() => handleSolicitarLiberacaoClick(grupo.agendamentos[0], grupo)}
                       disabled={grupo.agendamentos.some(ag => estaProcessando(ag.id))}
+                      className="flex-1 h-7 text-xs border-yellow-400 text-yellow-700 hover:bg-yellow-600 hover:text-white"
                     >
                       {grupo.agendamentos.some(ag => estaProcessando(ag.id)) ? (
                         <>
@@ -1076,7 +1143,7 @@ export const LiberarParticularPage = () => {
                       ) : (
                         'Solicitar Liberação'
                       )}
-                    </Button>
+                    </BotaoComValidacaoPreco>
                     <Button 
                       size="sm" 
                       variant="outline"
@@ -1086,15 +1153,16 @@ export const LiberarParticularPage = () => {
                       WhatsApp
                     </Button>
                     {canLiberar ? (
-                      <Button 
-                        size="sm" 
+                      <BotaoComValidacaoPreco
+                        pacienteId={grupo.pacienteId}
+                        servicoId={grupo.servicoId}
                         variant="outline"
-                        className="flex-1 h-7 text-xs border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white"
                         onClick={() => handleLiberar(grupo.agendamentos[0], grupo)}
+                        className="flex-1 h-7 text-xs border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white"
                         title="Liberar Grupo"
                       >
                         Liberar Grupo
-                      </Button>
+                      </BotaoComValidacaoPreco>
                     ) : (
                       <Button 
                         size="sm" 
@@ -1188,12 +1256,13 @@ export const LiberarParticularPage = () => {
                     >
                       Visualizar
                     </Button>
-                    <Button 
-                      size="sm" 
+                    <BotaoComValidacaoPreco
+                      pacienteId={agendamento.pacienteId}
+                      servicoId={agendamento.servicoId}
                       variant="outline"
-                      className="flex-1 h-7 text-xs border-yellow-400 text-yellow-700 hover:bg-yellow-600 hover:text-white"
                       onClick={() => handleSolicitarLiberacaoClick(agendamento)}
                       disabled={estaProcessando(agendamento.id)}
+                      className="flex-1 h-7 text-xs border-yellow-400 text-yellow-700 hover:bg-yellow-600 hover:text-white"
                     >
                       {estaProcessando(agendamento.id) ? (
                         <>
@@ -1203,7 +1272,7 @@ export const LiberarParticularPage = () => {
                       ) : (
                         'Solicitar Liberação'
                       )}
-                    </Button>
+                    </BotaoComValidacaoPreco>
                     <Button 
                       size="sm" 
                       variant="outline"
@@ -1213,15 +1282,16 @@ export const LiberarParticularPage = () => {
                       WhatsApp
                     </Button>
                     {canLiberar ? (
-                      <Button 
-                        size="sm" 
+                      <BotaoComValidacaoPreco
+                        pacienteId={agendamento.pacienteId}
+                        servicoId={agendamento.servicoId}
                         variant="outline"
-                        className="flex-1 h-7 text-xs border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white"
                         onClick={() => handleLiberar(agendamento)}
+                        className="flex-1 h-7 text-xs border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white"
                         title="Liberado Atendimento"
                       >
                         Liberado Atendimento
-                      </Button>
+                      </BotaoComValidacaoPreco>
                     ) : (
                       <Button 
                         size="sm" 
@@ -1401,12 +1471,13 @@ export const LiberarParticularPage = () => {
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
-                        <Button
+                        <BotaoComValidacaoPreco
+                          pacienteId={grupo.pacienteId}
+                          servicoId={grupo.servicoId}
                           variant="outline"
-                          size="sm"
-                          className="group border-2 border-yellow-400 text-yellow-700 hover:bg-yellow-600 hover:text-white hover:border-yellow-600 focus:ring-4 focus:ring-yellow-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                           onClick={() => handleSolicitarLiberacaoClick(grupo.agendamentos[0], grupo)}
                           disabled={grupo.agendamentos.some(ag => estaProcessando(ag.id))}
+                          className="group border-2 border-yellow-400 text-yellow-700 hover:bg-yellow-600 hover:text-white hover:border-yellow-600 focus:ring-4 focus:ring-yellow-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                           title="Solicitar Liberação do Grupo"
                         >
                           {grupo.agendamentos.some(ag => estaProcessando(ag.id)) ? (
@@ -1414,7 +1485,7 @@ export const LiberarParticularPage = () => {
                           ) : (
                             <Unlock className="w-4 h-4 text-yellow-700 group-hover:text-white transition-colors" />
                           )}
-                        </Button>
+                        </BotaoComValidacaoPreco>
                         <Button
                           variant="outline"
                           size="sm"
@@ -1425,15 +1496,16 @@ export const LiberarParticularPage = () => {
                           <MessageCircle className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
                         </Button>
                         {canLiberar ? (
-                          <Button
+                          <BotaoComValidacaoPreco
+                            pacienteId={grupo.pacienteId}
+                            servicoId={grupo.servicoId}
                             variant="outline"
-                            size="sm"
-                            className="group border-2 border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 focus:ring-4 focus:ring-emerald-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                             onClick={() => handleLiberar(grupo.agendamentos[0], grupo)}
+                            className="group border-2 border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 focus:ring-4 focus:ring-emerald-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                             title="Liberar Agendamentos do Grupo"
                           >
                             <CheckSquare className="w-4 h-4 text-emerald-600 group-hover:text-white transition-colors" />
-                          </Button>
+                          </BotaoComValidacaoPreco>
                         ) : (
                           <Button
                             variant="outline"
@@ -1521,12 +1593,13 @@ export const LiberarParticularPage = () => {
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
-                      <Button
+                      <BotaoComValidacaoPreco
+                        pacienteId={agendamento.pacienteId}
+                        servicoId={agendamento.servicoId}
                         variant="outline"
-                        size="sm"
-                        className="group border-2 border-yellow-400 text-yellow-700 hover:bg-yellow-600 hover:text-white hover:border-yellow-600 focus:ring-4 focus:ring-yellow-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                         onClick={() => handleSolicitarLiberacaoClick(agendamento)}
                         disabled={estaProcessando(agendamento.id)}
+                        className="group border-2 border-yellow-400 text-yellow-700 hover:bg-yellow-600 hover:text-white hover:border-yellow-600 focus:ring-4 focus:ring-yellow-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                         title="Solicitar Liberação"
                       >
                         {estaProcessando(agendamento.id) ? (
@@ -1534,7 +1607,7 @@ export const LiberarParticularPage = () => {
                         ) : (
                           <Unlock className="w-4 h-4 text-yellow-700 group-hover:text-white transition-colors" />
                         )}
-                      </Button>
+                      </BotaoComValidacaoPreco>
                       <Button
                         variant="outline"
                         size="sm"
@@ -1545,15 +1618,16 @@ export const LiberarParticularPage = () => {
                         <MessageCircle className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
                       </Button>
                       {canLiberar ? (
-                        <Button
+                        <BotaoComValidacaoPreco
+                          pacienteId={agendamento.pacienteId}
+                          servicoId={agendamento.servicoId}
                           variant="outline"
-                          size="sm"
-                          className="group border-2 border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 focus:ring-4 focus:ring-emerald-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                           onClick={() => handleLiberar(agendamento)}
+                          className="group border-2 border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 focus:ring-4 focus:ring-emerald-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                           title="Liberado Atendimento"
                         >
                           <CheckSquare className="w-4 h-4 text-emerald-600 group-hover:text-white transition-colors" />
-                        </Button>
+                        </BotaoComValidacaoPreco>
                       ) : (
                         <Button
                           variant="outline"
@@ -1908,28 +1982,32 @@ export const LiberarParticularPage = () => {
             >
               Fechar
             </Button>
-            <Button
-              variant="default"
-              className="bg-blue-600 hover:bg-blue-700"
-              onClick={() => {
-                if (grupoSelecionado) {
-                  handleSolicitarLiberacaoClick(grupoSelecionado.agendamentos[0], grupoSelecionado);
-                }
-              }}
-              disabled={grupoSelecionado?.agendamentos.some(ag => estaProcessando(ag.id))}
-            >
-              {grupoSelecionado?.agendamentos.some(ag => estaProcessando(ag.id)) ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Processando Grupo...
-                </>
-              ) : (
-                <>
-                  <Unlock className="w-4 h-4 mr-2" />
-                  Solicitar Liberação do Grupo
-                </>
-              )}
-            </Button>
+            {grupoSelecionado && (
+              <BotaoComValidacaoPreco
+                pacienteId={grupoSelecionado.pacienteId}
+                servicoId={grupoSelecionado.servicoId}
+                variant="default"
+                onClick={() => {
+                  if (grupoSelecionado) {
+                    handleSolicitarLiberacaoClick(grupoSelecionado.agendamentos[0], grupoSelecionado);
+                  }
+                }}
+                disabled={grupoSelecionado?.agendamentos.some(ag => estaProcessando(ag.id))}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {grupoSelecionado?.agendamentos.some(ag => estaProcessando(ag.id)) ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Processando Grupo...
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="w-4 h-4 mr-2" />
+                    Solicitar Liberação do Grupo
+                  </>
+                )}
+              </BotaoComValidacaoPreco>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
