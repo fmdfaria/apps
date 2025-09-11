@@ -65,6 +65,9 @@ export default function PrecoParticularModal({
                 <label className="flex text-sm font-semibold text-gray-700 mb-2 items-center gap-2">
                   <span className="text-lg">👤</span>
                   Paciente <span className="text-red-500">*</span>
+                  {editando && (
+                    <span className="text-xs text-gray-500 ml-1">(não editável)</span>
+                  )}
                 </label>
                 <SingleSelectDropdown
                   options={pacientes.map(p => ({
@@ -82,6 +85,7 @@ export default function PrecoParticularModal({
                   }}
                   placeholder="Buscar paciente..."
                   headerText="Pacientes disponíveis"
+                  disabled={!!editando}
                   formatOption={(option) => {
                     const whatsapp = option.sigla;
                     if (whatsapp) {
@@ -106,6 +110,9 @@ export default function PrecoParticularModal({
                 <label className="flex text-sm font-semibold text-gray-700 mb-2 items-center gap-2">
                   <span className="text-lg">🩺</span>
                   Serviço <span className="text-red-500">*</span>
+                  {editando && (
+                    <span className="text-xs text-gray-500 ml-1">(não editável)</span>
+                  )}
                 </label>
                 <SingleSelectDropdown
                   options={servicos
@@ -138,6 +145,7 @@ export default function PrecoParticularModal({
                   }}
                   placeholder="Buscar serviço..."
                   headerText="Serviços disponíveis"
+                  disabled={!!editando}
                   formatOption={(option) => {
                     return option.sigla ? `${option.nome} - ${option.sigla}` : option.nome;
                   }}

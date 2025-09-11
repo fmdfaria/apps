@@ -515,8 +515,6 @@ export default function PrecosParticularPage() {
     try {
       if (editando) {
         await updatePrecoParticular(editando.id, {
-          pacienteId: form.pacienteId,
-          servicoId: form.servicoId,
           preco: Number(form.precoPaciente.replace(',', '.')),
           duracaoMinutos: form.duracaoMinutos ? Number(form.duracaoMinutos) : undefined,
           percentualClinica: form.percentualClinica ? Number(form.percentualClinica) : undefined,
@@ -549,6 +547,11 @@ export default function PrecosParticularPage() {
       if (err?.response?.data?.message) msg = err.response.data.message;
       else if (err?.response?.data?.error) msg = err.response.data.error;
       setFormError(msg);
+      
+      // Mostrar toast de erro para o usuário
+      AppToast.error('Erro ao salvar', {
+        description: msg
+      });
     } finally {
       setFormLoading(false);
     }
