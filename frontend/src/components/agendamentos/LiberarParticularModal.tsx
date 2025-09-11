@@ -67,9 +67,25 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
       onClose();
     } catch (error) {
       console.error('Erro ao liberar agendamento particular:', error);
-      AppToast.error('Erro ao liberar agendamento', {
-        description: 'Não foi possível liberar o agendamento. Tente novamente.'
-      });
+      
+      // Para erros 403 (acesso negado), o interceptador da API já trata
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status?: number; data?: { message?: string } } };
+        if (axiosError.response?.status === 403) {
+          // Interceptador da API já mostrou o toast de acesso negado, não duplicar
+          return;
+        }
+        
+        // Para outros erros, extrair mensagem do backend se disponível
+        const errorMessage = axiosError.response?.data?.message || 'Não foi possível liberar o agendamento. Tente novamente.';
+        AppToast.error('Erro ao liberar agendamento', {
+          description: errorMessage
+        });
+      } else {
+        AppToast.error('Erro ao liberar agendamento', {
+          description: 'Não foi possível liberar o agendamento. Tente novamente.'
+        });
+      }
     } finally {
       setLoading(false);
     }

@@ -68,8 +68,8 @@ export class LiberarAgendamentoParticularUseCase {
     // Atualizar o agendamento
     const agendamentoAtualizado = await this.agendamentosRepository.update(agendamentoId, {
       status: 'LIBERADO',
-      recebimentoParticular: recebimento,
-      dataLiberacao: dataLiberacao,
+      recebimento: recebimento,
+      dataCodLiberacao: dataLiberacao,
       updatedAt: new Date(),
       updatedBy: userId
     });
