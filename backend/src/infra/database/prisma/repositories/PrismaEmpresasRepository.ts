@@ -1,6 +1,6 @@
 import { Empresa } from '../../../../core/domain/entities/Empresa';
 import { IEmpresasRepository } from '../../../../core/domain/repositories/IEmpresasRepository';
-import { prisma } from '../PrismaService';
+import { prisma } from '../../../shared/database/prisma';
 
 export class PrismaEmpresasRepository implements IEmpresasRepository {
   async create(empresa: Empresa): Promise<Empresa> {

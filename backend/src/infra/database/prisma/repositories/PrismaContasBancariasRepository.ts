@@ -1,6 +1,6 @@
 import { ContaBancaria } from '../../../../core/domain/entities/ContaBancaria';
 import { IContasBancariasRepository } from '../../../../core/domain/repositories/IContasBancariasRepository';
-import { prisma } from '../PrismaService';
+import { prisma } from '../../../shared/database/prisma';
 
 export class PrismaContasBancariasRepository implements IContasBancariasRepository {
   async create(conta: ContaBancaria): Promise<ContaBancaria> {

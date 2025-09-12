@@ -1,6 +1,6 @@
 import { CategoriaFinanceira } from '../../../../core/domain/entities/CategoriaFinanceira';
 import { ICategoriasFinanceirasRepository } from '../../../../core/domain/repositories/ICategoriasFinanceirasRepository';
-import { prisma } from '../PrismaService';
+import { prisma } from '../../../shared/database/prisma';
 
 export class PrismaCategoriasFinanceirasRepository implements ICategoriasFinanceirasRepository {
   async create(categoria: CategoriaFinanceira): Promise<CategoriaFinanceira> {
