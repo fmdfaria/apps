@@ -154,17 +154,37 @@ import { IContasBancariasRepository } from '../../core/domain/repositories/ICont
 import { PrismaContasBancariasRepository } from '../../infra/database/prisma/repositories/PrismaContasBancariasRepository';
 import { IContasReceberRepository } from '../../core/domain/repositories/IContasReceberRepository';
 import { PrismaContasReceberRepository } from '../../infra/database/prisma/repositories/PrismaContasReceberRepository';
+import { IContasPagarRepository } from '../../core/domain/repositories/IContasPagarRepository';
+import { IFluxoCaixaRepository } from '../../core/domain/repositories/IFluxoCaixaRepository';
 
 // Use Cases do Sistema Financeiro
 import { CreateEmpresaUseCase } from '../../core/application/use-cases/empresa/CreateEmpresaUseCase';
 import { ListEmpresasUseCase } from '../../core/application/use-cases/empresa/ListEmpresasUseCase';
 import { UpdateEmpresaUseCase } from '../../core/application/use-cases/empresa/UpdateEmpresaUseCase';
+import { DeleteEmpresaUseCase } from '../../core/application/use-cases/empresa/DeleteEmpresaUseCase';
 import { CreateCategoriaFinanceiraUseCase } from '../../core/application/use-cases/categoria-financeira/CreateCategoriaFinanceiraUseCase';
 import { ListCategoriasFinanceirasUseCase } from '../../core/application/use-cases/categoria-financeira/ListCategoriasFinanceirasUseCase';
+import { UpdateCategoriaFinanceiraUseCase } from '../../core/application/use-cases/categoria-financeira/UpdateCategoriaFinanceiraUseCase';
+import { DeleteCategoriaFinanceiraUseCase } from '../../core/application/use-cases/categoria-financeira/DeleteCategoriaFinanceiraUseCase';
 import { CreateContaBancariaUseCase } from '../../core/application/use-cases/conta-bancaria/CreateContaBancariaUseCase';
 import { ListContasBancariasUseCase } from '../../core/application/use-cases/conta-bancaria/ListContasBancariasUseCase';
+import { UpdateContaBancariaUseCase } from '../../core/application/use-cases/conta-bancaria/UpdateContaBancariaUseCase';
+import { DeleteContaBancariaUseCase } from '../../core/application/use-cases/conta-bancaria/DeleteContaBancariaUseCase';
+import { AtualizarSaldoContaBancariaUseCase } from '../../core/application/use-cases/conta-bancaria/AtualizarSaldoContaBancariaUseCase';
 import { CreateContaReceberUseCase } from '../../core/application/use-cases/conta-receber/CreateContaReceberUseCase';
 import { ReceberContaUseCase } from '../../core/application/use-cases/conta-receber/ReceberContaUseCase';
+import { CreateContaPagarUseCase } from '../../core/application/use-cases/conta-pagar/CreateContaPagarUseCase';
+import { ListContasPagarUseCase } from '../../core/application/use-cases/conta-pagar/ListContasPagarUseCase';
+import { UpdateContaPagarUseCase } from '../../core/application/use-cases/conta-pagar/UpdateContaPagarUseCase';
+import { DeleteContaPagarUseCase } from '../../core/application/use-cases/conta-pagar/DeleteContaPagarUseCase';
+import { PagarContaUseCase } from '../../core/application/use-cases/conta-pagar/PagarContaUseCase';
+import { CancelarContaPagarUseCase } from '../../core/application/use-cases/conta-pagar/CancelarContaPagarUseCase';
+import { CreateFluxoCaixaUseCase } from '../../core/application/use-cases/fluxo-caixa/CreateFluxoCaixaUseCase';
+import { ListFluxoCaixaUseCase } from '../../core/application/use-cases/fluxo-caixa/ListFluxoCaixaUseCase';
+import { UpdateFluxoCaixaUseCase } from '../../core/application/use-cases/fluxo-caixa/UpdateFluxoCaixaUseCase';
+import { ConciliarFluxoCaixaUseCase } from '../../core/application/use-cases/fluxo-caixa/ConciliarFluxoCaixaUseCase';
+import { DashboardFluxoCaixaUseCase } from '../../core/application/use-cases/fluxo-caixa/DashboardFluxoCaixaUseCase';
+import { GerarRelatorioFluxoUseCase } from '../../core/application/use-cases/fluxo-caixa/GerarRelatorioFluxoUseCase';
 
 container.registerInstance('PrismaClient', prisma);
 
@@ -408,16 +428,42 @@ container.register<IContasReceberRepository>(
   PrismaContasReceberRepository
 );
 
+// Note: ContasPagarRepository implementation will be needed
+// container.register<IContasPagarRepository>(
+//   'ContasPagarRepository', 
+//   PrismaContasPagarRepository
+// );
+
 // Use Cases do Sistema Financeiro
 container.register('CreateEmpresaUseCase', CreateEmpresaUseCase);
 container.register('ListEmpresasUseCase', ListEmpresasUseCase);
 container.register('UpdateEmpresaUseCase', UpdateEmpresaUseCase);
+container.register('DeleteEmpresaUseCase', DeleteEmpresaUseCase);
 
 container.register('CreateCategoriaFinanceiraUseCase', CreateCategoriaFinanceiraUseCase);
 container.register('ListCategoriasFinanceirasUseCase', ListCategoriasFinanceirasUseCase);
+container.register('UpdateCategoriaFinanceiraUseCase', UpdateCategoriaFinanceiraUseCase);
+container.register('DeleteCategoriaFinanceiraUseCase', DeleteCategoriaFinanceiraUseCase);
 
 container.register('CreateContaBancariaUseCase', CreateContaBancariaUseCase);
 container.register('ListContasBancariasUseCase', ListContasBancariasUseCase);
+container.register('UpdateContaBancariaUseCase', UpdateContaBancariaUseCase);
+container.register('DeleteContaBancariaUseCase', DeleteContaBancariaUseCase);
+container.register('AtualizarSaldoContaBancariaUseCase', AtualizarSaldoContaBancariaUseCase);
 
 container.register('CreateContaReceberUseCase', CreateContaReceberUseCase);
 container.register('ReceberContaUseCase', ReceberContaUseCase);
+
+container.register('CreateContaPagarUseCase', CreateContaPagarUseCase);
+container.register('ListContasPagarUseCase', ListContasPagarUseCase);
+container.register('UpdateContaPagarUseCase', UpdateContaPagarUseCase);
+container.register('DeleteContaPagarUseCase', DeleteContaPagarUseCase);
+container.register('PagarContaUseCase', PagarContaUseCase);
+container.register('CancelarContaPagarUseCase', CancelarContaPagarUseCase);
+
+container.register('CreateFluxoCaixaUseCase', CreateFluxoCaixaUseCase);
+container.register('ListFluxoCaixaUseCase', ListFluxoCaixaUseCase);
+container.register('UpdateFluxoCaixaUseCase', UpdateFluxoCaixaUseCase);
+container.register('ConciliarFluxoCaixaUseCase', ConciliarFluxoCaixaUseCase);
+container.register('DashboardFluxoCaixaUseCase', DashboardFluxoCaixaUseCase);
+container.register('GerarRelatorioFluxoUseCase', GerarRelatorioFluxoUseCase);

@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Building2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Building2, Power, PowerOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AppToast } from '@/services/toast';
-import { getEmpresas, createEmpresa, updateEmpresa, deleteEmpresa } from '@/services/empresas';
+import { getEmpresas, createEmpresa, updateEmpresa, deleteEmpresa, updateEmpresaStatus } from '@/services/empresas';
 import type { Empresa } from '@/types/Empresa';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -156,6 +156,15 @@ export const EmpresasPage = () => {
           </ActionButton>
           
           <ActionButton
+            variant={item.ativo ? "warning" : "success"}
+            module="financeiro"
+            onClick={() => handleToggleStatus(item)}
+            title={item.ativo ? "Desativar empresa" : "Ativar empresa"}
+          >
+            {item.ativo ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+          </ActionButton>
+          
+          <ActionButton
             variant="delete"
             module="financeiro"
             onClick={() => setExcluindo(item)}
@@ -292,6 +301,31 @@ export const EmpresasPage = () => {
     }
   };
 
+  const handleToggleStatus = async (empresa: Empresa) => {
+    try {
+      const novoStatus = !empresa.ativo;
+      await updateEmpresaStatus(empresa.id, novoStatus);
+      
+      AppToast.success(
+        'Status alterado', 
+        `A empresa "${empresa.razaoSocial}" foi ${novoStatus ? 'ativada' : 'desativada'} com sucesso.`
+      );
+      
+      await fetchData();
+    } catch (error: any) {
+      console.error('Erro ao alterar status:', error);
+      
+      let description = 'Não foi possível alterar o status da empresa. Tente novamente.';
+      if (error?.response?.data?.message) {
+        description = error.response.data.message;
+      } else if (error?.message) {
+        description = error.message;
+      }
+      
+      AppToast.error('Erro ao alterar status', { description });
+    }
+  };
+
   // Renderização do card
   const renderCard = (empresa: Empresa) => (
     <Card className="h-full hover:shadow-md transition-shadow">
@@ -352,6 +386,14 @@ export const EmpresasPage = () => {
           title="Editar empresa"
         >
           <Edit className="w-4 h-4" />
+        </ActionButton>
+        <ActionButton
+          variant={empresa.ativo ? "warning" : "success"}
+          module="financeiro"
+          onClick={() => handleToggleStatus(empresa)}
+          title={empresa.ativo ? "Desativar empresa" : "Ativar empresa"}
+        >
+          {empresa.ativo ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
         </ActionButton>
         <ActionButton
           variant="delete"

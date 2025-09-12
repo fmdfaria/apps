@@ -8,13 +8,27 @@ const controller = new EmpresasController();
 export async function empresasRoutes(app: FastifyInstance) {
   app.get('/empresas', { 
     preHandler: [ensureAuthenticated, ensureAuthorized('/empresas', 'GET')] 
-  }, controller.list);
+  }, (request, reply) => controller.list(request as any, reply as any));
   
   app.post('/empresas', { 
     preHandler: [ensureAuthenticated, ensureAuthorized('/empresas', 'POST')] 
-  }, controller.create);
+  }, (request, reply) => controller.create(request as any, reply as any));
+  
+  // Buscar empresa por ID
+  app.get('/empresas/:id', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/empresas/:id', 'GET')] 
+  }, (request, reply) => controller.findById(request as any, reply as any));
   
   app.put('/empresas/:id', { 
     preHandler: [ensureAuthenticated, ensureAuthorized('/empresas/:id', 'PUT')] 
-  }, controller.update);
+  }, (request, reply) => controller.update(request as any, reply as any));
+
+  app.delete('/empresas/:id', {
+    preHandler: [ensureAuthenticated, ensureAuthorized('/empresas/:id', 'DELETE')]
+  }, (request, reply) => controller.delete(request as any, reply as any));
+
+  // Ativar/desativar empresa
+  app.patch('/empresas/:id/status', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/empresas/:id/status', 'PATCH')] 
+  }, (request, reply) => controller.updateStatus(request as any, reply as any));
 }

@@ -35,6 +35,10 @@ import { filaEsperaRoutes } from './infra/http/routes/fila-espera.routes';
 import { configuracoesRoutes } from './infra/http/routes/configuracoes.routes';
 import { dashboardRoutes } from './infra/http/routes/dashboard.routes';
 import { empresasRoutes } from './infra/http/routes/empresas.routes';
+import { contasBancariasRoutes } from './infra/http/routes/contas-bancarias.routes';
+import { categoriasFinanceirasRoutes } from './infra/http/routes/categorias-financeiras.routes';
+import { contasPagarRoutes } from './infra/http/routes/contas-pagar.routes';
+import { fluxoCaixaRoutes } from './infra/http/routes/fluxo-caixa.routes';
 import { contasReceberRoutes } from './infra/http/routes/contas-receber.routes';
 
 const app = fastify({
@@ -81,6 +85,10 @@ app.register(filaEsperaRoutes);
 app.register(configuracoesRoutes);
 app.register(dashboardRoutes, { prefix: '/dashboard' });
 app.register(empresasRoutes);
+app.register(contasBancariasRoutes);
+app.register(categoriasFinanceirasRoutes);
+app.register(contasPagarRoutes);
+app.register(fluxoCaixaRoutes);
 app.register(contasReceberRoutes);
 
 // Health check route

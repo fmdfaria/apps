@@ -45,3 +45,8 @@ export const updateEmpresa = async (id: string, empresa: UpdateEmpresaData): Pro
 export const deleteEmpresa = async (id: string): Promise<void> => {
   await api.delete(`/empresas/${id}`);
 };
+
+export const updateEmpresaStatus = async (id: string, ativo: boolean): Promise<Empresa> => {
+  const { data } = await api.patch(`/empresas/${id}/status`, { ativo });
+  return data.data;
+};

@@ -3,6 +3,7 @@ import { container } from 'tsyringe';
 import { CreateEmpresaUseCase } from '../../../core/application/use-cases/empresa/CreateEmpresaUseCase';
 import { ListEmpresasUseCase } from '../../../core/application/use-cases/empresa/ListEmpresasUseCase';
 import { UpdateEmpresaUseCase } from '../../../core/application/use-cases/empresa/UpdateEmpresaUseCase';
+import { DeleteEmpresaUseCase } from '../../../core/application/use-cases/empresa/DeleteEmpresaUseCase';
 
 interface CreateEmpresaBody {
   razaoSocial: string;
@@ -53,6 +54,10 @@ interface EmpresaParams {
   id: string;
 }
 
+interface UpdateStatusBody {
+  ativo: boolean;
+}
+
 export class EmpresasController {
   async create(request: FastifyRequest<{ Body: CreateEmpresaBody }>, reply: FastifyReply) {
     try {
@@ -95,6 +100,31 @@ export class EmpresasController {
     }
   }
 
+  async findById(request: FastifyRequest<{ Params: EmpresaParams }>, reply: FastifyReply) {
+    try {
+      const listEmpresasUseCase = container.resolve(ListEmpresasUseCase);
+      const empresas = await listEmpresasUseCase.execute();
+      const empresa = empresas.find(e => e.id === request.params.id);
+      
+      if (!empresa) {
+        return reply.status(404).send({
+          success: false,
+          message: 'Empresa não encontrada'
+        });
+      }
+      
+      return reply.send({
+        success: true,
+        data: empresa
+      });
+    } catch (error) {
+      return reply.status(500).send({
+        success: false,
+        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+      });
+    }
+  }
+
   async update(request: FastifyRequest<{ Params: EmpresaParams; Body: UpdateEmpresaBody }>, reply: FastifyReply) {
     try {
       const updateEmpresaUseCase = container.resolve(UpdateEmpresaUseCase);
@@ -104,6 +134,43 @@ export class EmpresasController {
       return reply.send({
         success: true,
         data: empresa
+      });
+    } catch (error) {
+      const statusCode = error instanceof Error && error.message === 'Empresa não encontrada' ? 404 : 400;
+      
+      return reply.status(statusCode).send({
+        success: false,
+        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+      });
+    }
+  }
+
+  async delete(request: FastifyRequest<{ Params: EmpresaParams }>, reply: FastifyReply) {
+    try {
+      const deleteEmpresaUseCase = container.resolve(DeleteEmpresaUseCase);
+      await deleteEmpresaUseCase.execute({ id: request.params.id });
+      return reply.status(204).send();
+    } catch (error) {
+      const statusCode = error instanceof Error && error.message === 'Empresa não encontrada' ? 404 : 400;
+      return reply.status(statusCode).send({
+        success: false,
+        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+      });
+    }
+  }
+
+  async updateStatus(request: FastifyRequest<{ Params: EmpresaParams; Body: UpdateStatusBody }>, reply: FastifyReply) {
+    try {
+      const updateEmpresaUseCase = container.resolve(UpdateEmpresaUseCase);
+      
+      const empresa = await updateEmpresaUseCase.execute(request.params.id, {
+        ativo: request.body.ativo
+      });
+      
+      return reply.send({
+        success: true,
+        data: empresa,
+        message: `Empresa ${request.body.ativo ? 'ativada' : 'desativada'} com sucesso`
       });
     } catch (error) {
       const statusCode = error instanceof Error && error.message === 'Empresa não encontrada' ? 404 : 400;

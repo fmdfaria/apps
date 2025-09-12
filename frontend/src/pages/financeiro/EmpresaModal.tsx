@@ -27,12 +27,12 @@ export default function EmpresaModal({ isOpen, empresa, onClose, onSave }: Empre
     inscricaoMunicipal: '',
     telefone: '',
     email: '',
-    endereco: '',
+    logradouro: '',
     numero: '',
     complemento: '',
     bairro: '',
     cidade: '',
-    uf: '',
+    estado: '',
     cep: '',
     empresaPrincipal: false,
     ativo: true
@@ -48,12 +48,12 @@ export default function EmpresaModal({ isOpen, empresa, onClose, onSave }: Empre
         inscricaoMunicipal: empresa.inscricaoMunicipal || '',
         telefone: empresa.telefone || '',
         email: empresa.email || '',
-        endereco: empresa.endereco || '',
+        logradouro: empresa.logradouro || '',
         numero: empresa.numero || '',
         complemento: empresa.complemento || '',
         bairro: empresa.bairro || '',
         cidade: empresa.cidade || '',
-        uf: empresa.uf || '',
+        estado: empresa.estado || '',
         cep: empresa.cep || '',
         empresaPrincipal: empresa.empresaPrincipal || false,
         ativo: empresa.ativo !== false
@@ -67,12 +67,12 @@ export default function EmpresaModal({ isOpen, empresa, onClose, onSave }: Empre
         inscricaoMunicipal: '',
         telefone: '',
         email: '',
-        endereco: '',
+        logradouro: '',
         numero: '',
         complemento: '',
         bairro: '',
         cidade: '',
-        uf: '',
+        estado: '',
         cep: '',
         empresaPrincipal: false,
         ativo: true
@@ -207,11 +207,11 @@ export default function EmpresaModal({ isOpen, empresa, onClose, onSave }: Empre
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="endereco">Endereço</Label>
+            <Label htmlFor="logradouro">Endereço</Label>
             <Input
-              id="endereco"
-              value={form.endereco}
-              onChange={(e) => handleChange('endereco', e.target.value)}
+              id="logradouro"
+              value={form.logradouro}
+              onChange={(e) => handleChange('logradouro', e.target.value)}
               placeholder="Rua, Avenida, etc."
             />
           </div>
@@ -270,11 +270,11 @@ export default function EmpresaModal({ isOpen, empresa, onClose, onSave }: Empre
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="uf">UF</Label>
+              <Label htmlFor="estado">UF</Label>
               <Input
-                id="uf"
-                value={form.uf}
-                onChange={(e) => handleChange('uf', e.target.value)}
+                id="estado"
+                value={form.estado}
+                onChange={(e) => handleChange('estado', e.target.value)}
                 placeholder="SP"
                 maxLength={2}
               />

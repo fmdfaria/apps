@@ -680,3 +680,98 @@ src/types/
 ---
 
 Este planejamento representa uma solução completa e escalável para o controle financeiro da Probotec Clínica, integrada perfeitamente com o sistema atual de agendamentos e seguindo as melhores práticas de desenvolvimento de software.
+
+
+
+###ROTAS PREVISTAS
+
+  📋 1. EMPRESAS
+
+  GET    /empresas              - Listar empresas (com filtros)
+  POST   /empresas              - Criar nova empresa
+  GET    /empresas/:id          - Buscar empresa por ID
+  PUT    /empresas/:id          - Atualizar empresa
+  DELETE /empresas/:id          - Excluir empresa
+  PATCH  /empresas/:id/status   - Ativar/desativar empresa
+
+  🏦 2. CONTAS BANCÁRIAS
+
+  GET    /contas-bancarias              - Listar contas bancárias
+  POST   /contas-bancarias              - Criar nova conta bancária
+  GET    /contas-bancarias/:id          - Buscar conta por ID
+  PUT    /contas-bancarias/:id          - Atualizar conta bancária
+  DELETE /contas-bancarias/:id          - Excluir conta bancária
+  GET    /contas-bancarias/empresa/:empresaId - Contas por empresa
+  PATCH  /contas-bancarias/:id/saldo    - Atualizar saldo
+
+  📈 3. CONTAS A RECEBER
+
+  GET    /contas-receber                - Listar contas a receber (com filtros)
+  POST   /contas-receber                - Criar conta a receber
+  GET    /contas-receber/:id            - Buscar conta por ID
+  PUT    /contas-receber/:id            - Atualizar conta a receber
+  DELETE /contas-receber/:id            - Excluir conta a receber
+  POST   /contas-receber/:id/receber    - Registrar recebimento
+  PATCH  /contas-receber/:id/cancelar   - Cancelar conta
+  GET    /contas-receber/pendentes      - Contas pendentes
+  GET    /contas-receber/vencidas       - Contas vencidas
+
+  📉 4. CONTAS A PAGAR
+
+  GET    /contas-pagar                - Listar contas a pagar (com filtros)
+  POST   /contas-pagar                - Criar conta a pagar
+  GET    /contas-pagar/:id            - Buscar conta por ID
+  PUT    /contas-pagar/:id            - Atualizar conta a pagar
+  DELETE /contas-pagar/:id            - Excluir conta a pagar
+  POST   /contas-pagar/:id/pagar      - Registrar pagamento
+  PATCH  /contas-pagar/:id/cancelar   - Cancelar conta
+  GET    /contas-pagar/pendentes      - Contas pendentes
+  GET    /contas-pagar/vencidas       - Contas vencidas
+  GET    /contas-pagar/recorrentes    - Contas recorrentes
+
+  🏷️ 5. CATEGORIAS FINANCEIRAS
+
+  GET    /categorias-financeiras        - Listar categorias
+  POST   /categorias-financeiras        - Criar categoria
+  GET    /categorias-financeiras/:id    - Buscar por ID
+  PUT    /categorias-financeiras/:id    - Atualizar categoria
+  DELETE /categorias-financeiras/:id    - Excluir categoria
+  GET    /categorias-financeiras/tipo/:tipo - Por tipo (RECEITA/DESPESA)
+
+  💰 6. FLUXO DE CAIXA
+
+  GET    /fluxo-caixa                 - Listar movimentações
+  POST   /fluxo-caixa                 - Criar movimentação manual
+  GET    /fluxo-caixa/:id             - Buscar por ID
+  PUT    /fluxo-caixa/:id             - Atualizar movimentação
+  DELETE /fluxo-caixa/:id             - Excluir movimentação
+  POST   /fluxo-caixa/:id/conciliar   - Conciliar movimento
+  GET    /fluxo-caixa/periodo         - Por período
+  GET    /fluxo-caixa/dashboard       - Dados do dashboard
+
+  📊 7. RELATÓRIOS FINANCEIROS
+
+  GET    /relatorios-financeiros/dre           - Demonstração do Resultado
+  GET    /relatorios-financeiros/fluxo-periodo - Fluxo por período
+  GET    /relatorios-financeiros/inadimplencia - Análise de inadimplência
+  GET    /relatorios-financeiros/dashboard     - Dashboard executivo
+  GET    /relatorios-financeiros/export/excel  - Exportar para Excel
+
+  🔗 8. AGENDAMENTOS-CONTAS (Relacionamento)
+
+  GET    /agendamentos-contas                    - Listar relacionamentos
+  POST   /agendamentos-contas                    - Criar relacionamento
+  GET    /agendamentos-contas/agendamento/:id    - Por agendamento
+  GET    /agendamentos-contas/conta-receber/:id  - Por conta a receber
+  GET    /agendamentos-contas/conta-pagar/:id    - Por conta a pagar
+  DELETE /agendamentos-contas/:id                - Remover relacionamento
+
+  ⚙️ 9. FECHAMENTO FINANCEIRO (Extensão)
+
+  GET    /fechamentos-financeiros                 - Listar fechamentos
+  POST   /fechamentos-financeiros                 - Processar fechamento
+  GET    /fechamentos-financeiros/:id             - Buscar por ID
+  PUT    /fechamentos-financeiros/:id             - Atualizar status
+  POST   /fechamentos-financeiros/lote            - Fechamento em lote
+  POST   /fechamentos-financeiros/aprovar/:id     - Aprovar fechamento
+  POST   /fechamentos-financeiros/cancelar/:id    - Cancelar fechamento
