@@ -3,7 +3,8 @@
     "allow": [
       "Bash(rm:*)",
       "Bash(npm run build:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": []
   }

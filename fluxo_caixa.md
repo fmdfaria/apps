@@ -56,7 +56,8 @@ CREATE TABLE categorias_financeiras (
 
 -- =====================================================
 -- CONTAS BANCÁRIAS
--- =====================================================ATE TABLE contas_bancarias (
+-- =====================================================
+CREATE TABLE contas_bancarias (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     empresa_id UUID NOT NULL REFERENCES empresas(id),
     
@@ -239,7 +240,6 @@ CREATE INDEX idx_contas_bancarias_principal ON contas_bancarias(conta_principal)
 CREATE INDEX idx_agendamentos_contas_agendamento ON agendamentos_contas(agendamento_id);
 CREATE INDEX idx_agendamentos_contas_receber ON agendamentos_contas(conta_receber_id);
 CREATE INDEX idx_agendamentos_contas_pagar ON agendamentos_contas(conta_pagar_id);
-CREATE INDEX idx_agendamentos_contas_data ON agendamentos_contas(data_agendamento);
 
 -- Contas a Receber
 CREATE INDEX idx_contas_receber_empresa ON contas_receber(empresa_id);
@@ -262,47 +262,6 @@ CREATE INDEX idx_fluxo_caixa_conta_bancaria ON fluxo_caixa(conta_bancaria_id);
 CREATE INDEX idx_fluxo_caixa_data ON fluxo_caixa(data_movimento);
 CREATE INDEX idx_fluxo_caixa_tipo ON fluxo_caixa(tipo);
 CREATE INDEX idx_fluxo_caixa_categoria ON fluxo_caixa(categoria_id);
-
--- =====================================================
--- DADOS INICIAIS
--- =====================================================
-
--- Empresas Básicas
-INSERT INTO empresas (razao_social, nome_fantasia, cnpj, empresa_principal) VALUES
-('PROBOTEC CLINICA LTDA', 'Probotec Clínica', '00.000.000/0001-00', true),
-('EMPRESA SECUNDARIA 1 LTDA', 'Empresa Secundária 1', '00.000.000/0001-01', false),
-('EMPRESA SECUNDARIA 2 LTDA', 'Empresa Secundária 2', '00.000.000/0001-02', false);
-
--- Categorias Financeiras Básicas
-INSERT INTO categorias_financeiras (nome, tipo, descricao) VALUES
-('Consultas Médicas', 'RECEITA', 'Receitas de consultas médicas'),
-('Exames', 'RECEITA', 'Receitas de exames médicos'),
-('Procedimentos', 'RECEITA', 'Receitas de procedimentos médicos'),
-('Convênios', 'RECEITA', 'Receitas de convênios médicos'),
-('Particulares', 'RECEITA', 'Receitas de pacientes particulares'),
-
-('Salários', 'DESPESA', 'Pagamento de salários'),
-('Encargos Sociais', 'DESPESA', 'INSS, FGTS, etc'),
-('Profissionais Autônomos', 'DESPESA', 'Pagamento de profissionais'),
-('Aluguel', 'DESPESA', 'Aluguel do imóvel'),
-('Energia Elétrica', 'DESPESA', 'Conta de energia elétrica'),
-('Água e Esgoto', 'DESPESA', 'Conta de água e esgoto'),
-('Telefone/Internet', 'DESPESA', 'Telecomunicações'),
-('Material de Consumo', 'DESPESA', 'Materiais médicos e de escritório'),
-('Manutenção', 'DESPESA', 'Manutenção de equipamentos'),
-('Impostos', 'DESPESA', 'Impostos e taxas');
-
--- Contas Bancárias Básicas
-INSERT INTO contas_bancarias (empresa_id, nome, banco, agencia, conta, tipo_conta, conta_principal, saldo_inicial) VALUES
--- Probotec Clínica (empresa principal)
-((SELECT id FROM empresas WHERE empresa_principal = true), 'Conta Corrente Principal', 'Banco do Brasil', '1234-5', '12345-6', 'CORRENTE', true, 0),
-((SELECT id FROM empresas WHERE empresa_principal = true), 'Poupança Reserva', 'Banco do Brasil', '1234-5', '67890-1', 'POUPANCA', false, 0),
-
--- Empresa Secundária 1
-((SELECT id FROM empresas WHERE cnpj = '00.000.000/0001-01'), 'Conta Corrente', 'Caixa Econômica', '5678-9', '98765-4', 'CORRENTE', true, 0),
-
--- Empresa Secundária 2
-((SELECT id FROM empresas WHERE cnpj = '00.000.000/0001-02'), 'Conta Corrente', 'Itaú', '9012-3', '54321-0', 'CORRENTE', true, 0);
 
 
 # 📋 Planejamento: Sistema de Fluxo de Caixa Completo

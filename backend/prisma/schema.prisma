@@ -68,6 +68,7 @@ model Profissional {
   conselho            ConselhoProfissional?         @relation(fields: [conselhoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   especialidades      ProfissionaisEspecialidades[]
   servicos            ProfissionaisServicos[]
+  contasPagar         ContaPagar[]
 
   @@index([cpf], map: "idx_profissionais_cpf")
   @@index([email], map: "idx_profissionais_email")
@@ -96,6 +97,7 @@ model Paciente {
   precosParticulares  PrecosParticulares[]
   pedidos             PacientePedido[]
   filaEspera          FilaEspera[]      @relation("PacienteFilaEspera")
+  contasReceber       ContaReceber[]
 
   @@index([cpf], map: "idx_pacientes_cpf")
   @@index([email], map: "idx_pacientes_email")
@@ -120,6 +122,7 @@ model Convenio {
   agendamentos Agendamento[]
   servicos     Servico[]
   pacientes    Paciente[]
+  contasReceber ContaReceber[]
 
   @@map("convenios")
 }
@@ -265,6 +268,7 @@ model Agendamento {
   servico            Servico            @relation(fields: [servicoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   avaliadoPor        User?              @relation("UserAvaliador", fields: [avaliadoPorId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   evolucoes          EvolucaoPaciente[]
+  agendamentoConta   AgendamentoConta?
 
   @@index([dataHoraInicio], map: "idx_agendamentos_data_hora_inicio")
   @@index([pacienteId], map: "idx_agendamentos_paciente_id")
@@ -536,5 +540,272 @@ model Configuracao {
   @@index([contexto], map: "idx_configuracoes_contexto")
   @@index([chave], map: "idx_configuracoes_chave")
   @@map("configuracoes")
+}
+
+// =====================================================
+// SISTEMA FINANCEIRO
+// =====================================================
+
+model Empresa {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  razaoSocial        String    @map("razao_social") @db.VarChar(200)
+  nomeFantasia       String?   @map("nome_fantasia") @db.VarChar(200)
+  cnpj               String    @unique @db.VarChar(18)
+  inscricaoEstadual  String?   @map("inscricao_estadual") @db.VarChar(30)
+  inscricaoMunicipal String?   @map("inscricao_municipal") @db.VarChar(30)
+  
+  // Endereço
+  logradouro   String? @db.VarChar(200)
+  numero       String? @db.VarChar(10)
+  complemento  String? @db.VarChar(100)
+  bairro       String? @db.VarChar(100)
+  cidade       String? @db.VarChar(100)
+  estado       String? @db.VarChar(2)
+  cep          String? @db.VarChar(10)
+  
+  // Contato
+  telefone String? @db.VarChar(20)
+  email    String? @db.VarChar(100)
+  site     String? @db.VarChar(200)
+  
+  // Status
+  ativo             Boolean @default(true)
+  empresaPrincipal  Boolean @default(false) @map("empresa_principal")
+  
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relacionamentos
+  contasBancarias ContaBancaria[]
+  contasReceber   ContaReceber[]
+  contasPagar     ContaPagar[]
+  fluxoCaixa      FluxoCaixa[]
+
+  @@index([cnpj], map: "idx_empresas_cnpj")
+  @@index([ativo], map: "idx_empresas_ativo")
+  @@index([empresaPrincipal], map: "idx_empresas_principal")
+  @@map("empresas")
+}
+
+model CategoriaFinanceira {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome      String    @unique @db.VarChar(100)
+  tipo      String    @db.VarChar(20) // RECEITA, DESPESA
+  descricao String?
+  ativo     Boolean   @default(true)
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relacionamentos
+  contasReceber ContaReceber[]
+  contasPagar   ContaPagar[]
+  fluxoCaixa    FluxoCaixa[]
+
+  @@map("categorias_financeiras")
+}
+
+model ContaBancaria {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  empresaId    String  @map("empresa_id") @db.Uuid
+  
+  // Identificação da Conta
+  nome        String  @db.VarChar(100)
+  banco       String  @db.VarChar(100)
+  agencia     String  @db.VarChar(10)
+  conta       String  @db.VarChar(20)
+  digito      String? @db.VarChar(2)
+  tipoConta   String  @default("CORRENTE") @map("tipo_conta") @db.VarChar(20)
+  
+  // PIX
+  pixPrincipal String? @map("pix_principal") @db.VarChar(100)
+  tipoPix      String? @map("tipo_pix") @db.VarChar(30)
+  
+  // Controles
+  contaPrincipal Boolean @default(false) @map("conta_principal")
+  ativo          Boolean @default(true)
+  saldoInicial   Decimal @default(0) @map("saldo_inicial") @db.Decimal(12, 2)
+  saldoAtual     Decimal @default(0) @map("saldo_atual") @db.Decimal(12, 2)
+  
+  // Dados complementares
+  observacoes String?   @db.Text
+  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relacionamentos
+  empresa       Empresa        @relation(fields: [empresaId], references: [id])
+  contasReceber ContaReceber[]
+  contasPagar   ContaPagar[]
+  fluxoCaixa    FluxoCaixa[]
+
+  @@index([empresaId], map: "idx_contas_bancarias_empresa")
+  @@index([ativo], map: "idx_contas_bancarias_ativo")
+  @@index([contaPrincipal], map: "idx_contas_bancarias_principal")
+  @@map("contas_bancarias")
+}
+
+model ContaReceber {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  empresaId        String    @map("empresa_id") @db.Uuid
+  contaBancariaId  String?   @map("conta_bancaria_id") @db.Uuid
+  convenioId       String?   @map("convenio_id") @db.Uuid
+  pacienteId       String?   @map("paciente_id") @db.Uuid
+  categoriaId      String    @map("categoria_id") @db.Uuid
+  
+  // Dados Financeiros
+  numeroDocumento String? @map("numero_documento") @db.VarChar(50)
+  descricao       String  @db.Text
+  valorOriginal   Decimal @map("valor_original") @db.Decimal(12, 2)
+  valorDesconto   Decimal @default(0) @map("valor_desconto") @db.Decimal(12, 2)
+  valorJuros      Decimal @default(0) @map("valor_juros") @db.Decimal(12, 2)
+  valorMulta      Decimal @default(0) @map("valor_multa") @db.Decimal(12, 2)
+  valorLiquido    Decimal @map("valor_liquido") @db.Decimal(12, 2)
+  valorRecebido   Decimal @default(0) @map("valor_recebido") @db.Decimal(12, 2)
+  
+  // Datas
+  dataEmissao     DateTime  @map("data_emissao") @db.Date
+  dataVencimento  DateTime  @map("data_vencimento") @db.Date
+  dataRecebimento DateTime? @map("data_recebimento") @db.Date
+  
+  // Status e Controle
+  status             String  @default("PENDENTE") @db.VarChar(20)
+  formaRecebimento   String? @map("forma_recebimento") @db.VarChar(30)
+  observacoes        String? @db.Text
+  
+  // Auditoria
+  userCreatedId String?   @map("user_created_id") @db.Uuid
+  userUpdatedId String?   @map("user_updated_id") @db.Uuid
+  createdAt     DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relacionamentos
+  empresa         Empresa              @relation(fields: [empresaId], references: [id])
+  contaBancaria   ContaBancaria?       @relation(fields: [contaBancariaId], references: [id])
+  convenio        Convenio?            @relation(fields: [convenioId], references: [id])
+  paciente        Paciente?            @relation(fields: [pacienteId], references: [id])
+  categoria       CategoriaFinanceira  @relation(fields: [categoriaId], references: [id])
+  agendamentosConta AgendamentoConta[]
+  fluxoCaixa      FluxoCaixa[]
+
+  @@index([empresaId], map: "idx_contas_receber_empresa")
+  @@index([contaBancariaId], map: "idx_contas_receber_conta_bancaria")
+  @@index([dataVencimento], map: "idx_contas_receber_vencimento")
+  @@index([status], map: "idx_contas_receber_status")
+  @@index([pacienteId], map: "idx_contas_receber_paciente")
+  @@index([convenioId], map: "idx_contas_receber_convenio")
+  @@map("contas_receber")
+}
+
+model ContaPagar {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  empresaId       String    @map("empresa_id") @db.Uuid
+  contaBancariaId String?   @map("conta_bancaria_id") @db.Uuid
+  profissionalId  String?   @map("profissional_id") @db.Uuid
+  categoriaId     String    @map("categoria_id") @db.Uuid
+  
+  // Dados Financeiros
+  numeroDocumento String? @map("numero_documento") @db.VarChar(50)
+  descricao       String  @db.Text
+  valorOriginal   Decimal @map("valor_original") @db.Decimal(12, 2)
+  valorDesconto   Decimal @default(0) @map("valor_desconto") @db.Decimal(12, 2)
+  valorJuros      Decimal @default(0) @map("valor_juros") @db.Decimal(12, 2)
+  valorMulta      Decimal @default(0) @map("valor_multa") @db.Decimal(12, 2)
+  valorLiquido    Decimal @map("valor_liquido") @db.Decimal(12, 2)
+  valorPago       Decimal @default(0) @map("valor_pago") @db.Decimal(12, 2)
+  
+  // Datas
+  dataEmissao    DateTime  @map("data_emissao") @db.Date
+  dataVencimento DateTime  @map("data_vencimento") @db.Date
+  dataPagamento  DateTime? @map("data_pagamento") @db.Date
+  
+  // Status e Controle
+  status         String  @default("PENDENTE") @db.VarChar(20)
+  formaPagamento String? @map("forma_pagamento") @db.VarChar(30)
+  tipoConta      String  @default("DESPESA") @map("tipo_conta") @db.VarChar(20)
+  recorrente     Boolean @default(false)
+  periodicidade  String? @db.VarChar(20)
+  observacoes    String? @db.Text
+  
+  // Auditoria
+  userCreatedId String?   @map("user_created_id") @db.Uuid
+  userUpdatedId String?   @map("user_updated_id") @db.Uuid
+  createdAt     DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relacionamentos
+  empresa         Empresa              @relation(fields: [empresaId], references: [id])
+  contaBancaria   ContaBancaria?       @relation(fields: [contaBancariaId], references: [id])
+  profissional    Profissional?        @relation(fields: [profissionalId], references: [id])
+  categoria       CategoriaFinanceira  @relation(fields: [categoriaId], references: [id])
+  agendamentosConta AgendamentoConta[]
+  fluxoCaixa      FluxoCaixa[]
+
+  @@index([empresaId], map: "idx_contas_pagar_empresa")
+  @@index([contaBancariaId], map: "idx_contas_pagar_conta_bancaria")
+  @@index([dataVencimento], map: "idx_contas_pagar_vencimento")
+  @@index([status], map: "idx_contas_pagar_status")
+  @@index([profissionalId], map: "idx_contas_pagar_profissional")
+  @@map("contas_pagar")
+}
+
+model FluxoCaixa {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  empresaId       String    @map("empresa_id") @db.Uuid
+  contaBancariaId String    @map("conta_bancaria_id") @db.Uuid
+  contaReceberId  String?   @map("conta_receber_id") @db.Uuid
+  contaPagarId    String?   @map("conta_pagar_id") @db.Uuid
+  
+  // Dados da Movimentação
+  tipo        String  @db.VarChar(20) // ENTRADA, SAIDA
+  categoriaId String  @map("categoria_id") @db.Uuid
+  
+  descricao       String  @db.Text
+  valor           Decimal @db.Decimal(12, 2)
+  dataMovimento   DateTime @map("data_movimento") @db.Date
+  formaPagamento  String? @map("forma_pagamento") @db.VarChar(30)
+  
+  // Controle
+  conciliado      Boolean   @default(false)
+  dataConciliacao DateTime? @map("data_conciliacao") @db.Date
+  observacoes     String?   @db.Text
+  
+  // Auditoria
+  userCreatedId String?   @map("user_created_id") @db.Uuid
+  createdAt     DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relacionamentos
+  empresa       Empresa            @relation(fields: [empresaId], references: [id])
+  contaBancaria ContaBancaria      @relation(fields: [contaBancariaId], references: [id])
+  contaReceber  ContaReceber?      @relation(fields: [contaReceberId], references: [id])
+  contaPagar    ContaPagar?        @relation(fields: [contaPagarId], references: [id])
+  categoria     CategoriaFinanceira @relation(fields: [categoriaId], references: [id])
+
+  @@index([empresaId], map: "idx_fluxo_caixa_empresa")
+  @@index([contaBancariaId], map: "idx_fluxo_caixa_conta_bancaria")
+  @@index([dataMovimento], map: "idx_fluxo_caixa_data")
+  @@index([tipo], map: "idx_fluxo_caixa_tipo")
+  @@index([categoriaId], map: "idx_fluxo_caixa_categoria")
+  @@map("fluxo_caixa")
+}
+
+model AgendamentoConta {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agendamentoId   String    @map("agendamento_id") @db.Uuid
+  contaReceberId  String?   @map("conta_receber_id") @db.Uuid
+  contaPagarId    String?   @map("conta_pagar_id") @db.Uuid
+  
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relacionamentos
+  agendamento   Agendamento   @relation(fields: [agendamentoId], references: [id])
+  contaReceber  ContaReceber? @relation(fields: [contaReceberId], references: [id])
+  contaPagar    ContaPagar?   @relation(fields: [contaPagarId], references: [id])
+
+  @@unique([agendamentoId], map: "uq_agendamento_unico")
+  @@index([agendamentoId], map: "idx_agendamentos_contas_agendamento")
+  @@index([contaReceberId], map: "idx_agendamentos_contas_receber")
+  @@index([contaPagarId], map: "idx_agendamentos_contas_pagar")
+  @@map("agendamentos_contas")
 }
 

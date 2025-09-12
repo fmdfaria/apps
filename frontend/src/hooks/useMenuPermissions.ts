@@ -37,6 +37,9 @@ const routePermissionMap: Record<string, { path: string; method: string }> = {
   'administracao/usuarios-roles': { path: '/user-roles', method: 'GET' },
   'administracao/permissoes': { path: '/role-routes', method: 'GET' },
   'configuracoes': { path: '/configuracoes', method: 'GET' },
+  'financeiro/empresas': { path: '/empresas', method: 'GET' },
+  'financeiro/contas-receber': { path: '/contas-receber', method: 'GET' },
+  'financeiro/contas-pagar': { path: '/contas-pagar', method: 'GET' },
 };
 
 interface UserPermissions {

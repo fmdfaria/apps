@@ -145,6 +145,27 @@ import { ISeriesRepository } from '../../core/domain/repositories/ISeriesReposit
 import { PrismaSeriesRepository } from '../../infra/database/repositories/PrismaSeriesRepository';
 import { SeriesManager } from '../../infra/services/SeriesManager';
 
+// Sistema Financeiro
+import { IEmpresasRepository } from '../../core/domain/repositories/IEmpresasRepository';
+import { PrismaEmpresasRepository } from '../../infra/database/prisma/repositories/PrismaEmpresasRepository';
+import { ICategoriasFinanceirasRepository } from '../../core/domain/repositories/ICategoriasFinanceirasRepository';
+import { PrismaCategoriasFinanceirasRepository } from '../../infra/database/prisma/repositories/PrismaCategoriasFinanceirasRepository';
+import { IContasBancariasRepository } from '../../core/domain/repositories/IContasBancariasRepository';
+import { PrismaContasBancariasRepository } from '../../infra/database/prisma/repositories/PrismaContasBancariasRepository';
+import { IContasReceberRepository } from '../../core/domain/repositories/IContasReceberRepository';
+import { PrismaContasReceberRepository } from '../../infra/database/prisma/repositories/PrismaContasReceberRepository';
+
+// Use Cases do Sistema Financeiro
+import { CreateEmpresaUseCase } from '../../core/application/use-cases/empresa/CreateEmpresaUseCase';
+import { ListEmpresasUseCase } from '../../core/application/use-cases/empresa/ListEmpresasUseCase';
+import { UpdateEmpresaUseCase } from '../../core/application/use-cases/empresa/UpdateEmpresaUseCase';
+import { CreateCategoriaFinanceiraUseCase } from '../../core/application/use-cases/categoria-financeira/CreateCategoriaFinanceiraUseCase';
+import { ListCategoriasFinanceirasUseCase } from '../../core/application/use-cases/categoria-financeira/ListCategoriasFinanceirasUseCase';
+import { CreateContaBancariaUseCase } from '../../core/application/use-cases/conta-bancaria/CreateContaBancariaUseCase';
+import { ListContasBancariasUseCase } from '../../core/application/use-cases/conta-bancaria/ListContasBancariasUseCase';
+import { CreateContaReceberUseCase } from '../../core/application/use-cases/conta-receber/CreateContaReceberUseCase';
+import { ReceberContaUseCase } from '../../core/application/use-cases/conta-receber/ReceberContaUseCase';
+
 container.registerInstance('PrismaClient', prisma);
 
 // Google Calendar Service
@@ -365,3 +386,38 @@ container.register('GetConfiguracoesUseCase', GetConfiguracoesUseCase);
 
 // Dashboard Use Cases
 container.register('GetOcupacaoUseCase', GetOcupacaoUseCase);
+
+// Repositories do Sistema Financeiro
+container.register<IEmpresasRepository>(
+  'EmpresasRepository',
+  PrismaEmpresasRepository
+);
+
+container.register<ICategoriasFinanceirasRepository>(
+  'CategoriasFinanceirasRepository',
+  PrismaCategoriasFinanceirasRepository
+);
+
+container.register<IContasBancariasRepository>(
+  'ContasBancariasRepository',
+  PrismaContasBancariasRepository
+);
+
+container.register<IContasReceberRepository>(
+  'ContasReceberRepository',
+  PrismaContasReceberRepository
+);
+
+// Use Cases do Sistema Financeiro
+container.register('CreateEmpresaUseCase', CreateEmpresaUseCase);
+container.register('ListEmpresasUseCase', ListEmpresasUseCase);
+container.register('UpdateEmpresaUseCase', UpdateEmpresaUseCase);
+
+container.register('CreateCategoriaFinanceiraUseCase', CreateCategoriaFinanceiraUseCase);
+container.register('ListCategoriasFinanceirasUseCase', ListCategoriasFinanceirasUseCase);
+
+container.register('CreateContaBancariaUseCase', CreateContaBancariaUseCase);
+container.register('ListContasBancariasUseCase', ListContasBancariasUseCase);
+
+container.register('CreateContaReceberUseCase', CreateContaReceberUseCase);
+container.register('ReceberContaUseCase', ReceberContaUseCase);

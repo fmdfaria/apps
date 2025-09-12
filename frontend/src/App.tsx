@@ -52,6 +52,7 @@ import { SimpleDocumentScanner } from '@/components/SimpleDocumentScanner';
 import { TestPDFOrientation } from '@/components/TestPDFOrientation';
 import { TestDigitalizarGuias } from '@/components/TestDigitalizarGuias';
 import ScannerS3Page from '@/pages/test/ScannerS3Page';
+import { EmpresasPage, ContasReceberPage, ContasPagarPage } from '@/pages/financeiro';
 
 export default function App() {
   const initializeAuth = useAuthStore((s) => s.initializeAuth);
@@ -112,6 +113,9 @@ export default function App() {
             <Route path="administracao/usuarios-roles" element={<UserRolesPage />} />
             <Route path="administracao/permissoes" element={<PermissionsPage />} />
             <Route path="configuracoes" element={<ConfiguracoesPage />} />
+            <Route path="financeiro/empresas" element={<EmpresasPage />} />
+            <Route path="financeiro/contas-receber" element={<ContasReceberPage />} />
+            <Route path="financeiro/contas-pagar" element={<ContasPagarPage />} />
             <Route path="test/scanner" element={<TestDocumentScanner />} />
             <Route path="test/simple-camera" element={<SimpleDocumentScanner />} />
             <Route path="test/pdf-orientation" element={<TestPDFOrientation />} />

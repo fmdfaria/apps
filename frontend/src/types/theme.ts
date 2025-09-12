@@ -161,6 +161,16 @@ export const moduleThemes: Record<string, ModuleTheme> = {
     hoverTextColor: 'hover:text-cyan-700'
   },
   
+  financeiro: {
+    titleGradient: 'from-green-600 to-emerald-600',
+    headerBg: 'from-green-50 to-emerald-50',
+    hoverBg: 'hover:from-green-50 hover:to-emerald-50',
+    primaryButton: 'from-green-600 to-green-700',
+    primaryButtonHover: 'hover:from-green-700 hover:to-green-800',
+    focusRing: 'focus:ring-green-300',
+    hoverTextColor: 'hover:text-green-700'
+  },
+  
   // Tema padrão (fallback)
   default: {
     titleGradient: 'from-gray-600 to-gray-800',

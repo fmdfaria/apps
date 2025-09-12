@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Users, UserCheck, Briefcase, Building, Building2, LayoutDashboard, LogOut, ChevronLeft, ChevronRight, Clock, DollarSign, CheckCircle, Stethoscope, ClipboardCheck, User, Landmark, Settings, Shield, FileText } from 'lucide-react';
+import { Calendar, Users, UserCheck, Briefcase, Building, Building2, LayoutDashboard, LogOut, ChevronLeft, ChevronRight, Clock, DollarSign, CheckCircle, Stethoscope, ClipboardCheck, User, Landmark, Settings, Shield, FileText, CreditCard, TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useRef, useEffect } from 'react';
@@ -42,7 +42,10 @@ const pageToModuleMap: Record<string, string> = {
   'administracao/rotas': 'default',
   'administracao/usuarios-roles': 'default',
   'administracao/permissoes': 'default',
-  'configuracoes': 'default'
+  'configuracoes': 'default',
+  'financeiro/empresas': 'financeiro',
+  'financeiro/contas-receber': 'financeiro',
+  'financeiro/contas-pagar': 'financeiro'
 };
 
 // Componente de Tooltip para sidebar recolhido
@@ -213,7 +216,10 @@ const menuItems = [
   { id: 'administracao/rotas', label: 'Rotas', icon: Building },
   { id: 'administracao/usuarios-roles', label: 'Usuários e Roles', icon: UserCheck },
   { id: 'administracao/permissoes', label: 'Permissões', icon: Settings },
-  { id: 'configuracoes', label: 'Configurações', icon: Settings }
+  { id: 'configuracoes', label: 'Configurações', icon: Settings },
+  { id: 'financeiro/empresas', label: 'Empresas', icon: Building2 },
+  { id: 'financeiro/contas-receber', label: 'Contas a Receber', icon: TrendingUp },
+  { id: 'financeiro/contas-pagar', label: 'Contas a Pagar', icon: TrendingDown }
 ];
 
 export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedProp, setIsCollapsed: setIsCollapsedProp }: SidebarProps) => {

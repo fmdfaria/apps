@@ -34,6 +34,8 @@ import { roleRoutesRoutes } from './infra/http/routes/role-routes.routes';
 import { filaEsperaRoutes } from './infra/http/routes/fila-espera.routes';
 import { configuracoesRoutes } from './infra/http/routes/configuracoes.routes';
 import { dashboardRoutes } from './infra/http/routes/dashboard.routes';
+import { empresasRoutes } from './infra/http/routes/empresas.routes';
+import { contasReceberRoutes } from './infra/http/routes/contas-receber.routes';
 
 const app = fastify({
   logger: true,
@@ -78,6 +80,8 @@ app.register(roleRoutesRoutes);
 app.register(filaEsperaRoutes);
 app.register(configuracoesRoutes);
 app.register(dashboardRoutes, { prefix: '/dashboard' });
+app.register(empresasRoutes);
+app.register(contasReceberRoutes);
 
 // Health check route
 app.get('/', async (request, reply) => {
