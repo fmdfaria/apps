@@ -1,6 +1,6 @@
 import { ContaReceber } from '../../../../core/domain/entities/ContaReceber';
 import { IContasReceberRepository } from '../../../../core/domain/repositories/IContasReceberRepository';
-import { prisma } from '../../../shared/database/prisma';
+import { prisma } from '../../../../shared/database/prisma';
 
 export class PrismaContasReceberRepository implements IContasReceberRepository {
   async create(conta: ContaReceber): Promise<ContaReceber> {
