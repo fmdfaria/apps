@@ -38,6 +38,7 @@ const routePermissionMap: Record<string, { path: string; method: string }> = {
   'administracao/permissoes': { path: '/role-routes', method: 'GET' },
   'configuracoes': { path: '/configuracoes', method: 'GET' },
   'financeiro/empresas': { path: '/empresas', method: 'GET' },
+  'financeiro/contas-bancarias': { path: '/contas-bancarias', method: 'GET' },
   'financeiro/contas-receber': { path: '/contas-receber', method: 'GET' },
   'financeiro/contas-pagar': { path: '/contas-pagar', method: 'GET' },
 };
@@ -77,6 +78,8 @@ export const useMenuPermissions = () => {
       // Remover override do Dashboard - deve respeitar permissões de rota
       // userPermissions['dashboard'] = true; // REMOVIDO: deve seguir permissões normais
       
+      console.log('🔍 Permissões carregadas:', userPermissions);
+      console.log('🏦 Tem permissão para contas bancárias:', userPermissions['financeiro/contas-bancarias']);
       setPermissions(userPermissions);
       
     } catch (error) {

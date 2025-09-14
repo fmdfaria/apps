@@ -85,17 +85,15 @@ export default function EmpresaModal({ isOpen, empresa, onClose, onSave }: Empre
     e.preventDefault();
     
     if (!form.razaoSocial.trim()) {
-      setError('Razão Social é obrigatória');
-      return;
+      return; // Deixa o HTML5 validation funcionar
     }
 
     setLoading(true);
-    setError('');
 
     try {
       await onSave(form);
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Erro ao salvar empresa');
+      // Erro será tratado pela função onSave da página principal
     } finally {
       setLoading(false);
     }
@@ -120,12 +118,6 @@ export default function EmpresaModal({ isOpen, empresa, onClose, onSave }: Empre
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
-
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="razaoSocial">

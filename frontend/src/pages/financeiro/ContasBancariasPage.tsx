@@ -1,11 +1,17 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Building2, Power, PowerOff } from 'lucide-react';
+import { Plus, Edit, Trash2, Building2, Power, PowerOff, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AppToast } from '@/services/toast';
-import { getEmpresas, createEmpresa, updateEmpresa, deleteEmpresa, updateEmpresaStatus } from '@/services/empresas';
-import type { Empresa } from '@/types/Empresa';
+import { 
+  getContasBancarias, 
+  createContaBancaria, 
+  updateContaBancaria, 
+  deleteContaBancaria,
+  atualizarSaldoContaBancaria 
+} from '@/services/contas-bancarias';
+import type { ContaBancaria } from '@/types/ContaBancaria';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 import { 
@@ -30,83 +36,110 @@ import { useTableFilters } from '@/hooks/useTableFilters';
 import { getModuleTheme } from '@/types/theme';
 
 // Modal Components
-import EmpresaModal from './EmpresaModal';
+import ContaBancariaModal from './ContaBancariaModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 
-export const EmpresasPage = () => {
-  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+export const ContasBancariasPage = () => {
+  const [contas, setContas] = useState<ContaBancaria[]>([]);
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
   
   // Modal states
   const [showModal, setShowModal] = useState(false);
-  const [editando, setEditando] = useState<Empresa | null>(null);
-  const [excluindo, setExcluindo] = useState<Empresa | null>(null);
+  const [editando, setEditando] = useState<ContaBancaria | null>(null);
+  const [excluindo, setExcluindo] = useState<ContaBancaria | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Hooks responsivos
-  const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'empresas-view' });
+  const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'contas-bancarias-view' });
   
   // Configuração das colunas da tabela
-  const columns: TableColumn<Empresa>[] = [
+  const columns: TableColumn<ContaBancaria>[] = [
     {
-      key: 'razaoSocial',
-      header: '🏢 Razão Social',
+      key: 'nome',
+      header: '🏦 Nome da Conta',
       essential: true,
       filterable: {
         type: 'text',
-        placeholder: 'Razão social...',
-        label: 'Razão Social'
+        placeholder: 'Nome da conta...',
+        label: 'Nome'
       },
       render: (item) => (
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-            {item.razaoSocial.charAt(0).toUpperCase()}
+          <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+            {item.nome.charAt(0).toUpperCase()}
           </div>
-          <span className="text-sm font-medium">{item.razaoSocial}</span>
+          <span className="text-sm font-medium">{item.nome}</span>
         </div>
       )
     },
     {
-      key: 'nomeFantasia',
-      header: '🏪 Nome Fantasia',
+      key: 'banco',
+      header: '🏛️ Banco',
       essential: true,
       filterable: {
         type: 'text',
-        placeholder: 'Nome fantasia...',
-        label: 'Nome Fantasia'
+        placeholder: 'Banco...',
+        label: 'Banco'
       },
       render: (item) => (
-        <span className="text-sm">{item.nomeFantasia || '-'}</span>
+        <span className="text-sm">{item.banco}</span>
       )
     },
     {
-      key: 'cnpj',
-      header: '📄 CNPJ',
+      key: 'agencia',
+      header: '🏢 Agência/Conta',
       essential: false,
       render: (item) => (
-        <span className="text-sm font-mono">{item.cnpj || '-'}</span>
+        <div className="text-sm font-mono">
+          <div>{item.agencia}</div>
+          <div className="text-gray-500">{item.conta}{item.digito ? `-${item.digito}` : ''}</div>
+        </div>
       )
     },
     {
-      key: 'telefone',
-      header: '📞 Telefone',
+      key: 'tipoConta',
+      header: '📋 Tipo',
       essential: false,
+      filterable: {
+        type: 'select',
+        options: [
+          { value: 'CORRENTE', label: 'Corrente' },
+          { value: 'POUPANCA', label: 'Poupança' },
+          { value: 'INVESTIMENTO', label: 'Investimento' }
+        ],
+        label: 'Tipo de Conta'
+      },
       render: (item) => (
-        <span className="text-sm font-mono bg-blue-100 px-2 py-1 rounded text-blue-700">
-          {item.telefone || '-'}
+        <Badge variant="outline" className="text-xs">
+          {item.tipoConta}
+        </Badge>
+      )
+    },
+    {
+      key: 'saldoAtual',
+      header: '💰 Saldo Atual',
+      essential: true,
+      render: (item) => (
+        <span className={`text-sm font-mono font-bold ${
+          item.saldoAtual >= 0 ? 'text-green-600' : 'text-red-600'
+        }`}>
+          {new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          }).format(item.saldoAtual)}
         </span>
       )
     },
     {
-      key: 'empresaPrincipal',
+      key: 'contaPrincipal',
       header: '⭐ Principal',
       essential: true,
       filterable: {
         type: 'select',
         options: [
           { value: 'true', label: 'Principal' },
-          { value: 'false', label: 'Filial' }
+          { value: 'false', label: 'Secundária' }
         ],
         label: 'Tipo'
       },
@@ -114,12 +147,12 @@ export const EmpresasPage = () => {
         <Badge 
           variant="outline" 
           className={`text-xs ${
-            item.empresaPrincipal 
-              ? 'bg-green-50 text-green-700 border-green-200' 
+            item.contaPrincipal 
+              ? 'bg-yellow-50 text-yellow-700 border-yellow-200' 
               : 'bg-gray-50 text-gray-700 border-gray-200'
           }`}
         >
-          {item.empresaPrincipal ? 'Principal' : 'Filial'}
+          {item.contaPrincipal ? 'Principal' : 'Secundária'}
         </Badge>
       )
     },
@@ -127,6 +160,14 @@ export const EmpresasPage = () => {
       key: 'ativo',
       header: '📊 Status',
       essential: true,
+      filterable: {
+        type: 'select',
+        options: [
+          { value: 'true', label: 'Ativo' },
+          { value: 'false', label: 'Inativo' }
+        ],
+        label: 'Status'
+      },
       render: (item) => (
         <Badge 
           variant="outline" 
@@ -150,16 +191,25 @@ export const EmpresasPage = () => {
             variant="view"
             module="financeiro"
             onClick={() => abrirModalEditar(item)}
-            title="Editar empresa"
+            title="Editar conta bancária"
           >
             <Edit className="w-4 h-4" />
+          </ActionButton>
+          
+          <ActionButton
+            variant="primary"
+            module="financeiro"
+            onClick={() => handleAtualizarSaldo(item)}
+            title="Atualizar saldo"
+          >
+            <DollarSign className="w-4 h-4" />
           </ActionButton>
           
           <ActionButton
             variant={item.ativo ? "warning" : "success"}
             module="financeiro"
             onClick={() => handleToggleStatus(item)}
-            title={item.ativo ? "Desativar empresa" : "Ativar empresa"}
+            title={item.ativo ? "Desativar conta" : "Ativar conta"}
           >
             {item.ativo ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
           </ActionButton>
@@ -168,7 +218,7 @@ export const EmpresasPage = () => {
             variant="delete"
             module="financeiro"
             onClick={() => setExcluindo(item)}
-            title="Excluir empresa"
+            title="Excluir conta bancária"
           >
             <Trash2 className="w-4 h-4" />
           </ActionButton>
@@ -192,24 +242,24 @@ export const EmpresasPage = () => {
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   
   // Filtrar dados baseado na busca e filtros dinâmicos
-  const empresasFiltradas = useMemo(() => {
+  const contasFiltradas = useMemo(() => {
     const normalizarBusca = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 
-    let dadosFiltrados = empresas.filter(empresa => {
+    let dadosFiltrados = contas.filter(conta => {
       if (busca.trim() === '') return true;
       
       const buscaNormalizada = normalizarBusca(busca);
-      const razaoSocial = normalizarBusca(empresa.razaoSocial);
-      const nomeFantasia = normalizarBusca(empresa.nomeFantasia || '');
+      const nome = normalizarBusca(conta.nome);
+      const banco = normalizarBusca(conta.banco || '');
       
-      return razaoSocial.includes(buscaNormalizada) || nomeFantasia.includes(buscaNormalizada);
-    }).sort((a, b) => a.razaoSocial.localeCompare(b.razaoSocial, 'pt-BR', { sensitivity: 'base' }));
+      return nome.includes(buscaNormalizada) || banco.includes(buscaNormalizada);
+    }).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }));
     
     return applyFilters(dadosFiltrados);
-  }, [empresas, busca, applyFilters]);
+  }, [contas, busca, applyFilters]);
 
   const {
-    data: empresasPaginadas,
+    data: contasPaginadas,
     totalItems,
     currentPage,
     itemsPerPage,
@@ -221,7 +271,7 @@ export const EmpresasPage = () => {
     hasNextPage,
     isLoadingMore,
     targetRef
-  } = useResponsiveTable(empresasFiltradas, 10);
+  } = useResponsiveTable(contasFiltradas, 10);
 
   useEffect(() => {
     fetchData();
@@ -230,11 +280,11 @@ export const EmpresasPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const data = await getEmpresas();
-      setEmpresas(data);
+      const data = await getContasBancarias();
+      setContas(data);
     } catch (error: any) {
-      console.error('Erro ao carregar empresas:', error);
-      AppToast.error('Erro ao carregar empresas', {
+      console.error('Erro ao carregar contas bancárias:', error);
+      AppToast.error('Erro ao carregar contas bancárias', {
         description: 'Ocorreu um problema ao carregar os dados. Tente novamente.'
       });
     } finally {
@@ -247,8 +297,8 @@ export const EmpresasPage = () => {
     setShowModal(true);
   };
 
-  const abrirModalEditar = (empresa: Empresa) => {
-    setEditando(empresa);
+  const abrirModalEditar = (conta: ContaBancaria) => {
+    setEditando(conta);
     setShowModal(true);
   };
 
@@ -260,18 +310,18 @@ export const EmpresasPage = () => {
   const handleSave = async (data: any) => {
     try {
       if (editando) {
-        await updateEmpresa(editando.id, data);
-        AppToast.updated('Empresa', 'Os dados da empresa foram atualizados com sucesso.');
+        await updateContaBancaria(editando.id, data);
+        AppToast.updated('Conta Bancária', 'Os dados da conta bancária foram atualizados com sucesso.');
       } else {
-        await createEmpresa(data);
-        AppToast.created('Empresa', 'A nova empresa foi cadastrada com sucesso.');
+        await createContaBancaria(data);
+        AppToast.created('Conta Bancária', 'A nova conta bancária foi cadastrada com sucesso.');
       }
       await fetchData();
       fecharModal();
     } catch (error: any) {
-      console.error('Erro ao salvar empresa:', error);
+      console.error('Erro ao salvar conta bancária:', error);
       
-      let title = 'Erro ao salvar empresa';
+      let title = 'Erro ao salvar conta bancária';
       let description = 'Ocorreu um problema ao salvar os dados. Tente novamente.';
       
       if (error?.response?.data?.message) {
@@ -289,15 +339,15 @@ export const EmpresasPage = () => {
     if (!excluindo) return;
     setDeleteLoading(true);
     try {
-      await deleteEmpresa(excluindo.id);
-      AppToast.deleted('Empresa', `A empresa "${excluindo.razaoSocial}" foi excluída permanentemente.`);
+      await deleteContaBancaria(excluindo.id);
+      AppToast.deleted('Conta Bancária', `A conta "${excluindo.nome}" foi excluída permanentemente.`);
       setExcluindo(null);
       fetchData();
     } catch (error: any) {
       console.error('Erro ao excluir:', error);
       
-      let title = 'Erro ao excluir empresa';
-      let description = 'Não foi possível excluir a empresa. Tente novamente ou entre em contato com o suporte.';
+      let title = 'Erro ao excluir conta bancária';
+      let description = 'Não foi possível excluir a conta bancária. Tente novamente ou entre em contato com o suporte.';
       
       if (error?.response?.data?.message) {
         description = error.response.data.message;
@@ -311,21 +361,21 @@ export const EmpresasPage = () => {
     }
   };
 
-  const handleToggleStatus = async (empresa: Empresa) => {
+  const handleToggleStatus = async (conta: ContaBancaria) => {
     try {
-      const novoStatus = !empresa.ativo;
-      await updateEmpresaStatus(empresa.id, novoStatus);
+      const novoStatus = !conta.ativo;
+      await updateContaBancaria(conta.id, { ativo: novoStatus });
       
       AppToast.success(
         'Status alterado', 
-        `A empresa "${empresa.razaoSocial}" foi ${novoStatus ? 'ativada' : 'desativada'} com sucesso.`
+        `A conta "${conta.nome}" foi ${novoStatus ? 'ativada' : 'desativada'} com sucesso.`
       );
       
       await fetchData();
     } catch (error: any) {
       console.error('Erro ao alterar status:', error);
       
-      let description = 'Não foi possível alterar o status da empresa. Tente novamente.';
+      let description = 'Não foi possível alterar o status da conta. Tente novamente.';
       if (error?.response?.data?.message) {
         description = error.response.data.message;
       } else if (error?.message) {
@@ -336,54 +386,89 @@ export const EmpresasPage = () => {
     }
   };
 
+  const handleAtualizarSaldo = async (conta: ContaBancaria) => {
+    const novoSaldo = prompt(
+      `Atualizar saldo da conta "${conta.nome}":\nSaldo atual: ${new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(conta.saldoAtual)}\n\nDigite o novo saldo:`,
+      conta.saldoAtual.toString()
+    );
+
+    if (novoSaldo !== null && !isNaN(Number(novoSaldo))) {
+      try {
+        await atualizarSaldoContaBancaria(conta.id, Number(novoSaldo));
+        
+        AppToast.success(
+          'Saldo atualizado',
+          `O saldo da conta "${conta.nome}" foi atualizado com sucesso.`
+        );
+        
+        await fetchData();
+      } catch (error: any) {
+        console.error('Erro ao atualizar saldo:', error);
+        
+        let description = 'Não foi possível atualizar o saldo. Tente novamente.';
+        if (error?.response?.data?.message) {
+          description = error.response.data.message;
+        } else if (error?.message) {
+          description = error.message;
+        }
+        
+        AppToast.error('Erro ao atualizar saldo', { description });
+      }
+    }
+  };
+
   // Renderização do card
-  const renderCard = (empresa: Empresa) => (
+  const renderCard = (conta: ContaBancaria) => (
     <Card className="h-full hover:shadow-md transition-shadow">
       <CardHeader className="pb-2 pt-3 px-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-              {empresa.razaoSocial.charAt(0).toUpperCase()}
+            <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+              {conta.nome.charAt(0).toUpperCase()}
             </div>
-            <CardTitle className="text-sm font-medium truncate">{empresa.razaoSocial}</CardTitle>
+            <CardTitle className="text-sm font-medium truncate">{conta.nome}</CardTitle>
           </div>
           <Badge 
             variant="outline" 
             className={`text-xs ml-2 flex-shrink-0 ${
-              empresa.empresaPrincipal
-                ? 'bg-green-50 text-green-700 border-green-200' 
+              conta.contaPrincipal
+                ? 'bg-yellow-50 text-yellow-700 border-yellow-200' 
                 : 'bg-gray-50 text-gray-700 border-gray-200'
             }`}
           >
-            {empresa.empresaPrincipal ? 'Principal' : 'Filial'}
+            {conta.contaPrincipal ? 'Principal' : 'Secundária'}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="pt-0 px-3 pb-3">
         <div className="space-y-2 mb-3">
           <div className="grid grid-cols-1 gap-2 text-xs">
-            {empresa.nomeFantasia && (
-              <div className="flex items-center gap-1">
-                <span>🏪</span>
-                <span className="text-gray-600">{empresa.nomeFantasia}</span>
-              </div>
-            )}
+            <div className="flex items-center gap-1">
+              <span>🏛️</span>
+              <span className="text-gray-600">{conta.banco}</span>
+            </div>
             
-            {empresa.cnpj && (
-              <div className="flex items-center gap-1">
-                <span>📄</span>
-                <span className="font-mono text-gray-600">{empresa.cnpj}</span>
-              </div>
-            )}
+            <div className="flex items-center gap-1">
+              <span>🏢</span>
+              <span className="font-mono text-gray-600">
+                {conta.agencia} / {conta.conta}{conta.digito ? `-${conta.digito}` : ''}
+              </span>
+            </div>
 
-            {empresa.telefone && (
-              <div className="flex items-center gap-1">
-                <span>📞</span>
-                <span className="font-mono bg-blue-100 px-1 py-0.5 rounded text-blue-700">
-                  {empresa.telefone}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center gap-1">
+              <span>💰</span>
+              <span className={`font-mono font-bold ${
+                conta.saldoAtual >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL'
+                }).format(conta.saldoAtual)}
+              </span>
+            </div>
           </div>
         </div>
       </CardContent>
@@ -392,24 +477,32 @@ export const EmpresasPage = () => {
         <ActionButton
           variant="view"
           module="financeiro"
-          onClick={() => abrirModalEditar(empresa)}
-          title="Editar empresa"
+          onClick={() => abrirModalEditar(conta)}
+          title="Editar conta bancária"
         >
           <Edit className="w-4 h-4" />
         </ActionButton>
         <ActionButton
-          variant={empresa.ativo ? "warning" : "success"}
+          variant="primary"
           module="financeiro"
-          onClick={() => handleToggleStatus(empresa)}
-          title={empresa.ativo ? "Desativar empresa" : "Ativar empresa"}
+          onClick={() => handleAtualizarSaldo(conta)}
+          title="Atualizar saldo"
         >
-          {empresa.ativo ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+          <DollarSign className="w-4 h-4" />
+        </ActionButton>
+        <ActionButton
+          variant={conta.ativo ? "warning" : "success"}
+          module="financeiro"
+          onClick={() => handleToggleStatus(conta)}
+          title={conta.ativo ? "Desativar conta" : "Ativar conta"}
+        >
+          {conta.ativo ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
         </ActionButton>
         <ActionButton
           variant="delete"
           module="financeiro"
-          onClick={() => setExcluindo(empresa)}
-          title="Excluir empresa"
+          onClick={() => setExcluindo(conta)}
+          title="Excluir conta bancária"
         >
           <Trash2 className="w-4 h-4" />
         </ActionButton>
@@ -422,8 +515,8 @@ export const EmpresasPage = () => {
       <PageContainer>
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-            <p className="text-gray-500">Carregando empresas...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-2"></div>
+            <p className="text-gray-500">Carregando contas bancárias...</p>
           </div>
         </div>
       </PageContainer>
@@ -434,9 +527,9 @@ export const EmpresasPage = () => {
     <TooltipProvider>
       <PageContainer>
         {/* Header da página */}
-        <PageHeader title="Empresas" module="financeiro" icon="🏢">
+        <PageHeader title="Contas Bancárias" module="financeiro" icon="🏦">
           <SearchBar
-            placeholder="Buscar por razão social ou nome fantasia..."
+            placeholder="Buscar por nome da conta ou banco..."
             value={busca}
             onChange={setBusca}
             module="financeiro"
@@ -461,7 +554,7 @@ export const EmpresasPage = () => {
             onClick={abrirModalNovo}
           >
             <Plus className="w-4 h-4 mr-2" />
-            Nova Empresa
+            Nova Conta
           </Button>
         </PageHeader>
 
@@ -481,10 +574,10 @@ export const EmpresasPage = () => {
           {/* Conteúdo baseado no modo de visualização */}
           {viewMode === 'table' ? (
             <ResponsiveTable 
-              data={empresasPaginadas}
+              data={contasPaginadas}
               columns={columns}
               module="financeiro"
-              emptyMessage="Nenhuma empresa encontrada"
+              emptyMessage="Nenhuma conta bancária encontrada"
               isLoadingMore={isLoadingMore}
               hasNextPage={hasNextPage}
               isMobile={isMobile}
@@ -492,10 +585,10 @@ export const EmpresasPage = () => {
             />
           ) : (
             <ResponsiveCards 
-              data={empresasPaginadas}
+              data={contasPaginadas}
               renderCard={renderCard}
-              emptyMessage="Nenhuma empresa encontrada"
-              emptyIcon="🏢"
+              emptyMessage="Nenhuma conta bancária encontrada"
+              emptyIcon="🏦"
               isLoadingMore={isLoadingMore}
               hasNextPage={hasNextPage}
               isMobile={isMobile}
@@ -518,9 +611,9 @@ export const EmpresasPage = () => {
         )}
 
         {/* Modais */}
-        <EmpresaModal
+        <ContaBancariaModal
           isOpen={showModal}
-          empresa={editando}
+          conta={editando}
           onClose={fecharModal}
           onSave={handleSave}
         />
@@ -529,12 +622,12 @@ export const EmpresasPage = () => {
           open={!!excluindo}
           onClose={() => setExcluindo(null)}
           onConfirm={handleDelete}
-          title="Confirmar Exclusão de Empresa"
-          entityName={excluindo?.razaoSocial || ''}
-          entityType="empresa"
+          title="Confirmar Exclusão de Conta Bancária"
+          entityName={excluindo?.nome || ''}
+          entityType="conta bancária"
           isLoading={deleteLoading}
-          loadingText="Excluindo empresa..."
-          confirmText="Excluir Empresa"
+          loadingText="Excluindo conta bancária..."
+          confirmText="Excluir Conta"
         />
       </PageContainer>
     </TooltipProvider>

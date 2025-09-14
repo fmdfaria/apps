@@ -44,6 +44,7 @@ const pageToModuleMap: Record<string, string> = {
   'administracao/permissoes': 'default',
   'configuracoes': 'default',
   'financeiro/empresas': 'financeiro',
+  'financeiro/contas-bancarias': 'financeiro',
   'financeiro/contas-receber': 'financeiro',
   'financeiro/contas-pagar': 'financeiro'
 };
@@ -218,6 +219,7 @@ const menuItems = [
   { id: 'administracao/permissoes', label: 'Permissões', icon: Settings },
   { id: 'configuracoes', label: 'Configurações', icon: Settings },
   { id: 'financeiro/empresas', label: 'Empresas', icon: Building2 },
+  { id: 'financeiro/contas-bancarias', label: 'Contas Bancárias', icon: Landmark },
   { id: 'financeiro/contas-receber', label: 'Contas a Receber', icon: TrendingUp },
   { id: 'financeiro/contas-pagar', label: 'Contas a Pagar', icon: TrendingDown }
 ];
@@ -424,7 +426,11 @@ export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedPro
           menuItems
             .filter((item) => {
               // Para todos os itens, verificar permissão direta
-              return hasPermission(item.id);
+              const permission = hasPermission(item.id);
+              if (item.id === 'financeiro/contas-bancarias') {
+                console.log('🏦 Sidebar - Verificando permissão para contas bancárias:', permission);
+              }
+              return permission;
             })
             .map((item) => {
               const Icon = item.icon;

@@ -52,3 +52,7 @@ export const updateContaBancaria = async (id: string, conta: UpdateContaBancaria
 export const deleteContaBancaria = async (id: string): Promise<void> => {
   await api.delete(`/contas-bancarias/${id}`);
 };
+
+export const atualizarSaldoContaBancaria = async (id: string, saldo: number): Promise<void> => {
+  await api.patch(`/contas-bancarias/${id}/saldo`, { saldo });
+};
