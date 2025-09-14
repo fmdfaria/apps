@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { getModuleTheme } from '@/types/theme';
 
 interface ActionButtonProps {
-  variant: 'view' | 'edit' | 'delete' | 'warning' | 'success';
+  variant: 'view' | 'edit' | 'delete' | 'warning' | 'success' | 'primary';
   module: string; // Nome do módulo para aplicar o tema correto
   onClick: () => void;
   title?: string;
@@ -50,6 +50,11 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
       case 'success':
         return {
           className: "group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300",
+          size: "sm" as const
+        };
+      case 'primary':
+        return {
+          className: `bg-gradient-to-r ${theme.primaryButton} text-white ${theme.primaryButtonHover} focus:ring-4 ${theme.focusRing}`,
           size: "sm" as const
         };
     }

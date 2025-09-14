@@ -74,6 +74,12 @@ export interface ReceberContaData {
   observacoes?: string;
 }
 
+export interface UpdateContaReceberData extends Partial<CreateContaReceberData> {}
+
+export interface CancelarContaData {
+  motivo?: string;
+}
+
 export interface ContaReceberFilters {
   empresaId?: string;
   contaBancariaId?: string;

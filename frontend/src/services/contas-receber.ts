@@ -1,5 +1,5 @@
 import api from './api';
-import type { ContaReceber, CreateContaReceberData, ReceberContaData, ContaReceberFilters } from '@/types/ContaReceber';
+import type { ContaReceber, CreateContaReceberData, UpdateContaReceberData, ReceberContaData, CancelarContaData, ContaReceberFilters } from '@/types/ContaReceber';
 
 export const getContasReceber = async (filters?: ContaReceberFilters): Promise<ContaReceber[]> => {
   const params = new URLSearchParams();
@@ -33,16 +33,14 @@ export const getContasReceber = async (filters?: ContaReceberFilters): Promise<C
   return data.data;
 };
 
-export const getContasReceberPendentes = async (): Promise<ContaReceber[]> => {
-  return getContasReceber({ status: 'PENDENTE' });
+export const getContasReceberPendentes = async (empresaId?: string): Promise<ContaReceber[]> => {
+  const { data } = await api.get(`/contas-receber/pendentes${empresaId ? `?empresaId=${empresaId}` : ''}`);
+  return data.data;
 };
 
 export const getContasReceberVencidas = async (): Promise<ContaReceber[]> => {
-  const hoje = new Date().toISOString().split('T')[0];
-  return getContasReceber({ 
-    status: 'PENDENTE', 
-    dataVencimentoFim: hoje 
-  });
+  const { data } = await api.get('/contas-receber/vencidas');
+  return data.data;
 };
 
 export const getContasReceberByPaciente = async (pacienteId: string): Promise<ContaReceber[]> => {
@@ -68,7 +66,7 @@ export const receberConta = async (id: string, recebimento: ReceberContaData): P
   return data.data;
 };
 
-export const updateContaReceber = async (id: string, conta: Partial<CreateContaReceberData>): Promise<ContaReceber> => {
+export const updateContaReceber = async (id: string, conta: UpdateContaReceberData): Promise<ContaReceber> => {
   const { data } = await api.put(`/contas-receber/${id}`, conta);
   return data.data;
 };
@@ -77,7 +75,6 @@ export const deleteContaReceber = async (id: string): Promise<void> => {
   await api.delete(`/contas-receber/${id}`);
 };
 
-export const cancelarContaReceber = async (id: string, motivo?: string): Promise<ContaReceber> => {
-  const { data } = await api.patch(`/contas-receber/${id}/cancelar`, { motivo });
-  return data.data;
+export const cancelarContaReceber = async (id: string, dados: CancelarContaData): Promise<void> => {
+  await api.patch(`/contas-receber/${id}/cancelar`, dados);
 };

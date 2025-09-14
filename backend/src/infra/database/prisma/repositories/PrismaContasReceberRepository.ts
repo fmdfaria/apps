@@ -207,6 +207,86 @@ export class PrismaContasReceberRepository implements IContasReceberRepository {
     return contas.map(this.mapToDomain);
   }
 
+  async findPendentes(empresaId?: string): Promise<ContaReceber[]> {
+    const contas = await prisma.contaReceber.findMany({
+      where: {
+        ...(empresaId && { empresaId }),
+        status: { in: ['PENDENTE', 'PARCIAL'] }
+      },
+      include: {
+        empresa: true,
+        contaBancaria: true,
+        convenio: true,
+        paciente: true,
+        categoria: true
+      },
+      orderBy: { dataVencimento: 'asc' }
+    });
+
+    return contas.map(this.mapToDomain);
+  }
+
+  async registrarRecebimento(
+    id: string, 
+    valorRecebido: number, 
+    dataRecebimento: Date, 
+    formaRecebimento: string,
+    contaBancariaId?: string
+  ): Promise<void> {
+    const conta = await prisma.contaReceber.findUnique({
+      where: { id }
+    });
+
+    if (!conta) {
+      throw new Error('Conta a receber não encontrada');
+    }
+
+    const novoValorRecebido = Number(conta.valorRecebido) + valorRecebido;
+    const valorLiquido = Number(conta.valorLiquido);
+    
+    let novoStatus = 'PENDENTE';
+    if (novoValorRecebido >= valorLiquido) {
+      novoStatus = 'RECEBIDO';
+    } else if (novoValorRecebido > 0) {
+      novoStatus = 'PARCIAL';
+    }
+
+    await prisma.contaReceber.update({
+      where: { id },
+      data: {
+        valorRecebido: novoValorRecebido,
+        dataRecebimento: novoStatus === 'RECEBIDO' ? dataRecebimento : conta.dataRecebimento || dataRecebimento,
+        formaRecebimento,
+        status: novoStatus,
+        contaBancariaId: contaBancariaId || conta.contaBancariaId,
+        updatedAt: new Date()
+      }
+    });
+  }
+
+  async cancelarConta(id: string, motivo?: string): Promise<void> {
+    const conta = await prisma.contaReceber.findUnique({
+      where: { id }
+    });
+
+    if (!conta) {
+      throw new Error('Conta a receber não encontrada');
+    }
+
+    if (conta.status === 'RECEBIDO') {
+      throw new Error('Não é possível cancelar uma conta já recebida');
+    }
+
+    await prisma.contaReceber.update({
+      where: { id },
+      data: {
+        status: 'CANCELADO',
+        observacoes: motivo ? `${conta.observacoes || ''}\nCancelado: ${motivo}`.trim() : conta.observacoes,
+        updatedAt: new Date()
+      }
+    });
+  }
+
   async calcularTotalReceber(empresaId: string): Promise<number> {
     const resultado = await prisma.contaReceber.aggregate({
       where: {

@@ -18,5 +18,8 @@ export interface IContasReceberRepository {
   findProximasVencimento(dias: number): Promise<ContaReceber[]>;
   findByPacienteId(pacienteId: string): Promise<ContaReceber[]>;
   findByConvenioId(convenioId: string): Promise<ContaReceber[]>;
+  findPendentes(empresaId?: string): Promise<ContaReceber[]>;
+  registrarRecebimento(id: string, valorRecebido: number, dataRecebimento: Date, formaRecebimento: string, contaBancariaId?: string): Promise<void>;
+  cancelarConta(id: string, motivo?: string): Promise<void>;
   calcularTotalReceber(empresaId: string): Promise<number>;
 }
