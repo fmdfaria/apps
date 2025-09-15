@@ -19,5 +19,6 @@ export interface IContasPagarRepository {
   findProximasVencimento(dias: number): Promise<ContaPagar[]>;
   findByProfissionalId(profissionalId: string): Promise<ContaPagar[]>;
   findRecorrentes(): Promise<ContaPagar[]>;
+  findPendentes(empresaId?: string): Promise<ContaPagar[]>;
   calcularTotalPagar(empresaId: string): Promise<number>;
 }

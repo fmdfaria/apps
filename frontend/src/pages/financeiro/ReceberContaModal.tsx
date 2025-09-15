@@ -5,9 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
+import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import type { ContaReceber } from '@/types/ContaReceber';
 import type { Empresa } from '@/types/Empresa';
-import { ValorDisplay, FormaPagamentoSelect, ContaBancariaSelect } from '@/components/financeiro';
+import type { ContaBancaria } from '@/types/ContaBancaria';
+import { ValorDisplay, FormaPagamentoSelect } from '@/components/financeiro';
+import { getContasBancariasByEmpresa } from '@/services/contas-bancarias';
 
 interface ReceberContaModalProps {
   isOpen: boolean;
@@ -20,6 +23,8 @@ interface ReceberContaModalProps {
 export default function ReceberContaModal({ isOpen, conta, empresas, onClose, onSave }: ReceberContaModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
+  const [contasLoading, setContasLoading] = useState(false);
   
   const [form, setForm] = useState({
     valorRecebido: '',
@@ -29,11 +34,11 @@ export default function ReceberContaModal({ isOpen, conta, empresas, onClose, on
     observacoes: ''
   });
 
-  const valorRestante = conta ? conta.valorTotal - conta.valorRecebido : 0;
+  const valorRestante = conta ? conta.valorOriginal - conta.valorRecebido : 0;
 
   useEffect(() => {
     if (conta) {
-      const valorRestanteCalc = conta.valorTotal - conta.valorRecebido;
+      const valorRestanteCalc = conta.valorOriginal - conta.valorRecebido;
       setForm({
         valorRecebido: valorRestanteCalc.toString(),
         dataRecebimento: new Date().toISOString().split('T')[0],
@@ -41,6 +46,9 @@ export default function ReceberContaModal({ isOpen, conta, empresas, onClose, on
         contaBancariaId: conta.contaBancariaId || '',
         observacoes: ''
       });
+      if (conta.empresaId) {
+        loadContasBancarias(conta.empresaId);
+      }
     } else {
       setForm({
         valorRecebido: '',
@@ -105,6 +113,19 @@ export default function ReceberContaModal({ isOpen, conta, empresas, onClose, on
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
+  const loadContasBancarias = async (empresaId: string) => {
+    setContasLoading(true);
+    try {
+      const data = await getContasBancariasByEmpresa(empresaId);
+      setContasBancarias(data);
+    } catch (error) {
+      console.error('Erro ao carregar contas bancárias:', error);
+      setContasBancarias([]);
+    } finally {
+      setContasLoading(false);
+    }
+  };
+
   if (!conta) return null;
 
   return (
@@ -128,7 +149,7 @@ export default function ReceberContaModal({ isOpen, conta, empresas, onClose, on
           <div className="bg-gray-50 p-4 rounded-lg space-y-2">
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Valor Total:</span>
-              <ValorDisplay valor={conta.valorTotal} tipo="positivo" className="text-sm" />
+              <ValorDisplay valor={conta.valorOriginal} tipo="positivo" className="text-sm" />
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Já Recebido:</span>
@@ -180,15 +201,20 @@ export default function ReceberContaModal({ isOpen, conta, empresas, onClose, on
             placeholder="Selecione a forma de pagamento"
           />
 
-          <ContaBancariaSelect
-            label="Conta Bancária"
-            required
-            value={form.contaBancariaId}
-            onValueChange={(value) => handleChange('contaBancariaId', value)}
-            empresaId={conta.empresaId}
-            placeholder="Selecione a conta bancária"
-            showSaldo
-          />
+          <div className="space-y-2">
+            <Label htmlFor="contaBancariaId">
+              Conta Bancária <span className="text-red-500">*</span>
+            </Label>
+            <SingleSelectDropdown
+              options={contasBancarias}
+              selected={contasBancarias.find(c => c.id === form.contaBancariaId) || null}
+              onChange={(conta) => handleChange('contaBancariaId', conta?.id || '')}
+              placeholder={contasLoading ? "Carregando contas..." : "Selecione uma conta bancária"}
+              formatOption={(conta) => `${conta.nome} - ${conta.banco}`}
+              headerText="Contas bancárias"
+              disabled={contasLoading}
+            />
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="observacoes">Observações</Label>

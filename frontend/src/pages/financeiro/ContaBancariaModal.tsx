@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import { Loader2 } from 'lucide-react';
 import { getEmpresasAtivas } from '@/services/empresas';
 import type { ContaBancaria } from '@/types/ContaBancaria';
@@ -141,7 +141,7 @@ export default function ContaBancariaModal({ isOpen, conta, onClose, onSave }: C
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">
             {conta ? 'Editar Conta Bancária' : 'Nova Conta Bancária'}
@@ -158,53 +158,63 @@ export default function ContaBancariaModal({ isOpen, conta, onClose, onSave }: C
             </div>
           )}
 
-          {/* Empresa */}
-          <div className="space-y-2">
-            <Label htmlFor="empresaId" className="text-sm font-medium">
-              Empresa <span className="text-red-500">*</span>
-            </Label>
-            <Select value={form.empresaId} onValueChange={(value) => handleInputChange('empresaId', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione uma empresa" />
-              </SelectTrigger>
-              <SelectContent>
-                {empresas.map((empresa) => (
-                  <SelectItem key={empresa.id} value={empresa.id}>
-                    {empresa.nomeFantasia || empresa.razaoSocial}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Nome da Conta */}
-          <div className="space-y-2">
-            <Label htmlFor="nome" className="text-sm font-medium">
-              Nome da Conta <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="nome"
-              value={form.nome}
-              onChange={(e) => handleInputChange('nome', e.target.value)}
-              placeholder="Ex: Conta Principal, Conta Operacional..."
-            />
-          </div>
-
-          {/* Banco */}
-          <div className="space-y-2">
-            <Label htmlFor="banco" className="text-sm font-medium">
-              Banco <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="banco"
-              value={form.banco}
-              onChange={(e) => handleInputChange('banco', e.target.value)}
-              placeholder="Ex: Banco do Brasil, Itaú, Bradesco..."
-            />
-          </div>
-
-          {/* Agência e Conta */}
+          {/* Linha 1: Empresa | Nome da Conta | Tipo de Conta */}
           <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="empresaId" className="text-sm font-medium">
+                Empresa <span className="text-red-500">*</span>
+              </Label>
+              <SingleSelectDropdown
+                options={empresas}
+                selected={empresas.find(e => e.id === form.empresaId) || null}
+                onChange={(empresa) => handleInputChange('empresaId', empresa?.id || '')}
+                placeholder="Selecione uma empresa"
+                formatOption={(empresa) => empresa.nomeFantasia || empresa.razaoSocial}
+                headerText="Empresas ativas"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="nome" className="text-sm font-medium">
+                Nome da Conta <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="nome"
+                value={form.nome}
+                onChange={(e) => handleInputChange('nome', e.target.value)}
+                placeholder="Ex: Conta Principal, Conta Operacional..."
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="tipoConta" className="text-sm font-medium">
+                Tipo de Conta
+              </Label>
+              <SingleSelectDropdown
+                options={TIPOS_CONTA.map(tipo => ({ id: tipo.value, label: tipo.label }))}
+                selected={TIPOS_CONTA.map(tipo => ({ id: tipo.value, label: tipo.label })).find(t => t.id === form.tipoConta) || null}
+                onChange={(tipo) => handleInputChange('tipoConta', tipo?.id || 'CORRENTE')}
+                placeholder="Selecione o tipo de conta"
+                formatOption={(tipo) => tipo.label}
+                headerText="Tipos de conta"
+              />
+            </div>
+          </div>
+
+          {/* Linha 2: Banco | Agência | Conta | Dígito */}
+          <div className="grid grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="banco" className="text-sm font-medium">
+                Banco <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="banco"
+                value={form.banco}
+                onChange={(e) => handleInputChange('banco', e.target.value)}
+                placeholder="Ex: Banco do Brasil, Itaú, Bradesco..."
+              />
+            </div>
+            
             <div className="space-y-2">
               <Label htmlFor="agencia" className="text-sm font-medium">
                 Agência <span className="text-red-500">*</span>
@@ -216,6 +226,7 @@ export default function ContaBancariaModal({ isOpen, conta, onClose, onSave }: C
                 placeholder="0001"
               />
             </div>
+            
             <div className="space-y-2">
               <Label htmlFor="conta" className="text-sm font-medium">
                 Conta <span className="text-red-500">*</span>
@@ -227,6 +238,7 @@ export default function ContaBancariaModal({ isOpen, conta, onClose, onSave }: C
                 placeholder="12345678"
               />
             </div>
+            
             <div className="space-y-2">
               <Label htmlFor="digito" className="text-sm font-medium">
                 Dígito
@@ -241,44 +253,22 @@ export default function ContaBancariaModal({ isOpen, conta, onClose, onSave }: C
             </div>
           </div>
 
-          {/* Tipo de Conta */}
-          <div className="space-y-2">
-            <Label htmlFor="tipoConta" className="text-sm font-medium">
-              Tipo de Conta
-            </Label>
-            <Select value={form.tipoConta} onValueChange={(value) => handleInputChange('tipoConta', value)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TIPOS_CONTA.map((tipo) => (
-                  <SelectItem key={tipo.value} value={tipo.value}>
-                    {tipo.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* PIX */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Linha 3: Tipo PIX | Chave PIX | Saldo Inicial */}
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="tipoPix" className="text-sm font-medium">
                 Tipo PIX
               </Label>
-              <Select value={form.tipoPix} onValueChange={(value) => handleInputChange('tipoPix', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIPOS_PIX.map((tipo) => (
-                    <SelectItem key={tipo.value} value={tipo.value}>
-                      {tipo.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SingleSelectDropdown
+                options={TIPOS_PIX.map(tipo => ({ id: tipo.value, label: tipo.label }))}
+                selected={TIPOS_PIX.map(tipo => ({ id: tipo.value, label: tipo.label })).find(t => t.id === form.tipoPix) || null}
+                onChange={(tipo) => handleInputChange('tipoPix', tipo?.id || '')}
+                placeholder="Selecione o tipo de PIX"
+                formatOption={(tipo) => tipo.label}
+                headerText="Tipos de PIX"
+              />
             </div>
+            
             <div className="space-y-2">
               <Label htmlFor="pixPrincipal" className="text-sm font-medium">
                 Chave PIX
@@ -290,25 +280,24 @@ export default function ContaBancariaModal({ isOpen, conta, onClose, onSave }: C
                 placeholder="Chave PIX principal"
               />
             </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="saldoInicial" className="text-sm font-medium">
+                Saldo Inicial
+              </Label>
+              <Input
+                id="saldoInicial"
+                type="number"
+                step="0.01"
+                value={form.saldoInicial}
+                onChange={(e) => handleInputChange('saldoInicial', e.target.value)}
+                placeholder="0,00"
+              />
+            </div>
           </div>
 
-          {/* Saldo Inicial */}
-          <div className="space-y-2">
-            <Label htmlFor="saldoInicial" className="text-sm font-medium">
-              Saldo Inicial
-            </Label>
-            <Input
-              id="saldoInicial"
-              type="number"
-              step="0.01"
-              value={form.saldoInicial}
-              onChange={(e) => handleInputChange('saldoInicial', e.target.value)}
-              placeholder="0,00"
-            />
-          </div>
-
-          {/* Checkboxes */}
-          <div className="space-y-3">
+          {/* Linha 4: Conta Principal da Empresa | Conta Ativa */}
+          <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="contaPrincipal"
@@ -319,6 +308,7 @@ export default function ContaBancariaModal({ isOpen, conta, onClose, onSave }: C
                 Conta Principal da Empresa
               </Label>
             </div>
+            
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="ativo"
@@ -331,7 +321,7 @@ export default function ContaBancariaModal({ isOpen, conta, onClose, onSave }: C
             </div>
           </div>
 
-          {/* Observações */}
+          {/* Linha 5: Observações */}
           <div className="space-y-2">
             <Label htmlFor="observacoes" className="text-sm font-medium">
               Observações

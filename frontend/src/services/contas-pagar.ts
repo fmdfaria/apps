@@ -37,15 +37,13 @@ export const getContasPagar = async (filters?: ContaPagarFilters): Promise<Conta
 };
 
 export const getContasPagarPendentes = async (): Promise<ContaPagar[]> => {
-  return getContasPagar({ status: 'PENDENTE' });
+  const { data } = await api.get('/contas-pagar/pendentes');
+  return data.data;
 };
 
 export const getContasPagarVencidas = async (): Promise<ContaPagar[]> => {
-  const hoje = new Date().toISOString().split('T')[0];
-  return getContasPagar({ 
-    status: 'PENDENTE', 
-    dataVencimentoFim: hoje 
-  });
+  const { data } = await api.get('/contas-pagar/vencidas');
+  return data.data;
 };
 
 export const getContasPagarByProfissional = async (profissionalId: string): Promise<ContaPagar[]> => {
@@ -53,7 +51,8 @@ export const getContasPagarByProfissional = async (profissionalId: string): Prom
 };
 
 export const getContasPagarRecorrentes = async (): Promise<ContaPagar[]> => {
-  return getContasPagar({ recorrente: true });
+  const { data } = await api.get('/contas-pagar/recorrentes');
+  return data.data;
 };
 
 export const getContaPagarById = async (id: string): Promise<ContaPagar> => {

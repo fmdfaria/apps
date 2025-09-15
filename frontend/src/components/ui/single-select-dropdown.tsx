@@ -37,12 +37,25 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
   const getDisplayText = (option: Option): string => {
     if (formatOption) {
       const formatted = formatOption(option);
-      return typeof formatted === 'string' ? formatted : '';
+      return typeof formatted === 'string' ? formatted : option.nome || option.id;
     }
     
     // Tentar usar o primeiro campo dos searchFields, depois 'nome' como fallback
     const displayField = searchFields[0] || 'nome';
     return (option as any)[displayField] || option.nome || option.id;
+  };
+
+  // Função auxiliar para renderizar o conteúdo formatado
+  const renderFormattedOption = (option: Option) => {
+    if (formatOption) {
+      const formatted = formatOption(option);
+      if (typeof formatted === 'string') {
+        return formatted;
+      }
+      // Se é JSX, renderizar diretamente
+      return formatted;
+    }
+    return getDisplayText(option);
   };
 
   // Map dot colors to Tailwind classes
@@ -202,7 +215,7 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
                  className="text-gray-700 font-medium truncate flex-1" 
                  title={getDisplayText(selected)}
                >
-                 {formatOption ? formatOption(selected) : getDisplayText(selected)}
+                 {renderFormattedOption(selected)}
                </div>
                {!disabled && (
                  <button 
@@ -320,7 +333,7 @@ export function SingleSelectDropdown({ options, selected, onChange, placeholder 
                     ? 'text-gray-400' 
                     : 'text-gray-700 group-hover:text-gray-900'
                 }`}>
-                  {formatOption ? formatOption(opt) : getDisplayText(opt)}
+                  {renderFormattedOption(opt)}
                 </div>
               </div>
             );

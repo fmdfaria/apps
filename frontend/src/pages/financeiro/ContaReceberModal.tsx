@@ -5,35 +5,54 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import { Loader2 } from 'lucide-react';
 import type { ContaReceber } from '@/types/ContaReceber';
 import type { Empresa } from '@/types/Empresa';
-import type { Profissional } from '@/types/Profissional';
-import { EmpresaSelect, ContaBancariaSelect, CategoriaFinanceiraSelect, ProfissionalSelect } from '@/components/financeiro';
+import type { Paciente } from '@/types/Paciente';
+import type { Convenio } from '@/types/Convenio';
+import { getEmpresasAtivas } from '@/services/empresas';
+import { getCategoriasByTipo } from '@/services/categorias-financeiras';
+import { getContasBancariasByEmpresa } from '@/services/contas-bancarias';
+import { getPacientesAtivos } from '@/services/pacientes';
+import { getConveniosAtivos } from '@/services/convenios';
+import { getCurrentUser } from '@/services/auth';
+import type { CategoriaFinanceira } from '@/types/CategoriaFinanceira';
+import type { ContaBancaria } from '@/types/ContaBancaria';
 
 interface ContaReceberModalProps {
   isOpen: boolean;
   conta: ContaReceber | null;
-  empresas: Empresa[];
-  profissionais: Profissional[];
   onClose: () => void;
   onSave: (data: any) => Promise<void>;
 }
 
-export default function ContaReceberModal({ isOpen, conta, empresas, profissionais, onClose, onSave }: ContaReceberModalProps) {
+export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: ContaReceberModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [empresasLoading, setEmpresasLoading] = useState(false);
+  const [categorias, setCategorias] = useState<CategoriaFinanceira[]>([]);
+  const [categoriasLoading, setCategoriasLoading] = useState(false);
+  const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
+  const [contasLoading, setContasLoading] = useState(false);
+  const [pacientes, setPacientes] = useState<Paciente[]>([]);
+  const [pacientesLoading, setPacientesLoading] = useState(false);
+  const [convenios, setConvenios] = useState<Convenio[]>([]);
+  const [conveniosLoading, setConveniosLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
   const [form, setForm] = useState({
     descricao: '',
-    valorTotal: '',
+    valorOriginal: '',
     dataVencimento: '',
+    dataEmissao: '',
     empresaId: '',
     contaBancariaId: '',
-    categoriaFinanceiraId: '',
-    profissionalId: '',
-    tipoConta: 'AVULSO' as const,
-    recorrente: false,
+    categoriaId: '',
+    pacienteId: '',
+    convenioId: '',
+    numeroDocumento: '',
     observacoes: ''
   });
 
@@ -41,32 +60,70 @@ export default function ContaReceberModal({ isOpen, conta, empresas, profissiona
     if (conta) {
       setForm({
         descricao: conta.descricao || '',
-        valorTotal: conta.valorTotal?.toString() || '',
+        valorOriginal: conta.valorOriginal?.toString() || '',
         dataVencimento: conta.dataVencimento ? new Date(conta.dataVencimento).toISOString().split('T')[0] : '',
+        dataEmissao: conta.dataEmissao ? new Date(conta.dataEmissao).toISOString().split('T')[0] : '',
         empresaId: conta.empresaId || '',
         contaBancariaId: conta.contaBancariaId || '',
-        categoriaFinanceiraId: conta.categoriaFinanceiraId || '',
-        profissionalId: conta.profissionalId || '',
-        tipoConta: conta.tipoConta || 'AVULSO',
-        recorrente: conta.recorrente || false,
+        categoriaId: conta.categoriaId || '',
+        pacienteId: conta.pacienteId || '',
+        convenioId: conta.convenioId || '',
+        numeroDocumento: conta.numeroDocumento || '',
         observacoes: conta.observacoes || ''
       });
     } else {
       setForm({
         descricao: '',
-        valorTotal: '',
+        valorOriginal: '',
         dataVencimento: '',
+        dataEmissao: '',
         empresaId: '',
         contaBancariaId: '',
-        categoriaFinanceiraId: '',
-        profissionalId: '',
-        tipoConta: 'AVULSO',
-        recorrente: false,
+        categoriaId: '',
+        pacienteId: '',
+        convenioId: '',
+        numeroDocumento: '',
         observacoes: ''
       });
     }
     setError('');
   }, [conta, isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadEmpresas();
+      loadCategorias();
+      loadPacientes();
+      loadConvenios();
+      loadCurrentUser();
+    }
+  }, [isOpen]);
+
+  const loadEmpresas = async () => {
+    setEmpresasLoading(true);
+    try {
+      const data = await getEmpresasAtivas();
+      setEmpresas(data);
+    } catch (error) {
+      console.error('Erro ao carregar empresas:', error);
+      setEmpresas([]);
+    } finally {
+      setEmpresasLoading(false);
+    }
+  };
+
+  const loadCategorias = async () => {
+    setCategoriasLoading(true);
+    try {
+      const data = await getCategoriasByTipo('RECEITA');
+      setCategorias(data);
+    } catch (error) {
+      console.error('Erro ao carregar categorias:', error);
+      setCategorias([]);
+    } finally {
+      setCategoriasLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,8 +133,13 @@ export default function ContaReceberModal({ isOpen, conta, empresas, profissiona
       return;
     }
 
-    if (!form.valorTotal || parseFloat(form.valorTotal) <= 0) {
+    if (!form.valorOriginal || parseFloat(form.valorOriginal) <= 0) {
       setError('Valor deve ser maior que zero');
+      return;
+    }
+
+    if (!form.dataEmissao) {
+      setError('Data de emissão é obrigatória');
       return;
     }
 
@@ -90,13 +152,20 @@ export default function ContaReceberModal({ isOpen, conta, empresas, profissiona
     setError('');
 
     try {
+      const valorOriginal = parseFloat(form.valorOriginal);
       const payload = {
         ...form,
-        valorTotal: parseFloat(form.valorTotal),
+        valorOriginal,
+        valorLiquido: valorOriginal, // Inicialmente sem desconto/juros
         empresaId: form.empresaId || null,
         contaBancariaId: form.contaBancariaId || null,
-        categoriaFinanceiraId: form.categoriaFinanceiraId || null,
-        profissionalId: form.profissionalId || null
+        categoriaId: form.categoriaId || null,
+        pacienteId: form.pacienteId || null,
+        convenioId: form.convenioId || null,
+        numeroDocumento: form.numeroDocumento || null,
+        // Incluir userCreatedId apenas para criação, userUpdatedId sempre
+        ...(conta ? {} : { userCreatedId: currentUserId }),
+        userUpdatedId: currentUserId
       };
       
       await onSave(payload);
@@ -110,15 +179,84 @@ export default function ContaReceberModal({ isOpen, conta, empresas, profissiona
   const handleChange = (field: string, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
     
-    // Limpar conta bancária quando empresa mudar
+    // Limpar conta bancária quando empresa mudar e carregar novas contas
     if (field === 'empresaId') {
       setForm(prev => ({ ...prev, contaBancariaId: '' }));
+      if (value) {
+        loadContasBancarias(value);
+      } else {
+        setContasBancarias([]);
+      }
     }
+    
+    // Regra de negócio: Paciente só habilitado para convênio "Particular"
+    if (field === 'convenioId') {
+      const convenioSelecionado = convenios.find(c => c.id === value);
+      // Se não for convênio "Particular", limpar o campo paciente
+      if (convenioSelecionado && convenioSelecionado.nome !== 'Particular') {
+        setForm(prev => ({ ...prev, pacienteId: '' }));
+      }
+    }
+  };
+
+  const loadContasBancarias = async (empresaId: string) => {
+    setContasLoading(true);
+    try {
+      const data = await getContasBancariasByEmpresa(empresaId);
+      setContasBancarias(data);
+    } catch (error) {
+      console.error('Erro ao carregar contas bancárias:', error);
+      setContasBancarias([]);
+    } finally {
+      setContasLoading(false);
+    }
+  };
+
+  const loadPacientes = async () => {
+    setPacientesLoading(true);
+    try {
+      const data = await getPacientesAtivos();
+      setPacientes(data);
+    } catch (error) {
+      console.error('Erro ao carregar pacientes:', error);
+      setPacientes([]);
+    } finally {
+      setPacientesLoading(false);
+    }
+  };
+
+  const loadConvenios = async () => {
+    setConveniosLoading(true);
+    try {
+      const data = await getConveniosAtivos();
+      setConvenios(data);
+    } catch (error) {
+      console.error('Erro ao carregar convênios:', error);
+      setConvenios([]);
+    } finally {
+      setConveniosLoading(false);
+    }
+  };
+
+  const loadCurrentUser = async () => {
+    try {
+      const user = await getCurrentUser();
+      setCurrentUserId(user.id);
+    } catch (error) {
+      console.error('Erro ao carregar usuário logado:', error);
+    }
+  };
+
+  // Verificar se o paciente deve estar habilitado
+  const isPacienteEnabled = () => {
+    if (!form.convenioId) return true; // Se não tem convênio selecionado, permite paciente
+    const convenioSelecionado = convenios.find(c => c.id === form.convenioId);
+    return convenioSelecionado?.nome === 'Particular';
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {conta ? 'Editar Conta a Receber' : 'Nova Conta a Receber'}
@@ -137,31 +275,32 @@ export default function ContaReceberModal({ isOpen, conta, empresas, profissiona
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="descricao">
-              Descrição <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="descricao"
-              value={form.descricao}
-              onChange={(e) => handleChange('descricao', e.target.value)}
-              placeholder="Descrição da conta a receber"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
+          {/* Linha 1: Descrição (mesmo tamanho da Empresa) | Valor Total | Data de Vencimento | Data Emissão */}
+          <div className="grid grid-cols-5 gap-4">
+            <div className="col-span-2 space-y-2">
+              <Label htmlFor="descricao">
+                Descrição <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="descricao"
+                value={form.descricao}
+                onChange={(e) => handleChange('descricao', e.target.value)}
+                placeholder="Descrição da conta a receber"
+                required
+              />
+            </div>
+            
             <div className="space-y-2">
-              <Label htmlFor="valorTotal">
+              <Label htmlFor="valorOriginal">
                 Valor Total <span className="text-red-500">*</span>
               </Label>
               <Input
-                id="valorTotal"
+                id="valorOriginal"
                 type="number"
                 step="0.01"
                 min="0"
-                value={form.valorTotal}
-                onChange={(e) => handleChange('valorTotal', e.target.value)}
+                value={form.valorOriginal}
+                onChange={(e) => handleChange('valorOriginal', e.target.value)}
                 placeholder="0,00"
                 required
               />
@@ -179,54 +318,110 @@ export default function ContaReceberModal({ isOpen, conta, empresas, profissiona
                 required
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <EmpresaSelect
-              label="Empresa"
-              value={form.empresaId}
-              onValueChange={(value) => handleChange('empresaId', value)}
-              placeholder="Selecione uma empresa"
-            />
             
-            <ContaBancariaSelect
-              label="Conta Bancária"
-              value={form.contaBancariaId}
-              onValueChange={(value) => handleChange('contaBancariaId', value)}
-              empresaId={form.empresaId}
-              placeholder="Selecione uma conta"
-              disabled={!form.empresaId}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="dataEmissao">
+                Data Emissão <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="dataEmissao"
+                type="date"
+                value={form.dataEmissao}
+                onChange={(e) => handleChange('dataEmissao', e.target.value)}
+                required
+              />
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <CategoriaFinanceiraSelect
-              label="Categoria"
-              tipo="RECEITA"
-              value={form.categoriaFinanceiraId}
-              onValueChange={(value) => handleChange('categoriaFinanceiraId', value)}
-              placeholder="Selecione uma categoria"
-            />
+          {/* Linha 2: Empresa | Conta Bancária | Categoria */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="empresaId">Empresa</Label>
+              <SingleSelectDropdown
+                options={empresas}
+                selected={empresas.find(e => e.id === form.empresaId) || null}
+                onChange={(empresa) => handleChange('empresaId', empresa?.id || '')}
+                placeholder={empresasLoading ? "Carregando empresas..." : "Selecione uma empresa"}
+                formatOption={(empresa) => empresa.nomeFantasia || empresa.razaoSocial}
+                headerText="Empresas ativas"
+                disabled={empresasLoading}
+              />
+            </div>
             
-            <ProfissionalSelect
-              label="Profissional"
-              value={form.profissionalId}
-              onValueChange={(value) => handleChange('profissionalId', value)}
-              placeholder="Selecione um profissional"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="contaBancariaId">Conta Bancária</Label>
+              <SingleSelectDropdown
+                options={contasBancarias}
+                selected={contasBancarias.find(c => c.id === form.contaBancariaId) || null}
+                onChange={(conta) => handleChange('contaBancariaId', conta?.id || '')}
+                placeholder={
+                  !form.empresaId ? "Selecione primeiro uma empresa" :
+                  contasLoading ? "Carregando contas..." : 
+                  "Selecione uma conta bancária"
+                }
+                formatOption={(conta) => `${conta.nome} - ${conta.banco}`}
+                headerText="Contas bancárias"
+                disabled={!form.empresaId || contasLoading}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="categoriaId">Categoria</Label>
+              <SingleSelectDropdown
+                options={categorias}
+                selected={categorias.find(c => c.id === form.categoriaId) || null}
+                onChange={(categoria) => handleChange('categoriaId', categoria?.id || '')}
+                placeholder={categoriasLoading ? "Carregando categorias..." : "Selecione uma categoria"}
+                headerText="Categorias de receita"
+                disabled={categoriasLoading}
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="tipoConta">Tipo da Conta</Label>
-            <Select value={form.tipoConta} onValueChange={(value) => handleChange('tipoConta', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="AVULSO">Avulso</SelectItem>
-                <SelectItem value="MENSAL">Mensal</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Linha 3: Convênio | Paciente | Número Documento */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="convenioId">Convênio</Label>
+              <SingleSelectDropdown
+                options={convenios}
+                selected={convenios.find(c => c.id === form.convenioId) || null}
+                onChange={(convenio) => handleChange('convenioId', convenio?.id || '')}
+                placeholder={conveniosLoading ? "Carregando convênios..." : "Selecione um convênio"}
+                formatOption={(convenio) => convenio.nome}
+                headerText="Convênios ativos"
+                disabled={conveniosLoading}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="pacienteId" className={!isPacienteEnabled() ? "text-gray-400" : ""}>
+                Paciente {!isPacienteEnabled() && <span className="text-xs text-gray-400">(disponível apenas para Particular)</span>}
+              </Label>
+              <SingleSelectDropdown
+                options={pacientes}
+                selected={pacientes.find(p => p.id === form.pacienteId) || null}
+                onChange={(paciente) => handleChange('pacienteId', paciente?.id || '')}
+                placeholder={
+                  !isPacienteEnabled() ? "Selecione convênio 'Particular' para habilitar" :
+                  pacientesLoading ? "Carregando pacientes..." : 
+                  "Selecione um paciente"
+                }
+                formatOption={(paciente) => paciente.nomeCompleto}
+                headerText="Pacientes ativos"
+                disabled={pacientesLoading || !isPacienteEnabled()}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="numeroDocumento">Número Documento</Label>
+              <Input
+                id="numeroDocumento"
+                value={form.numeroDocumento}
+                onChange={(e) => handleChange('numeroDocumento', e.target.value)}
+                placeholder="Ex: NF-001234"
+                maxLength={50}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">

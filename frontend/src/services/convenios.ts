@@ -6,6 +6,11 @@ export const getConvenios = async (): Promise<Convenio[]> => {
   return data;
 };
 
+export const getConveniosAtivos = async (): Promise<Convenio[]> => {
+  const { data } = await api.get('/convenios?ativo=true');
+  return data;
+};
+
 export const createConvenio = async (convenio: Omit<Convenio, 'id'>): Promise<Convenio> => {
   const { data } = await api.post('/convenios', convenio);
   return data;

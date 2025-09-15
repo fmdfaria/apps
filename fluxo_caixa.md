@@ -694,7 +694,7 @@ Este planejamento representa uma solução completa e escalável para o controle
   DELETE /empresas/:id          - Excluir empresa
   PATCH  /empresas/:id/status   - Ativar/desativar empresa
 
-  🏦 2. CONTAS BANCÁRIAS
+  🏦 2. CONTAS BANCÁRIAS - OK
 
   GET    /contas-bancarias              - Listar contas bancárias
   POST   /contas-bancarias              - Criar nova conta bancária
@@ -704,7 +704,7 @@ Este planejamento representa uma solução completa e escalável para o controle
   GET    /contas-bancarias/empresa/:empresaId - Contas por empresa
   PATCH  /contas-bancarias/:id/saldo    - Atualizar saldo
 
-  📈 3. CONTAS A RECEBER
+  📈 3. CONTAS A RECEBER - OK
 
   GET    /contas-receber                - Listar contas a receber (com filtros)
   POST   /contas-receber                - Criar conta a receber
@@ -729,7 +729,7 @@ Este planejamento representa uma solução completa e escalável para o controle
   GET    /contas-pagar/vencidas       - Contas vencidas
   GET    /contas-pagar/recorrentes    - Contas recorrentes
 
-  🏷️ 5. CATEGORIAS FINANCEIRAS
+  🏷️ 5. CATEGORIAS FINANCEIRAS - OK
 
   GET    /categorias-financeiras        - Listar categorias
   POST   /categorias-financeiras        - Criar categoria

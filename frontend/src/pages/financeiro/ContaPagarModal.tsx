@@ -5,34 +5,50 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import { Loader2 } from 'lucide-react';
 import type { ContaPagar } from '@/types/ContaPagar';
 import type { Empresa } from '@/types/Empresa';
 import type { Profissional } from '@/types/Profissional';
-import { EmpresaSelect, ContaBancariaSelect, CategoriaFinanceiraSelect, ProfissionalSelect } from '@/components/financeiro';
+import { getEmpresasAtivas } from '@/services/empresas';
+import { getCategoriasByTipo } from '@/services/categorias-financeiras';
+import { getContasBancariasByEmpresa } from '@/services/contas-bancarias';
+import { getProfissionais } from '@/services/profissionais';
+import { getCurrentUser } from '@/services/auth';
+import type { CategoriaFinanceira } from '@/types/CategoriaFinanceira';
+import type { ContaBancaria } from '@/types/ContaBancaria';
 
 interface ContaPagarModalProps {
   isOpen: boolean;
   conta: ContaPagar | null;
-  empresas: Empresa[];
-  profissionais: Profissional[];
   onClose: () => void;
   onSave: (data: any) => Promise<void>;
 }
 
-export default function ContaPagarModal({ isOpen, conta, empresas, profissionais, onClose, onSave }: ContaPagarModalProps) {
+export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: ContaPagarModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [empresasLoading, setEmpresasLoading] = useState(false);
+  const [categorias, setCategorias] = useState<CategoriaFinanceira[]>([]);
+  const [categoriasLoading, setCategoriasLoading] = useState(false);
+  const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
+  const [contasLoading, setContasLoading] = useState(false);
+  const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+  const [profissionaisLoading, setProfissionaisLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
   const [form, setForm] = useState({
     descricao: '',
-    valorTotal: '',
+    valorOriginal: '',
     dataVencimento: '',
+    dataEmissao: '',
     empresaId: '',
     contaBancariaId: '',
-    categoriaFinanceiraId: '',
+    categoriaId: '',
     profissionalId: '',
-    tipoConta: 'AVULSO' as const,
+    numeroDocumento: '',
+    tipoConta: 'DESPESA' as const,
     recorrente: false,
     observacoes: ''
   });
@@ -41,32 +57,71 @@ export default function ContaPagarModal({ isOpen, conta, empresas, profissionais
     if (conta) {
       setForm({
         descricao: conta.descricao || '',
-        valorTotal: conta.valorTotal?.toString() || '',
+        valorOriginal: conta.valorOriginal?.toString() || '',
         dataVencimento: conta.dataVencimento ? new Date(conta.dataVencimento).toISOString().split('T')[0] : '',
+        dataEmissao: conta.dataEmissao ? new Date(conta.dataEmissao).toISOString().split('T')[0] : '',
         empresaId: conta.empresaId || '',
         contaBancariaId: conta.contaBancariaId || '',
-        categoriaFinanceiraId: conta.categoriaFinanceiraId || '',
+        categoriaId: conta.categoriaId || '',
         profissionalId: conta.profissionalId || '',
-        tipoConta: conta.tipoConta || 'AVULSO',
+        numeroDocumento: conta.numeroDocumento || '',
+        tipoConta: conta.tipoConta || 'DESPESA',
         recorrente: conta.recorrente || false,
         observacoes: conta.observacoes || ''
       });
     } else {
       setForm({
         descricao: '',
-        valorTotal: '',
+        valorOriginal: '',
         dataVencimento: '',
+        dataEmissao: '',
         empresaId: '',
         contaBancariaId: '',
-        categoriaFinanceiraId: '',
+        categoriaId: '',
         profissionalId: '',
-        tipoConta: 'AVULSO',
+        numeroDocumento: '',
+        tipoConta: 'DESPESA',
         recorrente: false,
         observacoes: ''
       });
     }
     setError('');
   }, [conta, isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadEmpresas();
+      loadCategorias();
+      loadProfissionais();
+      loadCurrentUser();
+    }
+  }, [isOpen]);
+
+  const loadEmpresas = async () => {
+    setEmpresasLoading(true);
+    try {
+      const data = await getEmpresasAtivas();
+      setEmpresas(data);
+    } catch (error) {
+      console.error('Erro ao carregar empresas:', error);
+      setEmpresas([]);
+    } finally {
+      setEmpresasLoading(false);
+    }
+  };
+
+  const loadCategorias = async () => {
+    setCategoriasLoading(true);
+    try {
+      const data = await getCategoriasByTipo('DESPESA');
+      setCategorias(data);
+    } catch (error) {
+      console.error('Erro ao carregar categorias:', error);
+      setCategorias([]);
+    } finally {
+      setCategoriasLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,8 +131,13 @@ export default function ContaPagarModal({ isOpen, conta, empresas, profissionais
       return;
     }
 
-    if (!form.valorTotal || parseFloat(form.valorTotal) <= 0) {
+    if (!form.valorOriginal || parseFloat(form.valorOriginal) <= 0) {
       setError('Valor deve ser maior que zero');
+      return;
+    }
+
+    if (!form.dataEmissao) {
+      setError('Data de emissão é obrigatória');
       return;
     }
 
@@ -90,13 +150,19 @@ export default function ContaPagarModal({ isOpen, conta, empresas, profissionais
     setError('');
 
     try {
+      const valorOriginal = parseFloat(form.valorOriginal);
       const payload = {
         ...form,
-        valorTotal: parseFloat(form.valorTotal),
+        valorOriginal,
+        valorLiquido: valorOriginal, // Inicialmente sem desconto/juros
         empresaId: form.empresaId || null,
         contaBancariaId: form.contaBancariaId || null,
-        categoriaFinanceiraId: form.categoriaFinanceiraId || null,
-        profissionalId: form.profissionalId || null
+        categoriaId: form.categoriaId || null,
+        profissionalId: form.profissionalId || null,
+        numeroDocumento: form.numeroDocumento || null,
+        // Incluir userCreatedId apenas para criação, userUpdatedId sempre
+        ...(conta ? {} : { userCreatedId: currentUserId }),
+        userUpdatedId: currentUserId
       };
       
       await onSave(payload);
@@ -110,15 +176,55 @@ export default function ContaPagarModal({ isOpen, conta, empresas, profissionais
   const handleChange = (field: string, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
     
-    // Limpar conta bancária quando empresa mudar
+    // Limpar conta bancária quando empresa mudar e carregar novas contas
     if (field === 'empresaId') {
       setForm(prev => ({ ...prev, contaBancariaId: '' }));
+      if (value) {
+        loadContasBancarias(value);
+      } else {
+        setContasBancarias([]);
+      }
+    }
+  };
+
+  const loadContasBancarias = async (empresaId: string) => {
+    setContasLoading(true);
+    try {
+      const data = await getContasBancariasByEmpresa(empresaId);
+      setContasBancarias(data);
+    } catch (error) {
+      console.error('Erro ao carregar contas bancárias:', error);
+      setContasBancarias([]);
+    } finally {
+      setContasLoading(false);
+    }
+  };
+
+  const loadProfissionais = async () => {
+    setProfissionaisLoading(true);
+    try {
+      const data = await getProfissionais();
+      setProfissionais(data);
+    } catch (error) {
+      console.error('Erro ao carregar profissionais:', error);
+      setProfissionais([]);
+    } finally {
+      setProfissionaisLoading(false);
+    }
+  };
+
+  const loadCurrentUser = async () => {
+    try {
+      const user = await getCurrentUser();
+      setCurrentUserId(user.id);
+    } catch (error) {
+      console.error('Erro ao carregar usuário logado:', error);
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {conta ? 'Editar Conta a Pagar' : 'Nova Conta a Pagar'}
@@ -137,31 +243,32 @@ export default function ContaPagarModal({ isOpen, conta, empresas, profissionais
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="descricao">
-              Descrição <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="descricao"
-              value={form.descricao}
-              onChange={(e) => handleChange('descricao', e.target.value)}
-              placeholder="Descrição da conta a pagar"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="valorTotal">
-                Valor Total <span className="text-red-500">*</span>
+          {/* Linha 1: Descrição (mesmo tamanho da Empresa) | Valor Original | Data de Vencimento | Data Emissão */}
+          <div className="grid grid-cols-5 gap-4">
+            <div className="col-span-2 space-y-2">
+              <Label htmlFor="descricao">
+                Descrição <span className="text-red-500">*</span>
               </Label>
               <Input
-                id="valorTotal"
+                id="descricao"
+                value={form.descricao}
+                onChange={(e) => handleChange('descricao', e.target.value)}
+                placeholder="Descrição da conta a pagar"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="valorOriginal">
+                Valor Original <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="valorOriginal"
                 type="number"
                 step="0.01"
                 min="0"
-                value={form.valorTotal}
-                onChange={(e) => handleChange('valorTotal', e.target.value)}
+                value={form.valorOriginal}
+                onChange={(e) => handleChange('valorOriginal', e.target.value)}
                 placeholder="0,00"
                 required
               />
@@ -179,55 +286,117 @@ export default function ContaPagarModal({ isOpen, conta, empresas, profissionais
                 required
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <EmpresaSelect
-              label="Empresa"
-              value={form.empresaId}
-              onValueChange={(value) => handleChange('empresaId', value)}
-              placeholder="Selecione uma empresa"
-            />
             
-            <ContaBancariaSelect
-              label="Conta Bancária"
-              value={form.contaBancariaId}
-              onValueChange={(value) => handleChange('contaBancariaId', value)}
-              empresaId={form.empresaId}
-              placeholder="Selecione uma conta"
-              disabled={!form.empresaId}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="dataEmissao">
+                Data Emissão <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="dataEmissao"
+                type="date"
+                value={form.dataEmissao}
+                onChange={(e) => handleChange('dataEmissao', e.target.value)}
+                required
+              />
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <CategoriaFinanceiraSelect
-              label="Categoria"
-              tipo="DESPESA"
-              value={form.categoriaFinanceiraId}
-              onValueChange={(value) => handleChange('categoriaFinanceiraId', value)}
-              placeholder="Selecione uma categoria"
-            />
+          {/* Linha 2: Empresa | Conta Bancária | Categoria */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="empresaId">Empresa</Label>
+              <SingleSelectDropdown
+                options={empresas}
+                selected={empresas.find(e => e.id === form.empresaId) || null}
+                onChange={(empresa) => handleChange('empresaId', empresa?.id || '')}
+                placeholder={empresasLoading ? "Carregando empresas..." : "Selecione uma empresa"}
+                formatOption={(empresa) => empresa.nomeFantasia || empresa.razaoSocial}
+                headerText="Empresas ativas"
+                disabled={empresasLoading}
+              />
+            </div>
             
-            <ProfissionalSelect
-              label="Profissional"
-              value={form.profissionalId}
-              onValueChange={(value) => handleChange('profissionalId', value)}
-              placeholder="Selecione um profissional"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="contaBancariaId">Conta Bancária</Label>
+              <SingleSelectDropdown
+                options={contasBancarias}
+                selected={contasBancarias.find(c => c.id === form.contaBancariaId) || null}
+                onChange={(conta) => handleChange('contaBancariaId', conta?.id || '')}
+                placeholder={
+                  !form.empresaId ? "Selecione primeiro uma empresa" :
+                  contasLoading ? "Carregando contas..." : 
+                  "Selecione uma conta bancária"
+                }
+                formatOption={(conta) => `${conta.nome} - ${conta.banco}`}
+                headerText="Contas bancárias"
+                disabled={!form.empresaId || contasLoading}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="categoriaId">Categoria</Label>
+              <SingleSelectDropdown
+                options={categorias}
+                selected={categorias.find(c => c.id === form.categoriaId) || null}
+                onChange={(categoria) => handleChange('categoriaId', categoria?.id || '')}
+                placeholder={categoriasLoading ? "Carregando categorias..." : "Selecione uma categoria"}
+                headerText="Categorias de despesa"
+                disabled={categoriasLoading}
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="tipoConta">Tipo da Conta</Label>
-            <Select value={form.tipoConta} onValueChange={(value) => handleChange('tipoConta', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="AVULSO">Avulso</SelectItem>
-                <SelectItem value="MENSAL">Mensal</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Linha 3: Profissional | Número Documento | Tipo da Conta */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="profissionalId">Profissional</Label>
+              <SingleSelectDropdown
+                options={profissionais}
+                selected={profissionais.find(p => p.id === form.profissionalId) || null}
+                onChange={(profissional) => handleChange('profissionalId', profissional?.id || '')}
+                placeholder={profissionaisLoading ? "Carregando profissionais..." : "Selecione um profissional"}
+                formatOption={(profissional) => profissional.nome}
+                headerText="Profissionais"
+                disabled={profissionaisLoading}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="numeroDocumento">Número Documento</Label>
+              <Input
+                id="numeroDocumento"
+                value={form.numeroDocumento}
+                onChange={(e) => handleChange('numeroDocumento', e.target.value)}
+                placeholder="Ex: NF-001234"
+                maxLength={50}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="tipoConta">Tipo da Conta</Label>
+              <SingleSelectDropdown
+                options={[
+                  { id: 'DESPESA', label: 'Despesa' },
+                  { id: 'SALARIO', label: 'Salário' },
+                  { id: 'ENCARGO', label: 'Encargo' },
+                  { id: 'IMPOSTO', label: 'Imposto' },
+                  { id: 'INVESTIMENTO', label: 'Investimento' }
+                ]}
+                selected={[
+                  { id: 'DESPESA', label: 'Despesa' },
+                  { id: 'SALARIO', label: 'Salário' },
+                  { id: 'ENCARGO', label: 'Encargo' },
+                  { id: 'IMPOSTO', label: 'Imposto' },
+                  { id: 'INVESTIMENTO', label: 'Investimento' }
+                ].find(t => t.id === form.tipoConta) || null}
+                onChange={(tipo) => handleChange('tipoConta', tipo?.id || 'DESPESA')}
+                placeholder="Selecione o tipo"
+                formatOption={(tipo) => tipo.label}
+                headerText="Tipos de conta"
+              />
+            </div>
           </div>
+
 
           <div className="space-y-2">
             <Label htmlFor="observacoes">Observações</Label>

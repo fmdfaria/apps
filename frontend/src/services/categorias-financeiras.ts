@@ -33,7 +33,8 @@ export const getCategoriasDespesa = async (): Promise<CategoriaFinanceira[]> => 
 export const getCategoriasByTipo = async (
   tipo: 'RECEITA' | 'DESPESA'
 ): Promise<CategoriaFinanceira[]> => {
-  return getCategoriasFinanceiras({ tipo, ativo: true });
+  const { data } = await api.get(`/categorias-financeiras/tipo/${tipo}`);
+  return data.data;
 };
 
 export const getCategoriaFinanceiraById = async (id: string): Promise<CategoriaFinanceira> => {

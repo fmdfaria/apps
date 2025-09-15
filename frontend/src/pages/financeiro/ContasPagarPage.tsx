@@ -71,20 +71,15 @@ export const ContasPagarPage = () => {
         label: 'Descrição'
       },
       render: (item) => (
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-rose-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-            {item.descricao.charAt(0).toUpperCase()}
-          </div>
-          <span className="text-sm font-medium">{item.descricao}</span>
-        </div>
+        <span className="text-sm font-medium">{item.descricao}</span>
       )
     },
     {
-      key: 'valorTotal',
+      key: 'valorOriginal',
       header: '💸 Valor',
       essential: true,
       render: (item) => (
-        <ValorDisplay valor={item.valorTotal} tipo="negativo" className="text-sm" />
+        <ValorDisplay valor={item.valorOriginal || (item as any).valorTotal || 0} tipo="negativo" className="text-sm" />
       )
     },
     {
@@ -347,12 +342,7 @@ export const ContasPagarPage = () => {
     <Card className="h-full hover:shadow-md transition-shadow">
       <CardHeader className="pb-2 pt-3 px-3">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-rose-600 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-              {conta.descricao.charAt(0).toUpperCase()}
-            </div>
-            <CardTitle className="text-sm font-medium truncate">{conta.descricao}</CardTitle>
-          </div>
+          <CardTitle className="text-sm font-medium truncate">{conta.descricao}</CardTitle>
           <StatusBadge status={conta.status} className="ml-2 flex-shrink-0" />
         </div>
       </CardHeader>
@@ -360,8 +350,8 @@ export const ContasPagarPage = () => {
         <div className="space-y-2 mb-3">
           <div className="grid grid-cols-1 gap-2 text-xs">
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">💸 Valor Total:</span>
-              <ValorDisplay valor={conta.valorTotal} tipo="negativo" className="text-xs" />
+              <span className="text-gray-600">💸 Valor:</span>
+              <ValorDisplay valor={conta.valorOriginal || (conta as any).valorTotal || 0} tipo="negativo" className="text-xs" />
             </div>
             
             <div className="flex items-center justify-between">
@@ -528,8 +518,6 @@ export const ContasPagarPage = () => {
         <ContaPagarModal
           isOpen={showModal}
           conta={editando}
-          empresas={empresas}
-          profissionais={profissionais}
           onClose={fecharModal}
           onSave={handleSave}
         />

@@ -6,10 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { AppToast } from '@/services/toast';
 import { getContasReceber, createContaReceber, updateContaReceber, deleteContaReceber, receberConta } from '@/services/contas-receber';
 import { getEmpresas } from '@/services/empresas';
-import { getProfissionais } from '@/services/profissionais';
 import type { ContaReceber } from '@/types/ContaReceber';
 import type { Empresa } from '@/types/Empresa';
-import type { Profissional } from '@/types/Profissional';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 import { 
@@ -44,7 +42,6 @@ import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 export const ContasReceberPage = () => {
   const [contas, setContas] = useState<ContaReceber[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
-  const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
   
@@ -62,6 +59,36 @@ export const ContasReceberPage = () => {
   // Configuração das colunas da tabela
   const columns: TableColumn<ContaReceber>[] = [
     {
+      key: 'empresa',
+      header: '🏢 Empresa',
+      essential: true,
+      render: (item) => (
+        <span className="text-sm">
+          {item.empresa?.razaoSocial || '-'}
+        </span>
+      )
+    },
+    {
+      key: 'convenio',
+      header: '🏥 Convênio',
+      essential: false,
+      render: (item) => (
+        <span className="text-sm">
+          {item.convenio?.nome || '-'}
+        </span>
+      )
+    },
+    {
+      key: 'paciente',
+      header: '👤 Paciente',
+      essential: false,
+      render: (item) => (
+        <span className="text-sm">
+          {item.paciente?.nomeCompleto || '-'}
+        </span>
+      )
+    },
+    {
       key: 'descricao',
       header: '📄 Descrição',
       essential: true,
@@ -71,28 +98,15 @@ export const ContasReceberPage = () => {
         label: 'Descrição'
       },
       render: (item) => (
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-            {item.descricao.charAt(0).toUpperCase()}
-          </div>
-          <span className="text-sm font-medium">{item.descricao}</span>
-        </div>
+        <span className="text-sm font-medium">{item.descricao}</span>
       )
     },
     {
-      key: 'valorTotal',
+      key: 'valorOriginal',
       header: '💰 Valor',
       essential: true,
       render: (item) => (
-        <ValorDisplay valor={item.valorTotal} tipo="positivo" className="text-sm" />
-      )
-    },
-    {
-      key: 'valorRecebido',
-      header: '✅ Recebido',
-      essential: true,
-      render: (item) => (
-        <ValorDisplay valor={item.valorRecebido} tipo="positivo" className="text-sm" />
+        <ValorDisplay valor={item.valorOriginal || (item as any).valorTotal || 0} tipo="positivo" className="text-sm" />
       )
     },
     {
@@ -103,6 +117,14 @@ export const ContasReceberPage = () => {
         <span className="text-sm">
           {new Date(item.dataVencimento).toLocaleDateString('pt-BR')}
         </span>
+      )
+    },
+    {
+      key: 'valorRecebido',
+      header: '✅ Recebido',
+      essential: true,
+      render: (item) => (
+        <ValorDisplay valor={item.valorRecebido} tipo="positivo" className="text-sm" />
       )
     },
     {
@@ -125,31 +147,20 @@ export const ContasReceberPage = () => {
       )
     },
     {
-      key: 'empresa',
-      header: '🏢 Empresa',
-      essential: false,
-      render: (item) => (
-        <span className="text-sm">
-          {item.empresa?.razaoSocial || '-'}
-        </span>
-      )
-    },
-    {
-      key: 'profissional',
-      header: '👨‍⚕️ Profissional',
-      essential: false,
-      render: (item) => (
-        <span className="text-sm">
-          {item.profissional?.nome || '-'}
-        </span>
-      )
-    },
-    {
       key: 'actions',
       header: '⚙️ Ações',
       essential: true,
       render: (item) => (
         <div className="flex gap-1.5">
+          <ActionButton
+            variant="view"
+            module="financeiro"
+            onClick={() => abrirModalEditar(item)}
+            title="Editar conta"
+          >
+            <Edit className="w-4 h-4" />
+          </ActionButton>
+          
           {item.status !== 'RECEBIDO' && item.status !== 'CANCELADO' && (
             <ActionButton
               variant="view"
@@ -160,15 +171,6 @@ export const ContasReceberPage = () => {
               <DollarSign className="w-4 h-4" />
             </ActionButton>
           )}
-          
-          <ActionButton
-            variant="view"
-            module="financeiro"
-            onClick={() => abrirModalEditar(item)}
-            title="Editar conta"
-          >
-            <Edit className="w-4 h-4" />
-          </ActionButton>
           
           <ActionButton
             variant="delete"
@@ -207,11 +209,13 @@ export const ContasReceberPage = () => {
       const buscaNormalizada = normalizarBusca(busca);
       const descricao = normalizarBusca(conta.descricao);
       const empresa = normalizarBusca(conta.empresa?.razaoSocial || '');
-      const profissional = normalizarBusca(conta.profissional?.nome || '');
+      const convenio = normalizarBusca(conta.convenio?.nome || '');
+      const paciente = normalizarBusca(conta.paciente?.nomeCompleto || '');
       
       return descricao.includes(buscaNormalizada) || 
              empresa.includes(buscaNormalizada) || 
-             profissional.includes(buscaNormalizada);
+             convenio.includes(buscaNormalizada) || 
+             paciente.includes(buscaNormalizada);
     }).sort((a, b) => new Date(a.dataVencimento).getTime() - new Date(b.dataVencimento).getTime());
     
     return applyFilters(dadosFiltrados);
@@ -239,15 +243,16 @@ export const ContasReceberPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [contasData, empresasData, profissionaisData] = await Promise.all([
+      const [contasData, empresasData] = await Promise.all([
         getContasReceber(),
-        getEmpresas(),
-        getProfissionais()
+        getEmpresas()
       ]);
+      
+      // Log temporário para debug
+      console.log('Contas recebidas do backend:', contasData[0]);
       
       setContas(contasData);
       setEmpresas(empresasData);
-      setProfissionais(profissionaisData);
     } catch (error: any) {
       console.error('Erro ao carregar dados:', error);
       AppToast.error('Erro ao carregar dados', {
@@ -347,35 +352,14 @@ export const ContasReceberPage = () => {
     <Card className="h-full hover:shadow-md transition-shadow">
       <CardHeader className="pb-2 pt-3 px-3">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-              {conta.descricao.charAt(0).toUpperCase()}
-            </div>
-            <CardTitle className="text-sm font-medium truncate">{conta.descricao}</CardTitle>
-          </div>
+          <CardTitle className="text-sm font-medium truncate">{conta.descricao}</CardTitle>
           <StatusBadge status={conta.status} className="ml-2 flex-shrink-0" />
         </div>
       </CardHeader>
       <CardContent className="pt-0 px-3 pb-3">
         <div className="space-y-2 mb-3">
           <div className="grid grid-cols-1 gap-2 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">💰 Valor Total:</span>
-              <ValorDisplay valor={conta.valorTotal} tipo="positivo" className="text-xs" />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">✅ Recebido:</span>
-              <ValorDisplay valor={conta.valorRecebido} tipo="positivo" className="text-xs" />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">📅 Vencimento:</span>
-              <span className="text-gray-800">
-                {new Date(conta.dataVencimento).toLocaleDateString('pt-BR')}
-              </span>
-            </div>
-
+            {/* Empresa - Primeiro */}
             {conta.empresa && (
               <div className="flex items-center gap-1">
                 <span>🏢</span>
@@ -383,17 +367,54 @@ export const ContasReceberPage = () => {
               </div>
             )}
 
-            {conta.profissional && (
+            {/* Convênio - Segundo */}
+            {conta.convenio && (
               <div className="flex items-center gap-1">
-                <span>👨‍⚕️</span>
-                <span className="text-purple-600 font-medium">{conta.profissional.nome}</span>
+                <span>🏥</span>
+                <span className="text-purple-600 font-medium">{conta.convenio.nome}</span>
               </div>
             )}
+
+            {/* Paciente - Terceiro */}
+            {conta.paciente && (
+              <div className="flex items-center gap-1">
+                <span>👤</span>
+                <span className="text-indigo-600 font-medium">{conta.paciente.nomeCompleto}</span>
+              </div>
+            )}
+            
+            {/* Valor - Quinto */}
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">💰 Valor:</span>
+              <ValorDisplay valor={conta.valorOriginal || (conta as any).valorTotal || 0} tipo="positivo" className="text-xs" />
+            </div>
+            
+            {/* Vencimento - Sexto */}
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">📅 Vencimento:</span>
+              <span className="text-gray-800">
+                {new Date(conta.dataVencimento).toLocaleDateString('pt-BR')}
+              </span>
+            </div>
+            
+            {/* Recebido - Sétimo */}
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">✅ Recebido:</span>
+              <ValorDisplay valor={conta.valorRecebido} tipo="positivo" className="text-xs" />
+            </div>
           </div>
         </div>
       </CardContent>
       
       <ResponsiveCardFooter>
+        <ActionButton
+          variant="view"
+          module="financeiro"
+          onClick={() => abrirModalEditar(conta)}
+          title="Editar conta"
+        >
+          <Edit className="w-4 h-4" />
+        </ActionButton>
         {conta.status !== 'RECEBIDO' && conta.status !== 'CANCELADO' && (
           <ActionButton
             variant="view"
@@ -404,14 +425,6 @@ export const ContasReceberPage = () => {
             <DollarSign className="w-4 h-4" />
           </ActionButton>
         )}
-        <ActionButton
-          variant="view"
-          module="financeiro"
-          onClick={() => abrirModalEditar(conta)}
-          title="Editar conta"
-        >
-          <Edit className="w-4 h-4" />
-        </ActionButton>
         <ActionButton
           variant="delete"
           module="financeiro"
@@ -443,7 +456,7 @@ export const ContasReceberPage = () => {
         {/* Header da página */}
         <PageHeader title="Contas a Receber" module="financeiro" icon="💰">
           <SearchBar
-            placeholder="Buscar por descrição, empresa ou profissional..."
+            placeholder="Buscar por descrição, empresa, convênio ou paciente..."
             value={busca}
             onChange={setBusca}
             module="financeiro"
@@ -528,8 +541,6 @@ export const ContasReceberPage = () => {
         <ContaReceberModal
           isOpen={showModal}
           conta={editando}
-          empresas={empresas}
-          profissionais={profissionais}
           onClose={fecharModal}
           onSave={handleSave}
         />
