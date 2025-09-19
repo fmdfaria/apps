@@ -52,7 +52,7 @@ import { SimpleDocumentScanner } from '@/components/SimpleDocumentScanner';
 import { TestPDFOrientation } from '@/components/TestPDFOrientation';
 import { TestDigitalizarGuias } from '@/components/TestDigitalizarGuias';
 import ScannerS3Page from '@/pages/test/ScannerS3Page';
-import { EmpresasPage, ContasBancariasPage, ContasReceberPage, ContasPagarPage, CategoriasFinanceirasPage, FluxoCaixaPage } from '@/pages/financeiro';
+import { EmpresasPage, ContasBancariasPage, ContasReceberPage, ContasPagarPage, CategoriasFinanceirasPage, FluxoCaixaPage, RelatoriosFinanceirosPage } from '@/pages/financeiro';
 
 export default function App() {
   const initializeAuth = useAuthStore((s) => s.initializeAuth);
@@ -119,6 +119,7 @@ export default function App() {
             <Route path="financeiro/contas-pagar" element={<ContasPagarPage />} />
             <Route path="financeiro/categorias-financeiras" element={<CategoriasFinanceirasPage />} />
             <Route path="financeiro/fluxo-caixa" element={<FluxoCaixaPage />} />
+            <Route path="financeiro/relatorios" element={<RelatoriosFinanceirosPage />} />
             <Route path="test/scanner" element={<TestDocumentScanner />} />
             <Route path="test/simple-camera" element={<SimpleDocumentScanner />} />
             <Route path="test/pdf-orientation" element={<TestPDFOrientation />} />

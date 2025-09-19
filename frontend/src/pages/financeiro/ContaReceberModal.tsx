@@ -77,7 +77,7 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
         convenioId: conta.convenioId || '',
         numeroDocumento: conta.numeroDocumento || '',
         observacoes: conta.observacoes || '',
-        formaRecebimento: contaComControle._formaRecebimento || conta.formaRecebimento || 'DINHEIRO'
+        formaRecebimento: contaComControle._formaRecebimento || conta.formaRecebimento || 'PIX'
       });
       
       // Verificar se deve mostrar o campo forma recebimento
@@ -88,7 +88,7 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
         descricao: '',
         valorOriginal: '',
         dataVencimento: '',
-        dataEmissao: '',
+        dataEmissao: new Date().toISOString().split('T')[0],
         empresaId: '',
         contaBancariaId: '',
         categoriaId: '',
@@ -96,9 +96,9 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
         convenioId: '',
         numeroDocumento: '',
         observacoes: '',
-        formaRecebimento: 'DINHEIRO'
+        formaRecebimento: 'PIX'
       });
-      setShowFormaRecebimento(false);
+      setShowFormaRecebimento(true);
     }
     setError('');
   }, [conta, isOpen]);
@@ -181,8 +181,8 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
         pacienteId: form.pacienteId || null,
         convenioId: form.convenioId || null,
         numeroDocumento: form.numeroDocumento || null,
-        // Incluir forma recebimento se estiver visível
-        ...(showFormaRecebimento && { formaRecebimento }),
+        // Incluir forma recebimento sempre
+        formaRecebimento,
         // Incluir userCreatedId apenas para criação, userUpdatedId sempre
         ...(conta ? {} : { userCreatedId: currentUserId }),
         userUpdatedId: currentUserId,
@@ -338,7 +338,7 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="formaRecebimento">
-                Forma de Recebimento {showFormaRecebimento && <span className="text-red-500">*</span>}
+                Forma de Recebimento <span className="text-red-500">*</span>
               </Label>
               <SingleSelectDropdown
                 options={[
@@ -359,11 +359,11 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
                   { id: 'CHEQUE', nome: 'Cheque' },
                   { id: 'BOLETO', nome: 'Boleto' }
                 ].find(option => option.id === form.formaRecebimento) || null}
-                onChange={(option) => handleChange('formaRecebimento', option?.id || 'DINHEIRO')}
+                onChange={(option) => handleChange('formaRecebimento', option?.id || 'PIX')}
                 placeholder="Selecione a forma de recebimento"
                 formatOption={(option) => option.nome}
                 headerText="Formas de recebimento"
-                disabled={!showFormaRecebimento}
+                disabled={false}
               />
             </div>
             

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, CheckCircle, TrendingUp, TrendingDown, Calendar, Building2, CreditCard } from 'lucide-react';
+import { Plus, Edit, Trash2, CheckCircle, TrendingUp, TrendingDown, Calendar, CreditCard } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AppToast } from '@/services/toast';
@@ -552,61 +552,6 @@ export const FluxoCaixaPage = () => {
   return (
     <TooltipProvider>
       <PageContainer>
-        {/* Resumo do Fluxo de Caixa */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total Entradas</p>
-                  <ValorDisplay valor={resumo.totalEntradas} tipo="positivo" className="text-xl font-bold" />
-                </div>
-                <TrendingUp className="w-8 h-8 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total Saídas</p>
-                  <ValorDisplay valor={resumo.totalSaidas} tipo="negativo" className="text-xl font-bold" />
-                </div>
-                <TrendingDown className="w-8 h-8 text-red-600" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Saldo Líquido</p>
-                  <ValorDisplay 
-                    valor={resumo.saldoLiquido} 
-                    tipo={resumo.saldoLiquido >= 0 ? 'positivo' : 'negativo'} 
-                    className="text-xl font-bold" 
-                  />
-                </div>
-                <Building2 className="w-8 h-8 text-blue-600" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Pendentes</p>
-                  <p className="text-xl font-bold text-gray-900">{resumo.pendentes}</p>
-                </div>
-                <Calendar className="w-8 h-8 text-yellow-600" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Header da página */}
         <PageHeader title="Fluxo de Caixa" module="financeiro" icon="💰">
           <SearchBar
