@@ -2,10 +2,6 @@ import { inject, injectable } from 'tsyringe';
 import { IAgendamentosRepository } from '@/core/domain/repositories/IAgendamentosRepository';
 import { Agendamento } from '@/core/domain/entities/Agendamento';
 import { IUsersRepository } from '@/core/domain/repositories/IUsersRepository';
-import { IContasReceberRepository } from '@/core/domain/repositories/IContasReceberRepository';
-import { ICategoriasFinanceirasRepository } from '@/core/domain/repositories/ICategoriasFinanceirasRepository';
-import { IPrecosParticularesRepository } from '@/core/domain/repositories/IPrecosParticularesRepository';
-import { ContaReceber } from '@/core/domain/entities/ContaReceber';
 
 interface LiberarAgendamentoParticularRequest {
   agendamentoId: string;
@@ -13,7 +9,6 @@ interface LiberarAgendamentoParticularRequest {
   recebimento: boolean;
   dataLiberacao: string;
   pagamentoAntecipado?: boolean; // Informação se o pagamento é antecipado ou não
-  registrarContaReceber?: boolean; // Se deve registrar conta a receber
 }
 
 @injectable()
@@ -23,16 +18,7 @@ export class LiberarAgendamentoParticularUseCase {
     private agendamentosRepository: IAgendamentosRepository,
     
     @inject('UsersRepository')  
-    private usersRepository: IUsersRepository,
-
-    @inject('ContasReceberRepository')
-    private contasReceberRepository: IContasReceberRepository,
-
-    @inject('CategoriasFinanceirasRepository')
-    private categoriasFinanceirasRepository: ICategoriasFinanceirasRepository,
-
-    @inject('PrecosParticularesRepository')
-    private precosParticularesRepository: IPrecosParticularesRepository
+    private usersRepository: IUsersRepository
   ) {}
 
   async execute({
@@ -40,8 +26,7 @@ export class LiberarAgendamentoParticularUseCase {
     userId,
     recebimento,
     dataLiberacao,
-    pagamentoAntecipado,
-    registrarContaReceber
+    pagamentoAntecipado
   }: LiberarAgendamentoParticularRequest): Promise<Agendamento> {
     // Verificar se o usuário existe
     const user = await this.usersRepository.findById(userId);
@@ -90,65 +75,6 @@ export class LiberarAgendamentoParticularUseCase {
       updatedAt: new Date()
     });
 
-    // Se deve registrar conta a receber e o recebimento está marcado
-    if (registrarContaReceber && recebimento) {
-      await this.criarContaReceber(agendamento, dataLiberacaoDate, userId);
-    }
-
     return agendamentoAtualizado;
-  }
-
-  private async criarContaReceber(agendamento: Agendamento, dataRecebimento: Date, userId: string): Promise<void> {
-    try {
-      // Buscar preço do serviço para o paciente particular
-      const precoParticular = await this.precosParticularesRepository.findByServicoId(agendamento.servicoId);
-      if (!precoParticular) {
-        throw new Error('Preço particular não encontrado para este serviço');
-      }
-
-      // Buscar categoria padrão para recebimentos de particulares
-      const categorias = await this.categoriasFinanceirasRepository.findByTipo('RECEITA');
-      const categoriaParticular = categorias.find(c => 
-        c.nome.toLowerCase().includes('particular') || 
-        c.nome.toLowerCase().includes('consulta') ||
-        c.codigo === 'PART' ||
-        c.codigo === 'CONS'
-      );
-      
-      if (!categoriaParticular) {
-        throw new Error('Categoria financeira para particulares não encontrada');
-      }
-
-      // Criar conta a receber já como recebida
-      const contaReceber = new ContaReceber({
-        empresaId: agendamento.empresa?.id || 'default-empresa', // usar empresa do agendamento ou padrão
-        contaBancariaId: null, // será definida quando houver integração com conta bancária
-        convenioId: agendamento.convenioId,
-        pacienteId: agendamento.pacienteId,
-        categoriaId: categoriaParticular.id,
-        numeroDocumento: `AGD-${agendamento.id.slice(-8)}`, // usar parte do ID do agendamento
-        descricao: `Pagamento particular - ${agendamento.servicoNome} - ${agendamento.pacienteNome}`,
-        valorOriginal: precoParticular.valor,
-        valorDesconto: 0,
-        valorJuros: 0,
-        valorMulta: 0,
-        valorLiquido: precoParticular.valor,
-        valorRecebido: precoParticular.valor, // já recebido
-        dataEmissao: new Date(),
-        dataVencimento: dataRecebimento,
-        dataRecebimento: dataRecebimento,
-        status: 'RECEBIDO', // já marcado como recebido
-        formaRecebimento: 'DINHEIRO', // padrão, pode ser alterado posteriormente
-        observacoes: `Gerado automaticamente pela liberação do agendamento ${agendamento.id}`,
-        userCreatedId: userId,
-        userUpdatedId: userId
-      });
-
-      await this.contasReceberRepository.create(contaReceber);
-    } catch (error) {
-      // Log do erro mas não interromper o processo de liberação
-      console.error('Erro ao criar conta a receber:', error);
-      // Pode ser implementado um sistema de log mais robusto aqui
-    }
   }
 }

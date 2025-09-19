@@ -5,12 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, User, Calendar, Clock, FileText, CreditCard, UserCheck, Monitor, MapPin, Users, AlertCircle } from 'lucide-react';
+import { CheckCircle, User, Calendar, Clock, FileText, CreditCard, UserCheck, Monitor, MapPin, Users } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { liberarAgendamentoParticular, liberarAgendamentosParticularesMensal, getAgendamentos } from '@/services/agendamentos';
 import { AppToast } from '@/services/toast';
 import { formatarDataHoraLocal } from '@/utils/dateUtils';
-import ConfirmacaoModal from '@/components/ConfirmacaoModal';
+import ContaReceberModal from '@/pages/financeiro/ContaReceberModal';
+import { createContaReceber } from '@/services/contas-receber';
 
 // Interface para dados do grupo mensal
 interface GrupoMensal {
@@ -44,43 +45,82 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [sessionNumber, setSessionNumber] = useState<number | null>(null);
   const [loadingSessions, setLoadingSessions] = useState(false);
-  const [showConfirmacaoContaReceber, setShowConfirmacaoContaReceber] = useState(false);
+  const [showContaReceberModal, setShowContaReceberModal] = useState(false);
+  const [contaReceberData, setContaReceberData] = useState<any>(null);
   const [formData, setFormData] = useState({
     recebimento: false,
-    dataLiberacao: new Date().toISOString().split('T')[0], // Data de hoje
-    registrarContaReceber: false // Nova opção para registrar automaticamente
+    dataLiberacao: new Date().toISOString().split('T')[0] // Data de hoje
   });
 
   const resetForm = () => {
     setFormData({
       recebimento: false,
-      dataLiberacao: new Date().toISOString().split('T')[0],
-      registrarContaReceber: false
+      dataLiberacao: new Date().toISOString().split('T')[0]
     });
-    setShowConfirmacaoContaReceber(false);
+    setShowContaReceberModal(false);
+    setContaReceberData(null);
   };
 
   const handleRecebimentoChange = (checked: boolean) => {
     if (checked) {
-      // Quando marca o recebimento, mostrar confirmação para registrar conta a receber
-      setShowConfirmacaoContaReceber(true);
+      // Marca o checkbox imediatamente
+      setFormData(prev => ({ 
+        ...prev, 
+        recebimento: true 
+      }));
+      // Preparar dados para o modal de conta a receber
+      prepararDadosContaReceber();
     } else {
       // Quando desmarca, resetar as opções
       setFormData(prev => ({ 
         ...prev, 
-        recebimento: false, 
-        registrarContaReceber: false 
+        recebimento: false 
       }));
     }
   };
 
-  const handleConfirmarContaReceber = (registrar: boolean) => {
-    setFormData(prev => ({ 
-      ...prev, 
-      recebimento: true, 
-      registrarContaReceber: registrar 
-    }));
-    setShowConfirmacaoContaReceber(false);
+  const prepararDadosContaReceber = () => {
+    if (!agendamento) return;
+
+    // Preparar dados pré-preenchidos para a conta a receber
+    const dadosPreenchidos = {
+      descricao: `Pagamento particular - ${agendamento.servicoNome} - ${agendamento.pacienteNome}`,
+      pacienteId: agendamento.pacienteId,
+      convenioId: agendamento.convenioId || '',
+      numeroDocumento: `AGD-${agendamento.id.slice(-8)}`,
+      dataEmissao: new Date().toISOString().split('T')[0],
+      dataVencimento: formData.dataLiberacao,
+      observacoes: `Gerado automaticamente pela liberação do agendamento ${agendamento.id}`,
+      // Status será RECEBIDO com data de recebimento preenchida
+      status: 'RECEBIDO',
+      dataRecebimento: formData.dataLiberacao,
+      formaRecebimento: 'DINHEIRO'
+    };
+
+    setContaReceberData(dadosPreenchidos);
+    setShowContaReceberModal(true);
+  };
+
+  const handleSaveContaReceber = async (dadosConta: any) => {
+    try {
+      // Criar a conta a receber
+      await createContaReceber(dadosConta);
+      
+      AppToast.created('Conta a Receber', 'Conta a receber criada com sucesso!');
+      
+      // Fechar o modal
+      setShowContaReceberModal(false);
+      setContaReceberData(null);
+    } catch (error: any) {
+      AppToast.error('Erro ao criar conta a receber', {
+        description: error.response?.data?.message || 'Erro inesperado ao criar conta a receber'
+      });
+    }
+  };
+
+  const handleCloseContaReceberModal = () => {
+    setShowContaReceberModal(false);
+    setContaReceberData(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -110,8 +150,7 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
           mesAno: grupo.mesAno,
           recebimento: formData.recebimento,
           dataLiberacao: formData.dataLiberacao,
-          pagamentoAntecipado: grupo.pagamentoAntecipado,
-          registrarContaReceber: formData.registrarContaReceber
+          pagamentoAntecipado: grupo.pagamentoAntecipado
         });
         
         AppToast.updated('Grupo Liberado', `${resultado.totalLiberados} agendamentos particulares foram liberados com sucesso para ${grupo.mesAnoDisplay}!`);
@@ -120,8 +159,7 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
         await liberarAgendamentoParticular(agendamento.id, {
           recebimento: formData.recebimento,
           dataLiberacao: formData.dataLiberacao,
-          pagamentoAntecipado: pagamentoAntecipado,
-          registrarContaReceber: formData.registrarContaReceber
+          pagamentoAntecipado: pagamentoAntecipado
         });
         AppToast.updated('Agendamento', 'O agendamento particular foi liberado com sucesso!');
       }
@@ -202,6 +240,7 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
   const isPagamentoAntecipado = grupo?.pagamentoAntecipado ?? pagamentoAntecipado ?? false;
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -390,36 +429,15 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
           </div>
         </div>
       </DialogContent>
-
-      {/* Modal de confirmação para registrar conta a receber */}
-      <ConfirmacaoModal
-        isOpen={showConfirmacaoContaReceber}
-        titulo="Registrar Conta a Receber?"
-        mensagem={
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-blue-600">
-              <AlertCircle className="w-5 h-5" />
-              <span className="font-medium">Pagamento confirmado!</span>
-            </div>
-            <p className="text-sm text-gray-600">
-              Você confirmou o recebimento do pagamento. Deseja registrar automaticamente 
-              uma <strong>conta a receber</strong> com status <strong>RECEBIDO</strong> no sistema financeiro?
-            </p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-xs text-blue-700">
-                <strong>✓ SIM:</strong> Criará uma conta a receber já marcada como recebida<br/>
-                <strong>✗ NÃO:</strong> Apenas registrará o pagamento no agendamento
-              </p>
-            </div>
-          </div>
-        }
-        onConfirm={() => handleConfirmarContaReceber(true)}
-        onCancel={() => handleConfirmarContaReceber(false)}
-        confirmText="Sim, Registrar Conta"
-        cancelText="Não, Apenas Pagamento"
-        confirmVariant="default"
-        cancelVariant="outline"
-      />
     </Dialog>
+
+    {/* Modal de criação de conta a receber */}
+    <ContaReceberModal
+      isOpen={showContaReceberModal}
+      conta={contaReceberData}
+      onClose={handleCloseContaReceberModal}
+      onSave={handleSaveContaReceber}
+    />
+    </>
   );
 };
