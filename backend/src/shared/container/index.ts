@@ -157,6 +157,7 @@ import { PrismaContasReceberRepository } from '../../infra/database/prisma/repos
 import { IContasPagarRepository } from '../../core/domain/repositories/IContasPagarRepository';
 import { PrismaContasPagarRepository } from '../../infra/database/prisma/repositories/PrismaContasPagarRepository';
 import { IFluxoCaixaRepository } from '../../core/domain/repositories/IFluxoCaixaRepository';
+import { PrismaFluxoCaixaRepository } from '../../infra/database/prisma/repositories/PrismaFluxoCaixaRepository';
 
 // Use Cases do Sistema Financeiro
 import { CreateEmpresaUseCase } from '../../core/application/use-cases/empresa/CreateEmpresaUseCase';
@@ -432,6 +433,11 @@ container.register<IContasReceberRepository>(
 container.register<IContasPagarRepository>(
   'ContasPagarRepository', 
   PrismaContasPagarRepository
+);
+
+container.register<IFluxoCaixaRepository>(
+  'FluxoCaixaRepository',
+  PrismaFluxoCaixaRepository
 );
 
 // Use Cases do Sistema Financeiro

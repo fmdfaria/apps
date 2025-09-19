@@ -716,7 +716,7 @@ Este planejamento representa uma solução completa e escalável para o controle
   GET    /contas-receber/pendentes      - Contas pendentes
   GET    /contas-receber/vencidas       - Contas vencidas
 
-  📉 4. CONTAS A PAGAR
+  📉 4. CONTAS A PAGAR - OK
 
   GET    /contas-pagar                - Listar contas a pagar (com filtros)
   POST   /contas-pagar                - Criar conta a pagar
