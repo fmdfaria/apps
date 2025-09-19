@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { FastifyRequest, FastifyReply } from 'fastify';
 import { container } from 'tsyringe';
 import { CreateAgendamentoContaUseCase } from '@/core/application/use-cases/CreateAgendamentoContaUseCase';
 import { GetAgendamentosContasUseCase } from '@/core/application/use-cases/GetAgendamentosContasUseCase';
@@ -8,9 +8,9 @@ import { GetAgendamentosContasByContaPagarUseCase } from '@/core/application/use
 import { DeleteAgendamentoContaUseCase } from '@/core/application/use-cases/DeleteAgendamentoContaUseCase';
 
 export class AgendamentosContasController {
-  async create(request: Request, response: Response): Promise<Response> {
+  async create(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { agendamentoId, contaReceberId, contaPagarId } = request.body;
+      const { agendamentoId, contaReceberId, contaPagarId } = request.body as any;
 
       const createAgendamentoContaUseCase = container.resolve(CreateAgendamentoContaUseCase);
       
@@ -20,22 +20,22 @@ export class AgendamentosContasController {
         contaPagarId
       });
 
-      return response.status(201).json({
+      reply.status(201).send({
         success: true,
         message: 'Relacionamento criado com sucesso',
         data: agendamentoConta
       });
     } catch (error: any) {
-      return response.status(400).json({
+      reply.status(400).send({
         success: false,
         message: error.message || 'Erro ao criar relacionamento'
       });
     }
   }
 
-  async findAll(request: Request, response: Response): Promise<Response> {
+  async findAll(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { contaReceberId, contaPagarId } = request.query;
+      const { contaReceberId, contaPagarId } = request.query as any;
 
       const getAgendamentosContasUseCase = container.resolve(GetAgendamentosContasUseCase);
       
@@ -44,99 +44,100 @@ export class AgendamentosContasController {
         contaPagarId: contaPagarId as string
       });
 
-      return response.json({
+      reply.send({
         success: true,
         data: agendamentosContas
       });
     } catch (error: any) {
-      return response.status(400).json({
+      reply.status(400).send({
         success: false,
         message: error.message || 'Erro ao buscar relacionamentos'
       });
     }
   }
 
-  async findByAgendamento(request: Request, response: Response): Promise<Response> {
+  async findByAgendamento(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = request.params;
+      const { id } = request.params as any;
 
       const getAgendamentoContaByAgendamentoUseCase = container.resolve(GetAgendamentoContaByAgendamentoUseCase);
       
       const agendamentoConta = await getAgendamentoContaByAgendamentoUseCase.execute(id);
 
       if (!agendamentoConta) {
-        return response.status(404).json({
+        reply.status(404).send({
           success: false,
           message: 'Relacionamento não encontrado para este agendamento'
         });
+        return;
       }
 
-      return response.json({
+      reply.send({
         success: true,
         data: agendamentoConta
       });
     } catch (error: any) {
-      return response.status(400).json({
+      reply.status(400).send({
         success: false,
         message: error.message || 'Erro ao buscar relacionamento'
       });
     }
   }
 
-  async findByContaReceber(request: Request, response: Response): Promise<Response> {
+  async findByContaReceber(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = request.params;
+      const { id } = request.params as any;
 
       const getAgendamentosContasByContaReceberUseCase = container.resolve(GetAgendamentosContasByContaReceberUseCase);
       
       const agendamentosContas = await getAgendamentosContasByContaReceberUseCase.execute(id);
 
-      return response.json({
+      reply.send({
         success: true,
         data: agendamentosContas
       });
     } catch (error: any) {
-      return response.status(400).json({
+      reply.status(400).send({
         success: false,
         message: error.message || 'Erro ao buscar relacionamentos'
       });
     }
   }
 
-  async findByContaPagar(request: Request, response: Response): Promise<Response> {
+  async findByContaPagar(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = request.params;
+      const { id } = request.params as any;
 
       const getAgendamentosContasByContaPagarUseCase = container.resolve(GetAgendamentosContasByContaPagarUseCase);
       
       const agendamentosContas = await getAgendamentosContasByContaPagarUseCase.execute(id);
 
-      return response.json({
+      reply.send({
         success: true,
         data: agendamentosContas
       });
     } catch (error: any) {
-      return response.status(400).json({
+      reply.status(400).send({
         success: false,
         message: error.message || 'Erro ao buscar relacionamentos'
       });
     }
   }
 
-  async delete(request: Request, response: Response): Promise<Response> {
+  async delete(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { id } = request.params;
+      const { id } = request.params as any;
 
       const deleteAgendamentoContaUseCase = container.resolve(DeleteAgendamentoContaUseCase);
       
       await deleteAgendamentoContaUseCase.execute(id);
 
-      return response.json({
+      reply.send({
         success: true,
         message: 'Relacionamento removido com sucesso'
       });
     } catch (error: any) {
-      return response.status(400).json({
+      reply.status(400).send({
         success: false,
         message: error.message || 'Erro ao remover relacionamento'
       });

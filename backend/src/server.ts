@@ -91,7 +91,7 @@ app.register(categoriasFinanceirasRoutes);
 app.register(contasPagarRoutes);
 app.register(fluxoCaixaRoutes);
 app.register(contasReceberRoutes);
-app.register(agendamentosContasRoutes, { prefix: '/agendamentos-contas' });
+app.register(agendamentosContasRoutes);
 
 // Health check route
 app.get('/', async (request, reply) => {

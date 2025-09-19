@@ -1,19 +1,40 @@
-import { Router } from 'express';
+import { FastifyInstance } from 'fastify';
 import { AgendamentosContasController } from '../controllers/AgendamentosContasController';
 import { ensureAuthenticated } from '../middlewares/ensureAuthenticated';
+import { ensureAuthorized } from '../middlewares/ensureAuthorized';
 
-const agendamentosContasRoutes = Router();
-const agendamentosContasController = new AgendamentosContasController();
+const controller = new AgendamentosContasController();
 
-// Todas as rotas precisam de autenticação
-agendamentosContasRoutes.use(ensureAuthenticated);
+export async function agendamentosContasRoutes(app: FastifyInstance) {
+  // 🔗 AGENDAMENTOS-CONTAS (Relacionamento)
+  
+  // Listar relacionamentos
+  app.get('/agendamentos-contas', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos-contas', 'GET')] 
+  }, (request, reply) => controller.findAll(request as any, reply as any));
 
-// 🔗 AGENDAMENTOS-CONTAS (Relacionamento)
-agendamentosContasRoutes.get('/', agendamentosContasController.findAll);                          // GET /agendamentos-contas - Listar relacionamentos
-agendamentosContasRoutes.post('/', agendamentosContasController.create);                         // POST /agendamentos-contas - Criar relacionamento
-agendamentosContasRoutes.get('/agendamento/:id', agendamentosContasController.findByAgendamento); // GET /agendamentos-contas/agendamento/:id - Por agendamento
-agendamentosContasRoutes.get('/conta-receber/:id', agendamentosContasController.findByContaReceber); // GET /agendamentos-contas/conta-receber/:id - Por conta a receber
-agendamentosContasRoutes.get('/conta-pagar/:id', agendamentosContasController.findByContaPagar);  // GET /agendamentos-contas/conta-pagar/:id - Por conta a pagar
-agendamentosContasRoutes.delete('/:id', agendamentosContasController.delete);                    // DELETE /agendamentos-contas/:id - Remover relacionamento
+  // Criar relacionamento
+  app.post('/agendamentos-contas', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos-contas', 'POST')] 
+  }, (request, reply) => controller.create(request as any, reply as any));
 
-export { agendamentosContasRoutes };
+  // Buscar por agendamento
+  app.get('/agendamentos-contas/agendamento/:id', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos-contas', 'GET')] 
+  }, (request, reply) => controller.findByAgendamento(request as any, reply as any));
+
+  // Buscar por conta a receber
+  app.get('/agendamentos-contas/conta-receber/:id', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos-contas', 'GET')] 
+  }, (request, reply) => controller.findByContaReceber(request as any, reply as any));
+
+  // Buscar por conta a pagar
+  app.get('/agendamentos-contas/conta-pagar/:id', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos-contas', 'GET')] 
+  }, (request, reply) => controller.findByContaPagar(request as any, reply as any));
+
+  // Remover relacionamento
+  app.delete('/agendamentos-contas/:id', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos-contas', 'DELETE')] 
+  }, (request, reply) => controller.delete(request as any, reply as any));
+}
