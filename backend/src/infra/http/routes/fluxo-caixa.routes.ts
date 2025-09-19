@@ -26,6 +26,11 @@ export async function fluxoCaixaRoutes(app: FastifyInstance) {
     preHandler: [ensureAuthenticated, ensureAuthorized('/fluxo-caixa/:id', 'PUT')] 
   }, (request, reply) => controller.update(request as any, reply as any));
 
+  // Excluir movimentação
+  app.delete('/fluxo-caixa/:id', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/fluxo-caixa/:id', 'DELETE')] 
+  }, (request, reply) => controller.delete(request as any, reply as any));
+
   // Conciliar movimento
   app.post('/fluxo-caixa/:id/conciliar', { 
     preHandler: [ensureAuthenticated, ensureAuthorized('/fluxo-caixa/:id/conciliar', 'POST')] 

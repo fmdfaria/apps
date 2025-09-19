@@ -757,7 +757,7 @@ Este planejamento representa uma solução completa e escalável para o controle
   GET    /relatorios-financeiros/dashboard     - Dashboard executivo
   GET    /relatorios-financeiros/export/excel  - Exportar para Excel
 
-  🔗 8. AGENDAMENTOS-CONTAS (Relacionamento)
+  🔗 8. AGENDAMENTOS-CONTAS (Relacionamento) - OK
 
   GET    /agendamentos-contas                    - Listar relacionamentos
   POST   /agendamentos-contas                    - Criar relacionamento

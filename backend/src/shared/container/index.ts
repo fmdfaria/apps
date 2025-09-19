@@ -189,6 +189,7 @@ import { UpdateFluxoCaixaUseCase } from '../../core/application/use-cases/fluxo-
 import { ConciliarFluxoCaixaUseCase } from '../../core/application/use-cases/fluxo-caixa/ConciliarFluxoCaixaUseCase';
 import { DashboardFluxoCaixaUseCase } from '../../core/application/use-cases/fluxo-caixa/DashboardFluxoCaixaUseCase';
 import { GerarRelatorioFluxoUseCase } from '../../core/application/use-cases/fluxo-caixa/GerarRelatorioFluxoUseCase';
+import { DeleteFluxoCaixaUseCase } from '../../core/application/use-cases/fluxo-caixa/DeleteFluxoCaixaUseCase';
 
 // Agendamentos-Contas Use Cases
 import { CreateAgendamentoContaUseCase } from '../../core/application/use-cases/CreateAgendamentoContaUseCase';
@@ -488,6 +489,7 @@ container.register('UpdateFluxoCaixaUseCase', UpdateFluxoCaixaUseCase);
 container.register('ConciliarFluxoCaixaUseCase', ConciliarFluxoCaixaUseCase);
 container.register('DashboardFluxoCaixaUseCase', DashboardFluxoCaixaUseCase);
 container.register('GerarRelatorioFluxoUseCase', GerarRelatorioFluxoUseCase);
+container.register('DeleteFluxoCaixaUseCase', DeleteFluxoCaixaUseCase);
 
 // Agendamentos-Contas Use Cases
 container.register('CreateAgendamentoContaUseCase', CreateAgendamentoContaUseCase);

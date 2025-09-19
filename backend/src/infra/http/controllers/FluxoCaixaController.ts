@@ -6,6 +6,7 @@ import { UpdateFluxoCaixaUseCase } from '../../../core/application/use-cases/flu
 import { ConciliarFluxoCaixaUseCase } from '../../../core/application/use-cases/fluxo-caixa/ConciliarFluxoCaixaUseCase';
 import { DashboardFluxoCaixaUseCase } from '../../../core/application/use-cases/fluxo-caixa/DashboardFluxoCaixaUseCase';
 import { GerarRelatorioFluxoUseCase } from '../../../core/application/use-cases/fluxo-caixa/GerarRelatorioFluxoUseCase';
+import { DeleteFluxoCaixaUseCase } from '../../../core/application/use-cases/fluxo-caixa/DeleteFluxoCaixaUseCase';
 
 interface CreateFluxoCaixaBody {
   empresaId: string;
@@ -212,6 +213,28 @@ export class FluxoCaixaController {
       });
     } catch (error) {
       return reply.status(500).send({
+        success: false,
+        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+      });
+    }
+  }
+
+  async delete(request: FastifyRequest<{ Params: FluxoCaixaParams }>, reply: FastifyReply) {
+    try {
+      const deleteFluxoCaixaUseCase = container.resolve(DeleteFluxoCaixaUseCase);
+      
+      await deleteFluxoCaixaUseCase.execute(request.params.id);
+      
+      return reply.send({
+        success: true,
+        message: 'Movimento de fluxo de caixa excluído com sucesso'
+      });
+    } catch (error) {
+      const statusCode = error instanceof Error && 
+        (error.message === 'Movimento de fluxo de caixa não encontrado' || 
+         error.message === 'Não é possível excluir movimentos já conciliados') ? 400 : 500;
+      
+      return reply.status(statusCode).send({
         success: false,
         message: error instanceof Error ? error.message : 'Erro interno do servidor'
       });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Users, UserCheck, Briefcase, Building, Building2, LayoutDashboard, LogOut, ChevronLeft, ChevronRight, Clock, DollarSign, CheckCircle, Stethoscope, ClipboardCheck, User, Landmark, Settings, Shield, FileText, CreditCard, TrendingUp, TrendingDown, Tag } from 'lucide-react';
+import { Calendar, Users, UserCheck, Briefcase, Building, Building2, LayoutDashboard, LogOut, ChevronLeft, ChevronRight, Clock, DollarSign, CheckCircle, Stethoscope, ClipboardCheck, User, Landmark, Settings, Shield, FileText, CreditCard, TrendingUp, TrendingDown, Tag, Banknote } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useRef, useEffect } from 'react';
@@ -47,7 +47,8 @@ const pageToModuleMap: Record<string, string> = {
   'financeiro/contas-bancarias': 'financeiro',
   'financeiro/contas-receber': 'financeiro',
   'financeiro/contas-pagar': 'financeiro',
-  'financeiro/categorias-financeiras': 'financeiro'
+  'financeiro/categorias-financeiras': 'financeiro',
+  'financeiro/fluxo-caixa': 'financeiro'
 };
 
 // Componente de Tooltip para sidebar recolhido
@@ -223,7 +224,8 @@ const menuItems = [
   { id: 'financeiro/contas-bancarias', label: 'Contas Bancárias', icon: Landmark },
   { id: 'financeiro/contas-receber', label: 'Contas a Receber', icon: TrendingUp },
   { id: 'financeiro/contas-pagar', label: 'Contas a Pagar', icon: TrendingDown },
-  { id: 'financeiro/categorias-financeiras', label: 'Categorias Financeiras', icon: Tag }
+  { id: 'financeiro/categorias-financeiras', label: 'Categorias Financeiras', icon: Tag },
+  { id: 'financeiro/fluxo-caixa', label: 'Fluxo de Caixa', icon: Banknote }
 ];
 
 export const Sidebar = ({ currentPage, onPageChange, isCollapsed: isCollapsedProp, setIsCollapsed: setIsCollapsedProp }: SidebarProps) => {

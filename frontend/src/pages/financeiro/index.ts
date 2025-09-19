@@ -4,3 +4,4 @@ export { ContasBancariasPage } from './ContasBancariasPage';
 export { ContasReceberPage } from './ContasReceberPage';
 export { ContasPagarPage } from './ContasPagarPage';
 export { CategoriasFinanceirasPage } from './CategoriasFinanceirasPage';
+export { FluxoCaixaPage } from './FluxoCaixaPage';
