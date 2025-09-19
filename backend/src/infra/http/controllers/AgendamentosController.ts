@@ -181,7 +181,8 @@ export class AgendamentosController {
       recebimento: z.boolean(),
       dataLiberacao: z.string(),
       status: z.literal('LIBERADO').optional(), // Opcional, será definido automaticamente
-      pagamentoAntecipado: z.boolean().optional() // Informação se o pagamento é antecipado
+      pagamentoAntecipado: z.boolean().optional(), // Informação se o pagamento é antecipado
+      registrarContaReceber: z.boolean().optional() // Se deve registrar conta a receber
     });
     
     const data = liberarParticularBodySchema.parse(request.body);
@@ -198,7 +199,8 @@ export class AgendamentosController {
       userId,
       recebimento: data.recebimento,
       dataLiberacao: data.dataLiberacao,
-      pagamentoAntecipado: data.pagamentoAntecipado
+      pagamentoAntecipado: data.pagamentoAntecipado,
+      registrarContaReceber: data.registrarContaReceber
     });
     
     return reply.status(200).send(agendamento);
@@ -213,7 +215,8 @@ export class AgendamentosController {
       mesAno: z.string().regex(/^\d{4}-\d{2}$/, 'Formato deve ser YYYY-MM'),
       recebimento: z.boolean(),
       dataLiberacao: z.string(),
-      pagamentoAntecipado: z.boolean().optional() // Informação se o pagamento é antecipado
+      pagamentoAntecipado: z.boolean().optional(), // Informação se o pagamento é antecipado
+      registrarContaReceber: z.boolean().optional() // Se deve registrar conta a receber
     });
     
     const data = liberarMensalBodySchema.parse(request.body);
@@ -233,7 +236,8 @@ export class AgendamentosController {
       userId,
       recebimento: data.recebimento,
       dataLiberacao: data.dataLiberacao,
-      pagamentoAntecipado: data.pagamentoAntecipado
+      pagamentoAntecipado: data.pagamentoAntecipado,
+      registrarContaReceber: data.registrarContaReceber
     });
     
     return reply.status(200).send(resultado);

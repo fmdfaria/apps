@@ -11,6 +11,7 @@ import type { Empresa } from '@/types/Empresa';
 import type { ContaBancaria } from '@/types/ContaBancaria';
 import { ValorDisplay, FormaPagamentoSelect } from '@/components/financeiro';
 import { getContasBancariasByEmpresa } from '@/services/contas-bancarias';
+import { AppToast } from '@/services/toast';
 
 interface ReceberContaModalProps {
   isOpen: boolean;
@@ -22,7 +23,6 @@ interface ReceberContaModalProps {
 
 export default function ReceberContaModal({ isOpen, conta, empresas, onClose, onSave }: ReceberContaModalProps) {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
   const [contasLoading, setContasLoading] = useState(false);
   
@@ -58,39 +58,37 @@ export default function ReceberContaModal({ isOpen, conta, empresas, onClose, on
         observacoes: ''
       });
     }
-    setError('');
   }, [conta, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!form.valorRecebido || parseFloat(form.valorRecebido) <= 0) {
-      setError('Valor recebido deve ser maior que zero');
+      AppToast.validation('Valor inválido', 'Valor recebido deve ser maior que zero');
       return;
     }
 
     if (parseFloat(form.valorRecebido) > valorRestante) {
-      setError('Valor recebido não pode ser maior que o valor restante');
+      AppToast.validation('Valor inválido', 'Valor recebido não pode ser maior que o valor restante');
       return;
     }
 
     if (!form.dataRecebimento) {
-      setError('Data de recebimento é obrigatória');
+      AppToast.validation('Data obrigatória', 'Data de recebimento é obrigatória');
       return;
     }
 
     if (!form.formaPagamento) {
-      setError('Forma de pagamento é obrigatória');
+      AppToast.validation('Forma de pagamento obrigatória', 'Selecione uma forma de pagamento');
       return;
     }
 
     if (!form.contaBancariaId) {
-      setError('Conta bancária é obrigatória');
+      AppToast.validation('Conta bancária obrigatória', 'Selecione uma conta bancária');
       return;
     }
 
     setLoading(true);
-    setError('');
 
     try {
       const payload = {
@@ -103,7 +101,9 @@ export default function ReceberContaModal({ isOpen, conta, empresas, onClose, on
       
       await onSave(payload);
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Erro ao registrar recebimento');
+      AppToast.error('Erro ao registrar recebimento', {
+        description: error.response?.data?.message || 'Ocorreu um erro inesperado. Tente novamente.'
+      });
     } finally {
       setLoading(false);
     }
@@ -139,12 +139,6 @@ export default function ReceberContaModal({ isOpen, conta, empresas, onClose, on
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
-
           {/* Resumo da Conta */}
           <div className="bg-gray-50 p-4 rounded-lg space-y-2">
             <div className="flex justify-between">

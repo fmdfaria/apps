@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, User, Calendar, Clock, FileText, CreditCard, UserCheck, Monitor, MapPin, Users } from 'lucide-react';
+import { CheckCircle, User, Calendar, Clock, FileText, CreditCard, UserCheck, Monitor, MapPin, Users, AlertCircle } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { liberarAgendamentoParticular, liberarAgendamentosParticularesMensal, getAgendamentos } from '@/services/agendamentos';
 import { AppToast } from '@/services/toast';
 import { formatarDataHoraLocal } from '@/utils/dateUtils';
+import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 
 // Interface para dados do grupo mensal
 interface GrupoMensal {
@@ -43,16 +44,43 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [sessionNumber, setSessionNumber] = useState<number | null>(null);
   const [loadingSessions, setLoadingSessions] = useState(false);
+  const [showConfirmacaoContaReceber, setShowConfirmacaoContaReceber] = useState(false);
   const [formData, setFormData] = useState({
     recebimento: false,
-    dataLiberacao: new Date().toISOString().split('T')[0] // Data de hoje
+    dataLiberacao: new Date().toISOString().split('T')[0], // Data de hoje
+    registrarContaReceber: false // Nova opção para registrar automaticamente
   });
 
   const resetForm = () => {
     setFormData({
       recebimento: false,
-      dataLiberacao: new Date().toISOString().split('T')[0]
+      dataLiberacao: new Date().toISOString().split('T')[0],
+      registrarContaReceber: false
     });
+    setShowConfirmacaoContaReceber(false);
+  };
+
+  const handleRecebimentoChange = (checked: boolean) => {
+    if (checked) {
+      // Quando marca o recebimento, mostrar confirmação para registrar conta a receber
+      setShowConfirmacaoContaReceber(true);
+    } else {
+      // Quando desmarca, resetar as opções
+      setFormData(prev => ({ 
+        ...prev, 
+        recebimento: false, 
+        registrarContaReceber: false 
+      }));
+    }
+  };
+
+  const handleConfirmarContaReceber = (registrar: boolean) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      recebimento: true, 
+      registrarContaReceber: registrar 
+    }));
+    setShowConfirmacaoContaReceber(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,7 +110,8 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
           mesAno: grupo.mesAno,
           recebimento: formData.recebimento,
           dataLiberacao: formData.dataLiberacao,
-          pagamentoAntecipado: grupo.pagamentoAntecipado
+          pagamentoAntecipado: grupo.pagamentoAntecipado,
+          registrarContaReceber: formData.registrarContaReceber
         });
         
         AppToast.updated('Grupo Liberado', `${resultado.totalLiberados} agendamentos particulares foram liberados com sucesso para ${grupo.mesAnoDisplay}!`);
@@ -91,7 +120,8 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
         await liberarAgendamentoParticular(agendamento.id, {
           recebimento: formData.recebimento,
           dataLiberacao: formData.dataLiberacao,
-          pagamentoAntecipado: pagamentoAntecipado
+          pagamentoAntecipado: pagamentoAntecipado,
+          registrarContaReceber: formData.registrarContaReceber
         });
         AppToast.updated('Agendamento', 'O agendamento particular foi liberado com sucesso!');
       }
@@ -290,9 +320,7 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
                     <Checkbox
                       id="recebimento"
                       checked={formData.recebimento}
-                      onCheckedChange={(checked) => 
-                        setFormData(prev => ({ ...prev, recebimento: !!checked }))
-                      }
+                      onCheckedChange={handleRecebimentoChange}
                     />
                     <div className="flex flex-col">
                       <label 
@@ -362,6 +390,36 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
           </div>
         </div>
       </DialogContent>
+
+      {/* Modal de confirmação para registrar conta a receber */}
+      <ConfirmacaoModal
+        isOpen={showConfirmacaoContaReceber}
+        titulo="Registrar Conta a Receber?"
+        mensagem={
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-blue-600">
+              <AlertCircle className="w-5 h-5" />
+              <span className="font-medium">Pagamento confirmado!</span>
+            </div>
+            <p className="text-sm text-gray-600">
+              Você confirmou o recebimento do pagamento. Deseja registrar automaticamente 
+              uma <strong>conta a receber</strong> com status <strong>RECEBIDO</strong> no sistema financeiro?
+            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-xs text-blue-700">
+                <strong>✓ SIM:</strong> Criará uma conta a receber já marcada como recebida<br/>
+                <strong>✗ NÃO:</strong> Apenas registrará o pagamento no agendamento
+              </p>
+            </div>
+          </div>
+        }
+        onConfirm={() => handleConfirmarContaReceber(true)}
+        onCancel={() => handleConfirmarContaReceber(false)}
+        confirmText="Sim, Registrar Conta"
+        cancelText="Não, Apenas Pagamento"
+        confirmVariant="default"
+        cancelVariant="outline"
+      />
     </Dialog>
   );
 };
