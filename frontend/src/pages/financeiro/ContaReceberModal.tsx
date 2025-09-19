@@ -53,11 +53,18 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
     pacienteId: '',
     convenioId: '',
     numeroDocumento: '',
-    observacoes: ''
+    observacoes: '',
+    formaRecebimento: 'DINHEIRO'
   });
+  
+  // Controla se deve mostrar o campo forma recebimento
+  const [showFormaRecebimento, setShowFormaRecebimento] = useState(false);
 
   useEffect(() => {
     if (conta) {
+      // Verificar se tem dados especiais de controle
+      const contaComControle = conta as any;
+      
       setForm({
         descricao: conta.descricao || '',
         valorOriginal: conta.valorOriginal?.toString() || '',
@@ -69,8 +76,13 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
         pacienteId: conta.pacienteId || '',
         convenioId: conta.convenioId || '',
         numeroDocumento: conta.numeroDocumento || '',
-        observacoes: conta.observacoes || ''
+        observacoes: conta.observacoes || '',
+        formaRecebimento: contaComControle._formaRecebimento || conta.formaRecebimento || 'DINHEIRO'
       });
+      
+      // Verificar se deve mostrar o campo forma recebimento
+      // Mostra se: 1) tem flag especial OU 2) está editando uma conta existente (que tem ID)
+      setShowFormaRecebimento(!!contaComControle._showFormaRecebimento || !!conta.id);
     } else {
       setForm({
         descricao: '',
@@ -83,8 +95,10 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
         pacienteId: '',
         convenioId: '',
         numeroDocumento: '',
-        observacoes: ''
+        observacoes: '',
+        formaRecebimento: 'DINHEIRO'
       });
+      setShowFormaRecebimento(false);
     }
     setError('');
   }, [conta, isOpen]);
@@ -153,8 +167,12 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
 
     try {
       const valorOriginal = parseFloat(form.valorOriginal);
+      // Extrair dados especiais se existirem
+      const contaComControle = conta as any;
+      const { formaRecebimento, ...formSemFormaRecebimento } = form;
+      
       const payload = {
-        ...form,
+        ...formSemFormaRecebimento,
         valorOriginal,
         valorLiquido: valorOriginal, // Inicialmente sem desconto/juros
         empresaId: form.empresaId || null,
@@ -163,9 +181,18 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
         pacienteId: form.pacienteId || null,
         convenioId: form.convenioId || null,
         numeroDocumento: form.numeroDocumento || null,
+        // Incluir forma recebimento se estiver visível
+        ...(showFormaRecebimento && { formaRecebimento }),
         // Incluir userCreatedId apenas para criação, userUpdatedId sempre
         ...(conta ? {} : { userCreatedId: currentUserId }),
-        userUpdatedId: currentUserId
+        userUpdatedId: currentUserId,
+        // Incluir dados de controle se existirem (para o fluxo de auto-recebimento)
+        ...(contaComControle?._autoReceived && {
+          _autoReceived: contaComControle._autoReceived,
+          _dataRecebimento: contaComControle._dataRecebimento,
+          _formaRecebimento: formaRecebimento,
+          _valorRecebido: contaComControle._valorRecebido
+        })
       };
       
       await onSave(payload);
@@ -275,8 +302,8 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
             </div>
           )}
 
-          {/* Linha 1: Descrição (mesmo tamanho da Empresa) | Valor Total | Data de Vencimento | Data Emissão */}
-          <div className="grid grid-cols-5 gap-4">
+          {/* Linha 1: Descrição (2 colunas) | Valor (1 coluna) */}
+          <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2 space-y-2">
               <Label htmlFor="descricao">
                 Descrição <span className="text-red-500">*</span>
@@ -292,7 +319,7 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
             
             <div className="space-y-2">
               <Label htmlFor="valorOriginal">
-                Valor Total <span className="text-red-500">*</span>
+                Valor <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="valorOriginal"
@@ -303,6 +330,40 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
                 onChange={(e) => handleChange('valorOriginal', e.target.value)}
                 placeholder="0,00"
                 required
+              />
+            </div>
+          </div>
+
+          {/* Linha 2: Forma de Recebimento | Data de Vencimento | Data Emissão */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="formaRecebimento">
+                Forma de Recebimento {showFormaRecebimento && <span className="text-red-500">*</span>}
+              </Label>
+              <SingleSelectDropdown
+                options={[
+                  { id: 'DINHEIRO', nome: 'Dinheiro' },
+                  { id: 'PIX', nome: 'PIX' },
+                  { id: 'CARTAO_CREDITO', nome: 'Cartão de Crédito' },
+                  { id: 'CARTAO_DEBITO', nome: 'Cartão de Débito' },
+                  { id: 'TRANSFERENCIA', nome: 'Transferência Bancária' },
+                  { id: 'CHEQUE', nome: 'Cheque' },
+                  { id: 'BOLETO', nome: 'Boleto' }
+                ]}
+                selected={[
+                  { id: 'DINHEIRO', nome: 'Dinheiro' },
+                  { id: 'PIX', nome: 'PIX' },
+                  { id: 'CARTAO_CREDITO', nome: 'Cartão de Crédito' },
+                  { id: 'CARTAO_DEBITO', nome: 'Cartão de Débito' },
+                  { id: 'TRANSFERENCIA', nome: 'Transferência Bancária' },
+                  { id: 'CHEQUE', nome: 'Cheque' },
+                  { id: 'BOLETO', nome: 'Boleto' }
+                ].find(option => option.id === form.formaRecebimento) || null}
+                onChange={(option) => handleChange('formaRecebimento', option?.id || 'DINHEIRO')}
+                placeholder="Selecione a forma de recebimento"
+                formatOption={(option) => option.nome}
+                headerText="Formas de recebimento"
+                disabled={!showFormaRecebimento}
               />
             </div>
             
@@ -333,7 +394,7 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
             </div>
           </div>
 
-          {/* Linha 2: Empresa | Conta Bancária | Categoria */}
+          {/* Linha 3: Empresa | Conta Bancária | Categoria */}
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="empresaId">Empresa</Label>
@@ -378,7 +439,7 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
             </div>
           </div>
 
-          {/* Linha 3: Convênio | Paciente | Número Documento */}
+          {/* Linha 4: Convênio | Paciente | Número Documento */}
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="convenioId">Convênio</Label>
@@ -424,6 +485,7 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
             </div>
           </div>
 
+          {/* Linha 5: Observações */}
           <div className="space-y-2">
             <Label htmlFor="observacoes">Observações</Label>
             <Textarea

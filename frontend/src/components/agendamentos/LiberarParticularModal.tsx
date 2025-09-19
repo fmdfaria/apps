@@ -12,6 +12,8 @@ import { AppToast } from '@/services/toast';
 import { formatarDataHoraLocal } from '@/utils/dateUtils';
 import ContaReceberModal from '@/pages/financeiro/ContaReceberModal';
 import { createContaReceber } from '@/services/contas-receber';
+import { receberConta } from '@/services/contas-receber';
+import { createAgendamentoConta } from '@/services/agendamentos-contas';
 
 // Interface para dados do grupo mensal
 interface GrupoMensal {
@@ -82,19 +84,44 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
   const prepararDadosContaReceber = () => {
     if (!agendamento) return;
 
+    // Determinar se é grupo mensal ou avulso
+    const isGrupoMensal = !!grupo;
+    
+    // Calcular descrição baseado no tipo
+    let descricao = '';
+    let valorOriginal = 0;
+    let observacoes = '';
+
+    if (isGrupoMensal && grupo) {
+      // Para grupo mensal
+      descricao = `Pagamento particular mensal - ${agendamento.servicoNome} - ${agendamento.pacienteNome} - ${grupo.mesAnoDisplay} (${grupo.quantidadeAgendamentos}x)`;
+      valorOriginal = grupo.precoTotal;
+      observacoes = `Gerado automaticamente pela liberação mensal de ${grupo.quantidadeAgendamentos} agendamentos particulares`;
+    } else {
+      // Para agendamento avulso - preciso buscar o preço particular
+      // Por enquanto vou deixar sem valor, pois não temos acesso direto ao preço aqui
+      descricao = `Pagamento particular - ${agendamento.servicoNome} - ${agendamento.pacienteNome}`;
+      valorOriginal = 0; // Usuário precisará preencher manualmente
+      observacoes = 'Gerado automaticamente pela liberação do agendamento particular';
+    }
+
     // Preparar dados pré-preenchidos para a conta a receber
+    // Vamos criar como PENDENTE primeiro, depois marcar como RECEBIDO
     const dadosPreenchidos = {
-      descricao: `Pagamento particular - ${agendamento.servicoNome} - ${agendamento.pacienteNome}`,
+      descricao,
       pacienteId: agendamento.pacienteId,
       convenioId: agendamento.convenioId || '',
-      numeroDocumento: `AGD-${agendamento.id.slice(-8)}`,
+      numeroDocumento: '', // Deixar vazio para o usuário preencher
+      valorOriginal: valorOriginal.toString(),
       dataEmissao: new Date().toISOString().split('T')[0],
       dataVencimento: formData.dataLiberacao,
-      observacoes: `Gerado automaticamente pela liberação do agendamento ${agendamento.id}`,
-      // Status será RECEBIDO com data de recebimento preenchida
-      status: 'RECEBIDO',
-      dataRecebimento: formData.dataLiberacao,
-      formaRecebimento: 'DINHEIRO'
+      observacoes,
+      // Dados extras para controlar o fluxo de recebimento
+      _autoReceived: true, // Flag para indicar que deve ser marcado como recebido automaticamente
+      _dataRecebimento: formData.dataLiberacao,
+      _formaRecebimento: 'DINHEIRO', // Padrão, mas será editável
+      _valorRecebido: valorOriginal,
+      _showFormaRecebimento: true // Flag para mostrar o campo de forma de recebimento
     };
 
     setContaReceberData(dadosPreenchidos);
@@ -103,10 +130,44 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
 
   const handleSaveContaReceber = async (dadosConta: any) => {
     try {
-      // Criar a conta a receber
-      await createContaReceber(dadosConta);
+      // Extrair dados especiais do controle de fluxo
+      const { _autoReceived, _dataRecebimento, _formaRecebimento, _valorRecebido, ...contaData } = dadosConta;
       
-      AppToast.created('Conta a Receber', 'Conta a receber criada com sucesso!');
+      // Criar a conta a receber como PENDENTE
+      const contaCriada = await createContaReceber(contaData);
+      
+      // Criar relacionamento agendamento-conta
+      if (contaCriada?.id && agendamento?.id) {
+        try {
+          await createAgendamentoConta({
+            agendamentoId: agendamento.id,
+            contaReceberId: contaCriada.id
+          });
+        } catch (relationError) {
+          console.warn('Erro ao criar relacionamento agendamento-conta:', relationError);
+          // Não interrompe o fluxo se falhar ao criar o relacionamento
+        }
+      }
+      
+      // Se deve marcar como recebido automaticamente
+      if (_autoReceived && contaCriada?.id) {
+        try {
+          await receberConta(contaCriada.id, {
+            valorRecebido: _valorRecebido || parseFloat(contaData.valorOriginal),
+            dataRecebimento: _dataRecebimento,
+            formaRecebimento: _formaRecebimento as any, // Conversão de tipo
+            contaBancariaId: contaData.contaBancariaId || '',
+            observacoes: 'Recebimento automático pela liberação de agendamento particular'
+          });
+          
+          AppToast.created('Conta a Receber', 'Conta a receber criada e marcada como recebida com sucesso!');
+        } catch (receiveError: any) {
+          // Se falhar ao marcar como recebido, pelo menos a conta foi criada
+          AppToast.warning('Conta criada', 'Conta a receber criada, mas houve problema ao marcar como recebida. Marque manualmente na tela de contas a receber.');
+        }
+      } else {
+        AppToast.created('Conta a Receber', 'Conta a receber criada com sucesso!');
+      }
       
       // Fechar o modal
       setShowContaReceberModal(false);

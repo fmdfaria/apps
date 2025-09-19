@@ -40,6 +40,7 @@ import { categoriasFinanceirasRoutes } from './infra/http/routes/categorias-fina
 import { contasPagarRoutes } from './infra/http/routes/contas-pagar.routes';
 import { fluxoCaixaRoutes } from './infra/http/routes/fluxo-caixa.routes';
 import { contasReceberRoutes } from './infra/http/routes/contas-receber.routes';
+import { agendamentosContasRoutes } from './infra/http/routes/agendamentos-contas.routes';
 
 const app = fastify({
   logger: true,
@@ -90,6 +91,7 @@ app.register(categoriasFinanceirasRoutes);
 app.register(contasPagarRoutes);
 app.register(fluxoCaixaRoutes);
 app.register(contasReceberRoutes);
+app.register(agendamentosContasRoutes, { prefix: '/agendamentos-contas' });
 
 // Health check route
 app.get('/', async (request, reply) => {

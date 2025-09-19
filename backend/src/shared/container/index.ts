@@ -158,6 +158,8 @@ import { IContasPagarRepository } from '../../core/domain/repositories/IContasPa
 import { PrismaContasPagarRepository } from '../../infra/database/prisma/repositories/PrismaContasPagarRepository';
 import { IFluxoCaixaRepository } from '../../core/domain/repositories/IFluxoCaixaRepository';
 import { PrismaFluxoCaixaRepository } from '../../infra/database/prisma/repositories/PrismaFluxoCaixaRepository';
+import { IAgendamentosContasRepository } from '../../core/domain/repositories/IAgendamentosContasRepository';
+import { PrismaAgendamentosContasRepository } from '../../infra/database/prisma/repositories/PrismaAgendamentosContasRepository';
 
 // Use Cases do Sistema Financeiro
 import { CreateEmpresaUseCase } from '../../core/application/use-cases/empresa/CreateEmpresaUseCase';
@@ -187,6 +189,14 @@ import { UpdateFluxoCaixaUseCase } from '../../core/application/use-cases/fluxo-
 import { ConciliarFluxoCaixaUseCase } from '../../core/application/use-cases/fluxo-caixa/ConciliarFluxoCaixaUseCase';
 import { DashboardFluxoCaixaUseCase } from '../../core/application/use-cases/fluxo-caixa/DashboardFluxoCaixaUseCase';
 import { GerarRelatorioFluxoUseCase } from '../../core/application/use-cases/fluxo-caixa/GerarRelatorioFluxoUseCase';
+
+// Agendamentos-Contas Use Cases
+import { CreateAgendamentoContaUseCase } from '../../core/application/use-cases/CreateAgendamentoContaUseCase';
+import { GetAgendamentosContasUseCase } from '../../core/application/use-cases/GetAgendamentosContasUseCase';
+import { GetAgendamentoContaByAgendamentoUseCase } from '../../core/application/use-cases/GetAgendamentoContaByAgendamentoUseCase';
+import { GetAgendamentosContasByContaReceberUseCase } from '../../core/application/use-cases/GetAgendamentosContasByContaReceberUseCase';
+import { GetAgendamentosContasByContaPagarUseCase } from '../../core/application/use-cases/GetAgendamentosContasByContaPagarUseCase';
+import { DeleteAgendamentoContaUseCase } from '../../core/application/use-cases/DeleteAgendamentoContaUseCase';
 
 container.registerInstance('PrismaClient', prisma);
 
@@ -440,6 +450,11 @@ container.register<IFluxoCaixaRepository>(
   PrismaFluxoCaixaRepository
 );
 
+container.register<IAgendamentosContasRepository>(
+  'AgendamentosContasRepository',
+  PrismaAgendamentosContasRepository
+);
+
 // Use Cases do Sistema Financeiro
 container.register('CreateEmpresaUseCase', CreateEmpresaUseCase);
 container.register('ListEmpresasUseCase', ListEmpresasUseCase);
@@ -473,3 +488,11 @@ container.register('UpdateFluxoCaixaUseCase', UpdateFluxoCaixaUseCase);
 container.register('ConciliarFluxoCaixaUseCase', ConciliarFluxoCaixaUseCase);
 container.register('DashboardFluxoCaixaUseCase', DashboardFluxoCaixaUseCase);
 container.register('GerarRelatorioFluxoUseCase', GerarRelatorioFluxoUseCase);
+
+// Agendamentos-Contas Use Cases
+container.register('CreateAgendamentoContaUseCase', CreateAgendamentoContaUseCase);
+container.register('GetAgendamentosContasUseCase', GetAgendamentosContasUseCase);
+container.register('GetAgendamentoContaByAgendamentoUseCase', GetAgendamentoContaByAgendamentoUseCase);
+container.register('GetAgendamentosContasByContaReceberUseCase', GetAgendamentosContasByContaReceberUseCase);
+container.register('GetAgendamentosContasByContaPagarUseCase', GetAgendamentosContasByContaPagarUseCase);
+container.register('DeleteAgendamentoContaUseCase', DeleteAgendamentoContaUseCase);
