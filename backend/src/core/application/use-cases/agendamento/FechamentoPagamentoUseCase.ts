@@ -122,6 +122,8 @@ export class FechamentoPagamentoUseCase {
       };
 
     } catch (error) {
+      console.error('Erro no fechamento de pagamento:', error);
+      
       // Em caso de erro, reverter a criação da conta a pagar
       // Primeiro deletar os relacionamentos agendamentos_contas criados
       try {
@@ -142,7 +144,9 @@ export class FechamentoPagamentoUseCase {
         console.error('Erro ao reverter criação da conta a pagar:', deleteError);
       }
       
-      throw new AppError('Erro ao processar fechamento. Operação revertida.', 500);
+      // Mostrar o erro original para debug
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      throw new AppError(`Erro ao processar fechamento: ${errorMessage}`, 500);
     }
   }
 }
