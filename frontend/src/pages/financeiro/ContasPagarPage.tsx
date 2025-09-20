@@ -59,8 +59,28 @@ export const ContasPagarPage = () => {
   // Hooks responsivos
   const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'contas-pagar-view' });
   
-  // Configuração das colunas da tabela
+  // Configuração das colunas da tabela na sequência: Empresa, Profissional, Descrição, Valor, Vencimento, Status
   const columns: TableColumn<ContaPagar>[] = [
+    {
+      key: 'empresa',
+      header: '🏢 Empresa',
+      essential: true,
+      render: (item) => (
+        <span className="text-sm">
+          {item.empresa?.razaoSocial || '-'}
+        </span>
+      )
+    },
+    {
+      key: 'profissional',
+      header: '👨‍⚕️ Profissional',
+      essential: true,
+      render: (item) => (
+        <span className="text-sm">
+          {item.profissional?.nome || '-'}
+        </span>
+      )
+    },
     {
       key: 'descricao',
       header: '📄 Descrição',
@@ -75,19 +95,11 @@ export const ContasPagarPage = () => {
       )
     },
     {
-      key: 'valorOriginal',
+      key: 'valorLiquido',
       header: '💸 Valor',
       essential: true,
       render: (item) => (
-        <ValorDisplay valor={item.valorOriginal || (item as any).valorTotal || 0} tipo="negativo" className="text-sm" />
-      )
-    },
-    {
-      key: 'valorPago',
-      header: '✅ Pago',
-      essential: true,
-      render: (item) => (
-        <ValorDisplay valor={item.valorPago} tipo="negativo" className="text-sm" />
+        <ValorDisplay valor={item.valorLiquido} tipo="negativo" className="text-sm" />
       )
     },
     {
@@ -117,26 +129,6 @@ export const ContasPagarPage = () => {
       },
       render: (item) => (
         <StatusBadge status={item.status} />
-      )
-    },
-    {
-      key: 'empresa',
-      header: '🏢 Empresa',
-      essential: false,
-      render: (item) => (
-        <span className="text-sm">
-          {item.empresa?.razaoSocial || '-'}
-        </span>
-      )
-    },
-    {
-      key: 'profissional',
-      header: '👨‍⚕️ Profissional',
-      essential: false,
-      render: (item) => (
-        <span className="text-sm">
-          {item.profissional?.nome || '-'}
-        </span>
       )
     },
     {
@@ -349,23 +341,7 @@ export const ContasPagarPage = () => {
       <CardContent className="pt-0 px-3 pb-3">
         <div className="space-y-2 mb-3">
           <div className="grid grid-cols-1 gap-2 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">💸 Valor:</span>
-              <ValorDisplay valor={conta.valorOriginal || (conta as any).valorTotal || 0} tipo="negativo" className="text-xs" />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">✅ Pago:</span>
-              <ValorDisplay valor={conta.valorPago} tipo="negativo" className="text-xs" />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">📅 Vencimento:</span>
-              <span className="text-gray-800">
-                {new Date(conta.dataVencimento).toLocaleDateString('pt-BR')}
-              </span>
-            </div>
-
+            {/* Empresa - Primeiro */}
             {conta.empresa && (
               <div className="flex items-center gap-1">
                 <span>🏢</span>
@@ -373,12 +349,27 @@ export const ContasPagarPage = () => {
               </div>
             )}
 
+            {/* Profissional - Segundo */}
             {conta.profissional && (
               <div className="flex items-center gap-1">
                 <span>👨‍⚕️</span>
                 <span className="text-purple-600 font-medium">{conta.profissional.nome}</span>
               </div>
             )}
+            
+            {/* Valor - Terceiro */}
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">💸 Valor:</span>
+              <ValorDisplay valor={conta.valorLiquido} tipo="negativo" className="text-xs" />
+            </div>
+            
+            {/* Vencimento - Quarto */}
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">📅 Vencimento:</span>
+              <span className="text-gray-800">
+                {new Date(conta.dataVencimento).toLocaleDateString('pt-BR')}
+              </span>
+            </div>
           </div>
         </div>
       </CardContent>

@@ -120,14 +120,6 @@ export const ContasReceberPage = () => {
       )
     },
     {
-      key: 'valorRecebido',
-      header: '✅ Recebido',
-      essential: true,
-      render: (item) => (
-        <ValorDisplay valor={item.valorRecebido} tipo="positivo" className="text-sm" />
-      )
-    },
-    {
       key: 'status',
       header: '📊 Status',
       essential: true,
@@ -395,12 +387,6 @@ export const ContasReceberPage = () => {
               <span className="text-gray-800">
                 {new Date(conta.dataVencimento).toLocaleDateString('pt-BR')}
               </span>
-            </div>
-            
-            {/* Recebido - Sétimo */}
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">✅ Recebido:</span>
-              <ValorDisplay valor={conta.valorRecebido} tipo="positivo" className="text-xs" />
             </div>
           </div>
         </div>
