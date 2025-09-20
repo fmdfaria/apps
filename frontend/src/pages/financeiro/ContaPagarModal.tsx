@@ -91,11 +91,17 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
   useEffect(() => {
     if (isOpen) {
       loadEmpresas();
-      loadCategorias();
       loadProfissionais();
       loadCurrentUser();
     }
   }, [isOpen]);
+
+  // Carregar categorias quando o form.tipoConta mudar
+  useEffect(() => {
+    if (isOpen && form.tipoConta) {
+      loadCategorias(form.tipoConta);
+    }
+  }, [isOpen, form.tipoConta]);
 
   const loadEmpresas = async () => {
     setEmpresasLoading(true);
@@ -110,11 +116,35 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
     }
   };
 
-  const loadCategorias = async () => {
+  const loadCategorias = async (tipoConta: string = 'DESPESA') => {
     setCategoriasLoading(true);
     try {
-      const data = await getCategoriasByTipo('DESPESA');
+      // Categorias financeiras só têm tipos RECEITA/DESPESA
+      // Para contas do tipo SALARIO, ENCARGO, etc., usamos categorias DESPESA
+      const tipoCategoria = ['SALARIO', 'ENCARGO', 'IMPOSTO', 'INVESTIMENTO'].includes(tipoConta) ? 'DESPESA' : tipoConta;
+      const data = await getCategoriasByTipo(tipoCategoria as 'RECEITA' | 'DESPESA');
       setCategorias(data);
+      
+      // Pré-selecionar categoria baseada no tipo da conta
+      if (!form.categoriaId && data.length > 0) {
+        let categoriaParaSelecionar = data[0]; // Padrão: primeira categoria
+        
+        if (tipoConta === 'SALARIO') {
+          // Para SALARIO, procurar categoria específica
+          const categoriaSalario = data.find(cat => 
+            cat.nome.toLowerCase().includes('salario') || 
+            cat.nome.toLowerCase().includes('salário') ||
+            cat.nome.toLowerCase().includes('pagamento') ||
+            cat.nome.toLowerCase().includes('profissional')
+          );
+          
+          if (categoriaSalario) {
+            categoriaParaSelecionar = categoriaSalario;
+          }
+        }
+        
+        setForm(prev => ({ ...prev, categoriaId: categoriaParaSelecionar.id }));
+      }
     } catch (error) {
       console.error('Erro ao carregar categorias:', error);
       setCategorias([]);
@@ -143,6 +173,11 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
 
     if (!form.dataVencimento) {
       setError('Data de vencimento é obrigatória');
+      return;
+    }
+
+    if (!form.categoriaId) {
+      setError('Categoria é obrigatória');
       return;
     }
 
@@ -184,6 +219,12 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
       } else {
         setContasBancarias([]);
       }
+    }
+    
+    // Recarregar categorias quando tipo da conta mudar
+    if (field === 'tipoConta') {
+      setForm(prev => ({ ...prev, categoriaId: '' }));
+      loadCategorias(value);
     }
   };
 
@@ -334,7 +375,9 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="categoriaId">Categoria</Label>
+              <Label htmlFor="categoriaId">
+                Categoria <span className="text-red-500">*</span>
+              </Label>
               <SingleSelectDropdown
                 options={categorias}
                 selected={categorias.find(c => c.id === form.categoriaId) || null}

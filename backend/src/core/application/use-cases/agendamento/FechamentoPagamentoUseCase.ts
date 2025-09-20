@@ -123,7 +123,20 @@ export class FechamentoPagamentoUseCase {
 
     } catch (error) {
       // Em caso de erro, reverter a criação da conta a pagar
+      // Primeiro deletar os relacionamentos agendamentos_contas criados
       try {
+        for (const agendamentoId of agendamentoIds) {
+          try {
+            const associacao = await this.agendamentosContasRepository.findByAgendamentoId(agendamentoId);
+            if (associacao && associacao.contaPagarId === contaPagarCriada.id) {
+              await this.agendamentosContasRepository.delete(associacao.id!);
+            }
+          } catch (deleteAssocError) {
+            console.error(`Erro ao deletar associação do agendamento ${agendamentoId}:`, deleteAssocError);
+          }
+        }
+        
+        // Depois deletar a conta a pagar
         await this.contasPagarRepository.delete(contaPagarCriada.id!);
       } catch (deleteError) {
         console.error('Erro ao reverter criação da conta a pagar:', deleteError);

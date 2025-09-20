@@ -164,7 +164,7 @@ export const FechamentoPagamentoModal: React.FC<FechamentoPagamentoModalProps> =
     descricao: `Pagamento ${profissionalNome} - Período ${periodo.inicio} a ${periodo.fim}`,
     valorOriginal: valorTotal.toString(),
     profissionalId: profissionalId,
-    tipoConta: 'DESPESA' as const,
+    tipoConta: 'SALARIO' as const,
     dataEmissao: new Date().toISOString().split('T')[0],
     dataVencimento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30 dias a partir de hoje
   };
