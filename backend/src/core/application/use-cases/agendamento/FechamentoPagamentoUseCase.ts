@@ -80,6 +80,11 @@ export class FechamentoPagamentoUseCase {
       ...contaPagarData,
       status: 'PENDENTE',
       valorPago: 0,
+      valorDesconto: 0,
+      valorJuros: 0,
+      valorMulta: 0,
+      valorLiquido: contaPagarData.valorOriginal, // Valor líquido = valor original (sem descontos, juros ou multas)
+      recorrente: contaPagarData.recorrente || false,
       criadoPor: userId
     });
 
