@@ -345,12 +345,30 @@ export const PagamentosPage = () => {
 
   const handleConfirmFechamento = async (agendamentos: Agendamento[], contaPagarData: any) => {
     try {
+      // Função para limpar valores nulos/undefined dos campos opcionais
+      const cleanOptionalField = (value: any) => {
+        if (value === null || value === undefined || value === '') {
+          return undefined;
+        }
+        return value;
+      };
+
       const fechamentoData: FechamentoPagamentoData = {
         agendamentoIds: agendamentos.map(a => a.id),
         contaPagar: {
-          ...contaPagarData,
+          descricao: contaPagarData.descricao,
           valorOriginal: parseFloat(contaPagarData.valorOriginal),
-          tipoConta: 'DESPESA' as const
+          dataVencimento: contaPagarData.dataVencimento,
+          dataEmissao: contaPagarData.dataEmissao,
+          profissionalId: contaPagarData.profissionalId,
+          tipoConta: 'DESPESA' as const,
+          // Campos opcionais - limpar valores nulos
+          empresaId: cleanOptionalField(contaPagarData.empresaId),
+          contaBancariaId: cleanOptionalField(contaPagarData.contaBancariaId),
+          categoriaId: cleanOptionalField(contaPagarData.categoriaId),
+          numeroDocumento: cleanOptionalField(contaPagarData.numeroDocumento),
+          recorrente: cleanOptionalField(contaPagarData.recorrente),
+          observacoes: cleanOptionalField(contaPagarData.observacoes),
         }
       };
 

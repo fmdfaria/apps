@@ -172,17 +172,18 @@ export const FechamentoPagamentoModal: React.FC<FechamentoPagamentoModalProps> =
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              <CreditCard className="w-5 h-5" />
-              Fechamento de Pagamento - {profissionalNome}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-7xl h-[90vh] flex flex-col p-0">
+          {/* Header fixo */}
+          <div className="flex-shrink-0 p-6 pb-4 border-b border-gray-200">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-xl">
+                <CreditCard className="w-5 h-5" />
+                Fechamento de Pagamento - {profissionalNome}
+              </DialogTitle>
+            </DialogHeader>
 
-          <div className="space-y-4">
             {/* Resumo */}
-            <div className="bg-gradient-to-r from-orange-50 to-red-50 p-4 rounded-lg border border-orange-200">
+            <div className="mt-4 bg-gradient-to-r from-orange-50 to-red-50 p-4 rounded-lg border border-orange-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Users className="w-5 h-5 text-orange-600" />
@@ -201,13 +202,14 @@ export const FechamentoPagamentoModal: React.FC<FechamentoPagamentoModalProps> =
                 ⚠️ Esta ação criará uma conta a pagar e alterará o status dos agendamentos para ARQUIVADO
               </div>
             </div>
+          </div>
 
-            <Separator />
-
+          {/* Conteúdo scrollável */}
+          <div className="flex-1 overflow-y-auto px-6">
             {/* Lista de Agendamentos */}
             <div className="border rounded-lg overflow-hidden">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 bg-white z-10">
                   <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100">
                     <TableHead className="py-2 text-xs font-semibold text-gray-700">
                       <div className="flex items-center gap-2">
@@ -317,10 +319,13 @@ export const FechamentoPagamentoModal: React.FC<FechamentoPagamentoModalProps> =
                 </TableBody>
               </Table>
             </div>
+          </div>
 
+          {/* Footer fixo */}
+          <div className="flex-shrink-0 p-6 pt-4 border-t border-gray-200">
             {/* Rodapé com informações adicionais */}
             {agendamentos.length > 0 && (
-              <div className="bg-gray-50 p-4 rounded-lg border">
+              <div className="bg-gray-50 p-4 rounded-lg border mb-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-blue-600" />
@@ -344,8 +349,8 @@ export const FechamentoPagamentoModal: React.FC<FechamentoPagamentoModalProps> =
               </div>
             )}
 
-            {/* Footer com botões de ação */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            {/* Botões de ação */}
+            <div className="flex justify-end gap-3">
               <Button
                 variant="outline"
                 onClick={onClose}

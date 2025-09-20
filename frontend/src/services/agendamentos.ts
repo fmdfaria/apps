@@ -881,14 +881,14 @@ export interface FechamentoPagamentoData {
     valorOriginal: number;
     dataVencimento: string;
     dataEmissao: string;
-    empresaId?: string;
-    contaBancariaId?: string;
-    categoriaId?: string;
+    empresaId?: string | undefined;
+    contaBancariaId?: string | undefined;
+    categoriaId?: string | undefined;
     profissionalId: string;
-    numeroDocumento?: string;
+    numeroDocumento?: string | undefined;
     tipoConta: 'DESPESA';
-    recorrente?: boolean;
-    observacoes?: string;
+    recorrente?: boolean | undefined;
+    observacoes?: string | undefined;
   };
 }
 

@@ -302,14 +302,14 @@ export class AgendamentosController {
         valorOriginal: z.number().positive('Valor deve ser positivo'),
         dataVencimento: z.coerce.date(),
         dataEmissao: z.coerce.date(),
-        empresaId: z.string().uuid().optional(),
-        contaBancariaId: z.string().uuid().optional(),
-        categoriaId: z.string().uuid().optional(),
+        empresaId: z.string().uuid().optional().nullable(),
+        contaBancariaId: z.string().uuid().optional().nullable(),
+        categoriaId: z.string().uuid().optional().nullable(),
         profissionalId: z.string().uuid(),
-        numeroDocumento: z.string().optional(),
+        numeroDocumento: z.string().optional().nullable(),
         tipoConta: z.literal('DESPESA'),
-        recorrente: z.boolean().optional(),
-        observacoes: z.string().optional(),
+        recorrente: z.boolean().optional().nullable(),
+        observacoes: z.string().optional().nullable(),
       })
     });
     

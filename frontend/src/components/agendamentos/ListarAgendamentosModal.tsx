@@ -116,17 +116,18 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <FileText className="w-5 h-5" />
-            {titulo}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-7xl h-[90vh] flex flex-col p-0">
+        {/* Header fixo */}
+        <div className="flex-shrink-0 p-6 pb-4 border-b border-gray-200">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <FileText className="w-5 h-5" />
+              {titulo}
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-4">
           {/* Resumo */}
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
+          <div className="mt-4 bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-blue-600" />
@@ -142,13 +143,14 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
               </div>
             </div>
           </div>
+        </div>
 
-          <Separator />
-
+        {/* Conteúdo scrollável */}
+        <div className="flex-1 overflow-y-auto px-6">
           {/* Lista de Agendamentos */}
           <div className="border rounded-lg overflow-hidden">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 bg-white z-10">
                 <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100">
                   <TableHead className="py-2 text-xs font-semibold text-gray-700">
                     <div className="flex items-center gap-2">
@@ -191,7 +193,7 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
               <TableBody>
                 {agendamentos.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-12 text-center">
+                    <TableCell colSpan={6} className="py-12 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                           <AlertCircle className="w-8 h-8 text-gray-400" />
@@ -270,9 +272,11 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
               </TableBody>
             </Table>
           </div>
+        </div>
 
-          {/* Rodapé com informações adicionais */}
-          {agendamentos.length > 0 && (
+        {/* Footer fixo */}
+        {agendamentos.length > 0 && (
+          <div className="flex-shrink-0 p-6 pt-4 border-t border-gray-200">
             <div className="bg-gray-50 p-4 rounded-lg border">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div className="flex items-center gap-2">
@@ -295,8 +299,8 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
                 </div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
