@@ -64,6 +64,7 @@ import { CreateAgendamentoUseCase } from '../../core/application/use-cases/agend
 import { ListAgendamentosUseCase } from '../../core/application/use-cases/agendamento/ListAgendamentosUseCase';
 import { UpdateAgendamentoUseCase } from '../../core/application/use-cases/agendamento/UpdateAgendamentoUseCase';
 import { DeleteAgendamentoUseCase } from '../../core/application/use-cases/agendamento/DeleteAgendamentoUseCase';
+import { FechamentoPagamentoUseCase } from '../../core/application/use-cases/agendamento/FechamentoPagamentoUseCase';
 
 import { PrismaEvolucoesPacientesRepository } from '../../infra/database/prisma/repositories/PrismaEvolucoesPacientesRepository';
 import { IEvolucoesPacientesRepository } from '../../core/domain/repositories/IEvolucoesPacientesRepository';
@@ -323,6 +324,7 @@ container.register('CreateAgendamentoUseCase', CreateAgendamentoUseCase);
 container.register('ListAgendamentosUseCase', ListAgendamentosUseCase);
 container.register('UpdateAgendamentoUseCase', UpdateAgendamentoUseCase);
 container.register('DeleteAgendamentoUseCase', DeleteAgendamentoUseCase);
+container.register('FechamentoPagamentoUseCase', FechamentoPagamentoUseCase);
 
 container.registerSingleton<IEvolucoesPacientesRepository>('EvolucoesPacientesRepository', PrismaEvolucoesPacientesRepository);
 

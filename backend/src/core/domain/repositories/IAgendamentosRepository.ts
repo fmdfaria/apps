@@ -78,6 +78,7 @@ export interface IAgendamentosRepository {
   create(data: ICreateAgendamentoDTO): Promise<Agendamento>;
   update(id: string, data: IUpdateAgendamentoDTO): Promise<Agendamento>;
   findById(id: string): Promise<Agendamento | null>;
+  findByIds(ids: string[]): Promise<Agendamento[]>;
   findAll(filters?: IAgendamentoFilters): Promise<IPaginatedResponse<Agendamento>>;
   findByProfissionalAndDataHoraInicio(profissionalId: string, dataHoraInicio: Date): Promise<Agendamento | null>;
   findByRecursoAndDataHoraInicio(recursoId: string, dataHoraInicio: Date): Promise<Agendamento | null>;

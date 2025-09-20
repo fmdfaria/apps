@@ -280,10 +280,6 @@ export const RelatoriosFinanceirosPage = () => {
         <PageContent>
           {/* Resumo do Fluxo de Caixa */}
           <div className="mb-8">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <PieChart className="w-5 h-5" />
-              Fluxo de Caixa
-            </h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card>
                 <CardContent className="p-4">

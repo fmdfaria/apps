@@ -59,4 +59,9 @@ export async function agendamentosRoutes(app: FastifyInstance) {
   app.put('/agendamentos-pendencias/:id', { 
     preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos-pendencias/:id', 'PUT')] 
   }, controller.pendencia);
+  
+  // Rota específica para fechamento de pagamento
+  app.post('/agendamentos/fechamento-pagamento', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos/fechamento-pagamento', 'POST')] 
+  }, controller.fechamentoPagamento);
 } 

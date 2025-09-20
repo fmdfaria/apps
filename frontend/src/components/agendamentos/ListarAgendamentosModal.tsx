@@ -116,7 +116,7 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <FileText className="w-5 h-5" />
@@ -150,37 +150,37 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
             <Table>
               <TableHeader>
                 <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100">
-                  <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                  <TableHead className="py-2 text-xs font-semibold text-gray-700">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
                       Data/Hora
                     </div>
                   </TableHead>
-                  <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                  <TableHead className="py-2 text-xs font-semibold text-gray-700">
                     <div className="flex items-center gap-2">
                       <User className="w-4 h-4" />
                       Paciente
                     </div>
                   </TableHead>
-                  <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                  <TableHead className="py-2 text-xs font-semibold text-gray-700">
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4" />
                       Profissional
                     </div>
                   </TableHead>
-                  <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                  <TableHead className="py-2 text-xs font-semibold text-gray-700">
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4" />
                       Serviço
                     </div>
                   </TableHead>
-                  <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                  <TableHead className="py-2 text-xs font-semibold text-gray-700">
                     <div className="flex items-center gap-2">
                       <DollarSign className="w-4 h-4" />
                       {calcularValor ? 'Valor a Pagar' : 'Preço'}
                     </div>
                   </TableHead>
-                  <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                  <TableHead className="py-2 text-xs font-semibold text-gray-700">
                     <div className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4" />
                       Status
@@ -211,42 +211,42 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
                         key={agendamento.id} 
                         className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200"
                       >
-                        <TableCell className="py-3">
-                          <div className="space-y-1">
-                            <div className="text-sm font-mono bg-gray-100 px-2 py-1 rounded text-gray-700 inline-block">
+                        <TableCell className="py-1.5">
+                          <div className="flex items-center gap-1">
+                            <div className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">
                               {data}
                             </div>
-                            <div className="text-sm font-mono bg-blue-100 px-2 py-1 rounded text-blue-700 inline-block ml-1">
+                            <div className="text-xs font-mono bg-blue-100 px-1.5 py-0.5 rounded text-blue-700">
                               {hora}
                             </div>
                           </div>
                         </TableCell>
                         
-                        <TableCell className="py-3">
+                        <TableCell className="py-1.5">
                           <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                            <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
                               {(agendamento.pacienteNome || 'P').charAt(0).toUpperCase()}
                             </div>
-                            <span className="text-sm font-medium">
+                            <span className="text-xs font-medium">
                               {agendamento.pacienteNome || 'Não informado'}
                             </span>
                           </div>
                         </TableCell>
                         
-                        <TableCell className="py-3">
-                          <span className="text-sm">
+                        <TableCell className="py-1.5">
+                          <span className="text-xs">
                             {agendamento.profissionalNome || 'Não informado'}
                           </span>
                         </TableCell>
                         
-                        <TableCell className="py-3">
-                          <span className="text-sm">
+                        <TableCell className="py-1.5">
+                          <span className="text-xs">
                             {agendamento.servicoNome || 'Não informado'}
                           </span>
                         </TableCell>
                         
-                        <TableCell className="py-3">
-                          <span className="text-sm font-semibold text-green-700 bg-green-50 px-2 py-1 rounded">
+                        <TableCell className="py-1.5">
+                          <span className="text-xs font-semibold text-green-700 bg-green-50 px-1.5 py-0.5 rounded">
                             {calcularValor 
                               ? formatarValor(calcularValor(agendamento))
                               : formatarValor(parseFloat((agendamento as any).servico?.preco || '0'))
@@ -254,10 +254,10 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
                           </span>
                         </TableCell>
                         
-                        <TableCell className="py-3">
+                        <TableCell className="py-1.5">
                           <Badge 
                             variant="outline" 
-                            className={`text-xs flex items-center gap-1 w-fit ${getStatusColor(agendamento.status)}`}
+                            className={`text-[10px] flex items-center gap-1 w-fit px-1.5 py-0.5 ${getStatusColor(agendamento.status)}`}
                           >
                             {getStatusIcon(agendamento.status)}
                             {agendamento.status}

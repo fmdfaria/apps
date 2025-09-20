@@ -115,6 +115,22 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     return agendamento ? toDomain(agendamento) : null;
   }
 
+  async findByIds(ids: string[]): Promise<Agendamento[]> {
+    const agendamentos = await this.prisma.agendamento.findMany({
+      where: { 
+        id: { in: ids }
+      },
+      include: { 
+        servico: true, 
+        paciente: true, 
+        profissional: { include: { conselho: true } }, 
+        recurso: true, 
+        convenio: true 
+      },
+    });
+    return agendamentos.map(toDomain);
+  }
+
   async findAll(filters?: IAgendamentoFilters): Promise<IPaginatedResponse<Agendamento>> {
     // Valores para paginação (opcional)
     const limit = filters?.limit ? Math.min(filters.limit, 100) : undefined; // Só limita se explicitamente solicitado

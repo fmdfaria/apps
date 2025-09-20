@@ -17,11 +17,12 @@ import {
   X,
   Calculator,
   Building,
-  Eye
+  Eye,
+  CreditCard
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
-import { getAgendamentos } from '@/services/agendamentos';
-import { ListarAgendamentosModal } from '@/components/agendamentos';
+import { getAgendamentos, efetuarFechamentoPagamento, type FechamentoPagamentoData } from '@/services/agendamentos';
+import { ListarAgendamentosModal, FechamentoPagamentoModal } from '@/components/agendamentos';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
@@ -59,6 +60,12 @@ export const PagamentosPage = () => {
   const [showListarModal, setShowListarModal] = useState(false);
   const [agendamentosModal, setAgendamentosModal] = useState<Agendamento[]>([]);
   const [tituloModal, setTituloModal] = useState('');
+
+  // Modal para fechamento de pagamento
+  const [showFechamentoModal, setShowFechamentoModal] = useState(false);
+  const [fechamentoData, setFechamentoData] = useState<{
+    profissional: PagamentoProfissional | null;
+  }>({ profissional: null });
 
   // Filtros avançados
   const [filtros, setFiltros] = useState({
@@ -331,6 +338,40 @@ export const PagamentosPage = () => {
     setShowListarModal(true);
   };
 
+  const handleEfetuarFechamento = (item: PagamentoProfissional) => {
+    setFechamentoData({ profissional: item });
+    setShowFechamentoModal(true);
+  };
+
+  const handleConfirmFechamento = async (agendamentos: Agendamento[], contaPagarData: any) => {
+    try {
+      const fechamentoData: FechamentoPagamentoData = {
+        agendamentoIds: agendamentos.map(a => a.id),
+        contaPagar: {
+          ...contaPagarData,
+          valorOriginal: parseFloat(contaPagarData.valorOriginal),
+          tipoConta: 'DESPESA' as const
+        }
+      };
+
+      await efetuarFechamentoPagamento(fechamentoData);
+      
+      AppToast.success('Fechamento realizado com sucesso', {
+        description: 'A conta a pagar foi criada e os agendamentos foram arquivados.'
+      });
+
+      // Recarregar dados para refletir as mudanças
+      carregarDados();
+      
+    } catch (error: any) {
+      console.error('Erro ao efetuar fechamento:', error);
+      AppToast.error('Erro ao efetuar fechamento', {
+        description: error?.response?.data?.message || 'Ocorreu um erro inesperado.'
+      });
+      throw error;
+    }
+  };
+
   const renderTableView = () => (
     <Table>
       <TableHeader>
@@ -448,6 +489,15 @@ export const PagamentosPage = () => {
                   >
                     <Eye className="w-4 h-4" />
                   </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                    onClick={() => handleEfetuarFechamento(item)}
+                    title="Efetuar Fechamento"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                  </Button>
                 </div>
               </TableCell>
             </TableRow>
@@ -516,7 +566,7 @@ export const PagamentosPage = () => {
               </div>
 
               {/* Botões de Ação */}
-              <div className="flex justify-center pt-2 border-t">
+              <div className="flex justify-center gap-1.5 pt-2 border-t">
                 <Button 
                   size="sm" 
                   variant="default"
@@ -525,6 +575,15 @@ export const PagamentosPage = () => {
                   title="Ver Agendamentos"
                 >
                   <Eye className="w-4 h-4" />
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="default"
+                  className="bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                  onClick={() => handleEfetuarFechamento(item)}
+                  title="Efetuar Fechamento"
+                >
+                  <CreditCard className="w-4 h-4" />
                 </Button>
               </div>
             </CardContent>
@@ -836,6 +895,23 @@ export const PagamentosPage = () => {
           setTituloModal('');
         }}
       />
+
+      {/* Modal para fechamento de pagamento */}
+      {fechamentoData.profissional && (
+        <FechamentoPagamentoModal
+          isOpen={showFechamentoModal}
+          agendamentos={fechamentoData.profissional.agendamentos}
+          profissionalNome={fechamentoData.profissional.profissional}
+          profissionalId={fechamentoData.profissional.profissionalId}
+          valorTotal={fechamentoData.profissional.valorPagar}
+          calcularValor={calcularValorProfissional}
+          onClose={() => {
+            setShowFechamentoModal(false);
+            setFechamentoData({ profissional: null });
+          }}
+          onConfirmFechamento={handleConfirmFechamento}
+        />
+      )}
     </div>
   );
 };

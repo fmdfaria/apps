@@ -738,7 +738,7 @@ Este planejamento representa uma solução completa e escalável para o controle
   DELETE /categorias-financeiras/:id    - Excluir categoria
   GET    /categorias-financeiras/tipo/:tipo - Por tipo (RECEITA/DESPESA)
 
-  💰 6. FLUXO DE CAIXA
+  💰 6. FLUXO DE CAIXA - OK
 
   GET    /fluxo-caixa                 - Listar movimentações
   POST   /fluxo-caixa                 - Criar movimentação manual

@@ -871,4 +871,40 @@ export const getFechamentosParticulares = async (filtros?: {
     console.error('Erro ao buscar fechamentos particulares:', error);
     throw error;
   }
+};
+
+// Interface para dados do fechamento de pagamento
+export interface FechamentoPagamentoData {
+  agendamentoIds: string[];
+  contaPagar: {
+    descricao: string;
+    valorOriginal: number;
+    dataVencimento: string;
+    dataEmissao: string;
+    empresaId?: string;
+    contaBancariaId?: string;
+    categoriaId?: string;
+    profissionalId: string;
+    numeroDocumento?: string;
+    tipoConta: 'DESPESA';
+    recorrente?: boolean;
+    observacoes?: string;
+  };
+}
+
+// Interface para retorno do fechamento
+export interface FechamentoPagamentoResult {
+  contaPagar: any;
+  agendamentosAtualizados: Agendamento[];
+  agendamentosContas: any[];
+}
+
+export const efetuarFechamentoPagamento = async (data: FechamentoPagamentoData): Promise<FechamentoPagamentoResult> => {
+  try {
+    const response = await api.post('/agendamentos/fechamento-pagamento', data);
+    return response.data.data;
+  } catch (error) {
+    console.error('Erro ao efetuar fechamento de pagamento:', error);
+    throw error;
+  }
 }; 

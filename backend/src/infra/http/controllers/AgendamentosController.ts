@@ -5,6 +5,7 @@ import { CreateAgendamentoUseCase } from '../../../core/application/use-cases/ag
 import { ListAgendamentosUseCase } from '../../../core/application/use-cases/agendamento/ListAgendamentosUseCase';
 import { UpdateAgendamentoUseCase } from '../../../core/application/use-cases/agendamento/UpdateAgendamentoUseCase';
 import { DeleteAgendamentoUseCase } from '../../../core/application/use-cases/agendamento/DeleteAgendamentoUseCase';
+import { FechamentoPagamentoUseCase } from '../../../core/application/use-cases/agendamento/FechamentoPagamentoUseCase';
 import { GetAgendamentoFormDataUseCase } from '../../../core/application/use-cases/agendamento/GetAgendamentoFormDataUseCase';
 import { LiberarAgendamentoParticularUseCase } from '../../../core/application/use-cases/LiberarAgendamentoParticularUseCase';
 import { LiberarAgendamentosParticularesMensalUseCase } from '../../../core/application/use-cases/LiberarAgendamentosParticularesMensalUseCase';
@@ -290,5 +291,47 @@ export class AgendamentosController {
     const useCase = container.resolve(UpdateAgendamentoUseCase);
     const agendamento = await useCase.execute(id, data);
     return reply.status(200).send(agendamento);
+  }
+
+  async fechamentoPagamento(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    // Schema para o fechamento de pagamento
+    const fechamentoPagamentoBodySchema = z.object({
+      agendamentoIds: z.array(z.string().uuid()).min(1, 'Pelo menos um agendamento deve ser informado'),
+      contaPagar: z.object({
+        descricao: z.string().min(1, 'Descrição é obrigatória'),
+        valorOriginal: z.number().positive('Valor deve ser positivo'),
+        dataVencimento: z.coerce.date(),
+        dataEmissao: z.coerce.date(),
+        empresaId: z.string().uuid().optional(),
+        contaBancariaId: z.string().uuid().optional(),
+        categoriaId: z.string().uuid().optional(),
+        profissionalId: z.string().uuid(),
+        numeroDocumento: z.string().optional(),
+        tipoConta: z.literal('DESPESA'),
+        recorrente: z.boolean().optional(),
+        observacoes: z.string().optional(),
+      })
+    });
+    
+    const data = fechamentoPagamentoBodySchema.parse(request.body);
+    
+    // Obter userId do request (assumindo que está disponível após autenticação)
+    const userId = (request as any).user?.id;
+    if (!userId) {
+      return reply.status(401).send({ error: 'Usuário não autenticado' });
+    }
+    
+    const useCase = container.resolve(FechamentoPagamentoUseCase);
+    const resultado = await useCase.execute({
+      agendamentoIds: data.agendamentoIds,
+      contaPagar: data.contaPagar,
+      userId
+    });
+    
+    return reply.status(201).send({
+      success: true,
+      data: resultado,
+      message: 'Fechamento realizado com sucesso'
+    });
   }
 } 
