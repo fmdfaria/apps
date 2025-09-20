@@ -109,8 +109,7 @@ export class FechamentoPagamentoUseCase {
       for (const agendamento of agendamentos) {
         const agendamentoAtualizado = await this.agendamentosRepository.update(agendamento.id!, {
           status: 'ARQUIVADO',
-          pagamento: true,
-          atualizadoEm: new Date()
+          pagamento: true
         });
         agendamentosAtualizados.push(agendamentoAtualizado);
       }
