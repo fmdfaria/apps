@@ -241,8 +241,48 @@ export const FechamentoPage = () => {
 
   // Função para calcular valor total do serviço (como no modal)
   const calcularValorTotal = (agendamento: Agendamento): number => {
+    // Primeiro, tentar buscar o preço particular específico para este paciente/serviço
+    const precoParticular = precosParticulares.find(p => 
+      p.pacienteId === agendamento.pacienteId && 
+      p.servicoId === agendamento.servicoId
+    );
+    
+    if (precoParticular) {
+      // Usar preço da tabela precos_particulares
+      return precoParticular.preco;
+    }
+    
+    // Fallback: usar preço da tabela servico se não tiver preço particular
     const preco = parseFloat((agendamento as any).servico?.preco || '0');
     return preco;
+  };
+
+  // Função para formatar informações de pagamento (igual à página Liberação Particulares)
+  const formatarPagamento = (agendamento: Agendamento): string => {
+    const precoParticular = precosParticulares.find(p => 
+      p.pacienteId === agendamento.pacienteId && 
+      p.servicoId === agendamento.servicoId
+    );
+    
+    if (!precoParticular) return '-';
+    
+    const parts: string[] = [];
+    
+    // Tipo de pagamento
+    if (precoParticular.tipoPagamento) {
+      parts.push(precoParticular.tipoPagamento);
+    }
+    
+    // Dia do pagamento
+    if (precoParticular.diaPagamento) {
+      parts.push(precoParticular.diaPagamento.toString());
+    }
+    
+    // Antecipado
+    const antecipado = precoParticular.pagamentoAntecipado ? 'SIM' : 'NÃO';
+    parts.push(antecipado);
+    
+    return parts.length > 0 ? parts.join(' - ') : '-';
   };
 
   // Função para calcular valor a receber pela clínica
@@ -748,6 +788,12 @@ export const FechamentoPage = () => {
                   <Calculator className="w-4 h-4" />
                   <span>Quantidade: {item.qtdAgendamentos} agendamentos</span>
                 </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <CreditCard className="w-4 h-4" />
+                  <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700">
+                    {formatarPagamento(item.agendamentos[0])}
+                  </span>
+                </div>
               </div>
               
               <div className="text-center p-3 bg-green-50 rounded-lg">
@@ -800,13 +846,7 @@ export const FechamentoPage = () => {
           <TableHead className="py-3 text-sm font-semibold text-gray-700 text-center">
             <div className="flex items-center justify-center gap-2">
               <CreditCard className="w-4 h-4" />
-              Tipo Pagamento
-            </div>
-          </TableHead>
-          <TableHead className="py-3 text-sm font-semibold text-gray-700 text-center">
-            <div className="flex items-center justify-center gap-2">
-              <Clock className="w-4 h-4" />
-              Pagamento Antecipado
+              Pag - Dia - Antec
             </div>
           </TableHead>
           <TableHead className="py-3 text-sm font-semibold text-gray-700 text-center">
@@ -870,14 +910,9 @@ export const FechamentoPage = () => {
                 </span>
               </TableCell>
               <TableCell className="py-3 text-center">
-                <Badge variant="outline" className={item.tipoPagamento === 'Avulso' ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-blue-50 text-blue-700 border-blue-200"}>
-                  {item.tipoPagamento || 'Mensal'}
-                </Badge>
-              </TableCell>
-              <TableCell className="py-3 text-center">
-                <Badge variant="outline" className={item.pagamentoAntecipado ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"}>
-                  {item.pagamentoAntecipado ? 'SIM' : 'NÃO'}
-                </Badge>
+                <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700">
+                  {formatarPagamento(item.agendamentos[0])}
+                </span>
               </TableCell>
               <TableCell className="py-3 text-center">
                 {(() => {

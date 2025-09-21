@@ -36,6 +36,20 @@ export const formatarDataHoraLocal = (dataISO: string) => {
 export const formatarApenasData = (dataISO: string): string => {
   if (!dataISO) return '-';
   
+  // Se for apenas uma data (YYYY-MM-DD), converter diretamente sem timezone
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dataISO)) {
+    const [ano, mes, dia] = dataISO.split('-');
+    return `${dia}/${mes}/${ano}`;
+  }
+  
+  // Se for uma data ISO com horário meia-noite UTC (ex: 2025-09-21T00:00:00.000Z)
+  // extrair apenas a parte da data para evitar problemas de timezone
+  const matchData = dataISO.match(/^(\d{4}-\d{2}-\d{2})T00:00:00\.000Z$/);
+  if (matchData) {
+    const [ano, mes, dia] = matchData[1].split('-');
+    return `${dia}/${mes}/${ano}`;
+  }
+  
   const date = new Date(dataISO);
   
   if (isNaN(date.getTime())) {

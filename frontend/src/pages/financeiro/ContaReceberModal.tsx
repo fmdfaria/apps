@@ -113,6 +113,57 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
     }
   }, [isOpen]);
 
+  // Efeito para pré-selecionar empresa, categoria e conta bancária baseado nos nomes
+  useEffect(() => {
+    if (conta && empresas.length > 0 && categorias.length > 0) {
+      const contaComControle = conta as any;
+      
+      // Buscar empresa por nome se especificado
+      if (contaComControle._empresaNome && !form.empresaId) {
+        const empresaEncontrada = empresas.find(empresa => 
+          empresa.nomeFantasia?.toUpperCase().includes(contaComControle._empresaNome.toUpperCase()) ||
+          empresa.razaoSocial?.toUpperCase().includes(contaComControle._empresaNome.toUpperCase())
+        );
+        
+        if (empresaEncontrada) {
+          setForm(prev => ({ ...prev, empresaId: empresaEncontrada.id }));
+          // Carregar contas bancárias da empresa encontrada
+          loadContasBancarias(empresaEncontrada.id);
+        }
+      }
+      
+      // Buscar categoria por nome se especificado
+      if (contaComControle._categoriaNome && !form.categoriaId) {
+        const categoriaEncontrada = categorias.find(categoria => 
+          categoria.nome?.toUpperCase().includes(contaComControle._categoriaNome.toUpperCase())
+        );
+        
+        if (categoriaEncontrada) {
+          setForm(prev => ({ ...prev, categoriaId: categoriaEncontrada.id }));
+        }
+      }
+    }
+  }, [conta, empresas, categorias]);
+
+  // Efeito para pré-selecionar conta bancária após carregar as contas da empresa
+  useEffect(() => {
+    if (conta && contasBancarias.length > 0) {
+      const contaComControle = conta as any;
+      
+      // Buscar conta bancária por nome se especificado e ainda não selecionada
+      if (contaComControle._contaBancariaNome && !form.contaBancariaId) {
+        const contaEncontrada = contasBancarias.find(contaBancaria => 
+          contaBancaria.nome?.toUpperCase().includes(contaComControle._contaBancariaNome.toUpperCase()) ||
+          contaBancaria.banco?.toUpperCase().includes('INTER')
+        );
+        
+        if (contaEncontrada) {
+          setForm(prev => ({ ...prev, contaBancariaId: contaEncontrada.id }));
+        }
+      }
+    }
+  }, [conta, contasBancarias]);
+
   const loadEmpresas = async () => {
     setEmpresasLoading(true);
     try {

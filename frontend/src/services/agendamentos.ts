@@ -568,12 +568,29 @@ export const liberarAgendamentosParticularesMensal = async (dadosLiberacao: {
 export const atenderAgendamento = async (id: string, dadosAtendimento: {
   dataAtendimento?: string;
   observacoes?: string;
+  convenioNome?: string;
 }): Promise<Agendamento> => {
-  // Usar a nova rota específica para atendimento
+  // Primeiro, sempre registrar o atendimento com status ATENDIDO
   const response = await api.put(`/agendamentos-atender/${id}`, {
-    ...dadosAtendimento,
+    dataAtendimento: dadosAtendimento.dataAtendimento,
+    observacoes: dadosAtendimento.observacoes,
     status: 'ATENDIDO'
   });
+  
+  // Se for convênio "Particular", finalizar automaticamente (pula etapa de aprovação)
+  if (dadosAtendimento.convenioNome === 'Particular') {
+    try {
+      const responseFinalizado = await api.put(`/agendamentos-concluir/${id}`, {
+        status: 'FINALIZADO'
+      });
+      return responseFinalizado.data;
+    } catch (error) {
+      console.warn('Erro ao finalizar agendamento particular automaticamente:', error);
+      // Se falhar a finalização, retorna pelo menos o agendamento atendido
+      return response.data;
+    }
+  }
+  
   return response.data;
 };
 

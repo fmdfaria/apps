@@ -2041,6 +2041,7 @@ export const LiberarParticularPage = () => {
           pagamentoAntecipado: encontrarPreco(grupoSelecionadoParaLiberacao.pacienteId, grupoSelecionadoParaLiberacao.servicoId)?.pagamentoAntecipado ?? false
         } : null}
         pagamentoAntecipado={agendamentoSelecionado ? encontrarPreco(agendamentoSelecionado.pacienteId, agendamentoSelecionado.servicoId)?.pagamentoAntecipado ?? false : false}
+        precoAvulso={agendamentoSelecionado ? encontrarPreco(agendamentoSelecionado.pacienteId, agendamentoSelecionado.servicoId)?.preco : undefined}
         onClose={() => {
           setShowLiberarAgendamento(false);
           setAgendamentoSelecionado(null);

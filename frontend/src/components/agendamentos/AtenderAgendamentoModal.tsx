@@ -47,8 +47,18 @@ export const AtenderAgendamentoModal: React.FC<AtenderAgendamentoModalProps> = (
 
     setLoading(true);
     try {
-      await atenderAgendamento(agendamento.id, formData);
-      AppToast.updated('Agendamento', 'O atendimento foi registrado com sucesso!');
+      await atenderAgendamento(agendamento.id, {
+        ...formData,
+        convenioNome: agendamento.convenioNome
+      });
+      
+      // Mensagem diferente baseada no convênio
+      const isParticular = agendamento.convenioNome === 'Particular';
+      const mensagem = isParticular 
+        ? 'O atendimento foi registrado e finalizado com sucesso!' 
+        : 'O atendimento foi registrado com sucesso!';
+      
+      AppToast.updated('Agendamento', mensagem);
       resetForm();
       onSuccess();
       onClose();

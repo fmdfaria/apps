@@ -32,6 +32,7 @@ interface LiberarParticularModalProps {
   agendamento: Agendamento | null;
   grupo?: GrupoMensal | null; // Dados do grupo se for liberação mensal
   pagamentoAntecipado?: boolean; // Para agendamentos individuais
+  precoAvulso?: number; // Preço para agendamentos avulsos individuais
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -41,6 +42,7 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
   agendamento,
   grupo,
   pagamentoAntecipado,
+  precoAvulso,
   onClose,
   onSuccess
 }) => {
@@ -98,10 +100,9 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
       valorOriginal = grupo.precoTotal;
       observacoes = `Gerado automaticamente pela liberação mensal de ${grupo.quantidadeAgendamentos} agendamentos particulares`;
     } else {
-      // Para agendamento avulso - preciso buscar o preço particular
-      // Por enquanto vou deixar sem valor, pois não temos acesso direto ao preço aqui
+      // Para agendamento avulso - usar preço passado como parâmetro
       descricao = `Pagamento particular - ${agendamento.servicoNome} - ${agendamento.pacienteNome}`;
-      valorOriginal = 0; // Usuário precisará preencher manualmente
+      valorOriginal = precoAvulso || 0; // Usar preço do parâmetro ou 0 se não disponível
       observacoes = 'Gerado automaticamente pela liberação do agendamento particular';
     }
 
@@ -119,13 +120,68 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
       // Dados extras para controlar o fluxo de recebimento
       _autoReceived: true, // Flag para indicar que deve ser marcado como recebido automaticamente
       _dataRecebimento: formData.dataLiberacao,
-      _formaRecebimento: 'DINHEIRO', // Padrão, mas será editável
+      _formaRecebimento: 'PIX', // Padrão, mas será editável
       _valorRecebido: valorOriginal,
-      _showFormaRecebimento: true // Flag para mostrar o campo de forma de recebimento
+      _showFormaRecebimento: true, // Flag para mostrar o campo de forma de recebimento
+      // Pré-preenchimentos dos novos campos
+      _empresaNome: 'CELEBRAMENTE', // Nome da empresa para buscar
+      _contaBancariaNome: 'Banco Inter da Celebramente', // Nome da conta bancária para buscar
+      _categoriaNome: 'RECEITA SERVIÇOS' // Nome da categoria para buscar
     };
 
     setContaReceberData(dadosPreenchidos);
     setShowContaReceberModal(true);
+  };
+
+  const executarLiberacaoAutomatica = async () => {
+    if (!agendamento) return;
+    
+    try {
+      if (grupo) {
+        // Liberação em grupo (mensal)
+        const resultado = await liberarAgendamentosParticularesMensal({
+          pacienteId: grupo.pacienteId,
+          profissionalId: grupo.profissionalId,
+          servicoId: grupo.servicoId,
+          mesAno: grupo.mesAno,
+          recebimento: true, // Sempre true pois já criou conta a receber
+          dataLiberacao: formData.dataLiberacao,
+          pagamentoAntecipado: grupo.pagamentoAntecipado
+        });
+        
+        AppToast.updated('Grupo Liberado', `${resultado.totalLiberados} agendamentos particulares foram liberados com sucesso para ${grupo.mesAnoDisplay}!`);
+      } else {
+        // Liberação individual
+        await liberarAgendamentoParticular(agendamento.id, {
+          recebimento: true, // Sempre true pois já criou conta a receber
+          dataLiberacao: formData.dataLiberacao,
+          pagamentoAntecipado: pagamentoAntecipado
+        });
+        AppToast.updated('Agendamento', 'O agendamento particular foi liberado com sucesso!');
+      }
+      
+      // Fechar modal principal e atualizar lista
+      resetForm();
+      onSuccess();
+      onClose();
+    } catch (error) {
+      console.error('Erro ao liberar agendamento particular automaticamente:', error);
+      
+      // Para erros 403 (acesso negado), o interceptador da API já trata
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status?: number; data?: { message?: string } } };
+        if (axiosError.response?.status === 403) {
+          // Interceptador da API já mostrou o toast de acesso negado, não duplicar
+          return;
+        }
+        
+        // Para outros erros, extrair mensagem do backend se disponível
+        const errorMessage = axiosError.response?.data?.message || 'Conta criada com sucesso, mas não foi possível liberar o agendamento automaticamente. Libere manualmente.';
+        AppToast.warning('Liberação pendente', errorMessage);
+      } else {
+        AppToast.warning('Liberação pendente', 'Conta criada com sucesso, mas não foi possível liberar o agendamento automaticamente. Libere manualmente.');
+      }
+    }
   };
 
   const handleSaveContaReceber = async (dadosConta: any) => {
@@ -160,16 +216,20 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
             observacoes: 'Recebimento automático pela liberação de agendamento particular'
           });
           
+          // Após criar conta a receber com sucesso, executar liberação do agendamento
+          await executarLiberacaoAutomatica();
+          
           AppToast.created('Conta a Receber', 'Conta a receber criada e marcada como recebida com sucesso!');
         } catch (receiveError: any) {
           // Se falhar ao marcar como recebido, pelo menos a conta foi criada
           AppToast.warning('Conta criada', 'Conta a receber criada, mas houve problema ao marcar como recebida. Marque manualmente na tela de contas a receber.');
+          return; // Não continua com a liberação se houve erro
         }
       } else {
         AppToast.created('Conta a Receber', 'Conta a receber criada com sucesso!');
       }
       
-      // Fechar o modal
+      // Fechar o modal de conta a receber
       setShowContaReceberModal(false);
       setContaReceberData(null);
     } catch (error: any) {

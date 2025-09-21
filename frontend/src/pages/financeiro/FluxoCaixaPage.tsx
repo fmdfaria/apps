@@ -65,12 +65,32 @@ export const FluxoCaixaPage = () => {
   // Configuração das colunas da tabela
   const columns: TableColumn<FluxoCaixa>[] = [
     {
-      key: 'dataMovimento',
-      header: '📅 Data',
+      key: 'empresa',
+      header: '🏢 Empresa',
       essential: true,
       render: (item) => (
         <span className="text-sm">
-          {new Date(item.dataMovimento).toLocaleDateString('pt-BR')}
+          {item.empresa?.razaoSocial || '-'}
+        </span>
+      )
+    },
+    {
+      key: 'contaBancaria',
+      header: '🏦 Conta',
+      essential: true,
+      render: (item) => (
+        <span className="text-sm">
+          {item.contaBancaria?.nome || '-'}
+        </span>
+      )
+    },
+    {
+      key: 'categoria',
+      header: '🏷️ Categoria',
+      essential: true,
+      render: (item) => (
+        <span className="text-sm">
+          {item.categoria?.nome || '-'}
         </span>
       )
     },
@@ -103,16 +123,13 @@ export const FluxoCaixaPage = () => {
       )
     },
     {
-      key: 'descricao',
-      header: '📄 Descrição',
+      key: 'dataMovimento',
+      header: '📅 Data',
       essential: true,
-      filterable: {
-        type: 'text',
-        placeholder: 'Descrição do movimento...',
-        label: 'Descrição'
-      },
       render: (item) => (
-        <span className="text-sm font-medium">{item.descricao}</span>
+        <span className="text-sm">
+          {new Date(item.dataMovimento).toLocaleDateString('pt-BR')}
+        </span>
       )
     },
     {
@@ -128,39 +145,9 @@ export const FluxoCaixaPage = () => {
       )
     },
     {
-      key: 'empresa',
-      header: '🏢 Empresa',
-      essential: false,
-      render: (item) => (
-        <span className="text-sm">
-          {item.empresa?.razaoSocial || '-'}
-        </span>
-      )
-    },
-    {
-      key: 'contaBancaria',
-      header: '🏦 Conta',
-      essential: false,
-      render: (item) => (
-        <span className="text-sm">
-          {item.contaBancaria?.nome || '-'}
-        </span>
-      )
-    },
-    {
-      key: 'categoria',
-      header: '🏷️ Categoria',
-      essential: false,
-      render: (item) => (
-        <span className="text-sm">
-          {item.categoria?.nome || '-'}
-        </span>
-      )
-    },
-    {
       key: 'formaPagamento',
       header: '💳 Forma',
-      essential: false,
+      essential: true,
       render: (item) => (
         <span className="text-sm">
           {item.formaPagamento || '-'}
@@ -227,7 +214,7 @@ export const FluxoCaixaPage = () => {
             onClick={() => setExcluindo(item)}
             title="Excluir movimento"
             disabled={item.conciliado}
-          >
+            >
             <Trash2 className="w-4 h-4" />
           </ActionButton>
         </div>
@@ -257,15 +244,15 @@ export const FluxoCaixaPage = () => {
       if (busca.trim() === '') return true;
       
       const buscaNormalizada = normalizarBusca(busca);
-      const descricao = normalizarBusca(movimento.descricao);
       const empresa = normalizarBusca(movimento.empresa?.razaoSocial || '');
       const categoria = normalizarBusca(movimento.categoria?.nome || '');
       const contaBancaria = normalizarBusca(movimento.contaBancaria?.nome || '');
+      const formaPagamento = normalizarBusca(movimento.formaPagamento || '');
       
-      return descricao.includes(buscaNormalizada) || 
-             empresa.includes(buscaNormalizada) || 
+      return empresa.includes(buscaNormalizada) || 
              categoria.includes(buscaNormalizada) || 
-             contaBancaria.includes(buscaNormalizada);
+             contaBancaria.includes(buscaNormalizada) ||
+             formaPagamento.includes(buscaNormalizada);
     }).sort((a, b) => new Date(b.dataMovimento).getTime() - new Date(a.dataMovimento).getTime());
     
     return applyFilters(dadosFiltrados);
@@ -395,7 +382,7 @@ export const FluxoCaixaPage = () => {
     setDeleteLoading(true);
     try {
       await deleteFluxoCaixa(excluindo.id);
-      AppToast.deleted('Movimento', `O movimento "${excluindo.descricao}" foi excluído permanentemente.`);
+      AppToast.deleted('Movimento', `O movimento foi excluído permanentemente.`);
       setExcluindo(null);
       fetchData();
     } catch (error: any) {
@@ -421,7 +408,9 @@ export const FluxoCaixaPage = () => {
     <Card className="h-full hover:shadow-md transition-shadow">
       <CardHeader className="pb-2 pt-3 px-3">
         <div className="flex items-start justify-between">
-          <CardTitle className="text-sm font-medium truncate">{movimento.descricao}</CardTitle>
+          <CardTitle className="text-sm font-medium truncate">
+            {movimento.empresa?.razaoSocial || 'Movimento'} - {new Date(movimento.dataMovimento).toLocaleDateString('pt-BR')}
+          </CardTitle>
           <div className="flex flex-col gap-1 ml-2 flex-shrink-0">
             <Badge 
               className={`text-xs ${
@@ -555,7 +544,7 @@ export const FluxoCaixaPage = () => {
         {/* Header da página */}
         <PageHeader title="Fluxo de Caixa" module="financeiro" icon="💰">
           <SearchBar
-            placeholder="Buscar por descrição, empresa, categoria ou conta..."
+            placeholder="Buscar por empresa, categoria, conta ou forma de pagamento..."
             value={busca}
             onChange={setBusca}
             module="financeiro"
@@ -656,7 +645,7 @@ export const FluxoCaixaPage = () => {
           onClose={() => setExcluindo(null)}
           onConfirm={handleDelete}
           title="Confirmar Exclusão de Movimento"
-          entityName={excluindo?.descricao || ''}
+          entityName={excluindo ? `${excluindo.empresa?.razaoSocial || 'Movimento'} - ${new Date(excluindo.dataMovimento).toLocaleDateString('pt-BR')}` : ''}
           entityType="movimento de fluxo de caixa"
           isLoading={deleteLoading}
           loadingText="Excluindo movimento..."
