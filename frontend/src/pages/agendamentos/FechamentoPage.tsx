@@ -27,9 +27,9 @@ import {
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import type { PrecoParticular } from '@/types/PrecoParticular';
-import { getAgendamentos } from '@/services/agendamentos';
+import { getAgendamentos, efetuarFechamentoRecebimento, type FechamentoRecebimentoData } from '@/services/agendamentos';
 import { getPrecosParticulares } from '@/services/precos-particulares';
-import { ListarAgendamentosModal } from '@/components/agendamentos';
+import { ListarAgendamentosModal, FechamentoRecebimentoModal } from '@/components/agendamentos';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
@@ -126,11 +126,17 @@ export const FechamentoPage = () => {
   const [agendamentosDetalhes, setAgendamentosDetalhes] = useState<Agendamento[]>([]);
   const [tituloModal, setTituloModal] = useState('');
 
-  // Estados para registrar pagamento
+  // Estados para registrar pagamento (particular)
   const [showContaReceberModal, setShowContaReceberModal] = useState(false);
   const [contaReceberData, setContaReceberData] = useState<any>(null);
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<Agendamento | null>(null);
   const [grupoMensalSelecionado, setGrupoMensalSelecionado] = useState<any>(null);
+
+  // Estados para fechamento de convênio
+  const [showFechamentoConvenioModal, setShowFechamentoConvenioModal] = useState(false);
+  const [fechamentoConvenioData, setFechamentoConvenioData] = useState<{
+    convenio: FechamentoConvenio | null;
+  }>({ convenio: null });
 
   // Estados para os filtros do AdvancedFilter
   const [filtros, setFiltros] = useState<Record<string, string>>({});
@@ -850,6 +856,61 @@ export const FechamentoPage = () => {
     }
   };
 
+  // ===== FUNÇÕES PARA FECHAMENTO DE CONVÊNIO =====
+
+  // Função para abrir modal de fechamento de convênio
+  const handleEfetuarFechamentoConvenio = (item: FechamentoConvenio) => {
+    setFechamentoConvenioData({ convenio: item });
+    setShowFechamentoConvenioModal(true);
+  };
+
+  // Função para confirmar fechamento de convênio
+  const handleConfirmFechamentoConvenio = async (agendamentos: Agendamento[], contaReceberData: any) => {
+    try {
+      // Função para limpar valores nulos/undefined dos campos opcionais
+      const cleanOptionalField = (value: any) => {
+        if (value === null || value === undefined || value === '') {
+          return undefined;
+        }
+        return value;
+      };
+
+      const fechamentoData: FechamentoRecebimentoData = {
+        agendamentoIds: agendamentos.map(a => a.id),
+        contaReceber: {
+          descricao: contaReceberData.descricao,
+          valorOriginal: parseFloat(contaReceberData.valorOriginal),
+          dataVencimento: contaReceberData.dataVencimento,
+          dataEmissao: contaReceberData.dataEmissao,
+          empresaId: cleanOptionalField(contaReceberData.empresaId),
+          contaBancariaId: cleanOptionalField(contaReceberData.contaBancariaId),
+          categoriaId: cleanOptionalField(contaReceberData.categoriaId),
+          convenioId: cleanOptionalField(contaReceberData.convenioId),
+          numeroDocumento: cleanOptionalField(contaReceberData.numeroDocumento),
+          tipoConta: 'RECEITA',
+          recorrente: cleanOptionalField(contaReceberData.recorrente),
+          observacoes: cleanOptionalField(contaReceberData.observacoes),
+        }
+      };
+
+      await efetuarFechamentoRecebimento(fechamentoData);
+      
+      AppToast.success('Fechamento realizado com sucesso', {
+        description: 'A conta a receber foi criada e os agendamentos foram arquivados.'
+      });
+
+      // Recarregar dados para refletir as mudanças
+      carregarAgendamentos();
+      
+    } catch (error: any) {
+      console.error('Erro ao efetuar fechamento:', error);
+      AppToast.error('Erro ao efetuar fechamento', {
+        description: error?.response?.data?.message || 'Ocorreu um erro inesperado.'
+      });
+      throw error;
+    }
+  };
+
   // Função para calcular valor a receber pela clínica
   const calcularValorClinica = (agendamento: Agendamento): number => {
     // Prioridade 1: valor_clinica direto do serviço
@@ -1235,6 +1296,15 @@ export const FechamentoPage = () => {
                     title="Ver Agendamentos"
                   >
                     <Eye className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="bg-gradient-to-r from-green-600 to-emerald-700 text-white hover:from-green-700 hover:to-emerald-800 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                    onClick={() => handleEfetuarFechamentoConvenio(item)}
+                    title="Efetuar Fechamento"
+                  >
+                    <TrendingUp className="w-4 h-4" />
                   </Button>
                 </div>
               </TableCell>
@@ -1881,6 +1951,20 @@ export const FechamentoPage = () => {
         onClose={handleCloseContaReceberModal}
         onSave={handleSaveContaReceber}
       />
+
+      {/* Modal de fechamento de recebimento para convênios */}
+      {fechamentoConvenioData.convenio && (
+        <FechamentoRecebimentoModal
+          isOpen={showFechamentoConvenioModal}
+          agendamentos={fechamentoConvenioData.convenio.agendamentos}
+          convenioNome={fechamentoConvenioData.convenio.convenio}
+          convenioId={fechamentoConvenioData.convenio.agendamentos[0]?.convenioId}
+          valorTotal={fechamentoConvenioData.convenio.valorReceber}
+          onClose={() => setShowFechamentoConvenioModal(false)}
+          onConfirmFechamento={handleConfirmFechamentoConvenio}
+          calcularValor={calcularValorTotal}
+        />
+      )}
     </div>
   );
 };

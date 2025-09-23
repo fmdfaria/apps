@@ -924,4 +924,40 @@ export const efetuarFechamentoPagamento = async (data: FechamentoPagamentoData):
     console.error('Erro ao efetuar fechamento de pagamento:', error);
     throw error;
   }
+};
+
+// Interface para dados do fechamento de recebimento (convênios)
+export interface FechamentoRecebimentoData {
+  agendamentoIds: string[];
+  contaReceber: {
+    descricao: string;
+    valorOriginal: number;
+    dataVencimento: string;
+    dataEmissao: string;
+    empresaId?: string | undefined;
+    contaBancariaId?: string | undefined;
+    categoriaId?: string | undefined;
+    convenioId?: string | undefined;
+    numeroDocumento?: string | undefined;
+    tipoConta: 'RECEITA';
+    recorrente?: boolean | undefined;
+    observacoes?: string | undefined;
+  };
+}
+
+// Interface para retorno do fechamento de recebimento
+export interface FechamentoRecebimentoResult {
+  contaReceber: any;
+  agendamentosAtualizados: Agendamento[];
+  agendamentosContas: any[];
+}
+
+export const efetuarFechamentoRecebimento = async (data: FechamentoRecebimentoData): Promise<FechamentoRecebimentoResult> => {
+  try {
+    const response = await api.post('/agendamentos/fechamento-recebimento', data);
+    return response.data.data;
+  } catch (error) {
+    console.error('Erro ao efetuar fechamento de recebimento:', error);
+    throw error;
+  }
 }; 

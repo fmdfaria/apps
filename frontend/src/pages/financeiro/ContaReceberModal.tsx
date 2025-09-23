@@ -153,8 +153,7 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
       // Buscar conta bancária por nome se especificado e ainda não selecionada
       if (contaComControle._contaBancariaNome && !form.contaBancariaId) {
         const contaEncontrada = contasBancarias.find(contaBancaria => 
-          contaBancaria.nome?.toUpperCase().includes(contaComControle._contaBancariaNome.toUpperCase()) ||
-          contaBancaria.banco?.toUpperCase().includes('INTER')
+          contaBancaria.nome?.toUpperCase().includes(contaComControle._contaBancariaNome.toUpperCase())
         );
         
         if (contaEncontrada) {

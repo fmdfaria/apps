@@ -7,6 +7,7 @@ export { AtenderAgendamentoModal } from './AtenderAgendamentoModal';
 export { DigitalizarGuiasModal } from './DigitalizarGuiasModal';
 export { ListarAgendamentosModal } from './ListarAgendamentosModal';
 export { FechamentoPagamentoModal } from './FechamentoPagamentoModal';
+export { FechamentoRecebimentoModal } from './FechamentoRecebimentoModal';
 
 // Componentes de formulário
 export { AgendamentoModal } from './components/AgendamentoModal';
