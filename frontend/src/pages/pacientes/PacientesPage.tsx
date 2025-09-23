@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Paperclip, Building2, Phone, History, RotateCcw, Calendar } from 'lucide-react';
+import { Plus, Edit, Trash2, Paperclip, Building2, Phone, History, RotateCcw, Calendar, Filter } from 'lucide-react';
+import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,8 +32,6 @@ import {
   PageContent, 
   ViewToggle, 
   SearchBar, 
-  FilterButton,
-  DynamicFilterPanel,
   ResponsiveTable, 
   ResponsiveCards, 
   ResponsivePagination,
@@ -40,15 +39,47 @@ import {
   ResponsiveCardFooter,
   TableColumn 
 } from '@/components/layout';
-import type { FilterConfig } from '@/types/filters';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
-import { useTableFilters } from '@/hooks/useTableFilters';
 import { useMenuPermissions } from '@/hooks/useMenuPermissions';
 import { getModuleTheme } from '@/types/theme';
 import { formatWhatsAppDisplay, isValidWhatsApp } from '@/utils/whatsapp';
 import { getAnexos } from '@/services/anexos';
 import type { Anexo } from '@/types/Anexo';
+
+// Configuração dos campos de filtro para o AdvancedFilter
+const filterFields: FilterField[] = [
+  { 
+    key: 'nomeCompleto', 
+    type: 'text', 
+    label: 'Nome',
+    placeholder: 'Nome do paciente...'
+  },
+  { 
+    key: 'whatsapp', 
+    type: 'text', 
+    label: 'WhatsApp',
+    placeholder: 'WhatsApp do paciente...'
+  },
+  { 
+    key: 'tipoServico', 
+    type: 'static-select', 
+    label: 'Tipo de Serviço',
+    options: [
+      { id: 'Particular', nome: 'Particular' },
+      { id: 'Convênio', nome: 'Convênio' }
+    ],
+    placeholder: 'Selecione o tipo...'
+  },
+  { 
+    key: 'convenioId', 
+    type: 'api-select', 
+    label: 'Convênio',
+    apiService: getConvenios,
+    placeholder: 'Selecione um convênio...',
+    searchFields: ['nome']
+  }
+];
 
 // Formatação centralizada do WhatsApp
 const formatWhatsApp = (whatsapp: string) => formatWhatsAppDisplay(whatsapp);
@@ -418,21 +449,48 @@ export const PacientesPage = () => {
     }
   ];
   
-  // Sistema de filtros dinâmicos
-  const {
-    activeFilters,
-    filterConfigs,
-    activeFiltersCount,
-    setFilter,
-    clearFilter,
-    clearAllFilters,
-    applyFilters
-  } = useTableFilters(columns);
+  // Estados para os filtros do AdvancedFilter (seguindo padrão das outras páginas)
+  const [filtros, setFiltros] = useState({
+    nomeCompleto: '',
+    whatsapp: '',
+    tipoServico: '',
+    convenioId: ''
+  });
+  // Estados separados para filtros aplicados vs editados
+  const [filtrosAplicados, setFiltrosAplicados] = useState({
+    nomeCompleto: '',
+    whatsapp: '',
+    tipoServico: '',
+    convenioId: ''
+  });
   
   // Estado para mostrar/ocultar painel de filtros
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+
+  // Funções de controle de filtros
+  const updateFiltro = (campo: keyof typeof filtros, valor: string) => {
+    setFiltros(prev => ({ ...prev, [campo]: valor }));
+  };
+
+  const aplicarFiltros = () => {
+    setFiltrosAplicados(filtros);
+  };
+
+  const limparFiltros = () => {
+    const filtrosLimpos = {
+      nomeCompleto: '',
+      whatsapp: '',
+      tipoServico: '',
+      convenioId: ''
+    };
+    setFiltros(filtrosLimpos);
+    setFiltrosAplicados(filtrosLimpos);
+  };
+
+  const temFiltrosAtivos = Object.values(filtrosAplicados).some(filtro => filtro !== '');
+  const temFiltrosNaoAplicados = JSON.stringify(filtros) !== JSON.stringify(filtrosAplicados);
   
-  // Filtrar dados baseado na busca e filtros dinâmicos
+  // Filtrar dados baseado na busca e filtros aplicados
   const pacientesFiltrados = useMemo(() => {
     // Função para normalizar texto
     const normalizarBusca = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -461,9 +519,31 @@ export const PacientesPage = () => {
       return match;
     }).sort((a, b) => a.nomeCompleto.localeCompare(b.nomeCompleto, 'pt-BR', { sensitivity: 'base' }));
     
-    // Depois aplicar filtros dinâmicos
-    return applyFilters(dadosFiltrados);
-  }, [pacientes, busca, applyFilters]);
+    // Depois aplicar filtros avançados
+    return dadosFiltrados.filter(p => {
+      // Filtro por nome
+      if (filtrosAplicados.nomeCompleto && !normalizarBusca(p.nomeCompleto).includes(normalizarBusca(filtrosAplicados.nomeCompleto))) {
+        return false;
+      }
+      
+      // Filtro por WhatsApp
+      if (filtrosAplicados.whatsapp && !normalizarTelefone(p.whatsapp || '').includes(normalizarTelefone(filtrosAplicados.whatsapp))) {
+        return false;
+      }
+      
+      // Filtro por tipo de serviço
+      if (filtrosAplicados.tipoServico && p.tipoServico !== filtrosAplicados.tipoServico) {
+        return false;
+      }
+      
+      // Filtro por convênio
+      if (filtrosAplicados.convenioId && p.convenioId !== filtrosAplicados.convenioId) {
+        return false;
+      }
+      
+      return true;
+    });
+  }, [pacientes, busca, filtrosAplicados]);
 
   const {
     data: pacientesPaginados,
@@ -958,13 +1038,19 @@ export const PacientesPage = () => {
           module="pacientes"
         />
         
-        <FilterButton
-          showFilters={mostrarFiltros}
-          onToggleFilters={() => setMostrarFiltros(prev => !prev)}
-          activeFiltersCount={activeFiltersCount}
-          module="pacientes"
-          disabled={filterConfigs.length === 0}
-        />
+        <Button
+          variant="outline"
+          onClick={() => setMostrarFiltros(!mostrarFiltros)}
+          className={`${mostrarFiltros ? 'bg-teal-50 border-teal-300' : ''} ${temFiltrosAtivos ? 'border-teal-500 bg-teal-50' : ''}`}
+        >
+          <Filter className="w-4 h-4 mr-2" />
+          Filtros
+          {temFiltrosAtivos && (
+            <Badge variant="secondary" className="ml-2 h-4 px-1">
+              {Object.values(filtrosAplicados).filter(f => f !== '').length}
+            </Badge>
+          )}
+        </Button>
         
         <ViewToggle 
           viewMode={viewMode} 
@@ -1002,15 +1088,17 @@ export const PacientesPage = () => {
 
       {/* Conteúdo principal */}
       <PageContent>
-        {/* Painel de Filtros Dinâmicos */}
-        <DynamicFilterPanel
+        {/* Painel de Filtros Avançados */}
+        <AdvancedFilter
+          fields={filterFields}
+          filters={filtros}
+          appliedFilters={filtrosAplicados}
+          onFilterChange={updateFiltro}
+          onApplyFilters={aplicarFiltros}
+          onClearFilters={limparFiltros}
           isVisible={mostrarFiltros}
-          filterConfigs={filterConfigs}
-          activeFilters={activeFilters}
-          onFilterChange={setFilter}
-          onClearAll={clearAllFilters}
           onClose={() => setMostrarFiltros(false)}
-          module="pacientes"
+          loading={loading}
         />
 
         {/* Conteúdo baseado no modo de visualização */}

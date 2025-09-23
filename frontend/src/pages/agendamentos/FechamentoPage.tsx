@@ -16,8 +16,6 @@ import {
   LayoutGrid,
   List,
   Filter,
-  FilterX,
-  X,
   Calculator,
   TrendingUp,
   Building,
@@ -35,11 +33,15 @@ import { ListarAgendamentosModal } from '@/components/agendamentos';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
+import { getConvenios } from '@/services/convenios';
+import { getServicos } from '@/services/servicos';
+import { getPacientes } from '@/services/pacientes';
+import { getProfissionais } from '@/services/profissionais';
 import ContaReceberModal from '@/pages/financeiro/ContaReceberModal';
 import { createContaReceber, receberConta } from '@/services/contas-receber';
 import { createAgendamentoConta } from '@/services/agendamentos-contas';
 
-// Configuração dos campos de filtro para o AdvancedFilter (movida para fora do componente)
+// Configuração dos campos de filtro para o AdvancedFilter
 const filterFields: FilterField[] = [
   { 
     key: 'dataInicio', 
@@ -52,16 +54,36 @@ const filterFields: FilterField[] = [
     label: 'Data Fim' 
   },
   { 
-    key: 'convenio', 
-    type: 'text', 
+    key: 'convenioId', 
+    type: 'api-select', 
     label: 'Convênio',
-    placeholder: 'Nome do convênio...'
+    apiService: getConvenios,
+    placeholder: 'Selecione um convênio...',
+    searchFields: ['nome']
   },
   { 
-    key: 'paciente', 
-    type: 'text', 
+    key: 'servicoId', 
+    type: 'api-select', 
+    label: 'Serviço',
+    apiService: getServicos,
+    placeholder: 'Selecione um serviço...',
+    searchFields: ['nome']
+  },
+  { 
+    key: 'pacienteId', 
+    type: 'api-select', 
     label: 'Paciente',
-    placeholder: 'Nome do paciente...'
+    apiService: getPacientes,
+    placeholder: 'Selecione um paciente...',
+    searchFields: ['nomeCompleto']
+  },
+  { 
+    key: 'profissionalId', 
+    type: 'api-select', 
+    label: 'Profissional',
+    apiService: getProfissionais,
+    placeholder: 'Selecione um profissional...',
+    searchFields: ['nome']
   }
 ];
 
@@ -177,6 +199,10 @@ export const FechamentoPage = () => {
         // Removido limit para usar padrão da API (dados serão agrupados)
         ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
         ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
+        ...(filtrosAplicados.convenioId ? { convenioId: filtrosAplicados.convenioId } : {}),
+        ...(filtrosAplicados.servicoId ? { servicoId: filtrosAplicados.servicoId } : {}),
+        ...(filtrosAplicados.pacienteId ? { pacienteId: filtrosAplicados.pacienteId } : {}),
+        ...(filtrosAplicados.profissionalId ? { profissionalId: filtrosAplicados.profissionalId } : {}),
       });
       
       // A nova API retorna { data: [], pagination: {} }
@@ -848,6 +874,7 @@ export const FechamentoPage = () => {
   };
 
   // Filtrar agendamentos FINALIZADOS (com proteção para array)
+  // Note: Os filtros avançados agora são aplicados via API, então aqui só filtramos por busca textual
   const agendamentosFiltrados = (Array.isArray(agendamentos) ? agendamentos : [])
     .filter(a => a.status === 'FINALIZADO')
     .filter(a => 
@@ -856,25 +883,7 @@ export const FechamentoPage = () => {
       a.profissionalNome?.toLowerCase().includes(busca.toLowerCase()) ||
       a.servicoNome?.toLowerCase().includes(busca.toLowerCase()) ||
       a.convenioNome?.toLowerCase().includes(busca.toLowerCase())
-    )
-    // Filtros avançados por coluna
-    .filter(a => !filtrosAplicados.paciente || a.pacienteNome?.toLowerCase().includes(filtrosAplicados.paciente.toLowerCase()))
-    .filter(a => !filtrosAplicados.profissional || a.profissionalNome?.toLowerCase().includes(filtrosAplicados.profissional.toLowerCase()))
-    .filter(a => !filtrosAplicados.servico || a.servicoNome?.toLowerCase().includes(filtrosAplicados.servico.toLowerCase()))
-    .filter(a => !filtrosAplicados.convenio || a.convenioNome?.toLowerCase().includes(filtrosAplicados.convenio.toLowerCase()))
-    .filter(a => {
-      if (!filtrosAplicados.dataInicio && !filtrosAplicados.dataFim) return true;
-      
-      // Ajustar para timezone do Brasil (-3 horas) antes de extrair a data
-      const date = new Date(a.dataHoraInicio);
-      const brasilDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
-      const dataAgendamentoISO = brasilDate.toISOString().split('T')[0];
-      
-      if (filtrosAplicados.dataInicio && dataAgendamentoISO < filtrosAplicados.dataInicio) return false;
-      if (filtrosAplicados.dataFim && dataAgendamentoISO > filtrosAplicados.dataFim) return false;
-      
-      return true;
-    });
+    );
 
   // Processar dados para visualização de convênios
   const processarDadosConvenios = (): FechamentoConvenio[] => {

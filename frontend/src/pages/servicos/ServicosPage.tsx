@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, RotateCcw } from 'lucide-react';
+import { Plus, Edit, Trash2, RotateCcw, Filter } from 'lucide-react';
+import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -23,8 +24,6 @@ import {
   PageContent, 
   ViewToggle, 
   SearchBar, 
-  FilterButton,
-  DynamicFilterPanel,
   ResponsiveTable, 
   ResponsiveCards, 
   ResponsivePagination,
@@ -32,11 +31,39 @@ import {
   TableColumn,
   ResponsiveCardFooter 
 } from '@/components/layout';
-import type { FilterConfig } from '@/types/filters';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
-import { useTableFilters } from '@/hooks/useTableFilters';
 import { getModuleTheme } from '@/types/theme';
+
+// Configuração dos campos de filtro para o AdvancedFilter
+const filterFields: FilterField[] = [
+  { 
+    key: 'convenioId', 
+    type: 'api-select', 
+    label: 'Convênio',
+    apiService: getConvenios,
+    placeholder: 'Selecione um convênio...',
+    searchFields: ['nome']
+  },
+  { 
+    key: 'nome', 
+    type: 'text', 
+    label: 'Nome',
+    placeholder: 'Nome do serviço...'
+  },
+  { 
+    key: 'duracaoMinutos', 
+    type: 'text', 
+    label: 'Duração (min)',
+    placeholder: 'Ex: 60'
+  },
+  { 
+    key: 'preco', 
+    type: 'text', 
+    label: 'Preço (R$)',
+    placeholder: 'Ex: 100.00'
+  }
+];
 
 // Interface para compatibilidade com API atual
 interface ServicoAPI extends Servico {
@@ -428,21 +455,48 @@ export const ServicosPage = () => {
     }
   ];
   
-  // Sistema de filtros dinâmicos
-  const {
-    activeFilters,
-    filterConfigs,
-    activeFiltersCount,
-    setFilter,
-    clearFilter,
-    clearAllFilters,
-    applyFilters
-  } = useTableFilters(columns);
+  // Estados para os filtros do AdvancedFilter (seguindo padrão das outras páginas)
+  const [filtros, setFiltros] = useState({
+    convenioId: '',
+    nome: '',
+    duracaoMinutos: '',
+    preco: ''
+  });
+  // Estados separados para filtros aplicados vs editados
+  const [filtrosAplicados, setFiltrosAplicados] = useState({
+    convenioId: '',
+    nome: '',
+    duracaoMinutos: '',
+    preco: ''
+  });
   
   // Estado para mostrar/ocultar painel de filtros
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+
+  // Funções de controle de filtros
+  const updateFiltro = (campo: keyof typeof filtros, valor: string) => {
+    setFiltros(prev => ({ ...prev, [campo]: valor }));
+  };
+
+  const aplicarFiltros = () => {
+    setFiltrosAplicados(filtros);
+  };
+
+  const limparFiltros = () => {
+    const filtrosLimpos = {
+      convenioId: '',
+      nome: '',
+      duracaoMinutos: '',
+      preco: ''
+    };
+    setFiltros(filtrosLimpos);
+    setFiltrosAplicados(filtrosLimpos);
+  };
+
+  const temFiltrosAtivos = Object.values(filtrosAplicados).some(filtro => filtro !== '');
+  const temFiltrosNaoAplicados = JSON.stringify(filtros) !== JSON.stringify(filtrosAplicados);
   
-  // Filtrar dados baseado na busca e filtros dinâmicos
+  // Filtrar dados baseado na busca e filtros aplicados
   const servicosFiltrados = useMemo(() => {
     // Primeiro aplicar busca textual
     let dadosFiltrados = servicos.filter(s =>
@@ -450,25 +504,31 @@ export const ServicosPage = () => {
       s.convenio?.nome.toLowerCase().includes(busca.toLowerCase())
     );
     
-    // Depois aplicar filtros dinâmicos baseados nas colunas
-    // Precisamos ajustar os dados para que o hook possa aplicar os filtros corretamente
-    dadosFiltrados = dadosFiltrados.map(servico => ({
-      ...servico,
-      // Extrair valores para filtros de campos calculados
-      valorClinica: servico.valorClinica != null 
-        ? servico.valorClinica
-        : servico.percentualClinica != null && servico.preco != null 
-        ? (servico.percentualClinica / 100) * servico.preco 
-        : 0,
-      valorProfissional: servico.valorProfissional != null 
-        ? servico.valorProfissional
-        : servico.percentualProfissional != null && servico.preco != null 
-        ? (servico.percentualProfissional / 100) * servico.preco 
-        : 0
-    }));
-    
-    return applyFilters(dadosFiltrados);
-  }, [servicos, busca, applyFilters]);
+    // Depois aplicar filtros avançados
+    return dadosFiltrados.filter(s => {
+      // Filtro por convênio
+      if (filtrosAplicados.convenioId && s.convenioId !== filtrosAplicados.convenioId) {
+        return false;
+      }
+      
+      // Filtro por nome
+      if (filtrosAplicados.nome && !s.nome.toLowerCase().includes(filtrosAplicados.nome.toLowerCase())) {
+        return false;
+      }
+      
+      // Filtro por duração
+      if (filtrosAplicados.duracaoMinutos && !s.duracaoMinutos.toString().includes(filtrosAplicados.duracaoMinutos)) {
+        return false;
+      }
+      
+      // Filtro por preço
+      if (filtrosAplicados.preco && !s.preco.toString().includes(filtrosAplicados.preco)) {
+        return false;
+      }
+      
+      return true;
+    });
+  }, [servicos, busca, filtrosAplicados]);
 
   const {
     data: servicosPaginados,
@@ -949,14 +1009,19 @@ export const ServicosPage = () => {
           module="servicos"
         />
         
-        <FilterButton
-          showFilters={mostrarFiltros}
-          onToggleFilters={() => setMostrarFiltros(prev => !prev)}
-          activeFiltersCount={activeFiltersCount}
-          module="servicos"
-          disabled={filterConfigs.length === 0}
-          tooltip={filterConfigs.length === 0 ? 'Nenhum filtro configurado' : undefined}
-        />
+        <Button
+          variant="outline"
+          onClick={() => setMostrarFiltros(!mostrarFiltros)}
+          className={`${mostrarFiltros ? 'bg-purple-50 border-purple-300' : ''} ${temFiltrosAtivos ? 'border-purple-500 bg-purple-50' : ''}`}
+        >
+          <Filter className="w-4 h-4 mr-2" />
+          Filtros
+          {temFiltrosAtivos && (
+            <Badge variant="secondary" className="ml-2 h-4 px-1">
+              {Object.values(filtrosAplicados).filter(f => f !== '').length}
+            </Badge>
+          )}
+        </Button>
         
         <ViewToggle 
           viewMode={viewMode} 
@@ -996,15 +1061,17 @@ export const ServicosPage = () => {
 
       {/* Conteúdo principal */}
       <PageContent>
-        {/* Painel de Filtros Dinâmicos */}
-        <DynamicFilterPanel
+        {/* Painel de Filtros Avançados */}
+        <AdvancedFilter
+          fields={filterFields}
+          filters={filtros}
+          appliedFilters={filtrosAplicados}
+          onFilterChange={updateFiltro}
+          onApplyFilters={aplicarFiltros}
+          onClearFilters={limparFiltros}
           isVisible={mostrarFiltros}
-          filterConfigs={filterConfigs}
-          activeFilters={activeFilters}
-          onFilterChange={setFilter}
-          onClearAll={clearAllFilters}
           onClose={() => setMostrarFiltros(false)}
-          module="servicos"
+          loading={loading}
         />
 
         {/* Conteúdo baseado no modo de visualização */}

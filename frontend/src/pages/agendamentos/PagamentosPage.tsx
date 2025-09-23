@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
+import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
 import { 
   DollarSign,
   Clock,
@@ -12,8 +13,6 @@ import {
   LayoutGrid,
   List,
   Filter,
-  FilterX,
-  X,
   Calculator,
   Building,
   Eye,
@@ -25,6 +24,8 @@ import { ListarAgendamentosModal, FechamentoPagamentoModal } from '@/components/
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
+import { getProfissionais } from '@/services/profissionais';
+import { getServicos } from '@/services/servicos';
 
 interface PagamentoProfissional {
   profissional: string;
@@ -42,6 +43,36 @@ interface PrecoServicoProfissional {
   servicoId: string;
   precoProfissional: number;
 }
+
+// Configuração dos campos de filtro para o AdvancedFilter
+const filterFields: FilterField[] = [
+  { 
+    key: 'dataInicio', 
+    type: 'date', 
+    label: 'Data Início' 
+  },
+  { 
+    key: 'dataFim', 
+    type: 'date', 
+    label: 'Data Fim' 
+  },
+  { 
+    key: 'profissionalId', 
+    type: 'api-select', 
+    label: 'Profissional',
+    apiService: getProfissionais,
+    placeholder: 'Selecione um profissional...',
+    searchFields: ['nome']
+  },
+  { 
+    key: 'servicoId', 
+    type: 'api-select', 
+    label: 'Serviço',
+    apiService: getServicos,
+    placeholder: 'Selecione um serviço...',
+    searchFields: ['nome']
+  }
+];
 
 export const PagamentosPage = () => {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
@@ -66,10 +97,17 @@ export const PagamentosPage = () => {
     profissional: PagamentoProfissional | null;
   }>({ profissional: null });
 
-  // Filtros avançados
+  // Filtros avançados (seguindo padrão do AgendamentosPage)
   const [filtros, setFiltros] = useState({
-    profissional: '',
-    servico: '',
+    profissionalId: '',
+    servicoId: '',
+    dataInicio: '',
+    dataFim: ''
+  });
+  // Estados separados para filtros aplicados vs editados
+  const [filtrosAplicados, setFiltrosAplicados] = useState({
+    profissionalId: '',
+    servicoId: '',
     dataInicio: '',
     dataFim: ''
   });
@@ -90,7 +128,7 @@ export const PagamentosPage = () => {
       setPaginaAtual(1);
       carregarDados(); // Recarregar quando filtros mudarem
     }
-  }, [busca, itensPorPagina, filtros]);
+  }, [busca, itensPorPagina, filtrosAplicados]);
 
   const checkPermissions = async () => {
     try {
@@ -129,8 +167,10 @@ export const PagamentosPage = () => {
           status: 'FINALIZADO',
           page: 1,
           // Removido limit para usar padrão da API (dados serão agrupados)
-          ...(filtros.dataInicio ? { dataInicio: filtros.dataInicio } : {}),
-          ...(filtros.dataFim ? { dataFim: filtros.dataFim } : {}),
+          ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
+          ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
+          ...(filtrosAplicados.profissionalId ? { profissionalId: filtrosAplicados.profissionalId } : {}),
+          ...(filtrosAplicados.servicoId ? { servicoId: filtrosAplicados.servicoId } : {}),
         }),
         carregarPrecosServicoProfissional()
       ]);
@@ -165,20 +205,27 @@ export const PagamentosPage = () => {
 
   const updateFiltro = (campo: keyof typeof filtros, valor: string) => {
     setFiltros(prev => ({ ...prev, [campo]: valor }));
+  };
+
+  const aplicarFiltros = () => {
+    setFiltrosAplicados(filtros);
     setPaginaAtual(1);
   };
 
   const limparFiltros = () => {
-    setFiltros({
-      profissional: '',
-      servico: '',
+    const filtrosLimpos = {
+      profissionalId: '',
+      servicoId: '',
       dataInicio: '',
       dataFim: ''
-    });
+    };
+    setFiltros(filtrosLimpos);
+    setFiltrosAplicados(filtrosLimpos);
     setPaginaAtual(1);
   };
 
-  const temFiltrosAtivos = Object.values(filtros).some(filtro => filtro !== '');
+  const temFiltrosAtivos = Object.values(filtrosAplicados).some(filtro => filtro !== '');
+  const temFiltrosNaoAplicados = JSON.stringify(filtros) !== JSON.stringify(filtrosAplicados);
 
   // Função para converter data UTC para timezone brasileiro e extrair apenas a data
   const extrairDataBrasil = (dataISO: string) => {
@@ -207,6 +254,7 @@ export const PagamentosPage = () => {
 
 
   // Filtrar agendamentos FINALIZADOS (com proteção para array)
+  // Note: Os filtros avançados agora são aplicados via API, então aqui só filtramos por busca textual
   const agendamentosFiltrados = (Array.isArray(agendamentos) ? agendamentos : [])
     .filter(a => a.status === 'FINALIZADO')
     .filter(a => 
@@ -214,20 +262,7 @@ export const PagamentosPage = () => {
       a.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||
       a.profissionalNome?.toLowerCase().includes(busca.toLowerCase()) ||
       a.servicoNome?.toLowerCase().includes(busca.toLowerCase())
-    )
-    // Filtros avançados por coluna
-    .filter(a => !filtros.profissional || a.profissionalNome?.toLowerCase().includes(filtros.profissional.toLowerCase()))
-    .filter(a => !filtros.servico || a.servicoNome?.toLowerCase().includes(filtros.servico.toLowerCase()))
-    .filter(a => {
-      if (!filtros.dataInicio && !filtros.dataFim) return true;
-      
-      const dataAgendamentoBrasil = extrairDataBrasil(a.dataHoraInicio);
-      
-      if (filtros.dataInicio && dataAgendamentoBrasil < filtros.dataInicio) return false;
-      if (filtros.dataFim && dataAgendamentoBrasil > filtros.dataFim) return false;
-      
-      return true;
-    });
+    );
 
   // Processar dados para visualização por profissional
   const processarDadosProfissionais = (): PagamentoProfissional[] => {
@@ -670,7 +705,7 @@ export const PagamentosPage = () => {
             Filtros
             {temFiltrosAtivos && (
               <Badge variant="secondary" className="ml-2 h-4 px-1">
-                {Object.values(filtros).filter(f => f !== '').length}
+                {Object.values(filtrosAplicados).filter(f => f !== '').length}
               </Badge>
             )}
           </Button>
@@ -678,119 +713,17 @@ export const PagamentosPage = () => {
       </div>
 
       {/* Painel de Filtros Avançados */}
-      {mostrarFiltros && (
-        <div className="bg-white border border-gray-200 rounded-lg px-6 py-4 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Filtros Avançados</h3>
-            <div className="flex gap-2">
-              {temFiltrosAtivos && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={limparFiltros}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  <FilterX className="w-4 h-4 mr-1" />
-                  Limpar Filtros
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setMostrarFiltros(false)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {/* Filtro Data Início */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Data Início</span>
-              <input
-                type="date"
-                value={filtros.dataInicio}
-                onChange={(e) => updateFiltro('dataInicio', e.target.value)}
-                className="h-8 w-full px-3 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Filtro Data Fim */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Data Fim</span>
-              <input
-                type="date"
-                value={filtros.dataFim}
-                onChange={(e) => updateFiltro('dataFim', e.target.value)}
-                className="h-8 w-full px-3 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Filtro Serviço */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Serviço</span>
-              <input
-                type="text"
-                placeholder="Nome do serviço..."
-                value={filtros.servico}
-                onChange={(e) => updateFiltro('servico', e.target.value)}
-                className="h-8 w-full px-3 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Filtro Profissional */}
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700">Profissional</span>
-              <input
-                type="text"
-                placeholder="Nome do profissional..."
-                value={filtros.profissional}
-                onChange={(e) => updateFiltro('profissional', e.target.value)}
-                className="h-8 w-full px-3 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          {/* Resumo dos Filtros Ativos */}
-          {temFiltrosAtivos && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-sm text-gray-600">Filtros ativos:</span>
-                {Object.entries(filtros)
-                  .filter(([_, valor]) => valor !== '')
-                  .map(([campo, valor]) => {
-                    const labels = {
-                      profissional: 'Profissional',
-                      servico: 'Serviço',
-                      dataInicio: 'De',
-                      dataFim: 'Até'
-                    };
-                    
-                    // Formatar valor para datas no formato brasileiro
-                    const valorFormatado = (campo === 'dataInicio' || campo === 'dataFim') 
-                      ? formatarDataBrasil(valor) 
-                      : valor;
-                    
-                    return (
-                      <Badge key={campo} variant="secondary" className="text-xs inline-flex items-center gap-1">
-                        {labels[campo as keyof typeof labels]}: {valorFormatado}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => updateFiltro(campo as keyof typeof filtros, '')}
-                          className="h-4 w-4 p-0 hover:text-red-600 ml-1"
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </Badge>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      <AdvancedFilter
+        fields={filterFields}
+        filters={filtros}
+        appliedFilters={filtrosAplicados}
+        onFilterChange={updateFiltro}
+        onApplyFilters={aplicarFiltros}
+        onClearFilters={limparFiltros}
+        isVisible={mostrarFiltros}
+        onClose={() => setMostrarFiltros(false)}
+        loading={loading}
+      />
 
       {/* Conteúdo */}
       <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-sm border border-gray-100">
