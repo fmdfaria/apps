@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,11 @@ import {
   Calculator,
   TrendingUp,
   Building,
-  Eye
+  Eye,
+  MessageCircle,
+  DollarSign as PaymentIcon,
+  CheckCircle,
+  Loader2
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import type { PrecoParticular } from '@/types/PrecoParticular';
@@ -103,6 +107,17 @@ export const FechamentoPage = () => {
 
   // Estado para controle de inicialização (mesmo padrão da AgendamentosPage)
   const [initialized, setInitialized] = useState(false);
+
+  // Estados para webhook de pagamento
+  interface WebhookQueueItem {
+    agendamento: Agendamento;
+    timestamp: number;
+  }
+
+  const [webhookQueue, setWebhookQueue] = useState<WebhookQueueItem[]>([]);
+  const [isProcessingWebhook, setIsProcessingWebhook] = useState(false);
+  const [processandoPagamentos, setProcessandoPagamentos] = useState<Set<string>>(new Set());
+  const webhookTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Inicialização única (mesmo padrão da AgendamentosPage)
   useEffect(() => {
@@ -283,6 +298,327 @@ export const FechamentoPage = () => {
     parts.push(antecipado);
     
     return parts.length > 0 ? parts.join(' - ') : '-';
+  };
+
+  // ===== FUNÇÕES DE WEBHOOK DE PAGAMENTO =====
+
+  // Função para verificar se um agendamento está sendo processado
+  const estaProcessandoPagamento = (agendamentoId: string) => {
+    return processandoPagamentos.has(agendamentoId);
+  };
+
+  // Função para adicionar agendamento ao processamento
+  const adicionarProcessamento = (agendamentoId: string) => {
+    setProcessandoPagamentos(prev => new Set([...prev, agendamentoId]));
+  };
+
+  // Função para remover agendamento do processamento
+  const removerProcessamento = (agendamentoId: string) => {
+    setProcessandoPagamentos(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(agendamentoId);
+      return newSet;
+    });
+  };
+
+  // Função para adicionar na fila de webhooks
+  const adicionarNaFilaPagamento = (agendamento: Agendamento) => {
+    adicionarProcessamento(agendamento.id);
+    setWebhookQueue(prev => [...prev, {
+      agendamento,
+      timestamp: Date.now()
+    }]);
+  };
+
+  // Função para encontrar preço particular
+  const encontrarPreco = (pacienteId: string, servicoId: string) => {
+    return precosParticulares.find(
+      preco => preco.pacienteId === pacienteId && preco.servicoId === servicoId
+    ) || null;
+  };
+
+  // Função para verificar se um agendamento pertence a um grupo mensal
+  const encontrarGrupoMensalDoAgendamento = (agendamento: Agendamento, todosAgendamentos: Agendamento[]) => {
+    const precoInfo = encontrarPreco(agendamento.pacienteId, agendamento.servicoId);
+    
+    if (precoInfo?.tipoPagamento === 'Mensal') {
+      // Buscar todos os agendamentos finalizados do mesmo paciente, serviço e profissional
+      const agendamentosRelacionados = todosAgendamentos.filter(ag => 
+        ag.pacienteId === agendamento.pacienteId && 
+        ag.servicoId === agendamento.servicoId &&
+        ag.profissionalId === agendamento.profissionalId
+      );
+      
+      if (agendamentosRelacionados.length > 1) {
+        // Extrair mês/ano da data do agendamento
+        const dataAgendamento = new Date(agendamento.dataHoraInicio);
+        const mesAno = `${dataAgendamento.getFullYear()}-${String(dataAgendamento.getMonth() + 1).padStart(2, '0')}`;
+        
+        // Filtrar agendamentos do mesmo mês/ano
+        const agendamentosMesmoMes = agendamentosRelacionados.filter(ag => {
+          const dataAg = new Date(ag.dataHoraInicio);
+          const mesAnoAg = `${dataAg.getFullYear()}-${String(dataAg.getMonth() + 1).padStart(2, '0')}`;
+          return mesAnoAg === mesAno;
+        });
+
+        if (agendamentosMesmoMes.length > 1) {
+          // Formatações para o payload
+          const formatarMesAno = (mesAno: string): string => {
+            const [ano, mes] = mesAno.split('-');
+            const meses = [
+              'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+              'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+            ];
+            return `${meses[parseInt(mes) - 1]} ${ano}`;
+          };
+
+          return {
+            mesAno,
+            mesAnoDisplay: formatarMesAno(mesAno),
+            agendamentos: agendamentosMesmoMes,
+            quantidadeAgendamentos: agendamentosMesmoMes.length,
+            precoUnitario: precoInfo.preco,
+            precoTotal: precoInfo.preco * agendamentosMesmoMes.length,
+            tipoPagamento: precoInfo.tipoPagamento
+          };
+        }
+      }
+    }
+    
+    return null;
+  };
+
+  // Função para construir payload do webhook de pagamento
+  const construirPayloadWebhookPagamento = (agendamento: Agendamento, todosAgendamentos: Agendamento[]) => {
+    // Buscar informações de preço particular para o agendamento
+    const precoParticular = encontrarPreco(agendamento.pacienteId, agendamento.servicoId);
+    
+    // Verificar se é um agendamento mensal
+    const grupoMensal = encontrarGrupoMensalDoAgendamento(agendamento, todosAgendamentos);
+
+    if (grupoMensal) {
+      // Construir datas dos agendamentos do grupo
+      const datas = grupoMensal.agendamentos.map(ag => {
+        const data = new Date(ag.dataHoraInicio);
+        return data.toLocaleDateString('pt-BR');
+      }).sort();
+
+      return {
+        tipo: 'GRUPO_MENSAL',
+        acao: 'SOLICITAR_PAGAMENTO',
+        paciente: {
+          id: agendamento.pacienteId,
+          nome: agendamento.pacienteNome,
+          whatsapp: agendamento.paciente?.whatsapp
+        },
+        servico: {
+          id: agendamento.servicoId,
+          nome: agendamento.servicoNome
+        },
+        profissional: {
+          id: agendamento.profissionalId,
+          nome: agendamento.profissionalNome
+        },
+        resumoGrupo: {
+          mesAno: grupoMensal.mesAnoDisplay,
+          quantidadeSessoes: grupoMensal.quantidadeAgendamentos,
+          datasAgendamentos: datas,
+          valorUnitario: grupoMensal.precoUnitario,
+          valorTotal: grupoMensal.precoTotal,
+          tipoPagamento: grupoMensal.tipoPagamento,
+          diaPagamento: precoParticular?.diaPagamento,
+          pagamentoAntecipado: precoParticular?.pagamentoAntecipado
+        },
+        agendamentos: grupoMensal.agendamentos.map(ag => ({
+          ...ag,
+          dataHoraInicio: ag.dataHoraInicio,
+          dataHoraFim: ag.dataHoraFim
+        })),
+        precoParticular: precoParticular ? {
+          id: precoParticular.id,
+          preco: precoParticular.preco,
+          tipoPagamento: precoParticular.tipoPagamento,
+          diaPagamento: precoParticular.diaPagamento,
+          pagamentoAntecipado: precoParticular.pagamentoAntecipado,
+          notaFiscal: precoParticular.notaFiscal,
+          recibo: precoParticular.recibo
+        } : null
+      };
+    } else {
+      // Payload para agendamento individual
+      return {
+        tipo: 'INDIVIDUAL',
+        acao: 'SOLICITAR_PAGAMENTO',
+        agendamento: {
+          ...agendamento,
+          // Manter datas no formato original
+          dataHoraInicio: agendamento.dataHoraInicio,
+          dataHoraFim: agendamento.dataHoraFim
+        },
+        precoParticular: precoParticular ? {
+          id: precoParticular.id,
+          preco: precoParticular.preco,
+          tipoPagamento: precoParticular.tipoPagamento,
+          diaPagamento: precoParticular.diaPagamento,
+          pagamentoAntecipado: precoParticular.pagamentoAntecipado,
+          notaFiscal: precoParticular.notaFiscal,
+          recibo: precoParticular.recibo
+        } : null
+      };
+    }
+  };
+
+  // Função para executar o webhook de pagamento
+  const executarWebhookPagamento = async (agendamento: Agendamento) => {
+    const webhookUrl = import.meta.env.VITE_WEBHOOK_SOLICITAR_PAGAMENTO_PARTICULAR;
+    
+    if (!webhookUrl) {
+      AppToast.error("Erro de configuração", { 
+        description: "URL do webhook para solicitação de pagamento não configurada. Verifique o arquivo .env" 
+      });
+      throw new Error("URL do webhook não configurada");
+    }
+
+    const payload = construirPayloadWebhookPagamento(agendamento, agendamentos);
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro HTTP: ${response.status}`);
+    }
+
+    // Capturar a resposta do webhook
+    const responseData = await response.json().catch(() => ({}));
+
+    // Determinar a mensagem baseada no tipo de pagamento
+    const precoInfo = encontrarPreco(agendamento.pacienteId, agendamento.servicoId);
+    const isMensal = precoInfo?.tipoPagamento === 'Mensal';
+    const tipoMensagem = isMensal ? 'mensal' : 'individual';
+
+    // Exibir toast de sucesso
+    AppToast.success("Solicitação enviada", { 
+      description: `Solicitação de pagamento ${tipoMensagem} enviada para ${agendamento.pacienteNome} via WhatsApp.` 
+    });
+
+    // Atualizar a lista local se necessário
+    carregarAgendamentos();
+  };
+
+  // Função para processar o próximo webhook na fila
+  const processarProximoWebhookPagamento = async () => {
+    if (isProcessingWebhook || webhookQueue.length === 0) {
+      return;
+    }
+
+    setIsProcessingWebhook(true);
+    
+    const proximoItem = webhookQueue[0];
+    
+    try {
+      // Aplicar delay de 2 segundos
+      const tempoEspera = Math.max(0, 2000 - (Date.now() - proximoItem.timestamp));
+      
+      if (tempoEspera > 0) {
+        await new Promise(resolve => {
+          webhookTimeoutRef.current = setTimeout(resolve, tempoEspera);
+        });
+      }
+
+      // Executar webhook e aguardar sucesso completo
+      await executarWebhookPagamento(proximoItem.agendamento);
+      
+      // Sucesso: remover da fila e do processamento
+      setWebhookQueue(prev => prev.slice(1));
+      removerProcessamento(proximoItem.agendamento.id);
+      
+    } catch (error) {
+      console.error('Erro ao processar webhook de pagamento:', error);
+      AppToast.error("Erro", { 
+        description: `Erro ao enviar solicitação de pagamento para ${proximoItem.agendamento.pacienteNome}. Tente novamente.` 
+      });
+      
+      // Erro: também remover da fila
+      setWebhookQueue(prev => prev.slice(1));
+      removerProcessamento(proximoItem.agendamento.id);
+    } finally {
+      setIsProcessingWebhook(false);
+    }
+  };
+
+  // Effect para processar a fila de webhooks de pagamento
+  useEffect(() => {
+    if (webhookQueue.length > 0 && !isProcessingWebhook) {
+      processarProximoWebhookPagamento();
+    }
+  }, [webhookQueue, isProcessingWebhook]);
+
+  // Cleanup do timeout ao desmontar componente
+  useEffect(() => {
+    return () => {
+      if (webhookTimeoutRef.current) {
+        clearTimeout(webhookTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Função principal para solicitar pagamento
+  const handleSolicitarPagamento = async (agendamento: Agendamento) => {
+    try {
+      adicionarNaFilaPagamento(agendamento);
+    } catch (error) {
+      AppToast.error("Erro", { 
+        description: `Erro ao adicionar solicitação de pagamento para ${agendamento.pacienteNome} na fila. Tente novamente.` 
+      });
+      removerProcessamento(agendamento.id);
+    }
+  };
+
+  // Função para abrir WhatsApp
+  const handleWhatsApp = (agendamento: Agendamento) => {
+    const paciente = agendamento.paciente;
+    if (!paciente?.whatsapp) {
+      AppToast.warning("Número não encontrado", { 
+        description: "Número do WhatsApp não encontrado para este paciente." 
+      });
+      return;
+    }
+
+    // Limpar e validar número de WhatsApp
+    const numeroLimpo = paciente.whatsapp.replace(/\D/g, '');
+    
+    if (numeroLimpo.length < 10) {
+      AppToast.warning("Número inválido", { 
+        description: "Número do WhatsApp não encontrado para este paciente." 
+      });
+      return;
+    }
+
+    // Construir URL do WhatsApp Web
+    const whatsappUrl = `https://api.whatsapp.com/send/?phone=${numeroLimpo}`;
+    
+    // Abrir em nova aba
+    window.open(whatsappUrl, '_blank');
+  };
+
+  // Função para registrar pagamento manualmente
+  const handleRegistrarPagamento = async (agendamento: Agendamento) => {
+    try {
+      // Aqui você pode implementar a lógica para abrir um modal ou marcar como pago
+      // Por enquanto, vamos apenas mostrar um toast
+      AppToast.info("Funcionalidade em desenvolvimento", {
+        description: "Registrar pagamento manual será implementado em breve."
+      });
+    } catch (error) {
+      AppToast.error("Erro", {
+        description: "Erro ao registrar pagamento. Tente novamente."
+      });
+    }
   };
 
   // Função para calcular valor a receber pela clínica
@@ -802,6 +1138,69 @@ export const FechamentoPage = () => {
                 </div>
                 <div className="text-xs text-green-600">Valor a receber</div>
               </div>
+
+              {/* Botões de pagamento - só exibir se há agendamentos não recebidos */}
+              {(() => {
+                const status = verificarStatusRecebimento(item.agendamentos);
+                const temPendente = status === false || status === null;
+                
+                if (!temPendente) return null;
+                
+                return (
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex justify-between gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 border-yellow-400 text-yellow-700 hover:bg-yellow-600 hover:text-white text-xs h-8"
+                          onClick={() => {
+                            const agendamentoRef = item.agendamentos[0];
+                            handleSolicitarPagamento(agendamentoRef);
+                          }}
+                          disabled={item.agendamentos.some(ag => estaProcessandoPagamento(ag.id))}
+                        >
+                          {item.agendamentos.some(ag => estaProcessandoPagamento(ag.id)) ? (
+                            <>
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                              Enviando...
+                            </>
+                          ) : (
+                            <>
+                              <PaymentIcon className="w-3 h-3 mr-1" />
+                              Solicitar Pagamento
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-green-400 text-green-700 hover:bg-green-600 hover:text-white h-8 w-8 p-0"
+                          onClick={() => {
+                            const agendamentoRef = item.agendamentos[0];
+                            handleWhatsApp(agendamentoRef);
+                          }}
+                          title="WhatsApp"
+                        >
+                          <MessageCircle className="w-3 h-3" />
+                        </Button>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full border-blue-400 text-blue-700 hover:bg-blue-600 hover:text-white text-xs h-8"
+                        onClick={() => {
+                          const agendamentoRef = item.agendamentos[0];
+                          handleRegistrarPagamento(agendamentoRef);
+                        }}
+                      >
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Registrar Pagamento
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         ))
@@ -937,6 +1336,63 @@ export const FechamentoPage = () => {
                   >
                     <Eye className="w-4 h-4" />
                   </Button>
+                  
+                  {/* Botões de pagamento - só exibir se há agendamentos não recebidos */}
+                  {(() => {
+                    const status = verificarStatusRecebimento(item.agendamentos);
+                    const temPendente = status === false || status === null;
+                    
+                    if (!temPendente) return null;
+                    
+                    return (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="group border-2 border-yellow-400 text-yellow-700 hover:bg-yellow-600 hover:text-white hover:border-yellow-600 focus:ring-4 focus:ring-yellow-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                          onClick={() => {
+                            // Para agendamentos agrupados, usar o primeiro agendamento como referência
+                            const agendamentoRef = item.agendamentos[0];
+                            handleSolicitarPagamento(agendamentoRef);
+                          }}
+                          disabled={item.agendamentos.some(ag => estaProcessandoPagamento(ag.id))}
+                          title="Solicitar Pagamento"
+                        >
+                          {item.agendamentos.some(ag => estaProcessandoPagamento(ag.id)) ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <PaymentIcon className="w-4 h-4 text-yellow-700 group-hover:text-white transition-colors" />
+                          )}
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="group border-2 border-green-400 text-green-700 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                          onClick={() => {
+                            const agendamentoRef = item.agendamentos[0];
+                            handleWhatsApp(agendamentoRef);
+                          }}
+                          title="WhatsApp"
+                        >
+                          <MessageCircle className="w-4 h-4 text-green-700 group-hover:text-white transition-colors" />
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="group border-2 border-blue-400 text-blue-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                          onClick={() => {
+                            const agendamentoRef = item.agendamentos[0];
+                            handleRegistrarPagamento(agendamentoRef);
+                          }}
+                          title="Registrar Pagamento"
+                        >
+                          <CheckCircle className="w-4 h-4 text-blue-700 group-hover:text-white transition-colors" />
+                        </Button>
+                      </>
+                    );
+                  })()}
                 </div>
               </TableCell>
             </TableRow>
