@@ -17,6 +17,7 @@ import { getProfissionais } from '@/services/profissionais';
 import { getCurrentUser } from '@/services/auth';
 import type { CategoriaFinanceira } from '@/types/CategoriaFinanceira';
 import type { ContaBancaria } from '@/types/ContaBancaria';
+import { AppToast } from '@/services/toast';
 
 interface ContaPagarModalProps {
   isOpen: boolean;
@@ -27,7 +28,6 @@ interface ContaPagarModalProps {
 
 export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: ContaPagarModalProps) {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [empresasLoading, setEmpresasLoading] = useState(false);
   const [categorias, setCategorias] = useState<CategoriaFinanceira[]>([]);
@@ -85,7 +85,6 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
         observacoes: ''
       });
     }
-    setError('');
   }, [conta, isOpen]);
 
   useEffect(() => {
@@ -102,6 +101,38 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
       loadCategorias(form.tipoConta);
     }
   }, [isOpen, form.tipoConta]);
+
+  // Processar campos especiais com underscore (similar ao ContaReceberModal)
+  useEffect(() => {
+    if (conta && empresas.length > 0 && categorias.length > 0) {
+      const contaComControle = conta as any;
+      
+      // Buscar empresa por nome se especificado
+      if (contaComControle._empresaNome && !form.empresaId) {
+        const empresaEncontrada = empresas.find(empresa => 
+          empresa.nomeFantasia?.toUpperCase().includes(contaComControle._empresaNome.toUpperCase()) ||
+          empresa.razaoSocial?.toUpperCase().includes(contaComControle._empresaNome.toUpperCase())
+        );
+        
+        if (empresaEncontrada) {
+          setForm(prev => ({ ...prev, empresaId: empresaEncontrada.id }));
+          // Carregar contas bancárias da empresa encontrada
+          loadContasBancarias(empresaEncontrada.id);
+        }
+      }
+      
+      // Buscar categoria por nome se especificado
+      if (contaComControle._categoriaNome && !form.categoriaId) {
+        const categoriaEncontrada = categorias.find(categoria => 
+          categoria.nome?.toUpperCase().includes(contaComControle._categoriaNome.toUpperCase())
+        );
+        
+        if (categoriaEncontrada) {
+          setForm(prev => ({ ...prev, categoriaId: categoriaEncontrada.id }));
+        }
+      }
+    }
+  }, [conta, empresas, categorias, form.empresaId, form.categoriaId]);
 
   const loadEmpresas = async () => {
     setEmpresasLoading(true);
@@ -157,32 +188,31 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
     e.preventDefault();
     
     if (!form.descricao.trim()) {
-      setError('Descrição é obrigatória');
+      AppToast.validation('Campo obrigatório', 'Descrição é obrigatória');
       return;
     }
 
     if (!form.valorOriginal || parseFloat(form.valorOriginal) <= 0) {
-      setError('Valor deve ser maior que zero');
+      AppToast.validation('Campo obrigatório', 'Valor deve ser maior que zero');
       return;
     }
 
     if (!form.dataEmissao) {
-      setError('Data de emissão é obrigatória');
+      AppToast.validation('Campo obrigatório', 'Data de emissão é obrigatória');
       return;
     }
 
     if (!form.dataVencimento) {
-      setError('Data de vencimento é obrigatória');
+      AppToast.validation('Campo obrigatório', 'Data de vencimento é obrigatória');
       return;
     }
 
     if (!form.categoriaId) {
-      setError('Categoria é obrigatória');
+      AppToast.validation('Campo obrigatório', 'Categoria é obrigatória');
       return;
     }
 
     setLoading(true);
-    setError('');
 
     try {
       const valorOriginal = parseFloat(form.valorOriginal);
@@ -201,8 +231,10 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
       };
       
       await onSave(payload);
+      AppToast.success('Conta salva com sucesso!');
+      onClose();
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Erro ao salvar conta');
+      AppToast.error('Erro ao salvar', error.response?.data?.message || 'Erro ao salvar conta');
     } finally {
       setLoading(false);
     }
@@ -278,11 +310,6 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
 
           {/* Linha 1: Descrição (mesmo tamanho da Empresa) | Valor Original | Data de Vencimento | Data Emissão */}
           <div className="grid grid-cols-5 gap-4">

@@ -35,6 +35,9 @@ import { ListarAgendamentosModal } from '@/components/agendamentos';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
+import ContaReceberModal from '@/pages/financeiro/ContaReceberModal';
+import { createContaReceber, receberConta } from '@/services/contas-receber';
+import { createAgendamentoConta } from '@/services/agendamentos-contas';
 
 // Configuração dos campos de filtro para o AdvancedFilter (movida para fora do componente)
 const filterFields: FilterField[] = [
@@ -100,6 +103,12 @@ export const FechamentoPage = () => {
   const [showDetalhesModal, setShowDetalhesModal] = useState(false);
   const [agendamentosDetalhes, setAgendamentosDetalhes] = useState<Agendamento[]>([]);
   const [tituloModal, setTituloModal] = useState('');
+
+  // Estados para registrar pagamento
+  const [showContaReceberModal, setShowContaReceberModal] = useState(false);
+  const [contaReceberData, setContaReceberData] = useState<any>(null);
+  const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<Agendamento | null>(null);
+  const [grupoMensalSelecionado, setGrupoMensalSelecionado] = useState<any>(null);
 
   // Estados para os filtros do AdvancedFilter
   const [filtros, setFiltros] = useState<Record<string, string>>({});
@@ -606,17 +615,211 @@ export const FechamentoPage = () => {
     window.open(whatsappUrl, '_blank');
   };
 
+  // Função para preparar dados da conta a receber
+  const prepararDadosContaReceber = (agendamento: Agendamento) => {
+    // Verificar se faz parte de um grupo mensal
+    const grupoMensal = encontrarGrupoMensalDoAgendamento(agendamento, agendamentos);
+    
+    let descricao = '';
+    let valorTotal = 0;
+    let observacoes = '';
+
+    if (grupoMensal) {
+      // Para grupo mensal
+      descricao = `Pagamento particular mensal - ${agendamento.servicoNome} - ${agendamento.pacienteNome} - ${grupoMensal.mesAnoDisplay} (${grupoMensal.quantidadeAgendamentos}x)`;
+      valorTotal = grupoMensal.precoTotal;
+      observacoes = `Gerado automaticamente pelo fechamento mensal de ${grupoMensal.quantidadeAgendamentos} agendamentos particulares`;
+      
+      // Salvar dados do grupo para usar no fechamento
+      setGrupoMensalSelecionado(grupoMensal);
+    } else {
+      // Para agendamento avulso
+      descricao = `Pagamento particular - ${agendamento.servicoNome} - ${agendamento.pacienteNome}`;
+      valorTotal = calcularValorTotal(agendamento);
+      observacoes = 'Gerado automaticamente pelo fechamento de agendamento particular';
+      
+      // Limpar grupo mensal
+      setGrupoMensalSelecionado(null);
+    }
+    
+    const dadosPreenchidos = {
+      descricao,
+      pacienteId: agendamento.pacienteId,
+      convenioId: agendamento.convenioId || '',
+      numeroDocumento: '', // Deixar vazio para o usuário preencher
+      valorOriginal: valorTotal.toString(),
+      dataEmissao: new Date().toISOString().split('T')[0],
+      dataVencimento: new Date().toISOString().split('T')[0],
+      observacoes,
+      // Dados extras para controlar o fluxo de recebimento
+      _autoReceived: true, // Flag para indicar que deve ser marcado como recebido automaticamente
+      _dataRecebimento: new Date().toISOString().split('T')[0],
+      _formaRecebimento: 'PIX', // Padrão, mas será editável
+      _valorRecebido: valorTotal,
+      _showFormaRecebimento: true, // Flag para mostrar o campo de forma de recebimento
+      // Pré-preenchimentos dos novos campos
+      _empresaNome: 'CELEBRAMENTE', // Nome da empresa para buscar
+      _contaBancariaNome: 'Banco Inter da Celebramente', // Nome da conta bancária para buscar
+      _categoriaNome: 'RECEITA SERVIÇOS' // Nome da categoria para buscar
+    };
+
+    setContaReceberData(dadosPreenchidos);
+    setAgendamentoSelecionado(agendamento);
+    setShowContaReceberModal(true);
+  };
+
+  // Função para executar o fechamento de pagamento (muda status FINALIZADO → ARQUIVADO)  
+  const executarFechamentoPagamento = async () => {
+    if (!agendamentoSelecionado) return;
+    
+    try {
+      if (grupoMensalSelecionado) {
+        // Para grupo mensal: atualizar todos os agendamentos do grupo
+        console.log('Atualizando grupo mensal:', grupoMensalSelecionado.agendamentos.length, 'agendamentos');
+        
+        const updatePromises = grupoMensalSelecionado.agendamentos.map((agendamento: Agendamento) => 
+          api.put(`/agendamentos/${agendamento.id}`, {
+            status: 'ARQUIVADO',
+            recebimento: true  // Marca como recebido do paciente, não pagamento
+          })
+        );
+        
+        await Promise.all(updatePromises);
+        console.log('Todos os agendamentos do grupo foram atualizados');
+      } else {
+        // Para agendamento individual
+        console.log('Atualizando agendamento individual:', agendamentoSelecionado.id);
+        await api.put(`/agendamentos/${agendamentoSelecionado.id}`, {
+          status: 'ARQUIVADO',
+          recebimento: true  // Marca como recebido do paciente, não pagamento
+        });
+      }
+    } catch (error) {
+      console.error('Erro no fechamento de pagamento:', error);
+      throw error; // Re-throw para ser tratado na função chamadora
+    }
+  };
+
+  // Função para salvar conta a receber e executar fechamento
+  const handleSaveContaReceber = async (dadosConta: any) => {
+    if (!agendamentoSelecionado) return;
+    
+    try {
+      console.log('Iniciando registro de pagamento para agendamento:', agendamentoSelecionado.id);
+      
+      // Extrair dados especiais do controle de fluxo
+      const { _autoReceived, _dataRecebimento, _formaRecebimento, _valorRecebido, ...contaData } = dadosConta;
+      
+      console.log('Dados da conta a receber:', contaData);
+      
+      // 1. Criar a conta a receber como PENDENTE
+      console.log('Passo 1: Criando conta a receber...');
+      const contaCriada = await createContaReceber(contaData);
+      console.log('Conta a receber criada:', contaCriada);
+      
+      // 2. Criar relacionamento(s) agendamento-conta
+      if (contaCriada?.id) {
+        try {
+          console.log('Passo 2: Criando relacionamento(s) agendamento-conta...');
+          
+          if (grupoMensalSelecionado) {
+            // Para grupo mensal: criar relacionamento para todos os agendamentos
+            const relationPromises = grupoMensalSelecionado.agendamentos.map((agendamento: Agendamento) =>
+              createAgendamentoConta({
+                agendamentoId: agendamento.id,
+                contaReceberId: contaCriada.id
+              })
+            );
+            await Promise.all(relationPromises);
+            console.log(`Relacionamentos criados para ${grupoMensalSelecionado.agendamentos.length} agendamentos`);
+          } else {
+            // Para agendamento individual
+            await createAgendamentoConta({
+              agendamentoId: agendamentoSelecionado.id,
+              contaReceberId: contaCriada.id
+            });
+            console.log('Relacionamento criado com sucesso');
+          }
+        } catch (relationError) {
+          console.warn('Erro ao criar relacionamento agendamento-conta:', relationError);
+          // Não interrompe o fluxo se falhar ao criar o relacionamento
+        }
+      }
+      
+      // 3. Se deve marcar como recebido automaticamente (cria fluxo_caixa)
+      if (_autoReceived && contaCriada?.id) {
+        try {
+          console.log('Passo 3: Marcando conta como recebida...');
+          await receberConta(contaCriada.id, {
+            valorRecebido: _valorRecebido || parseFloat(contaData.valorOriginal),
+            dataRecebimento: _dataRecebimento,
+            formaRecebimento: _formaRecebimento as any,
+            contaBancariaId: contaData.contaBancariaId || '',
+            observacoes: 'Recebimento automático pelo fechamento de agendamento particular'
+          });
+          console.log('Conta marcada como recebida com sucesso');
+        } catch (receiveError: any) {
+          console.error('Erro ao marcar conta como recebida:', receiveError);
+          AppToast.warning('Conta criada', 'Conta a receber criada, mas houve problema ao marcar como recebida. Marque manualmente na tela de contas a receber.');
+          setShowContaReceberModal(false);
+          setContaReceberData(null);
+          setAgendamentoSelecionado(null);
+          return;
+        }
+      }
+      
+      // 4. Executar fechamento (muda status FINALIZADO → ARQUIVADO)
+      console.log('Passo 4: Executando fechamento de pagamento...');
+      await executarFechamentoPagamento();
+      console.log('Fechamento executado com sucesso');
+      
+      // 5. Sucesso: fechar modal e recarregar dados
+      setShowContaReceberModal(false);
+      setContaReceberData(null);
+      setAgendamentoSelecionado(null);
+      setGrupoMensalSelecionado(null);
+      carregarAgendamentos();
+      
+      const mensagemSucesso = grupoMensalSelecionado 
+        ? `Pagamento registrado e ${grupoMensalSelecionado.agendamentos.length} agendamentos arquivados com sucesso!`
+        : 'Pagamento registrado e agendamento arquivado com sucesso!';
+      
+      AppToast.success('Pagamento registrado', mensagemSucesso);
+      
+    } catch (error: any) {
+      console.error('Erro completo ao registrar pagamento:', error);
+      
+      let errorMessage = 'Erro inesperado ao registrar pagamento';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      AppToast.error('Erro ao registrar pagamento', {
+        description: errorMessage
+      });
+    }
+  };
+
+  // Função para fechar modal de conta a receber
+  const handleCloseContaReceberModal = () => {
+    setShowContaReceberModal(false);
+    setContaReceberData(null);
+    setAgendamentoSelecionado(null);
+    setGrupoMensalSelecionado(null);
+  };
+
   // Função para registrar pagamento manualmente
   const handleRegistrarPagamento = async (agendamento: Agendamento) => {
     try {
-      // Aqui você pode implementar a lógica para abrir um modal ou marcar como pago
-      // Por enquanto, vamos apenas mostrar um toast
-      AppToast.info("Funcionalidade em desenvolvimento", {
-        description: "Registrar pagamento manual será implementado em breve."
-      });
+      prepararDadosContaReceber(agendamento);
     } catch (error) {
       AppToast.error("Erro", {
-        description: "Erro ao registrar pagamento. Tente novamente."
+        description: "Erro ao preparar dados para pagamento. Tente novamente."
       });
     }
   };
@@ -1660,6 +1863,14 @@ export const FechamentoPage = () => {
           setAgendamentosDetalhes([]);
           setTituloModal('');
         }}
+      />
+
+      {/* Modal de criação de conta a receber para registrar pagamento */}
+      <ContaReceberModal
+        isOpen={showContaReceberModal}
+        conta={contaReceberData}
+        onClose={handleCloseContaReceberModal}
+        onSave={handleSaveContaReceber}
       />
     </div>
   );

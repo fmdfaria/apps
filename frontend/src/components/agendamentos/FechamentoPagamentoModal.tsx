@@ -166,7 +166,11 @@ export const FechamentoPagamentoModal: React.FC<FechamentoPagamentoModalProps> =
     profissionalId: profissionalId,
     tipoConta: 'SALARIO' as const,
     dataEmissao: new Date().toISOString().split('T')[0],
-    dataVencimento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30 dias a partir de hoje
+    dataVencimento: '', // Campo vazio - obrigatório o usuário preencher
+    // Pré-preenchimentos dos novos campos
+    _empresaNome: 'TIME CONSULTORIA', // Nome da empresa para buscar
+    _contaBancariaNome: 'Banco Inter da Celebramente', // Nome da conta bancária para buscar
+    _categoriaNome: 'DESPESA SERVIÇOS' // Nome da categoria para buscar
   };
 
   return (

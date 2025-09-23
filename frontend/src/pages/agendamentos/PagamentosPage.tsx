@@ -8,7 +8,6 @@ import {
   Clock,
   Users,
   Calendar,
-  FileText,
   Search,
   LayoutGrid,
   List,
@@ -206,14 +205,6 @@ export const PagamentosPage = () => {
     }).format(valor);
   };
 
-  // Função para verificar status geral de pagamento
-  const verificarStatusPagamento = (agendamentos: Agendamento[]) => {
-    if (agendamentos.length === 0) return null;
-    const pagos = (Array.isArray(agendamentos) ? agendamentos : []).filter(a => a.pagamento === true).length;
-    if (pagos === agendamentos.length) return true; // Todos pagos
-    if (pagos === 0) return false; // Nenhum pago
-    return null; // Parcial
-  };
 
   // Filtrar agendamentos FINALIZADOS (com proteção para array)
   const agendamentosFiltrados = (Array.isArray(agendamentos) ? agendamentos : [])
@@ -424,12 +415,6 @@ export const PagamentosPage = () => {
               Valor a Pagar
             </div>
           </TableHead>
-          <TableHead className="py-3 text-sm font-semibold text-gray-700 text-center">
-            <div className="flex items-center justify-center gap-2">
-              <FileText className="w-4 h-4" />
-              Pagamento
-            </div>
-          </TableHead>
           <TableHead className="py-3 text-sm font-semibold text-gray-700">
             <div className="flex items-center gap-2">
               <span className="text-lg">⚙️</span>
@@ -441,7 +426,7 @@ export const PagamentosPage = () => {
       <TableBody>
         {dadosPaginados.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={7} className="py-12 text-center">
+            <TableCell colSpan={6} className="py-12 text-center">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                   <DollarSign className="w-8 h-8 text-gray-400" />
@@ -483,18 +468,6 @@ export const PagamentosPage = () => {
                 <span className="text-sm font-semibold text-green-700 bg-green-50 px-2 py-1 rounded">
                   {formatarValor(item.valorPagar)}
                 </span>
-              </TableCell>
-              <TableCell className="py-3 text-center">
-                {(() => {
-                  const status = verificarStatusPagamento(item.agendamentos);
-                  if (status === true) {
-                    return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Completo</Badge>;
-                  } else if (status === false) {
-                    return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Pendente</Badge>;
-                  } else {
-                    return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Parcial</Badge>;
-                  }
-                })()}
               </TableCell>
               <TableCell className="text-left py-3">
                 <div className="flex justify-start gap-1.5">
