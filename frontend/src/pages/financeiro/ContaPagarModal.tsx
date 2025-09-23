@@ -207,6 +207,11 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
       return;
     }
 
+    if (!form.empresaId) {
+      AppToast.validation('Campo obrigatório', 'Empresa é obrigatória');
+      return;
+    }
+
     if (!form.categoriaId) {
       AppToast.validation('Campo obrigatório', 'Categoria é obrigatória');
       return;
@@ -322,7 +327,6 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
                 value={form.descricao}
                 onChange={(e) => handleChange('descricao', e.target.value)}
                 placeholder="Descrição da conta a pagar"
-                required
               />
             </div>
             
@@ -338,7 +342,6 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
                 value={form.valorOriginal}
                 onChange={(e) => handleChange('valorOriginal', e.target.value)}
                 placeholder="0,00"
-                required
               />
             </div>
             
@@ -351,7 +354,6 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
                 type="date"
                 value={form.dataVencimento}
                 onChange={(e) => handleChange('dataVencimento', e.target.value)}
-                required
               />
             </div>
             
@@ -364,7 +366,6 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
                 type="date"
                 value={form.dataEmissao}
                 onChange={(e) => handleChange('dataEmissao', e.target.value)}
-                required
               />
             </div>
           </div>
@@ -372,7 +373,9 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
           {/* Linha 2: Empresa | Conta Bancária | Categoria */}
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="empresaId">Empresa</Label>
+              <Label htmlFor="empresaId">
+                Empresa <span className="text-red-500">*</span>
+              </Label>
               <SingleSelectDropdown
                 options={empresas}
                 selected={empresas.find(e => e.id === form.empresaId) || null}
