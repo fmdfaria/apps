@@ -17,6 +17,7 @@ import EvolucaoPacientesModal from './EvolucaoPacientesModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import { getAnexos } from '@/services/anexos';
 import type { Anexo } from '@/types/Anexo';
+import api from '@/services/api';
 
 export const EvolucaoPacientesPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -27,6 +28,8 @@ export const EvolucaoPacientesPage: React.FC = () => {
   const [evolucoes, setEvolucoes] = useState<EvolucaoPaciente[]>([]);
   const [paciente, setPaciente] = useState<Paciente | null>(null);
   const [convenios, setConvenios] = useState<Convenio[]>([]);
+  const [loadingPerms, setLoadingPerms] = useState(false);
+  const [canCreateEvolucao, setCanCreateEvolucao] = useState(false);
   // Estado do modal de anexos
   const [showAnexoModal, setShowAnexoModal] = useState(false);
   const [anexoFiles, setAnexoFiles] = useState<File[]>([]);
@@ -45,6 +48,24 @@ export const EvolucaoPacientesPage: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [evolucaoParaExcluir, setEvolucaoParaExcluir] = useState<EvolucaoPaciente | null>(null);
   const [deletingEvolucao, setDeletingEvolucao] = useState(false);
+
+  useEffect(() => {
+    fetchPermissions();
+  }, []);
+
+  const fetchPermissions = async () => {
+    setLoadingPerms(true);
+    try {
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data || [];
+      const canCreate = allowedRoutes.some((route: any) => route.path === '/evolucoes' && route.method?.toLowerCase() === 'post');
+      setCanCreateEvolucao(canCreate);
+    } catch (e) {
+      setCanCreateEvolucao(false);
+    } finally {
+      setLoadingPerms(false);
+    }
+  };
 
   useEffect(() => {
     const carregar = async () => {
@@ -282,10 +303,22 @@ export const EvolucaoPacientesPage: React.FC = () => {
             Evoluções do Paciente
           </h1>
           <div className="flex items-center gap-2">
-            <Button variant="default" onClick={abrirModalEvolucao} className="gap-2 bg-green-600 hover:bg-green-700">
+            <Button 
+              variant="default" 
+              onClick={abrirModalEvolucao} 
+              className="gap-2 bg-green-600 hover:bg-green-700"
+              disabled={loadingPerms || !canCreateEvolucao}
+              title={(!loadingPerms && !canCreateEvolucao) ? 'Permissão necessária: POST /evolucoes' : undefined}
+            >
               <FileText className="w-4 h-4" /> Criar Evolução
             </Button>
-            <Button variant="default" onClick={abrirModalAnexos} className="gap-2">
+            <Button 
+              variant="default" 
+              onClick={abrirModalAnexos} 
+              className="gap-2"
+              disabled={loadingPerms || !canCreateEvolucao}
+              title={(!loadingPerms && !canCreateEvolucao) ? 'Permissão necessária: POST /evolucoes' : undefined}
+            >
               <Paperclip className="w-4 h-4" /> Anexar Arquivos
             </Button>
             <Button variant="outline" onClick={() => navigate('/pacientes')} className="gap-2">
@@ -349,7 +382,7 @@ export const EvolucaoPacientesPage: React.FC = () => {
                     {group.items.map((ev, idx) => (
                       <div key={ev.id || idx} className="relative pl-12 md:pl-16">
                         {/* Marcador do item otimizado */}
-                        <div className="absolute left-4 top-4 w-4 h-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full shadow-lg flex items-center justify-center">
+                        <div className="absolute left-4 top-4 w-4 h-4 bg-gradient-to-br from-blue-500 to purple-600 rounded-full shadow-lg flex items-center justify-center">
                           <div className="w-2 h-2 bg-white rounded-full" />
                         </div>
                         {/* Card otimizado */}

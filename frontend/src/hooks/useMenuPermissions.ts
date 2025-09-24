@@ -28,7 +28,7 @@ const routePermissionMap: Record<string, { path: string; method: string }> = {
   'servicos/precos-profissionais': { path: '/precos-servicos-profissionais', method: 'GET' },
   'convenios': { path: '/convenios-page', method: 'GET' },
   'recursos': { path: '/recursos', method: 'POST' },
-  'especialidades': { path: '/especialidades', method: 'GET' },
+  'especialidades': { path: '/especialidades-menu', method: 'GET' },
   'conselhos': { path: '/conselhos', method: 'GET' },
   'bancos': { path: '/bancos', method: 'GET' },
   'administracao/usuarios': { path: '/users', method: 'GET' },
