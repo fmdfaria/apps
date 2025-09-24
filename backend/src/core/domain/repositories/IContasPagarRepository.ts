@@ -3,6 +3,7 @@ import { ContaPagar } from '../entities/ContaPagar';
 export interface IContasPagarRepository {
   create(conta: ContaPagar): Promise<ContaPagar>;
   findById(id: string): Promise<ContaPagar | null>;
+  findByIdWithRelations(id: string): Promise<ContaPagar | null>;
   findAll(filters?: {
     empresaId?: string;
     contaBancariaId?: string;

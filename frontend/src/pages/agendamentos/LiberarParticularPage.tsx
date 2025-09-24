@@ -351,8 +351,94 @@ export const LiberarParticularPage = () => {
     return encontrarPreco(pacienteId, servicoId) !== null;
   };
 
-  // Componente auxiliar para botões com validação de preço
+  // Componente auxiliar para botões com validação de preço (para Solicitar Liberação)
   const BotaoComValidacaoPreco = ({ 
+    pacienteId, 
+    servicoId, 
+    onClick, 
+    disabled = false, 
+    className = '', 
+    title = '', 
+    children,
+    variant = 'default' as any
+  }: {
+    pacienteId: string;
+    servicoId: string;
+    onClick: () => void;
+    disabled?: boolean;
+    className?: string;
+    title?: string;
+    children: React.ReactNode;
+    variant?: 'default' | 'outline';
+  }) => {
+    const haPreco = temPrecoCadastrado(pacienteId, servicoId);
+    const precoInfo = encontrarPreco(pacienteId, servicoId);
+    const temPagamentoAntecipado = precoInfo?.pagamentoAntecipado === true;
+    const isDisabled = disabled || !haPreco || !temPagamentoAntecipado;
+
+    if (!haPreco) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-block">
+                <Button
+                  variant={variant}
+                  disabled={true}
+                  className={`${className} opacity-50 cursor-not-allowed`}
+                  title="Sem preço cadastrado"
+                >
+                  {children}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Não é possível liberar um atendimento sem preço particular cadastrado</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    if (!temPagamentoAntecipado) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-block">
+                <Button
+                  variant={variant}
+                  disabled={true}
+                  className={`${className} opacity-50 cursor-not-allowed`}
+                  title="Pagamento antecipado não habilitado"
+                >
+                  {children}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Só é possível solicitar liberação para pagamentos antecipados</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    return (
+      <Button
+        variant={variant}
+        disabled={isDisabled}
+        onClick={onClick}
+        className={className}
+        title={title}
+      >
+        {children}
+      </Button>
+    );
+  };
+
+  // Componente auxiliar para botões de liberação (apenas valida preço, ignora pagamento antecipado)
+  const BotaoComValidacaoPrecoLiberacao = ({ 
     pacienteId, 
     servicoId, 
     onClick, 
@@ -1154,7 +1240,7 @@ export const LiberarParticularPage = () => {
                       WhatsApp
                     </Button>
                     {canLiberar ? (
-                      <BotaoComValidacaoPreco
+                      <BotaoComValidacaoPrecoLiberacao
                         pacienteId={grupo.pacienteId}
                         servicoId={grupo.servicoId}
                         variant="outline"
@@ -1163,7 +1249,7 @@ export const LiberarParticularPage = () => {
                         title="Liberar Grupo"
                       >
                         Liberar Grupo
-                      </BotaoComValidacaoPreco>
+                      </BotaoComValidacaoPrecoLiberacao>
                     ) : (
                       <Button 
                         size="sm" 
@@ -1283,7 +1369,7 @@ export const LiberarParticularPage = () => {
                       WhatsApp
                     </Button>
                     {canLiberar ? (
-                      <BotaoComValidacaoPreco
+                      <BotaoComValidacaoPrecoLiberacao
                         pacienteId={agendamento.pacienteId}
                         servicoId={agendamento.servicoId}
                         variant="outline"
@@ -1292,7 +1378,7 @@ export const LiberarParticularPage = () => {
                         title="Liberado Atendimento"
                       >
                         Liberado Atendimento
-                      </BotaoComValidacaoPreco>
+                      </BotaoComValidacaoPrecoLiberacao>
                     ) : (
                       <Button 
                         size="sm" 
@@ -1497,7 +1583,7 @@ export const LiberarParticularPage = () => {
                           <MessageCircle className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
                         </Button>
                         {canLiberar ? (
-                          <BotaoComValidacaoPreco
+                          <BotaoComValidacaoPrecoLiberacao
                             pacienteId={grupo.pacienteId}
                             servicoId={grupo.servicoId}
                             variant="outline"
@@ -1506,7 +1592,7 @@ export const LiberarParticularPage = () => {
                             title="Liberar Agendamentos do Grupo"
                           >
                             <CheckSquare className="w-4 h-4 text-emerald-600 group-hover:text-white transition-colors" />
-                          </BotaoComValidacaoPreco>
+                          </BotaoComValidacaoPrecoLiberacao>
                         ) : (
                           <Button
                             variant="outline"
@@ -1619,7 +1705,7 @@ export const LiberarParticularPage = () => {
                         <MessageCircle className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
                       </Button>
                       {canLiberar ? (
-                        <BotaoComValidacaoPreco
+                        <BotaoComValidacaoPrecoLiberacao
                           pacienteId={agendamento.pacienteId}
                           servicoId={agendamento.servicoId}
                           variant="outline"
@@ -1628,7 +1714,7 @@ export const LiberarParticularPage = () => {
                           title="Liberado Atendimento"
                         >
                           <CheckSquare className="w-4 h-4 text-emerald-600 group-hover:text-white transition-colors" />
-                        </BotaoComValidacaoPreco>
+                        </BotaoComValidacaoPrecoLiberacao>
                       ) : (
                         <Button
                           variant="outline"
@@ -1902,6 +1988,7 @@ export const LiberarParticularPage = () => {
                 <TableBody>
                   {grupoSelecionado?.agendamentos.map((agendamento, index) => {
                     const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
+                    const precoInfo = encontrarPreco(agendamento.pacienteId, agendamento.servicoId);
                     return (
                       <TableRow key={agendamento.id} className="hover:bg-blue-50 transition-colors">
                         <TableCell className="py-2 text-sm">
@@ -1951,20 +2038,43 @@ export const LiberarParticularPage = () => {
                             >
                               <MessageCircle className="w-3 h-3" />
                             </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-6 w-6 p-0 border-yellow-300 text-yellow-600 hover:bg-yellow-100"
-                              onClick={() => handleSolicitarLiberacaoClick(agendamento)}
-                              disabled={estaProcessando(agendamento.id)}
-                              title="Solicitar Liberação Individual"
-                            >
-                              {estaProcessando(agendamento.id) ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <Unlock className="w-3 h-3" />
-                              )}
-                            </Button>
+                            {!precoInfo?.pagamentoAntecipado ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="inline-block">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={true}
+                                        className="h-6 w-6 p-0 border-yellow-300 text-yellow-600 opacity-50 cursor-not-allowed"
+                                        title="Pagamento antecipado não habilitado"
+                                      >
+                                        <Unlock className="w-3 h-3" />
+                                      </Button>
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Só é possível solicitar liberação para pagamentos antecipados</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 w-6 p-0 border-yellow-300 text-yellow-600 hover:bg-yellow-100"
+                                onClick={() => handleSolicitarLiberacaoClick(agendamento)}
+                                disabled={estaProcessando(agendamento.id)}
+                                title="Solicitar Liberação Individual"
+                              >
+                                {estaProcessando(agendamento.id) ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Unlock className="w-3 h-3" />
+                                )}
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

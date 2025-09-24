@@ -184,6 +184,7 @@ import { UpdateContaPagarUseCase } from '../../core/application/use-cases/conta-
 import { DeleteContaPagarUseCase } from '../../core/application/use-cases/conta-pagar/DeleteContaPagarUseCase';
 import { PagarContaUseCase } from '../../core/application/use-cases/conta-pagar/PagarContaUseCase';
 import { CancelarContaPagarUseCase } from '../../core/application/use-cases/conta-pagar/CancelarContaPagarUseCase';
+import { GetDadosWebhookContaPagarUseCase } from '../../core/application/use-cases/conta-pagar/GetDadosWebhookContaPagarUseCase';
 import { CreateFluxoCaixaUseCase } from '../../core/application/use-cases/fluxo-caixa/CreateFluxoCaixaUseCase';
 import { ListFluxoCaixaUseCase } from '../../core/application/use-cases/fluxo-caixa/ListFluxoCaixaUseCase';
 import { UpdateFluxoCaixaUseCase } from '../../core/application/use-cases/fluxo-caixa/UpdateFluxoCaixaUseCase';
@@ -484,6 +485,7 @@ container.register('UpdateContaPagarUseCase', UpdateContaPagarUseCase);
 container.register('DeleteContaPagarUseCase', DeleteContaPagarUseCase);
 container.register('PagarContaUseCase', PagarContaUseCase);
 container.register('CancelarContaPagarUseCase', CancelarContaPagarUseCase);
+container.register('GetDadosWebhookContaPagarUseCase', GetDadosWebhookContaPagarUseCase);
 
 container.register('CreateFluxoCaixaUseCase', CreateFluxoCaixaUseCase);
 container.register('ListFluxoCaixaUseCase', ListFluxoCaixaUseCase);

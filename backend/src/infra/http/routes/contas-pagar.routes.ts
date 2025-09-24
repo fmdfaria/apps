@@ -55,4 +55,9 @@ export async function contasPagarRoutes(app: FastifyInstance) {
   app.get('/contas-pagar/recorrentes', { 
     preHandler: [ensureAuthenticated, ensureAuthorized('/contas-pagar/recorrentes', 'GET')] 
   }, (request, reply) => controller.findRecorrentes(request as any, reply as any));
+
+  // Buscar dados para webhook
+  app.get('/contas-pagar/:id/webhook-data', { 
+    preHandler: [ensureAuthenticated, ensureAuthorized('/contas-pagar/:id/webhook-data', 'GET')] 
+  }, (request, reply) => controller.getDadosWebhook(request as any, reply as any));
 }

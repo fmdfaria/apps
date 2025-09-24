@@ -296,4 +296,24 @@ export class ContasPagarController {
       });
     }
   }
+
+  async getDadosWebhook(request: FastifyRequest<{ Params: ContaPagarParams }>, reply: FastifyReply) {
+    try {
+      const getDadosWebhookUseCase = container.resolve('GetDadosWebhookContaPagarUseCase');
+      
+      const dados = await getDadosWebhookUseCase.execute(request.params.id);
+      
+      return reply.send({
+        success: true,
+        data: dados
+      });
+    } catch (error) {
+      const statusCode = error instanceof Error && error.message === 'Conta a pagar não encontrada' ? 404 : 500;
+      
+      return reply.status(statusCode).send({
+        success: false,
+        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+      });
+    }
+  }
 }

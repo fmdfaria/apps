@@ -391,38 +391,35 @@ export const FechamentoPage = () => {
       );
       
       if (agendamentosRelacionados.length > 1) {
-        // Extrair mês/ano da data do agendamento
+        // Para pagamentos mensais, considerar TODOS os agendamentos relacionados
+        // independente do mês, para calcular o valor total correto
+        
+        // Extrair mês/ano da data do agendamento para display (apenas para referência)
         const dataAgendamento = new Date(agendamento.dataHoraInicio);
         const mesAno = `${dataAgendamento.getFullYear()}-${String(dataAgendamento.getMonth() + 1).padStart(2, '0')}`;
         
-        // Filtrar agendamentos do mesmo mês/ano
-        const agendamentosMesmoMes = agendamentosRelacionados.filter(ag => {
-          const dataAg = new Date(ag.dataHoraInicio);
-          const mesAnoAg = `${dataAg.getFullYear()}-${String(dataAg.getMonth() + 1).padStart(2, '0')}`;
-          return mesAnoAg === mesAno;
-        });
+        // Formatação para display do mês/ano
+        const formatarMesAno = (mesAno: string): string => {
+          const [ano, mes] = mesAno.split('-');
+          const meses = [
+            'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+          ];
+          return `${meses[parseInt(mes) - 1]} ${ano}`;
+        };
 
-        if (agendamentosMesmoMes.length > 1) {
-          // Formatações para o payload
-          const formatarMesAno = (mesAno: string): string => {
-            const [ano, mes] = mesAno.split('-');
-            const meses = [
-              'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-              'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-            ];
-            return `${meses[parseInt(mes) - 1]} ${ano}`;
-          };
+        // Usar a mesma lógica de calcularValorTotal para o preço unitário
+        const precoUnitario = calcularValorTotal(agendamento);
 
-          return {
-            mesAno,
-            mesAnoDisplay: formatarMesAno(mesAno),
-            agendamentos: agendamentosMesmoMes,
-            quantidadeAgendamentos: agendamentosMesmoMes.length,
-            precoUnitario: precoInfo.preco,
-            precoTotal: precoInfo.preco * agendamentosMesmoMes.length,
-            tipoPagamento: precoInfo.tipoPagamento
-          };
-        }
+        return {
+          mesAno,
+          mesAnoDisplay: formatarMesAno(mesAno),
+          agendamentos: agendamentosRelacionados, // TODOS os agendamentos relacionados
+          quantidadeAgendamentos: agendamentosRelacionados.length, // Quantidade total
+          precoUnitario: precoUnitario,
+          precoTotal: precoUnitario * agendamentosRelacionados.length, // Preço total correto
+          tipoPagamento: precoInfo.tipoPagamento
+        };
       }
     }
     
@@ -1942,6 +1939,7 @@ export const FechamentoPage = () => {
           setAgendamentosDetalhes([]);
           setTituloModal('');
         }}
+        calcularValor={calcularValorTotal}
       />
 
       {/* Modal de criação de conta a receber para registrar pagamento */}

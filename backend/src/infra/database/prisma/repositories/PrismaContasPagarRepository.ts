@@ -58,6 +58,32 @@ export class PrismaContasPagarRepository implements IContasPagarRepository {
     return conta ? this.mapToDomain(conta) : null;
   }
 
+  async findByIdWithRelations(id: string): Promise<ContaPagar | null> {
+    const conta = await prisma.contaPagar.findUnique({
+      where: { id },
+      include: {
+        empresa: true,
+        contaBancaria: true,
+        profissional: true,
+        categoria: true,
+        agendamentosConta: {
+          include: {
+            agendamento: {
+              include: {
+                paciente: true,
+                profissional: true,
+                servico: true,
+                convenio: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return conta ? this.mapToDomain(conta) : null;
+  }
+
   async findAll(filters?: {
     empresaId?: string;
     contaBancariaId?: string;

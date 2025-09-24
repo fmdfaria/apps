@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, DollarSign, Calendar, User, Building2 } from 'lucide-react';
+import { Plus, Edit, Trash2, DollarSign, Calendar, User, Building2, MessageCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AppToast } from '@/services/toast';
 import { getContasPagar, createContaPagar, updateContaPagar, deleteContaPagar, pagarConta } from '@/services/contas-pagar';
+import api from '@/services/api';
 import { getEmpresas } from '@/services/empresas';
 import { getProfissionais } from '@/services/profissionais';
 import type { ContaPagar } from '@/types/ContaPagar';
@@ -147,6 +148,15 @@ export const ContasPagarPage = () => {
               <DollarSign className="w-4 h-4" />
             </ActionButton>
           )}
+          
+          <ActionButton
+            variant="primary"
+            module="financeiro"
+            onClick={() => enviarWhatsApp(item)}
+            title="Enviar WhatsApp"
+          >
+            <MessageCircle className="w-4 h-4" />
+          </ActionButton>
           
           <ActionButton
             variant="view"
@@ -329,6 +339,64 @@ export const ContasPagarPage = () => {
     }
   };
 
+  const enviarWhatsApp = async (conta: ContaPagar) => {
+    try {
+      AppToast.info('Enviando WhatsApp', {
+        description: 'Preparando dados para envio via WhatsApp...'
+      });
+      
+      // Buscar dados completos para webhook usando a API interna
+      const response = await api.get(`/contas-pagar/${conta.id}/webhook-data`);
+      const dadosWebhook = response.data.data;
+      
+      // URL do webhook para envio de dados de pagamento
+      const webhookUrl = import.meta.env.VITE_WEBHOOK_ENVIAR_DADOS_PAGAMENTO;
+      
+      if (!webhookUrl) {
+        AppToast.error('Erro de configuração', {
+          description: 'URL do webhook não configurada. Verifique o arquivo .env'
+        });
+        return;
+      }
+
+      // Enviar dados via webhook usando fetch para URL externa
+      const webhookResponse = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tipo: 'DADOS_PAGAMENTO_CONTA_PAGAR',
+          conta: dadosWebhook,
+          timestamp: new Date().toISOString(),
+          origem: 'sistema-clinica'
+        })
+      });
+
+      if (!webhookResponse.ok) {
+        throw new Error(`Erro ao enviar webhook: ${webhookResponse.status}`);
+      }
+
+      AppToast.success('WhatsApp Enviado', {
+        description: `Dados da conta "${conta.descricao}" enviados com sucesso via WhatsApp.`
+      });
+      
+    } catch (error: any) {
+      console.error('Erro ao enviar WhatsApp:', error);
+      
+      let errorMessage = 'Tente novamente.';
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      AppToast.error('Erro ao enviar WhatsApp', {
+        description: `Erro ao enviar dados da conta "${conta.descricao}". ${errorMessage}`
+      });
+    }
+  };
+
   // Renderização do card
   const renderCard = (conta: ContaPagar) => (
     <Card className="h-full hover:shadow-md transition-shadow">
@@ -385,6 +453,14 @@ export const ContasPagarPage = () => {
             <DollarSign className="w-4 h-4" />
           </ActionButton>
         )}
+        <ActionButton
+          variant="primary"
+          module="financeiro"
+          onClick={() => enviarWhatsApp(conta)}
+          title="Enviar WhatsApp"
+        >
+          <MessageCircle className="w-4 h-4" />
+        </ActionButton>
         <ActionButton
           variant="view"
           module="financeiro"
