@@ -60,7 +60,7 @@ export interface ToastOptions {
  * 🔴 ERRO (Vermelho):     AppToast.error('Título', { description: 'Descrição opcional' })
  * 🟡 AVISO (Laranja):     AppToast.warning('Título', { description: 'Descrição opcional' })
  * 🔵 INFO (Azul):         AppToast.info('Título', { description: 'Descrição opcional' })
- * 🛡️ ACESSO NEGADO:       AppToast.accessDenied(routeName?, routeDescription?)
+ * 🛡️ ACESSO NEGADO:       AppToast.accessDenied(methodAndPath?)
  * ⏳ LOADING:             const toastId = AppToast.loading('Carregando...')
  * 
  * === MÉTODOS CRUD (COM CORES E ÍCONES ESPECÍFICOS) ===
@@ -134,9 +134,9 @@ export const AppToast = {
    * Toast de ACESSO NEGADO - Vermelho especial
    * Para erros de permissão e autorização
    */
-  accessDenied: (routeName?: string, routeDescription?: string, options?: Omit<ToastOptions, 'description'>) => {
-    const description = routeName && routeDescription
-      ? `Você não tem permissão para: "${routeName}". ${routeDescription}`
+  accessDenied: (methodAndPath?: string, options?: Omit<ToastOptions, 'description'>) => {
+    const description = methodAndPath
+      ? `Você não possui permissão para realizar esta ação. Entre em contato com o administrador, e passe essa informação: ${methodAndPath}`
       : 'Você não possui permissão para realizar esta ação. Entre em contato com o administrador.';
 
     return toast.error('🛡️ Acesso Negado', {

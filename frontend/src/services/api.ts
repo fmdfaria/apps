@@ -8,20 +8,28 @@ const api = axios.create({
 });
 
 // Função para tratar erros 403 com mensagens amigáveis
-function handleForbiddenError(originalRequest: any) {
-  // Extrai informações básicas da requisição para logging
+function handleForbiddenError(originalRequest: any, backendData?: any) {
+  // Se o backend já informou method e requiredPath, usa diretamente
+  const backendMethod = backendData?.method?.toUpperCase?.();
+  const backendPath = backendData?.requiredPath;
+
+  if (backendMethod && backendPath) {
+    AppToast.accessDenied(`${backendMethod} ${backendPath}`);
+    return;
+  }
+
+  // Extrai informações básicas da requisição para fallback
   const fullUrl = originalRequest.url;
   const method = originalRequest.method?.toUpperCase() || 'GET';
   
   // Remove a base URL para obter apenas o path
   const baseURL = api.defaults.baseURL || '';
-  const path = fullUrl.startsWith(baseURL) ? fullUrl.replace(baseURL, '') : fullUrl;
-  const cleanPath = path.split('?')[0];
+  const path = fullUrl?.startsWith?.(baseURL) ? fullUrl.replace(baseURL, '') : fullUrl;
+  const cleanPath = (path || '')?.split?.('?')[0] || '/';
   
   console.warn(`Acesso negado para ${method} ${cleanPath}`);
   
-  // Mensagem genérica para todos os casos de acesso negado
-  AppToast.accessDenied();
+  AppToast.accessDenied(`${method} ${cleanPath}`);
 }
 
 // Interceptador para adicionar accessToken
@@ -94,7 +102,7 @@ api.interceptors.response.use(
 
     // Trata erros 403 (Acesso Negado) com mensagem amigável
     if (error.response?.status === 403) {
-      handleForbiddenError(originalRequest);
+      handleForbiddenError(originalRequest, error.response?.data);
     }
 
     return Promise.reject(error);

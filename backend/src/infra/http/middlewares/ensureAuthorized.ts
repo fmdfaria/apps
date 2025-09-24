@@ -20,7 +20,11 @@ export function ensureAuthorized(requiredPath: string, method: string = 'GET') {
       });
 
       if (!hasAccess) {
-        return reply.status(403).send({ message: 'Acesso negado. Usuário não possui permissão para esta rota.' });
+        return reply.status(403).send({ 
+          message: 'Acesso negado. Usuário não possui permissão para esta rota.',
+          requiredPath,
+          method: method.toUpperCase(),
+        });
       }
     } catch (error) {
       console.error('Erro ao verificar autorização:', error);
