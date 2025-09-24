@@ -4,7 +4,7 @@ import { IContaPagarRepository } from '../../../domain/repositories/IContaPagarR
 @injectable()
 export class GetDadosWebhookContaPagarUseCase {
   constructor(
-    @inject('ContaPagarRepository')
+    @inject('ContasPagarRepository')
     private contaPagarRepository: IContaPagarRepository
   ) {}
 
