@@ -386,6 +386,9 @@ export class PrismaContasPagarRepository implements IContasPagarRepository {
     if (raw.categoria) {
       conta.categoria = raw.categoria;
     }
+    if (raw.agendamentosConta) {
+      conta.agendamentosConta = raw.agendamentosConta;
+    }
 
     return conta;
   }

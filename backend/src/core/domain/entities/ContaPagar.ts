@@ -3,6 +3,7 @@ import { Empresa } from './Empresa';
 import { ContaBancaria } from './ContaBancaria';
 import { CategoriaFinanceira } from './CategoriaFinanceira';
 import { Profissional } from './Profissional';
+import { AgendamentoConta } from './AgendamentoConta';
 
 export class ContaPagar {
   id!: string;
@@ -45,9 +46,10 @@ export class ContaPagar {
   contaBancaria?: ContaBancaria;
   profissional?: Profissional;
   categoria?: CategoriaFinanceira;
+  agendamentosConta?: AgendamentoConta[];
 
   constructor(
-    props: Omit<ContaPagar, 'id' | 'createdAt' | 'updatedAt' | 'empresa' | 'contaBancaria' | 'profissional' | 'categoria'>,
+    props: Omit<ContaPagar, 'id' | 'createdAt' | 'updatedAt' | 'empresa' | 'contaBancaria' | 'profissional' | 'categoria' | 'agendamentosConta'>,
     id?: string
   ) {
     Object.assign(this, props);
