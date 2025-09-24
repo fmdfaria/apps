@@ -10,6 +10,7 @@ interface ActionButtonProps {
   title?: string;
   className?: string;
   children?: React.ReactNode;
+  disabled?: boolean;
 }
 
 /**
@@ -21,7 +22,8 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
   onClick,
   title,
   className,
-  children
+  children,
+  disabled
 }) => {
   const theme = getModuleTheme(module);
   
@@ -68,9 +70,11 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
       size={size}
       onClick={onClick}
       title={title}
+      disabled={disabled}
       className={cn(
         variantClassName,
         "h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform",
+        disabled && "opacity-50 cursor-not-allowed hover:scale-100",
         className
       )}
     >

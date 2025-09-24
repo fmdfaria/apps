@@ -61,6 +61,9 @@ export const ContasPagarPage = () => {
   // Estados para modal de reenvio WhatsApp
   const [showConfirmacaoReenvio, setShowConfirmacaoReenvio] = useState(false);
   const [contaParaReenvio, setContaParaReenvio] = useState<ContaPagar | null>(null);
+  
+  // Estado para loading do WhatsApp
+  const [whatsappLoadingIds, setWhatsappLoadingIds] = useState<Set<string>>(new Set());
 
   // Hooks responsivos
   const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'contas-pagar-view' });
@@ -160,8 +163,13 @@ export const ContasPagarPage = () => {
             module="financeiro"
             onClick={() => handleEnviarWhatsAppClick(item)}
             title="Enviar WhatsApp"
+            disabled={whatsappLoadingIds.has(item.id)}
           >
-            <MessageCircle className="w-4 h-4" />
+            {whatsappLoadingIds.has(item.id) ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+            ) : (
+              <MessageCircle className="w-4 h-4" />
+            )}
           </ActionButton>
           
           <ActionButton
@@ -372,6 +380,9 @@ export const ContasPagarPage = () => {
   };
 
   const enviarWhatsApp = async (conta: ContaPagar) => {
+    // Adicionar conta ao loading
+    setWhatsappLoadingIds(prev => new Set(prev).add(conta.id));
+    
     try {
       AppToast.info('Enviando WhatsApp', {
         description: 'Preparando dados para envio via WhatsApp...'
@@ -445,6 +456,13 @@ export const ContasPagarPage = () => {
       AppToast.error('Erro ao enviar WhatsApp', {
         description: `Erro ao enviar dados da conta "${conta.descricao}". ${errorMessage}`
       });
+    } finally {
+      // Remover conta do loading
+      setWhatsappLoadingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(conta.id);
+        return newSet;
+      });
     }
   };
 
@@ -509,8 +527,13 @@ export const ContasPagarPage = () => {
           module="financeiro"
           onClick={() => handleEnviarWhatsAppClick(conta)}
           title="Enviar WhatsApp"
+          disabled={whatsappLoadingIds.has(conta.id)}
         >
-          <MessageCircle className="w-4 h-4" />
+          {whatsappLoadingIds.has(conta.id) ? (
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+          ) : (
+            <MessageCircle className="w-4 h-4" />
+          )}
         </ActionButton>
         <ActionButton
           variant="view"
