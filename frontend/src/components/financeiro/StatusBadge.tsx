@@ -13,6 +13,11 @@ const statusConfig = {
     variant: 'outline' as const,
     className: 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100'
   },
+  SOLICITADO: {
+    label: 'Solicitado',
+    variant: 'outline' as const,
+    className: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
+  },
   PARCIAL: {
     label: 'Parcial',
     variant: 'outline' as const,

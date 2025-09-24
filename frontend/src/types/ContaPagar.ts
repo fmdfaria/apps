@@ -3,7 +3,7 @@ import type { ContaBancaria } from './ContaBancaria';
 import type { CategoriaFinanceira } from './CategoriaFinanceira';
 import type { Profissional } from './Profissional';
 
-export type StatusContaPagar = 'PENDENTE' | 'PARCIAL' | 'PAGO' | 'VENCIDO' | 'CANCELADO';
+export type StatusContaPagar = 'PENDENTE' | 'SOLICITADO' | 'PARCIAL' | 'PAGO' | 'VENCIDO' | 'CANCELADO';
 export type FormaPagamento = 'DINHEIRO' | 'PIX' | 'CARTAO_CREDITO' | 'CARTAO_DEBITO' | 'TRANSFERENCIA' | 'CHEQUE' | 'TED' | 'DOC';
 export type TipoContaPagar = 'DESPESA' | 'SALARIO' | 'ENCARGO' | 'IMPOSTO' | 'INVESTIMENTO';
 export type Periodicidade = 'MENSAL' | 'TRIMESTRAL' | 'SEMESTRAL' | 'ANUAL';

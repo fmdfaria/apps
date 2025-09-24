@@ -41,6 +41,7 @@ import { StatusBadge, ValorDisplay } from '@/components/financeiro';
 import ContaPagarModal from './ContaPagarModal';
 import PagarContaModal from './PagarContaModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 
 export const ContasPagarPage = () => {
   const [contas, setContas] = useState<ContaPagar[]>([]);
@@ -56,6 +57,10 @@ export const ContasPagarPage = () => {
   const [pagando, setPagando] = useState<ContaPagar | null>(null);
   const [excluindo, setExcluindo] = useState<ContaPagar | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  
+  // Estados para modal de reenvio WhatsApp
+  const [showConfirmacaoReenvio, setShowConfirmacaoReenvio] = useState(false);
+  const [contaParaReenvio, setContaParaReenvio] = useState<ContaPagar | null>(null);
 
   // Hooks responsivos
   const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'contas-pagar-view' });
@@ -121,6 +126,7 @@ export const ContasPagarPage = () => {
         type: 'select',
         options: [
           { value: 'PENDENTE', label: 'Pendente' },
+          { value: 'SOLICITADO', label: 'Solicitado' },
           { value: 'PARCIAL', label: 'Parcial' },
           { value: 'PAGO', label: 'Pago' },
           { value: 'VENCIDO', label: 'Vencido' },
@@ -152,7 +158,7 @@ export const ContasPagarPage = () => {
           <ActionButton
             variant="primary"
             module="financeiro"
-            onClick={() => enviarWhatsApp(item)}
+            onClick={() => handleEnviarWhatsAppClick(item)}
             title="Enviar WhatsApp"
           >
             <MessageCircle className="w-4 h-4" />
@@ -303,7 +309,9 @@ export const ContasPagarPage = () => {
     
     try {
       await pagarConta(pagando.id, data);
-      AppToast.success('Conta Paga', 'O pagamento foi registrado com sucesso.');
+      AppToast.success('Conta Paga', {
+        description: 'O pagamento foi registrado com sucesso.'
+      });
       await fetchData();
       fecharPagarModal();
     } catch (error: any) {
@@ -337,6 +345,30 @@ export const ContasPagarPage = () => {
     } finally {
       setDeleteLoading(false);
     }
+  };
+
+  const handleEnviarWhatsAppClick = (conta: ContaPagar) => {
+    if (conta.status === 'SOLICITADO') {
+      // Mostrar modal de confirmação para reenvio
+      setContaParaReenvio(conta);
+      setShowConfirmacaoReenvio(true);
+    } else {
+      // Prosseguir normalmente
+      enviarWhatsApp(conta);
+    }
+  };
+
+  const confirmarReenvio = () => {
+    if (contaParaReenvio) {
+      enviarWhatsApp(contaParaReenvio);
+    }
+    setShowConfirmacaoReenvio(false);
+    setContaParaReenvio(null);
+  };
+
+  const cancelarReenvio = () => {
+    setShowConfirmacaoReenvio(false);
+    setContaParaReenvio(null);
   };
 
   const enviarWhatsApp = async (conta: ContaPagar) => {
@@ -377,8 +409,27 @@ export const ContasPagarPage = () => {
         throw new Error(`Erro ao enviar webhook: ${webhookResponse.status}`);
       }
 
+      // Atualizar status da conta para SOLICITADO após sucesso do webhook
+      try {
+        await api.put(`/contas-pagar/${conta.id}`, {
+          status: 'SOLICITADO'
+        });
+
+        // Atualizar a conta localmente
+        setContas(prev => 
+          prev.map(c => 
+            c.id === conta.id 
+              ? { ...c, status: 'SOLICITADO' }
+              : c
+          )
+        );
+      } catch (updateError) {
+        console.warn('Erro ao atualizar status da conta:', updateError);
+        // Não falha o processo principal se a atualização do status falhar
+      }
+
       AppToast.success('WhatsApp Enviado', {
-        description: `Dados da conta "${conta.descricao}" enviados com sucesso via WhatsApp.`
+        description: `Dados da conta "${conta.descricao}" enviados com sucesso via WhatsApp. Status atualizado para "Solicitado".`
       });
       
     } catch (error: any) {
@@ -456,7 +507,7 @@ export const ContasPagarPage = () => {
         <ActionButton
           variant="primary"
           module="financeiro"
-          onClick={() => enviarWhatsApp(conta)}
+          onClick={() => handleEnviarWhatsAppClick(conta)}
           title="Enviar WhatsApp"
         >
           <MessageCircle className="w-4 h-4" />
@@ -607,6 +658,17 @@ export const ContasPagarPage = () => {
           isLoading={deleteLoading}
           loadingText="Excluindo conta..."
           confirmText="Excluir Conta"
+        />
+        
+        <ConfirmacaoModal
+          open={showConfirmacaoReenvio}
+          onClose={cancelarReenvio}
+          onConfirm={confirmarReenvio}
+          title="Reenviar WhatsApp"
+          description={`Deseja realmente reenviar os dados da conta "${contaParaReenvio?.descricao}" via WhatsApp? Esta conta já foi solicitada anteriormente.`}
+          confirmText="Reenviar"
+          cancelText="Cancelar"
+          variant="warning"
         />
       </PageContainer>
     </TooltipProvider>

@@ -28,7 +28,7 @@ export class ContaPagar {
   dataPagamento?: Date | null;
   
   // Status e Controle
-  status!: string; // PENDENTE, PARCIAL, PAGO, VENCIDO, CANCELADO
+  status!: string; // PENDENTE, SOLICITADO, PARCIAL, PAGO, VENCIDO, CANCELADO
   formaPagamento?: string | null; // DINHEIRO, PIX, TRANSFERENCIA, etc
   tipoConta!: string; // DESPESA, SALARIO, ENCARGO, IMPOSTO, INVESTIMENTO
   recorrente!: boolean;
