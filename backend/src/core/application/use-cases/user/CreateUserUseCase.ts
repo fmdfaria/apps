@@ -9,8 +9,8 @@ interface IRequest {
   nome: string;
   email: string;
   whatsapp: string;
-  profissionalId?: string;
-  pacienteId?: string;
+  profissionalId?: string | null;
+  pacienteId?: string | null;
 }
 
 interface IResponse {

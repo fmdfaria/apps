@@ -8,8 +8,8 @@ interface IRequest {
   email?: string;
   whatsapp?: string;
   ativo?: boolean;
-  profissionalId?: string;
-  pacienteId?: string;
+  profissionalId?: string | null;
+  pacienteId?: string | null;
 }
 
 @injectable()

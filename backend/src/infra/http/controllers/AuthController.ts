@@ -18,8 +18,8 @@ export class AuthController {
       nome: z.string().min(3),
       email: z.string().email(),
       whatsapp: z.string().min(12).max(14).regex(/^55\d{2}9?\d{8,9}$/, 'Formato de WhatsApp inválido. Use: 551199999999, 5511999999999 ou 55119999999999'),
-      profissionalId: z.string().uuid().optional(),
-      pacienteId: z.string().uuid().optional(),
+      profissionalId: z.string().uuid().nullish(),
+      pacienteId: z.string().uuid().nullish(),
     });
     const data = bodySchema.parse(request.body);
     const useCase = container.resolve(CreateUserUseCase);
