@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { container } from 'tsyringe';
 import { z } from 'zod';
+import { PrismaClient } from '@prisma/client';
 import { CreateAnexoUseCase } from '../../../core/application/use-cases/anexo/CreateAnexoUseCase';
 import { ListAnexosUseCase } from '../../../core/application/use-cases/anexo/ListAnexosUseCase';
 import { DeleteAnexoUseCase } from '../../../core/application/use-cases/anexo/DeleteAnexoUseCase';
@@ -163,7 +164,7 @@ export class AnexosController {
       }
 
       let nomeArquivo = anexoAtual.nomeArquivo;
-      let url = anexoAtual.url;
+      let url: string | undefined = anexoAtual.url || undefined;
       let s3Key = anexoAtual.s3Key;
       let uploadResult = null;
 
@@ -201,10 +202,6 @@ export class AnexosController {
         descricao: fields.descricao,
         nomeArquivo,
         url,
-        s3Key: uploadResult ? uploadResult.s3Key : undefined,
-        tamanhoBytes: uploadResult ? uploadResult.size : undefined,
-        mimeType: uploadResult ? uploadResult.mimetype : undefined,
-        hashArquivo: uploadResult ? uploadResult.hash : undefined,
       });
 
       return reply.status(200).send(updated);
@@ -320,12 +317,13 @@ export class AnexosController {
         });
       }
 
-      // Validar tamanho (máximo 5MB)
+      // Validar tamanho usando variável de ambiente
       const fileBuffer = await mp.toBuffer();
-      const maxSize = 5 * 1024 * 1024; // 5MB
+      const limiteAnexo = Number(process.env.LIMITE_ANEXO || 10);
+      const maxSize = limiteAnexo * 1024 * 1024; // Convertendo MB para bytes
       if (fileBuffer.length > maxSize) {
-        return reply.status(400).send({ 
-          message: 'Arquivo muito grande. Tamanho máximo: 5MB.' 
+        return reply.status(413).send({ 
+          message: `Arquivo muito grande. Tamanho máximo permitido: ${limiteAnexo}MB` 
         });
       }
 
@@ -344,7 +342,7 @@ export class AnexosController {
       });
 
       // Atualizar o usuário no banco com a S3 key do avatar (não a URL)
-      const userRepository = container.resolve('PrismaClient');
+      const userRepository = container.resolve<PrismaClient>('PrismaClient');
       await userRepository.user.update({
         where: { id: userId },
         data: { avatarUrl: uploadResult.s3Key } // Salvar apenas a S3 key
@@ -374,7 +372,7 @@ export class AnexosController {
       }
 
       // Buscar a S3 key do avatar do usuário
-      const userRepository = container.resolve('PrismaClient');
+      const userRepository = container.resolve<PrismaClient>('PrismaClient');
       const user = await userRepository.user.findUnique({
         where: { id: userId },
         select: { avatarUrl: true }

@@ -54,7 +54,7 @@ app.register(cors, {
 
 app.register(multipart, {
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB, ajuste conforme sua necessidade
+    fileSize: Number(process.env.LIMITE_ANEXO || 10) * 1024 * 1024 // Limite configurável via .env, padrão 10MB
   }
 });
 
@@ -109,9 +109,17 @@ app.setErrorHandler((error, request, reply) => {
     return reply.status(error.statusCode).send({ message: error.message });
   }
 
+  // Tratar erro de arquivo muito grande
+  if (error.code === 'FST_ERR_CTP_BODY_TOO_LARGE' || error.message === 'request file too large') {
+    const limiteAnexo = Number(process.env.LIMITE_ANEXO || 10);
+    return reply.status(413).send({ 
+      message: `Arquivo muito grande. Tamanho máximo permitido: ${limiteAnexo}MB` 
+    });
+  }
+
   app.log.error(error);
 
-  return reply.status(500).send({ message: 'Internal server error.' });
+  return reply.status(500).send({ message: 'Erro interno do servidor' });
 });
 
 const start = async () => {
