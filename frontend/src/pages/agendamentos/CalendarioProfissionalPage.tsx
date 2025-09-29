@@ -471,7 +471,19 @@ export const CalendarioProfissionalPage = () => {
       const [agendamentoHour, agendamentoMinute] = agendamentoHora.split(':').map(Number);
       const agendamentoMinutos = agendamentoHour * 60 + agendamentoMinute;
       
-      return Math.abs(agendamentoMinutos - horarioMinutos) < 30; // Tolerância de 30 minutos
+      // Calcular horário fim baseado na duração ou usar dataHoraFim
+      let agendamentoFimMinutos: number;
+      if (agendamento.dataHoraFim) {
+        const { hora: horaFimFormatada } = formatarDataHoraLocal(agendamento.dataHoraFim);
+        const [fimHour, fimMinute] = horaFimFormatada.split(':').map(Number);
+        agendamentoFimMinutos = fimHour * 60 + fimMinute;
+      } else {
+        // Estimar duração padrão de 60 minutos
+        agendamentoFimMinutos = agendamentoMinutos + 60;
+      }
+      
+      // Verificar se o slot atual está dentro do período do agendamento
+      return horarioMinutos >= agendamentoMinutos && horarioMinutos < agendamentoFimMinutos;
     });
 
     if (temAgendamento) return 'ocupado';
@@ -527,7 +539,19 @@ export const CalendarioProfissionalPage = () => {
       const [agendamentoHour, agendamentoMinute] = agendamentoHora.split(':').map(Number);
       const agendamentoMinutos = agendamentoHour * 60 + agendamentoMinute;
       
-      return Math.abs(agendamentoMinutos - horarioMinutos) < 30;
+      // Calcular horário fim baseado na duração ou usar dataHoraFim
+      let agendamentoFimMinutos: number;
+      if (agendamento.dataHoraFim) {
+        const { hora: horaFimFormatada } = formatarDataHoraLocal(agendamento.dataHoraFim);
+        const [fimHour, fimMinute] = horaFimFormatada.split(':').map(Number);
+        agendamentoFimMinutos = fimHour * 60 + fimMinute;
+      } else {
+        // Estimar duração padrão de 60 minutos
+        agendamentoFimMinutos = agendamentoMinutos + 60;
+      }
+      
+      // Verificar se o slot atual está dentro do período do agendamento
+      return horarioMinutos >= agendamentoMinutos && horarioMinutos < agendamentoFimMinutos;
     });
 
     if (temAgendamento) {
@@ -765,7 +789,7 @@ export const CalendarioProfissionalPage = () => {
                               }}
                               viewType="profissionais"
                               className="w-full h-full border-l-4 rounded-md shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md"
-                              style={{ borderLeftColor: agendamento.color, backgroundColor: agendamento.color + '20' }}
+                              style={{ borderLeftColor: agendamento.color, backgroundColor: '#ffffff' }}
                               onDetailsClick={() => handleVerDetalhes(agendamento.agendamento)}
                               onEditClick={() => handleEditarAgendamento(agendamento.id)}
                             />

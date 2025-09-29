@@ -32,8 +32,12 @@ const verificarHorarioOcupado = (
 ): { ocupado: boolean; agendamentoConflitante?: any } => {
   // Converter data para string no formato YYYY-MM-DD para comparação
   const dataSolicitada = `${data.getFullYear()}-${(data.getMonth() + 1).toString().padStart(2, '0')}-${data.getDate().toString().padStart(2, '0')}`;
+  
+  // Converter horário solicitado para minutos (para comparação numérica)
+  const [horaSolicitada, minutoSolicitado] = horario.split(':').map(Number);
+  const minutosSolicitados = horaSolicitada * 60 + minutoSolicitado;
 
-  // Verificar se existe agendamento no mesmo horário
+  // Verificar se existe agendamento que se sobrepõe ao horário solicitado
   const agendamentoConflitante = agendamentos.find(agendamento => {
     const mesmoProfissional = agendamento.profissionalId === profissionalId;
     const mesmoRecurso = agendamento.recursoId === recursoId;
@@ -50,8 +54,29 @@ const verificarHorarioOcupado = (
     // Usar formatarDataHoraLocal para parsing correto (igual ao CalendarioPage)
     const { data: dataAgendamento, hora: horaAgendamento } = formatarDataHoraLocal(agendamento.dataHoraInicio);
     
-    // Comparar data (string) e horário (string) diretamente
-    return dataAgendamento === dataSolicitada && horaAgendamento === horario;
+    // Verificar se é o mesmo dia
+    if (dataAgendamento !== dataSolicitada) {
+      return false;
+    }
+    
+    // Calcular período ocupado pelo agendamento existente
+    const [horaInicio, minutoInicio] = horaAgendamento.split(':').map(Number);
+    const minutosInicio = horaInicio * 60 + minutoInicio;
+    
+    let minutosFim: number;
+    if (agendamento.dataHoraFim) {
+      // Se tem dataHoraFim, usar ela
+      const { hora: horaFimFormatada } = formatarDataHoraLocal(agendamento.dataHoraFim);
+      const [horaFim, minutoFim] = horaFimFormatada.split(':').map(Number);
+      minutosFim = horaFim * 60 + minutoFim;
+    } else {
+      // Se não tem dataHoraFim, estimar duração padrão de 60 minutos
+      minutosFim = minutosInicio + 60;
+    }
+    
+    // Verificar se o horário solicitado se sobrepõe ao período do agendamento
+    // O horário solicitado conflita se estiver dentro do período ocupado
+    return minutosSolicitados >= minutosInicio && minutosSolicitados < minutosFim;
   });
 
   return {

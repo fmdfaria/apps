@@ -191,11 +191,35 @@ export class GetAgendamentoFormDataUseCase {
       const agendamentosDaSemana = agendamentos.filter(agendamento => {
         if (agendamento.profissionalId !== profissional.id) return false;
         
+        // Verificar status cancelado (excluir do cálculo)
+        const statusCancelado = ['CANCELADO', 'cancelado', 'CANCELLED', 'cancelled'].includes(agendamento.status);
+        if (statusCancelado) {
+          return false;
+        }
+        
         const dataAgendamento = new Date(agendamento.dataHoraInicio);
         return dataAgendamento >= inicioDaSemana && dataAgendamento <= fimDaSemana;
       });
 
-      const slotsOcupados = agendamentosDaSemana.length;
+      // Calcular slots ocupados baseado na duração real de cada agendamento
+      const slotsOcupados = agendamentosDaSemana.reduce((total, agendamento) => {
+        let duracaoMinutos: number;
+        
+        if (agendamento.dataHoraFim) {
+          // Se tem dataHoraFim, calcular duração real
+          const inicio = new Date(agendamento.dataHoraInicio);
+          const fim = new Date(agendamento.dataHoraFim);
+          duracaoMinutos = (fim.getTime() - inicio.getTime()) / (1000 * 60); // Converter para minutos
+        } else {
+          // Se não tem dataHoraFim, usar duração padrão de 60 minutos
+          duracaoMinutos = 60;
+        }
+        
+        // Calcular quantos slots de 30 minutos esse agendamento ocupa
+        const slotsDoAgendamento = Math.ceil(duracaoMinutos / 30); // Arredondar para cima
+        
+        return total + slotsDoAgendamento;
+      }, 0);
       const percentual = totalSlotsDisponiveis === 0 ? 0 : Math.round((slotsOcupados / totalSlotsDisponiveis) * 100);
       
       ocupacoes.push({
