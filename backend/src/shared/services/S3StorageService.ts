@@ -39,9 +39,9 @@ export class S3StorageService {
   private s3Client: S3Client;
   private bucketName: string;
 
-  private sanitizeFilename(filename: string): string {
+  private sanitizeMetadataValue(value: string): string {
     // Remove/substitui caracteres especiais que causam problemas em headers HTTP
-    return filename
+    return value
       .replace(/[<>:"/\\|?*\x00-\x1f\x80-\x9f]/g, '_') // Caracteres problemáticos
       .replace(/[\u0080-\uFFFF]/g, (match) => { // Caracteres não-ASCII
         // Mantém apenas caracteres básicos ou substitui por underscore
@@ -50,6 +50,14 @@ export class S3StorageService {
       .replace(/_{2,}/g, '_') // Remove múltiplos underscores consecutivos
       .trim()
       .substring(0, 255); // Limita tamanho máximo
+  }
+
+  private sanitizeMetadata(metadata: Record<string, string>): Record<string, string> {
+    const sanitized: Record<string, string> = {};
+    for (const [key, value] of Object.entries(metadata)) {
+      sanitized[key] = this.sanitizeMetadataValue(value);
+    }
+    return sanitized;
   }
 
   constructor() {
@@ -98,8 +106,8 @@ export class S3StorageService {
     const hash = crypto.createHash('md5').update(options.buffer).digest('hex');
 
     // Preparar metadata
-    const metadata = {
-      'original-filename': this.sanitizeFilename(options.filename),
+    const rawMetadata = {
+      'original-filename': options.filename,
       'upload-timestamp': new Date().toISOString(),
       'file-hash': hash,
       'modulo': options.modulo,
@@ -107,6 +115,9 @@ export class S3StorageService {
       'entidade-id': options.entidadeId,
       ...options.metadata
     };
+
+    // Sanitizar todos os valores do metadata
+    const metadata = this.sanitizeMetadata(rawMetadata);
 
     try {
       // Comando de upload
