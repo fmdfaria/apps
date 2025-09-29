@@ -110,13 +110,18 @@ app.setErrorHandler((error, request, reply) => {
   }
 
   // Tratar erro de arquivo muito grande
-  if (error.code === 'FST_ERR_CTP_BODY_TOO_LARGE' || error.message === 'request file too large') {
+  if (error.code === 'FST_ERR_CTP_BODY_TOO_LARGE' || 
+      error.code === 'LIMIT_FILE_SIZE' ||
+      error.message === 'request file too large' ||
+      error.message?.includes('file too large')) {
     const limiteAnexo = Number(process.env.LIMITE_ANEXO || 10);
     return reply.status(413).send({ 
       message: `Arquivo muito grande. Tamanho máximo permitido: ${limiteAnexo}MB` 
     });
   }
 
+  // Log para debug
+  console.error('Error details:', { code: error.code, message: error.message });
   app.log.error(error);
 
   return reply.status(500).send({ message: 'Erro interno do servidor' });
