@@ -9,6 +9,13 @@ import { IPacientesRepository } from '../../../domain/repositories/IPacientesRep
 import { IConveniosRepository } from '../../../domain/repositories/IConveniosRepository';
 import { IRecursosRepository } from '../../../domain/repositories/IRecursosRepository';
 import { SeriesManager } from '../../../../infra/services/SeriesManager';
+import { 
+  gerarMensagemConflitoP, 
+  gerarMensagemConflitoRecurso, 
+  gerarMensagemConflitoPaciente,
+  gerarMensagemAgendamentoNaoEncontrado,
+  gerarMensagemServicoNaoEncontrado
+} from '../../../../shared/utils/MensagensAgendamento';
 
 @injectable()
 export class UpdateAgendamentoUseCase {
@@ -36,7 +43,7 @@ export class UpdateAgendamentoUseCase {
     // 1. Carregar agendamento atual
     const agendamentoAtual = await this.agendamentosRepository.findById(id);
     if (!agendamentoAtual) {
-      throw new AppError('Agendamento não encontrado.', 404);
+      throw new AppError(gerarMensagemAgendamentoNaoEncontrado(id, 'para edição'), 404);
     }
 
 
@@ -83,7 +90,21 @@ export class UpdateAgendamentoUseCase {
         dataHoraInicioAlvo
       );
       if (existenteProf && existenteProf.id !== agendamentoId) {
-        throw new AppError('Conflito: profissional já possui agendamento nesta data e hora.', 400);
+        // Buscar dados para mensagem detalhada
+        const [profissional, pacienteExistente, servicoExistente] = await Promise.all([
+          this.profissionaisRepository.findById(profissionalAlvo),
+          this.pacientesRepository.findById(existenteProf.pacienteId),
+          this.servicosRepository.findById(existenteProf.servicoId)
+        ]);
+        
+        const mensagem = gerarMensagemConflitoP({
+          agendamentoExistente: existenteProf,
+          profissionalNome: profissional?.nome,
+          pacienteNome: pacienteExistente?.nomeCompleto,
+          servicoNome: servicoExistente?.nome
+        });
+        
+        throw new AppError(mensagem, 400);
       }
     }
 
@@ -99,7 +120,21 @@ export class UpdateAgendamentoUseCase {
           dataHoraInicioAlvo
         );
         if (existenteRecurso && existenteRecurso.id !== agendamentoId) {
-          throw new AppError('Conflito: recurso já possui agendamento nesta data e hora.', 400);
+          // Buscar dados para mensagem detalhada
+          const [recurso, profissionalExistente, servicoExistente] = await Promise.all([
+            this.recursosRepository.findById(recursoAlvo),
+            this.profissionaisRepository.findById(existenteRecurso.profissionalId),
+            this.servicosRepository.findById(existenteRecurso.servicoId)
+          ]);
+          
+          const mensagem = gerarMensagemConflitoRecurso({
+            agendamentoExistente: existenteRecurso,
+            recursoNome: recurso?.nome,
+            profissionalNome: profissionalExistente?.nome,
+            servicoNome: servicoExistente?.nome
+          });
+          
+          throw new AppError(mensagem, 400);
         }
       }
     }
@@ -110,7 +145,21 @@ export class UpdateAgendamentoUseCase {
         dataHoraInicioAlvo
       );
       if (existentePaciente && existentePaciente.id !== agendamentoId) {
-        throw new AppError('Conflito: paciente já possui agendamento nesta data e hora.', 400);
+        // Buscar dados para mensagem detalhada
+        const [paciente, profissionalExistente, servicoExistente] = await Promise.all([
+          this.pacientesRepository.findById(pacienteAlvo),
+          this.profissionaisRepository.findById(existentePaciente.profissionalId),
+          this.servicosRepository.findById(existentePaciente.servicoId)
+        ]);
+        
+        const mensagem = gerarMensagemConflitoPaciente({
+          agendamentoExistente: existentePaciente,
+          pacienteNome: paciente?.nomeCompleto,
+          profissionalNome: profissionalExistente?.nome,
+          servicoNome: servicoExistente?.nome
+        });
+        
+        throw new AppError(mensagem, 400);
       }
     }
   }
@@ -131,7 +180,7 @@ export class UpdateAgendamentoUseCase {
       
       const servico = await this.servicosRepository.findById(servicoId);
       if (!servico) {
-        throw new AppError('Serviço não encontrado.', 404);
+        throw new AppError(gerarMensagemServicoNaoEncontrado(servicoId), 404);
       }
       
       dataHoraFim = new Date(new Date(dataHoraInicio).getTime() + servico.duracaoMinutos * 60000);
@@ -190,7 +239,7 @@ export class UpdateAgendamentoUseCase {
     // Retornar agendamento atualizado
     const agendamentoAtualizado = await this.agendamentosRepository.findById(id);
     if (!agendamentoAtualizado) {
-      throw new AppError('Erro ao recuperar agendamento atualizado', 500);
+      throw new AppError(gerarMensagemAgendamentoNaoEncontrado(id, 'após atualização'), 500);
     }
 
     return agendamentoAtualizado;

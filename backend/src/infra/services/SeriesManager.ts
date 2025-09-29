@@ -5,6 +5,10 @@ import { SerieInfo, SeriePosition, SerieUpdateOptions } from '../../core/domain/
 import { Agendamento } from '../../core/domain/entities/Agendamento';
 import { GoogleCalendarService } from './GoogleCalendarService';
 import { AppError } from '../../shared/errors/AppError';
+import { 
+  gerarMensagemAgendamentoNaoEncontrado,
+  gerarMensagemAgendamentoNaoEncontradoSerie
+} from '../../shared/utils/MensagensAgendamento';
 
 @injectable()
 export class SeriesManager {
@@ -113,7 +117,7 @@ export class SeriesManager {
 
     const agendamento = await this.agendamentosRepository.findById(agendamentoId);
     if (!agendamento) {
-      throw new AppError('Agendamento não encontrado', 404);
+      throw new AppError(gerarMensagemAgendamentoNaoEncontrado(agendamentoId, 'para operação em série'), 404);
     }
 
     const serie = await this.findSerieByAgendamentoId(agendamentoId);
@@ -244,7 +248,7 @@ export class SeriesManager {
 
     const agendamento = await this.agendamentosRepository.findById(agendamentoId);
     if (!agendamento) {
-      throw new AppError('Agendamento não encontrado', 404);
+      throw new AppError(gerarMensagemAgendamentoNaoEncontrado(agendamentoId, 'para operação em série'), 404);
     }
 
     const serie = await this.findSerieByAgendamentoId(agendamentoId);
@@ -256,7 +260,7 @@ export class SeriesManager {
 
     const agendamentoAtual = serie.agendamentos.find(ag => ag.id === agendamentoId);
     if (!agendamentoAtual) {
-      throw new AppError('Agendamento não encontrado na série', 404);
+      throw new AppError(gerarMensagemAgendamentoNaoEncontradoSerie(agendamentoId, serie.id, serie.agendamentos.length), 404);
     }
 
     // Encontrar agendamentos desta data em diante (incluindo o atual)
@@ -344,7 +348,7 @@ export class SeriesManager {
 
     const agendamento = await this.agendamentosRepository.findById(agendamentoId);
     if (!agendamento) {
-      throw new AppError('Agendamento não encontrado', 404);
+      throw new AppError(gerarMensagemAgendamentoNaoEncontrado(agendamentoId, 'para operação em série'), 404);
     }
 
     const serie = await this.findSerieByAgendamentoId(agendamentoId);
@@ -418,7 +422,7 @@ export class SeriesManager {
 
     const agendamento = await this.agendamentosRepository.findById(agendamentoId);
     if (!agendamento) {
-      throw new AppError('Agendamento não encontrado', 404);
+      throw new AppError(gerarMensagemAgendamentoNaoEncontrado(agendamentoId, 'para operação em série'), 404);
     }
 
     const serie = await this.findSerieByAgendamentoId(agendamentoId);
@@ -480,7 +484,7 @@ export class SeriesManager {
 
     const agendamento = await this.agendamentosRepository.findById(agendamentoId);
     if (!agendamento) {
-      throw new AppError('Agendamento não encontrado', 404);
+      throw new AppError(gerarMensagemAgendamentoNaoEncontrado(agendamentoId, 'para operação em série'), 404);
     }
 
     const serie = await this.findSerieByAgendamentoId(agendamentoId);
@@ -492,7 +496,7 @@ export class SeriesManager {
 
     const agendamentoAtual = serie.agendamentos.find(ag => ag.id === agendamentoId);
     if (!agendamentoAtual) {
-      throw new AppError('Agendamento não encontrado na série', 404);
+      throw new AppError(gerarMensagemAgendamentoNaoEncontradoSerie(agendamentoId, serie.id, serie.agendamentos.length), 404);
     }
 
     // Encontrar agendamentos desta data em diante

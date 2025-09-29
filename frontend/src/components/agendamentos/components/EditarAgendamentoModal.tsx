@@ -17,6 +17,12 @@ import type { Agendamento } from '@/types/Agendamento';
 import { AppToast } from '@/services/toast';
 import api from '@/services/api';
 import { formatarDatasEmMensagem } from '@/utils/dateUtils';
+import { 
+  gerarMensagemCampoObrigatorio, 
+  gerarMensagemDataPassada, 
+  gerarMensagemOperacaoAgendamentoPassado,
+  processarErroBackend
+} from '@/utils/MensagensErro';
 
 interface EditarAgendamentoModalProps {
   isOpen: boolean;
@@ -136,13 +142,30 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
     }
   }, [agendamento?.profissionalId]);
 
+  // Interface para resposta detalhada da validação
+  interface ValidacaoDisponibilidade {
+    valido: boolean;
+    mensagem: string;
+    disponibilidadesEncontradas?: Array<{
+      recursoNome: string;
+      horaInicio: string;
+      horaFim: string;
+    }>;
+  }
+
+  // Mapeamento de dias da semana
+  const DIAS_SEMANA = [
+    'Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 
+    'Quinta-feira', 'Sexta-feira', 'Sábado'
+  ];
+
   // Função para validar se o recurso está conforme a disponibilidade cadastrada
   const validarRecursoConformeDisponibilidade = async (
     profissionalId: string, 
     recursoId: string, 
     dataHoraCompleta: string
-  ): Promise<boolean> => {
-    if (!disponibilidades.length) return true; // Se não há disponibilidades, aceita qualquer recurso
+  ): Promise<ValidacaoDisponibilidade> => {
+    if (!disponibilidades.length) return { valido: true, mensagem: '' };
 
     // Extrair data e hora
     const [data, hora] = dataHoraCompleta.split('T');
@@ -150,6 +173,11 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
     const diaSemana = dataObj.getDay();
     const [horaNum, minutoNum] = hora.split(':').map(Number);
     const horarioMinutos = horaNum * 60 + minutoNum;
+
+    // Obter nome do profissional e recurso do agendamento atual
+    const nomeProfissional = agendamento?.profissionalNome || agendamento?.profissional?.nome || 'Profissional';
+    const nomeRecurso = agendamento?.recursoNome || agendamento?.recurso?.nome || 'Recurso';
+    const nomeDiaSemana = DIAS_SEMANA[diaSemana] || 'Dia da semana';
 
     // Buscar disponibilidades do profissional
     const disponibilidadesProfissional = disponibilidades.filter(disp => {
@@ -174,51 +202,108 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
       return false;
     });
 
-    // Verificar se existe uma disponibilidade com o recurso selecionado no horário específico
-    const disponibilidadeComRecurso = disponibilidadesProfissional.find(disp => {
-      const dispRecursoId = disp.recursoId ?? disp.recurso_id;
-      if (dispRecursoId !== recursoId) return false;
-      
-      const horaInicioRaw = disp.horaInicio ?? disp.hora_inicio;
-      const horaFimRaw = disp.horaFim ?? disp.hora_fim;
-      if (horaInicioRaw && horaFimRaw) {
-        let horaInicioDisp, horaFimDisp;
+    // Coletar todas as disponibilidades do profissional no dia/horário (para listar na mensagem)
+    const disponibilidadesNoDia = disponibilidadesProfissional
+      .map(disp => {
+        const dispRecursoId = disp.recursoId ?? disp.recurso_id;
+        const nomeRecursoDisp = disp.recurso?.nome || 'Recurso';
         
-        // Tratar diferentes formatos de horário (mesmo código da auto-seleção)
-        if (typeof horaInicioRaw === 'string' && horaInicioRaw.includes('T')) {
-          const dataInicio = new Date(horaInicioRaw);
-          const dataFim = new Date(horaFimRaw as any);
-          horaInicioDisp = dataInicio.getHours() * 60 + dataInicio.getMinutes();
-          horaFimDisp = dataFim.getHours() * 60 + dataFim.getMinutes();
-        }
-        else if (typeof horaInicioRaw === 'object' && (horaInicioRaw as any).getHours) {
-          horaInicioDisp = (horaInicioRaw as Date).getHours() * 60 + (horaInicioRaw as Date).getMinutes();
-          horaFimDisp = (horaFimRaw as Date).getHours() * 60 + (horaFimRaw as Date).getMinutes();
-        } 
-        else if (typeof horaInicioRaw === 'string' && horaInicioRaw.includes(':')) {
-          const [hI, mI] = (horaInicioRaw as string).split(':').map(Number);
-          const [hF, mF] = (horaFimRaw as string).split(':').map(Number);
-          horaInicioDisp = hI * 60 + mI;
-          horaFimDisp = hF * 60 + mF;
-        }
-        else {
-          return false;
+        const horaInicioRaw = disp.horaInicio ?? disp.hora_inicio;
+        const horaFimRaw = disp.horaFim ?? disp.hora_fim;
+        
+        if (horaInicioRaw && horaFimRaw) {
+          let horaInicioDisp, horaFimDisp;
+          
+          // Tratar diferentes formatos de horário
+          if (typeof horaInicioRaw === 'string' && horaInicioRaw.includes('T')) {
+            const dataInicio = new Date(horaInicioRaw);
+            const dataFim = new Date(horaFimRaw as any);
+            horaInicioDisp = dataInicio.getHours() * 60 + dataInicio.getMinutes();
+            horaFimDisp = dataFim.getHours() * 60 + dataFim.getMinutes();
+          }
+          else if (typeof horaInicioRaw === 'object' && (horaInicioRaw as any).getHours) {
+            horaInicioDisp = (horaInicioRaw as Date).getHours() * 60 + (horaInicioRaw as Date).getMinutes();
+            horaFimDisp = (horaFimRaw as Date).getHours() * 60 + (horaFimRaw as Date).getMinutes();
+          } 
+          else if (typeof horaInicioRaw === 'string' && horaInicioRaw.includes(':')) {
+            const [hI, mI] = (horaInicioRaw as string).split(':').map(Number);
+            const [hF, mF] = (horaFimRaw as string).split(':').map(Number);
+            horaInicioDisp = hI * 60 + mI;
+            horaFimDisp = hF * 60 + mF;
+          }
+          else {
+            return null;
+          }
+          
+          // Formatear horários para exibição
+          const horaInicioFormatada = `${Math.floor(horaInicioDisp / 60).toString().padStart(2, '0')}:${(horaInicioDisp % 60).toString().padStart(2, '0')}`;
+          const horaFimFormatada = `${Math.floor(horaFimDisp / 60).toString().padStart(2, '0')}:${(horaFimDisp % 60).toString().padStart(2, '0')}`;
+          
+          return {
+            recursoNome: nomeRecursoDisp,
+            horaInicio: horaInicioFormatada,
+            horaFim: horaFimFormatada,
+            recursoId: dispRecursoId,
+            horaInicioMinutos: horaInicioDisp,
+            horaFimMinutos: horaFimDisp
+          };
         }
         
-        // Verificar se o horário está dentro do intervalo
-        return horarioMinutos >= horaInicioDisp && horarioMinutos < horaFimDisp;
-      }
-      
-      return false;
-    });
+        return null;
+      })
+      .filter(Boolean) as Array<{
+        recursoNome: string;
+        horaInicio: string;
+        horaFim: string;
+        recursoId: string;
+        horaInicioMinutos: number;
+        horaFimMinutos: number;
+      }>;
 
-    return !!disponibilidadeComRecurso; // Retorna true se encontrou a disponibilidade, false se não encontrou
+    // Verificar se existe uma disponibilidade com o recurso exato no horário específico
+    const disponibilidadeComRecursoExato = disponibilidadesNoDia.find(disp => 
+      disp.recursoId === recursoId && 
+      horarioMinutos >= disp.horaInicioMinutos && 
+      horarioMinutos < disp.horaFimMinutos
+    );
+
+    if (disponibilidadeComRecursoExato) {
+      return {
+        valido: true,
+        mensagem: ''
+      };
+    }
+
+    // Montar mensagem de erro detalhada
+    const disponibilidadesTexto = disponibilidadesNoDia.length > 0
+      ? disponibilidadesNoDia
+          .map(disp => `${disp.recursoNome} (${disp.horaInicio}-${disp.horaFim})`)
+          .join(', ')
+      : 'nenhuma';
+
+    const mensagem = `Profissional ${nomeProfissional} não tem disponibilidade cadastrada para Recurso: ${nomeRecurso} na ${nomeDiaSemana} às ${hora}. Disponibilidades cadastradas na ${nomeDiaSemana}: ${disponibilidadesTexto}.`;
+
+    return {
+      valido: false,
+      mensagem,
+      disponibilidadesEncontradas: disponibilidadesNoDia.map(disp => ({
+        recursoNome: disp.recursoNome,
+        horaInicio: disp.horaInicio,
+        horaFim: disp.horaFim
+      }))
+    };
   };
 
   const handleSave = async () => {
-    if (!agendamento || !dataAgendamento || !horaAgendamento) {
-      AppToast.error('Erro de validação', {
-        description: 'Todos os campos são obrigatórios.'
+    // Validação de campos obrigatórios
+    const camposFaltando: string[] = [];
+    if (!agendamento) camposFaltando.push('agendamento');
+    if (!dataAgendamento) camposFaltando.push('data');
+    if (!horaAgendamento) camposFaltando.push('horário');
+    
+    if (camposFaltando.length > 0) {
+      AppToast.error('Campos obrigatórios', {
+        description: gerarMensagemCampoObrigatorio(camposFaltando)
       });
       return;
     }
@@ -226,7 +311,7 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
     // Check if trying to edit a past appointment as series
     if (isAgendamentoPassado && tipoEdicao !== 'apenas_esta') {
       AppToast.error('Operação não permitida', {
-        description: 'Não é permitido alterar recorrência de agendamentos passados.'
+        description: gerarMensagemOperacaoAgendamentoPassado('alterar recorrência')
       });
       return;
     }
@@ -240,7 +325,7 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
     
     if (selectedDate < today) {
       AppToast.error('Data inválida', {
-        description: 'Não é possível editar agendamentos para datas passadas.'
+        description: gerarMensagemDataPassada('edição de agendamento')
       });
       return;
     }
@@ -275,15 +360,15 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
       
       // Validação de recurso x disponibilidade usando formato simples
       const dataHoraCombinada = `${dataAgendamento}T${horaAgendamento}`;
-      const recursoConforme = await validarRecursoConformeDisponibilidade(
+      const validacaoRecurso = await validarRecursoConformeDisponibilidade(
         agendamento.profissionalId, 
         agendamento.recursoId, 
         dataHoraCombinada
       );
 
-      if (!recursoConforme) {
+      if (!validacaoRecurso.valido) {
         AppToast.error('Conflito no agendamento', {
-          description: 'Profissional não atende neste horário.'
+          description: validacaoRecurso.mensagem
         });
         setSaving(false);
         return;
@@ -324,9 +409,9 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
       onClose();
     } catch (error: any) {
       console.error('Erro ao atualizar agendamento:', error);
-      const backendMsg = error?.response?.data?.message;
-      AppToast.error('Erro ao atualizar', {
-        description: formatarDatasEmMensagem(backendMsg || 'Ocorreu um erro ao atualizar o agendamento.')
+      const mensagemMelhorada = processarErroBackend(error);
+      AppToast.error('Erro ao atualizar agendamento', {
+        description: formatarDatasEmMensagem(mensagemMelhorada)
       });
     } finally {
       setSaving(false);

@@ -9,6 +9,12 @@ import { IPacientesRepository } from '../../../domain/repositories/IPacientesRep
 import { IConveniosRepository } from '../../../domain/repositories/IConveniosRepository';
 import { IRecursosRepository } from '../../../domain/repositories/IRecursosRepository';
 import { randomUUID } from 'crypto';
+import { 
+  gerarMensagemConflitoP, 
+  gerarMensagemConflitoRecurso, 
+  gerarMensagemConflitoPaciente, 
+  gerarMensagemServicoNaoEncontrado 
+} from '../../../../shared/utils/MensagensAgendamento';
 
 @injectable()
 export class CreateAgendamentoUseCase {
@@ -60,19 +66,64 @@ export class CreateAgendamentoUseCase {
       ];
       
       const [existenteProf, existenteRecurso, existentePaciente] = await Promise.all(conflictChecks);
+      
       if (existenteProf) {
-        throw new AppError('Conflito: profissional já possui agendamento nesta data e hora.', 400);
+        // Buscar dados para mensagem detalhada
+        const [profissional, pacienteExistente, servicoExistente] = await Promise.all([
+          this.profissionaisRepository.findById(agendamentoData.profissionalId),
+          this.pacientesRepository.findById(existenteProf.pacienteId),
+          this.servicosRepository.findById(existenteProf.servicoId)
+        ]);
+        
+        const mensagem = gerarMensagemConflitoP({
+          agendamentoExistente: existenteProf,
+          profissionalNome: profissional?.nome,
+          pacienteNome: pacienteExistente?.nomeCompleto,
+          servicoNome: servicoExistente?.nome
+        });
+        
+        throw new AppError(mensagem, 400);
       }
+      
       if (existenteRecurso && !isOnlineResource) {
-        throw new AppError('Conflito: recurso já possui agendamento nesta data e hora.', 400);
+        // Buscar dados para mensagem detalhada
+        const [recurso, profissionalExistente, servicoExistente] = await Promise.all([
+          this.recursosRepository.findById(agendamentoData.recursoId),
+          this.profissionaisRepository.findById(existenteRecurso.profissionalId),
+          this.servicosRepository.findById(existenteRecurso.servicoId)
+        ]);
+        
+        const mensagem = gerarMensagemConflitoRecurso({
+          agendamentoExistente: existenteRecurso,
+          recursoNome: recurso?.nome,
+          profissionalNome: profissionalExistente?.nome,
+          servicoNome: servicoExistente?.nome
+        });
+        
+        throw new AppError(mensagem, 400);
       }
+      
       if (existentePaciente) {
-        throw new AppError('Conflito: paciente já possui agendamento nesta data e hora.', 400);
+        // Buscar dados para mensagem detalhada
+        const [paciente, profissionalExistente, servicoExistente] = await Promise.all([
+          this.pacientesRepository.findById(agendamentoData.pacienteId),
+          this.profissionaisRepository.findById(existentePaciente.profissionalId),
+          this.servicosRepository.findById(existentePaciente.servicoId)
+        ]);
+        
+        const mensagem = gerarMensagemConflitoPaciente({
+          agendamentoExistente: existentePaciente,
+          pacienteNome: paciente?.nomeCompleto,
+          profissionalNome: profissionalExistente?.nome,
+          servicoNome: servicoExistente?.nome
+        });
+        
+        throw new AppError(mensagem, 400);
       }
       // Buscar duração do serviço
       const servico = await this.servicosRepository.findById(agendamentoData.servicoId);
       if (!servico) {
-        throw new AppError('Serviço não encontrado.', 404);
+        throw new AppError(gerarMensagemServicoNaoEncontrado(agendamentoData.servicoId), 404);
       }
       const dataHoraFim = new Date(new Date(agendamentoData.dataHoraInicio).getTime() + servico.duracaoMinutos * 60000);
       
@@ -176,14 +227,59 @@ export class CreateAgendamentoUseCase {
       ];
       
       const [existeProf, existeRecurso, existePaciente] = await Promise.all(conflictChecks);
+      
       if (existeProf) {
-        throw new AppError(`Conflito: profissional já possui agendamento em ${dataHoraInicio.toISOString()}`);
+        // Buscar dados para mensagem detalhada
+        const [profissional, pacienteExistente, servicoExistente] = await Promise.all([
+          this.profissionaisRepository.findById(baseData.profissionalId),
+          this.pacientesRepository.findById(existeProf.pacienteId),
+          this.servicosRepository.findById(existeProf.servicoId)
+        ]);
+        
+        const mensagem = gerarMensagemConflitoP({
+          agendamentoExistente: existeProf,
+          profissionalNome: profissional?.nome,
+          pacienteNome: pacienteExistente?.nomeCompleto,
+          servicoNome: servicoExistente?.nome
+        });
+        
+        throw new AppError(mensagem);
       }
+      
       if (existeRecurso && !isOnlineResource) {
-        throw new AppError(`Conflito: recurso já possui agendamento em ${dataHoraInicio.toISOString()}`);
+        // Buscar dados para mensagem detalhada
+        const [recurso, profissionalExistente, servicoExistente] = await Promise.all([
+          this.recursosRepository.findById(baseData.recursoId),
+          this.profissionaisRepository.findById(existeRecurso.profissionalId),
+          this.servicosRepository.findById(existeRecurso.servicoId)
+        ]);
+        
+        const mensagem = gerarMensagemConflitoRecurso({
+          agendamentoExistente: existeRecurso,
+          recursoNome: recurso?.nome,
+          profissionalNome: profissionalExistente?.nome,
+          servicoNome: servicoExistente?.nome
+        });
+        
+        throw new AppError(mensagem);
       }
+      
       if (existePaciente) {
-        throw new AppError(`Conflito: paciente já possui agendamento em ${dataHoraInicio.toISOString()}`);
+        // Buscar dados para mensagem detalhada
+        const [paciente, profissionalExistente, servicoExistente] = await Promise.all([
+          this.pacientesRepository.findById(baseData.pacienteId),
+          this.profissionaisRepository.findById(existePaciente.profissionalId),
+          this.servicosRepository.findById(existePaciente.servicoId)
+        ]);
+        
+        const mensagem = gerarMensagemConflitoPaciente({
+          agendamentoExistente: existePaciente,
+          pacienteNome: paciente?.nomeCompleto,
+          profissionalNome: profissionalExistente?.nome,
+          servicoNome: servicoExistente?.nome
+        });
+        
+        throw new AppError(mensagem);
       }
     }
     // Se não houver conflitos, criar todos

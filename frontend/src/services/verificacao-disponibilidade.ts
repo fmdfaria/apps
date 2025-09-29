@@ -3,6 +3,7 @@ import { getDisponibilidadesProfissional } from './disponibilidades';
 import { parseDataLocal } from '@/lib/utils';
 import type { Agendamento } from '@/types/Agendamento';
 import type { DisponibilidadeProfissional } from '@/types/DisponibilidadeProfissional';
+import { gerarMensagemHorarioOcupado } from '@/utils/MensagensErro';
 
 export type StatusDisponibilidade = 'disponivel' | 'ocupado' | 'indisponivel';
 
@@ -30,14 +31,14 @@ const verificarHorarioOcupado = (
   data: Date,
   horario: string,
   agendamentos: Agendamento[]
-): boolean => {
+): { ocupado: boolean; agendamentoConflitante?: Agendamento } => {
   // Criar data/hora para comparação (usar timezone local)
   const dataHoraSolicitada = new Date(data);
   const [hora, minuto] = horario.split(':').map(Number);
   dataHoraSolicitada.setHours(hora, minuto, 0, 0);
 
   // Verificar se existe agendamento no mesmo horário
-  const ocupado = agendamentos.some(agendamento => {
+  const agendamentoConflitante = agendamentos.find(agendamento => {
     if (agendamento.profissionalId !== profissionalId) {
       return false;
     }
@@ -70,14 +71,10 @@ const verificarHorarioOcupado = (
     const mesmoMinuto = solicitadaFormatada.getMinutes() === agendamentoFormatada.getMinutes();
     const comparacaoAlternativa = mesmoDia && mesmaHora && mesmoMinuto;
     
-    const resultado = saoIguais || comparacaoAlternativa;
-    
-    // Log removido para melhorar performance
-    
-    return resultado;
+    return saoIguais || comparacaoAlternativa;
   });
 
-  return ocupado;
+  return { ocupado: !!agendamentoConflitante, agendamentoConflitante };
 };
 
 // Função para verificar disponibilidade de horário (baseada no CalendarioPage)
@@ -209,20 +206,21 @@ const verificarStatusCompleto = (
   const statusDisponibilidade = verificarDisponibilidadeHorario(profissionalId, data, horario, disponibilidades);
   
   // 2. Depois verificar se está ocupado
-  const ocupado = verificarHorarioOcupado(profissionalId, data, horario, agendamentos);
+  const resultadoOcupacao = verificarHorarioOcupado(profissionalId, data, horario, agendamentos);
+  const ocupado = resultadoOcupacao.ocupado;
   
   switch (statusDisponibilidade) {
     case 'presencial':
       return {
         status: ocupado ? 'ocupado' : 'disponivel',
-        motivo: ocupado ? 'Horário já possui agendamento (presencial)' : 'Disponível para atendimento presencial',
+        motivo: ocupado ? gerarMensagemHorarioOcupado(resultadoOcupacao.agendamentoConflitante, 'presencial') : 'Disponível para atendimento presencial',
         dotColor: 'blue',
         isOcupado: ocupado
       };
     case 'online':
       return {
         status: ocupado ? 'ocupado' : 'disponivel',
-        motivo: ocupado ? 'Horário já possui agendamento (online)' : 'Disponível para atendimento online',
+        motivo: ocupado ? gerarMensagemHorarioOcupado(resultadoOcupacao.agendamentoConflitante, 'online') : 'Disponível para atendimento online',
         dotColor: 'green',
         isOcupado: ocupado
       };
