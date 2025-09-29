@@ -110,7 +110,8 @@ app.setErrorHandler((error, request, reply) => {
   }
 
   // Tratar erro de arquivo muito grande
-  if (error.code === 'FST_ERR_CTP_BODY_TOO_LARGE' || 
+  if (error.code === 'FST_REQ_FILE_TOO_LARGE' ||
+      error.code === 'FST_ERR_CTP_BODY_TOO_LARGE' || 
       error.code === 'LIMIT_FILE_SIZE' ||
       error.message === 'request file too large' ||
       error.message?.includes('file too large')) {

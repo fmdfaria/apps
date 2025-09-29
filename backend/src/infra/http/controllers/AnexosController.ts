@@ -87,6 +87,20 @@ export class AnexosController {
       return reply.status(201).send(anexo);
     } catch (error: any) {
       console.error('Erro no upload:', error);
+      console.error('Error code:', error.code);
+      
+      // Tratar erro de arquivo muito grande especificamente
+      if (error.code === 'FST_REQ_FILE_TOO_LARGE' || 
+          error.code === 'FST_ERR_CTP_BODY_TOO_LARGE' ||
+          error.code === 'LIMIT_FILE_SIZE' ||
+          error.message === 'request file too large' ||
+          error.message?.includes('file too large')) {
+        const limiteAnexo = Number(process.env.LIMITE_ANEXO || 10);
+        return reply.status(413).send({ 
+          message: `Arquivo muito grande. Tamanho máximo permitido: ${limiteAnexo}MB` 
+        });
+      }
+      
       return reply.status(500).send({ 
         message: 'Erro interno do servidor', 
         error: error.message 

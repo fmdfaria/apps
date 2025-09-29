@@ -10,7 +10,8 @@ export async function anexosRoutes(app: FastifyInstance) {
       return await controller.create(request, reply);
     } catch (error: any) {
       // Tratar erro de arquivo muito grande especificamente
-      if (error.code === 'FST_ERR_CTP_BODY_TOO_LARGE' || 
+      if (error.code === 'FST_REQ_FILE_TOO_LARGE' ||
+          error.code === 'FST_ERR_CTP_BODY_TOO_LARGE' || 
           error.code === 'LIMIT_FILE_SIZE' ||
           error.message === 'request file too large' ||
           error.message?.includes('file too large')) {
@@ -40,7 +41,8 @@ export async function anexosRoutes(app: FastifyInstance) {
       return await controller.uploadAvatar(request, reply);
     } catch (error: any) {
       // Tratar erro de arquivo muito grande especificamente
-      if (error.code === 'FST_ERR_CTP_BODY_TOO_LARGE' || 
+      if (error.code === 'FST_REQ_FILE_TOO_LARGE' ||
+          error.code === 'FST_ERR_CTP_BODY_TOO_LARGE' || 
           error.code === 'LIMIT_FILE_SIZE' ||
           error.message === 'request file too large' ||
           error.message?.includes('file too large')) {
