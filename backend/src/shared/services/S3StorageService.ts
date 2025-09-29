@@ -39,6 +39,19 @@ export class S3StorageService {
   private s3Client: S3Client;
   private bucketName: string;
 
+  private sanitizeFilename(filename: string): string {
+    // Remove/substitui caracteres especiais que causam problemas em headers HTTP
+    return filename
+      .replace(/[<>:"/\\|?*\x00-\x1f\x80-\x9f]/g, '_') // Caracteres problemáticos
+      .replace(/[\u0080-\uFFFF]/g, (match) => { // Caracteres não-ASCII
+        // Mantém apenas caracteres básicos ou substitui por underscore
+        return match.charCodeAt(0) > 127 ? '_' : match;
+      })
+      .replace(/_{2,}/g, '_') // Remove múltiplos underscores consecutivos
+      .trim()
+      .substring(0, 255); // Limita tamanho máximo
+  }
+
   constructor() {
     const region = process.env.AWS_REGION || 'us-east-1';
     const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
@@ -86,7 +99,7 @@ export class S3StorageService {
 
     // Preparar metadata
     const metadata = {
-      'original-filename': options.filename,
+      'original-filename': this.sanitizeFilename(options.filename),
       'upload-timestamp': new Date().toISOString(),
       'file-hash': hash,
       'modulo': options.modulo,
