@@ -23,8 +23,15 @@ export class DeleteAgendamentoUseCase {
       throw new AppError('Agendamento não encontrado.', 404);
     }
 
+    // 2. Validar se o status permite exclusão (apenas AGENDADO pode ser excluído)
+    if (agendamento.status !== 'AGENDADO') {
+      throw new AppError(
+        `Não é possível excluir agendamentos com status ${agendamento.status}. Apenas agendamentos com status AGENDADO podem ser excluídos.`,
+        400
+      );
+    }
 
-    // 2. Verificar se faz parte de uma série
+    // 3. Verificar se faz parte de uma série
     const serie = await this.seriesManager.findSerieByAgendamentoId(id);
     
     if (!serie) {

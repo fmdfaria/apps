@@ -425,6 +425,14 @@ export class SeriesManager {
       throw new AppError(gerarMensagemAgendamentoNaoEncontrado(agendamentoId, 'para operação em série'), 404);
     }
 
+    // Validar se o status permite exclusão
+    if (agendamento.status !== 'AGENDADO') {
+      throw new AppError(
+        `Não é possível excluir este agendamento (Status: ${agendamento.status}). Apenas agendamentos com status AGENDADO podem ser excluídos.`,
+        400
+      );
+    }
+
     const serie = await this.findSerieByAgendamentoId(agendamentoId);
 
     // Se tem Google Calendar e faz parte de série
@@ -506,6 +514,17 @@ export class SeriesManager {
       true
     );
 
+    // Validar se todos os agendamentos têm status AGENDADO
+    const agendamentosNaoPermitidos = agendamentosParaExcluir.filter(ag => ag.status !== 'AGENDADO');
+    if (agendamentosNaoPermitidos.length > 0) {
+      const quantidade = agendamentosNaoPermitidos.length;
+      const statusList = [...new Set(agendamentosNaoPermitidos.map(ag => ag.status))].join(', ');
+      throw new AppError(
+        `Não é possível excluir esta e futuras ocorrências. Existem ${quantidade} agendamento(s) que não estão com status AGENDADO (Status encontrados: ${statusList}). Apenas agendamentos com status AGENDADO podem ser excluídos.`,
+        400
+      );
+    }
+
     // Se tem Google Calendar
     if (serie.temGoogleCalendar && serie.googleEventId && this.googleCalendarService.isIntegracaoAtiva()) {
       try {
@@ -546,8 +565,20 @@ export class SeriesManager {
 
     // Excluir todos os agendamentos da série
     const todosAgendamentos = await this.seriesRepository.findAgendamentosBySerieId(serie.serieId);
+
+    // Validar se todos os agendamentos têm status AGENDADO
+    const agendamentosNaoPermitidos = todosAgendamentos.filter(ag => ag.status !== 'AGENDADO');
+    if (agendamentosNaoPermitidos.length > 0) {
+      const quantidade = agendamentosNaoPermitidos.length;
+      const statusList = [...new Set(agendamentosNaoPermitidos.map(ag => ag.status))].join(', ');
+      throw new AppError(
+        `Não é possível excluir toda a série. Existem ${quantidade} agendamento(s) que não estão com status AGENDADO (Status encontrados: ${statusList}). Apenas agendamentos com status AGENDADO podem ser excluídos.`,
+        400
+      );
+    }
+
     const idsParaExcluir = todosAgendamentos.map(ag => ag.id);
-    
+
     await this.seriesRepository.deleteMultipleAgendamentos(idsParaExcluir);
   }
 
