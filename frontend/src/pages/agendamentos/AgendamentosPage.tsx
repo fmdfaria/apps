@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { 
+import {
   Calendar,
   Clock,
   CheckCircle,
@@ -27,10 +28,11 @@ import {
   FilterX,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import type { Agendamento, StatusAgendamento } from '@/types/Agendamento';
-import { getAgendamentos, deleteAgendamento, IPaginatedAgendamentos } from '@/services/agendamentos';
+import { getAgendamentos, deleteAgendamento, updateAgendamento, IPaginatedAgendamentos } from '@/services/agendamentos';
 import { 
   AgendamentoModal,
   DetalhesAgendamentoModal
@@ -38,6 +40,7 @@ import {
 import { EditarAgendamentoModal } from '@/components/agendamentos/components/EditarAgendamentoModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import ConfirmDeleteAgendamentoModal from '@/components/ConfirmDeleteAgendamentoModal';
+import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import api from '@/services/api';
 import { AppToast } from '@/services/toast';
 import { useAuthStore } from '@/store/auth';
@@ -190,6 +193,14 @@ export const AgendamentosPage = () => {
   const [seriesCount, setSeriesCount] = useState(1);
   const [futureCount, setFutureCount] = useState(0);
 
+  // Estados para cancelamento
+  const [showCancelarModal, setShowCancelarModal] = useState(false);
+  const [agendamentoCancelando, setAgendamentoCancelando] = useState<Agendamento | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+
+  // Estados para alteração de status (quando já está cancelado)
+  const [showAlterarStatusModal, setShowAlterarStatusModal] = useState(false);
+  const [novoStatus, setNovoStatus] = useState<{id: string; nome: string} | null>(null);
 
   // Funções de controle do modal unificado
   const handleFecharAgendamentoModal = () => {
@@ -486,7 +497,7 @@ export const AgendamentosPage = () => {
 
   const handleDelete = async () => {
     if (!agendamentoExcluindo) return;
-    
+
     setDeleteLoading(true);
     try {
       await deleteAgendamento(agendamentoExcluindo.id, 'apenas_esta');
@@ -495,9 +506,10 @@ export const AgendamentosPage = () => {
       });
       cancelarExclusao();
       carregarAgendamentos();
-    } catch (error) {
+    } catch (error: any) {
+      const mensagemErro = error?.response?.data?.message || 'Não foi possível excluir o agendamento.';
       AppToast.error('Erro ao excluir', {
-        description: 'Não foi possível excluir o agendamento.'
+        description: mensagemErro
       });
     } finally {
       setDeleteLoading(false);
@@ -514,15 +526,16 @@ export const AgendamentosPage = () => {
       });
       cancelarExclusao();
       carregarAgendamentos();
-    } catch (error) {
+    } catch (error: any) {
+      const mensagemErro = error?.response?.data?.message || 'Não foi possível excluir a série de agendamentos.';
       AppToast.error('Erro ao excluir série', {
-        description: 'Não foi possível excluir a série de agendamentos.'
+        description: mensagemErro
       });
     } finally {
       setDeleteLoading(false);
     }
   };
-  
+
   const handleDeleteThisAndFuture = async () => {
     if (!agendamentoExcluindo) return;
     setDeleteLoading(true);
@@ -533,13 +546,79 @@ export const AgendamentosPage = () => {
       });
       cancelarExclusao();
       carregarAgendamentos();
-    } catch (error) {
+    } catch (error: any) {
+      const mensagemErro = error?.response?.data?.message || 'Não foi possível excluir os agendamentos.';
       AppToast.error('Erro ao excluir', {
-        description: 'Não foi possível excluir os agendamentos.'
+        description: mensagemErro
       });
     } finally {
       setDeleteLoading(false);
     }
+  };
+
+  // Funções para cancelamento de agendamento
+  const handleCancelarAgendamento = (agendamento: Agendamento) => {
+    setAgendamentoCancelando(agendamento);
+
+    // Se já está cancelado, mostrar dropdown para alterar status
+    if (agendamento.status === 'CANCELADO') {
+      setShowAlterarStatusModal(true);
+    } else {
+      // Senão, mostrar confirmação de cancelamento
+      setShowCancelarModal(true);
+    }
+  };
+
+  const confirmarCancelamento = async () => {
+    if (!agendamentoCancelando) return;
+
+    setCancelLoading(true);
+    try {
+      await updateAgendamento(agendamentoCancelando.id, { status: 'CANCELADO' });
+      AppToast.success('Agendamento cancelado', {
+        description: 'O agendamento foi cancelado com sucesso.'
+      });
+      setShowCancelarModal(false);
+      setAgendamentoCancelando(null);
+      carregarAgendamentos();
+    } catch (error: any) {
+      const mensagemErro = error?.response?.data?.message || 'Não foi possível cancelar o agendamento.';
+      AppToast.error('Erro ao cancelar', {
+        description: mensagemErro
+      });
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  const confirmarAlteracaoStatus = async () => {
+    if (!agendamentoCancelando || !novoStatus) return;
+
+    setCancelLoading(true);
+    try {
+      await updateAgendamento(agendamentoCancelando.id, { status: novoStatus.id });
+      AppToast.success('Status alterado', {
+        description: `O status foi alterado para ${novoStatus.nome} com sucesso.`
+      });
+      setShowAlterarStatusModal(false);
+      setAgendamentoCancelando(null);
+      setNovoStatus(null);
+      carregarAgendamentos();
+    } catch (error: any) {
+      const mensagemErro = error?.response?.data?.message || 'Não foi possível alterar o status.';
+      AppToast.error('Erro ao alterar status', {
+        description: mensagemErro
+      });
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  const cancelarOperacao = () => {
+    setShowCancelarModal(false);
+    setShowAlterarStatusModal(false);
+    setAgendamentoCancelando(null);
+    setNovoStatus(null);
   };
 
   // Removidos cards de estatísticas na visão de cards
@@ -648,6 +727,27 @@ export const AgendamentosPage = () => {
                         title="Você não tem permissão para editar agendamentos"
                       >
                         <Edit className="w-4 h-4" />
+                      </Button>
+                    )}
+                    {canDelete ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleCancelarAgendamento(agendamento)}
+                        title={agendamento.status === 'CANCELADO' ? 'Alterar Status' : 'Cancelar Agendamento'}
+                      >
+                        <XCircle className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={true}
+                        className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                        title="Você não tem permissão para cancelar agendamentos"
+                      >
+                        <XCircle className="w-4 h-4" />
                       </Button>
                     )}
                     {canDelete ? (
@@ -836,6 +936,27 @@ export const AgendamentosPage = () => {
                           title="Você não tem permissão para editar agendamentos"
                         >
                           <Edit className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {canDelete ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                          onClick={() => handleCancelarAgendamento(agendamento)}
+                          title={agendamento.status === 'CANCELADO' ? 'Alterar Status' : 'Cancelar Agendamento'}
+                        >
+                          <XCircle className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={true}
+                          className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                          title="Você não tem permissão para cancelar agendamentos"
+                        >
+                          <XCircle className="w-4 h-4" />
                         </Button>
                       )}
                       {canDelete ? (
@@ -1138,6 +1259,74 @@ export const AgendamentosPage = () => {
         }}
         onSuccess={handleSuccessEdicao}
       />
+
+      {/* Modal de confirmação de cancelamento */}
+      <ConfirmacaoModal
+        open={showCancelarModal}
+        onClose={cancelarOperacao}
+        onConfirm={confirmarCancelamento}
+        title="Cancelar Agendamento"
+        description={
+          agendamentoCancelando
+            ? `Tem certeza que deseja cancelar o agendamento de ${agendamentoCancelando.pacienteNome} em ${formatarDataHoraLocal(agendamentoCancelando.dataHoraInicio).data}?`
+            : ''
+        }
+        confirmText="Sim, Cancelar"
+        cancelText="Não"
+        isLoading={cancelLoading}
+        loadingText="Cancelando..."
+        variant="warning"
+      />
+
+      {/* Modal de alteração de status (quando já está cancelado) */}
+      <Dialog open={showAlterarStatusModal} onOpenChange={(isOpen) => !isOpen && !cancelLoading && cancelarOperacao()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Alterar Status do Agendamento</DialogTitle>
+            <DialogDescription>
+              Este agendamento já está cancelado. Selecione o novo status desejado.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Novo Status
+            </label>
+            <SingleSelectDropdown
+              options={statusOptions}
+              selected={novoStatus}
+              onChange={setNovoStatus}
+              placeholder="Selecione o novo status..."
+              headerText="Selecione o status"
+              disabled={cancelLoading}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={cancelarOperacao}
+              disabled={cancelLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmarAlteracaoStatus}
+              disabled={cancelLoading || !novoStatus}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {cancelLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Alterando...
+                </>
+              ) : (
+                'Confirmar'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }; 
