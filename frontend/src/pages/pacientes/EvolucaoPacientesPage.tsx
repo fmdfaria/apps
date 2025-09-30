@@ -30,6 +30,8 @@ export const EvolucaoPacientesPage: React.FC = () => {
   const [convenios, setConvenios] = useState<Convenio[]>([]);
   const [loadingPerms, setLoadingPerms] = useState(false);
   const [canCreateEvolucao, setCanCreateEvolucao] = useState(false);
+  const [canUpdateEvolucao, setCanUpdateEvolucao] = useState(false);
+  const [canDeleteEvolucaoRBAC, setCanDeleteEvolucaoRBAC] = useState(false);
   // Estado do modal de anexos
   const [showAnexoModal, setShowAnexoModal] = useState(false);
   const [anexoFiles, setAnexoFiles] = useState<File[]>([]);
@@ -58,10 +60,18 @@ export const EvolucaoPacientesPage: React.FC = () => {
     try {
       const response = await api.get('/users/me/permissions');
       const allowedRoutes = response.data || [];
+
       const canCreate = allowedRoutes.some((route: any) => route.path === '/evolucoes' && route.method?.toLowerCase() === 'post');
+      const canUpdate = allowedRoutes.some((route: any) => route.path === '/evolucoes/:id' && route.method?.toLowerCase() === 'put');
+      const canDelete = allowedRoutes.some((route: any) => route.path === '/evolucoes/:id' && route.method?.toLowerCase() === 'delete');
+
       setCanCreateEvolucao(canCreate);
+      setCanUpdateEvolucao(canUpdate);
+      setCanDeleteEvolucaoRBAC(canDelete);
     } catch (e) {
       setCanCreateEvolucao(false);
+      setCanUpdateEvolucao(false);
+      setCanDeleteEvolucaoRBAC(false);
     } finally {
       setLoadingPerms(false);
     }
@@ -156,30 +166,32 @@ export const EvolucaoPacientesPage: React.FC = () => {
   // Funções de permissão
   const canEditEvolucao = (evolucao: EvolucaoPaciente) => {
     if (!user) return false;
-    
+
     // ADMIN pode editar qualquer evolução
     if (user.roles?.includes('ADMIN')) return true;
-    
+
     // PROFISSIONAL pode editar apenas suas próprias evoluções
     if (user.roles?.includes('PROFISSIONAL') && user.profissionalId) {
       return evolucao.profissionalId === user.profissionalId;
     }
-    
-    return false;
+
+    // Outros usuários: verificar permissão RBAC PUT /evolucoes/:id
+    return canUpdateEvolucao;
   };
 
   const canDeleteEvolucao = (evolucao: EvolucaoPaciente) => {
     if (!user) return false;
-    
+
     // ADMIN pode excluir qualquer evolução
     if (user.roles?.includes('ADMIN')) return true;
-    
+
     // PROFISSIONAL pode excluir apenas suas próprias evoluções
     if (user.roles?.includes('PROFISSIONAL') && user.profissionalId) {
       return evolucao.profissionalId === user.profissionalId;
     }
-    
-    return false;
+
+    // Outros usuários: verificar permissão RBAC DELETE /evolucoes/:id
+    return canDeleteEvolucaoRBAC;
   };
 
   const convenioNome = useMemo(() => {
