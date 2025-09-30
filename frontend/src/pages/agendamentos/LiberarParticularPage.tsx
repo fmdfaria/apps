@@ -920,6 +920,9 @@ export const LiberarParticularPage = () => {
         return data.toLocaleDateString('pt-BR');
       }).sort();
 
+      // Buscar informações de preço particular para o grupo
+      const precoInfo = encontrarPreco(grupo.pacienteId, grupo.servicoId);
+
       return {
         tipo: 'GRUPO_MENSAL',
         paciente: {
@@ -941,7 +944,11 @@ export const LiberarParticularPage = () => {
           datasAgendamentos: datas,
           valorUnitario: grupo.precoUnitario,
           valorTotal: grupo.precoTotal,
-          tipoPagamento: grupo.tipoPagamento
+          tipoPagamento: grupo.tipoPagamento,
+          diaPagamento: precoInfo?.diaPagamento || null,
+          pagamentoAntecipado: precoInfo?.pagamentoAntecipado || null,
+          notaFiscal: precoInfo?.notaFiscal || null,
+          recibo: precoInfo?.recibo || null
         },
         agendamentosIndividuais: grupo.agendamentos.map(ag => ({
           id: ag.id,

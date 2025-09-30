@@ -144,7 +144,12 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     // Filtros básicos
     if (filters?.profissionalId) whereConditions.profissionalId = filters.profissionalId;
     if (filters?.pacienteId) whereConditions.pacienteId = filters.pacienteId;
-    if (filters?.status) whereConditions.status = filters.status;
+    if (filters?.status) {
+      whereConditions.status = filters.status;
+    } else {
+      // Por padrão, não retornar agendamentos arquivados na listagem geral
+      whereConditions.status = { not: 'ARQUIVADO' };
+    }
     if (filters?.recursoId) whereConditions.recursoId = filters.recursoId;
     if (filters?.convenioId) whereConditions.convenioId = filters.convenioId;
     if (filters?.convenioIdExcluir) {
