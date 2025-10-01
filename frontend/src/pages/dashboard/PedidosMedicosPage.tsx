@@ -3,32 +3,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  Calendar, 
-  AlertTriangle, 
-  Clock, 
-  Users, 
   Search,
-  LayoutGrid,
-  List,
   RefreshCw,
   AlertCircle,
   FileText,
-  CalendarX,
-  Edit,
   Paperclip,
-  Building2
+  Building2,
+  MessageCircle
 } from 'lucide-react';
-import { 
-  PageContainer, 
-  ResponsivePagination
-} from '@/components/layout';
+import { ResponsivePagination, FilterButton } from '@/components/layout';
+import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
 import { getPacientes, updatePaciente } from '@/services/pacientes';
 import { getConvenios } from '@/services/convenios';
 import { getServicos } from '@/services/servicos';
 import type { Servico } from '@/types/Servico';
-import { getPacientesPedidos } from '@/services/pacientes-pedidos';
+import { getTodosPedidosMedicos } from '@/services/pacientes-pedidos';
 import type { Paciente } from '@/types/Paciente';
 import type { Convenio } from '@/types/Convenio';
 import { getAnexos } from '@/services/anexos';
@@ -37,7 +27,7 @@ import { AppToast } from '@/services/toast';
 
 // Modais da PacientesPage
 import CriarPacienteModal from '../pacientes/CriarPacienteModal';
-import EditarPacienteModal from '../pacientes/EditarPacienteModal';
+// Removido EditarPacienteModal
 import AnexoPacientesModal from '../pacientes/AnexoPacientesModal';
 import PedidosMedicosModal from '../pacientes/PedidosMedicosModal';
 
@@ -151,26 +141,25 @@ export const PedidosMedicosPage: React.FC = () => {
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [carregandoDados, setCarregandoDados] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  const [tipoVisualizacao, setTipoVisualizacao] = useState<'vencendo' | 'vencidos'>('vencendo');
   const [busca, setBusca] = useState('');
-  const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [filtros, setFiltros] = useState<Record<string, string>>({});
+  const [filtrosAplicados, setFiltrosAplicados] = useState<Record<string, string>>({});
+  const filterFields: FilterField[] = [
+    { key: 'dataInicio', type: 'date', label: 'Data Pedido Início' },
+    { key: 'dataFim', type: 'date', label: 'Data Pedido Fim' },
+    { key: 'convenioId', type: 'api-select', label: 'Convênio', apiService: getConvenios, placeholder: 'Selecione um convênio...', searchFields: ['nome'] },
+    { key: 'pacienteId', type: 'api-select', label: 'Paciente', apiService: getPacientes, placeholder: 'Selecione um paciente...', searchFields: ['nomeCompleto'] },
+    { key: 'status', type: 'static-select', label: 'Status', options: [
+      { id: 'vigente', nome: 'Vigente' },
+      { id: 'vencendo', nome: 'Vencendo' },
+      { id: 'vencido', nome: 'Vencido' }
+    ], placeholder: 'Selecione o status...' }
+  ];
 
-  // Estados para modais (reutilizados da PacientesPage)
-  const [showModal, setShowModal] = useState(false);
-  const [editando, setEditando] = useState<Paciente | null>(null);
-  const [form, setForm] = useState({
-    nomeCompleto: '',
-    nomeResponsavel: '',
-    cpf: '',
-    email: '',
-    whatsapp: '',
-    dataNascimento: '',
-    tipoServico: '',
-  });
-  const [formError, setFormError] = useState('');
-  const [formLoading, setFormLoading] = useState(false);
+  // Removidos estados/modais de edição de paciente
 
   // Estados para modal de anexo
   const [showAnexoModal, setShowAnexoModal] = useState(false);
@@ -197,60 +186,60 @@ export const PedidosMedicosPage: React.FC = () => {
       setCarregandoDados(true);
       setErro(null);
       
-      // Buscar pacientes, convenios e serviços em paralelo
-      const [pacientesData, conveniosData, servicosData] = await Promise.all([
+      // Buscar todos os pedidos em uma única chamada
+      const [pacientesData, conveniosData, servicosData, pedidosApi] = await Promise.all([
         getPacientes(),
         getConvenios(),
-        getServicos()
+        getServicos(),
+        getTodosPedidosMedicos()
       ]);
-      
+
       setConvenios(conveniosData);
       setServicos(servicosData);
-      
-      // Buscar pedidos médicos por paciente e montar a lista agregada
-      const pedidosAgregados: PedidoMedico[] = [];
-      await Promise.all(
-        pacientesData.map(async (paciente) => {
-          try {
-            const pedidosPaciente = await getPacientesPedidos(paciente.id);
-            const convenio = conveniosData.find(c => c.id === paciente.convenioId);
-            pedidosPaciente.forEach((pp) => {
-              if (!pp.dataPedidoMedico) return; // ignorar registros sem data
-              // Calcular vencimento (regra: 6 meses após data do pedido)
-              const dataPedido = new Date(pp.dataPedidoMedico + 'T00:00:00Z');
-              if (isNaN(dataPedido.getTime())) return;
-              const dataVenc = new Date(dataPedido);
-              dataVenc.setUTCMonth(dataVenc.getUTCMonth() + 6);
-              const hoje = new Date();
-              const diasParaVencer = Math.ceil((dataVenc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
-              let status: 'vigente' | 'vencendo' | 'vencido';
-              if (diasParaVencer < 0) status = 'vencido';
-              else if (diasParaVencer <= 30) status = 'vencendo';
-              else status = 'vigente';
-              const year = dataVenc.getUTCFullYear();
-              const month = String(dataVenc.getUTCMonth() + 1).padStart(2, '0');
-              const day = String(dataVenc.getUTCDate()).padStart(2, '0');
-              const dataVencimentoFormatted = `${year}-${month}-${day}`;
-              pedidosAgregados.push({
-                id: pp.id,
-                pacienteId: paciente.id,
-                pacienteNome: paciente.nomeCompleto,
-                pacienteWhatsapp: paciente.whatsapp,
-                convenioNome: convenio?.nome || 'Particular',
-                numeroCarteirinha: paciente.numeroCarteirinha || undefined,
-                dataPedidoMedico: pp.dataPedidoMedico,
-                dataVencimento: dataVencimentoFormatted,
-                diasParaVencer,
-                status,
-                crm: pp.crm || undefined,
-                cbo: pp.cbo || undefined
-              });
-            });
-          } catch (e) {
-            // Se falhar pedidos de um paciente, segue com os demais
-          }
-        })
-      );
+
+      // Montar lista final a partir dos pedidos e relacionamentos retornados
+      const pedidosAgregados: PedidoMedico[] = pedidosApi
+        .filter(pp => !!pp.dataPedidoMedico)
+        .map(pp => {
+          const paciente = pacientesData.find(p => p.id === pp.pacienteId);
+          const convenio = conveniosData.find(c => c.id === (paciente?.convenioId));
+          // Normaliza data do pedido (aceita 'YYYY-MM-DD' ou ISO) e calcula vencimento em UTC
+          const dataPedidoStr = pp.dataPedidoMedico as string;
+          const pedidoIso = /T/.test(dataPedidoStr) ? dataPedidoStr : `${dataPedidoStr}T00:00:00Z`;
+          const dataPedido = new Date(pedidoIso);
+          const isValidPedido = !isNaN(dataPedido.getTime());
+          const mesesValidade = (convenio?.nome?.toLowerCase() || '') === 'petrobras' ? 3 : 6;
+          const dataVenc = isValidPedido 
+            ? new Date(Date.UTC(dataPedido.getUTCFullYear(), dataPedido.getUTCMonth(), dataPedido.getUTCDate()))
+            : null;
+          if (dataVenc) dataVenc.setUTCMonth(dataVenc.getUTCMonth() + mesesValidade);
+          const hoje = new Date();
+          const diasParaVencer = dataVenc ? Math.ceil((dataVenc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+          let status: 'vigente' | 'vencendo' | 'vencido';
+          if (!dataVenc) status = 'vigente';
+          else if (diasParaVencer < 0) status = 'vencido';
+          else if (diasParaVencer <= 30) status = 'vencendo';
+          else status = 'vigente';
+          const dataVencimentoFormatted = dataVenc 
+            ? `${dataVenc.getUTCFullYear()}-${String(dataVenc.getUTCMonth() + 1).padStart(2, '0')}-${String(dataVenc.getUTCDate()).padStart(2, '0')}`
+            : dataPedidoStr;
+
+          return {
+            id: pp.id,
+            pacienteId: pp.pacienteId,
+            pacienteNome: paciente?.nomeCompleto || pp.paciente?.nomeCompleto || 'Paciente',
+            pacienteWhatsapp: paciente?.whatsapp || '',
+            convenioNome: convenio?.nome || 'Particular',
+            numeroCarteirinha: paciente?.numeroCarteirinha || undefined,
+            dataPedidoMedico: (pp.dataPedidoMedico as string),
+            dataVencimento: dataVencimentoFormatted,
+            diasParaVencer,
+            status,
+            crm: pp.crm || undefined,
+            cbo: pp.cbo || undefined
+          } as PedidoMedico;
+        });
+
       setPedidos(pedidosAgregados);
     } catch (error) {
       setErro('Erro ao carregar dados de pedidos médicos. Tente novamente.');
@@ -259,27 +248,47 @@ export const PedidosMedicosPage: React.FC = () => {
     }
   };
 
-  // Filtrar dados baseado na busca e tipo
+  // Filtrar dados baseado na busca e filtros
   const pedidosFiltrados = useMemo(() => {
     let resultado = pedidos;
 
-    // Filtrar por tipo (vencendo ou vencidos)
-    const statusFiltro = tipoVisualizacao === 'vencidos' ? 'vencido' : 'vencendo';
-    resultado = resultado.filter(pedido => pedido.status === statusFiltro);
-
-    // Filtrar por busca textual
+    // Filtrar por busca textual (normaliza acentos e busca por números no WhatsApp)
     if (busca.trim()) {
-      const buscaLower = busca.toLowerCase();
-      resultado = resultado.filter(pedido => 
-        pedido.pacienteNome.toLowerCase().includes(buscaLower) ||
-        pedido.pacienteWhatsapp.toLowerCase().includes(buscaLower) ||
-        pedido.numeroCarteirinha?.toLowerCase().includes(buscaLower) ||
-        pedido.convenioNome?.toLowerCase().includes(buscaLower)
-      );
+      const normalize = (str: string) => str
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+      const buscaNorm = normalize(busca);
+      const buscaDigits = busca.replace(/\D/g, '');
+
+      resultado = resultado.filter(p => {
+        const nome = normalize(p.pacienteNome || '');
+        const convenioNome = normalize(p.convenioNome || '');
+        const carteirinha = (p.numeroCarteirinha || '').toString().trim().toLowerCase();
+        const whatsappDigits = (p.pacienteWhatsapp || '').replace(/\D/g, '');
+
+        const matchTexto =
+          (buscaNorm && (nome.includes(buscaNorm) || convenioNome.includes(buscaNorm) || carteirinha.includes(buscaNorm)));
+        const matchTelefone = buscaDigits ? whatsappDigits.includes(buscaDigits) : false;
+        return matchTexto || matchTelefone;
+      });
     }
 
-    return resultado;
-  }, [pedidos, busca, tipoVisualizacao]);
+    // Filtros avançados aplicados
+    const f = filtrosAplicados;
+    if (f.status) resultado = resultado.filter(p => p.status === f.status);
+    if (f.convenioId) {
+      const conv = convenios.find(c => c.id === f.convenioId);
+      if (conv) resultado = resultado.filter(p => p.convenioNome === conv.nome);
+    }
+    if (f.pacienteId) resultado = resultado.filter(p => p.pacienteId === f.pacienteId);
+    if (f.dataInicio) resultado = resultado.filter(p => p.dataPedidoMedico >= f.dataInicio);
+    if (f.dataFim) resultado = resultado.filter(p => p.dataPedidoMedico <= f.dataFim);
+
+    // Ordenação: primeiro maiores atrasos (dias negativos mais baixos), depois mais próximos de vencer (dias positivos menores)
+    return resultado.slice().sort((a, b) => (a.diasParaVencer ?? 0) - (b.diasParaVencer ?? 0));
+  }, [pedidos, busca, filtrosAplicados, convenios]);
 
   // Paginação
   const totalPages = Math.ceil(pedidosFiltrados.length / itemsPerPage);
@@ -340,23 +349,7 @@ export const PedidosMedicosPage: React.FC = () => {
   };
 
   // Funções para abrir modais
-  const abrirModalEdicao = async (pedido: PedidoMedico) => {
-    const paciente = await buscarPacientePorId(pedido.pacienteId);
-    if (paciente) {
-      setEditando(paciente);
-      setForm({
-        nomeCompleto: paciente.nomeCompleto || '',
-        nomeResponsavel: paciente.nomeResponsavel || '',
-        cpf: paciente.cpf || '',
-        email: paciente.email || '',
-        whatsapp: maskTelefone(paciente.whatsapp || ''), // Aplicar máscara
-        dataNascimento: paciente.dataNascimento ? paciente.dataNascimento.substring(0, 10) : '',
-        tipoServico: paciente.tipoServico || 'Particular',
-      });
-      setFormError('');
-      setShowModal(true);
-    }
-  };
+  // Removida função abrirModalEdicao
 
   const abrirModalAnexo = async (pedido: PedidoMedico) => {
     const paciente = await buscarPacientePorId(pedido.pacienteId);
@@ -386,12 +379,7 @@ export const PedidosMedicosPage: React.FC = () => {
   };
 
   // Funções para fechar modais
-  const fecharModal = () => {
-    setShowModal(false);
-    setEditando(null);
-    setForm({ nomeCompleto: '', nomeResponsavel: '', cpf: '', email: '', whatsapp: '', dataNascimento: '', tipoServico: '' });
-    setFormError('');
-  };
+  // Removido fecharModal de edição
 
   const fecharModalAnexo = () => {
     setShowAnexoModal(false);
@@ -405,28 +393,12 @@ export const PedidosMedicosPage: React.FC = () => {
     setDeletingAnexo(false);
   };
 
-  const fecharModalConvenio = () => {
-    setShowConvenioModal(false);
-    setPacienteConvenio(null);
-    setFormConvenio({
-      convenioId: '',
-      numeroCarteirinha: '',
-      dataPedidoMedico: '',
-      crm: '',
-      cbo: '',
-      cid: '',
-    });
-    setFormConvenioError('');
-  };
+  // Removido: não usamos modal de convênio nesta página
 
   // Handlers para atualizações dos formulários dos modais
-  const handleFormChange = (updates: Partial<typeof form>) => {
-    setForm(prev => ({ ...prev, ...updates }));
-  };
+  // Removido: sem formulário de edição aqui
 
-  const handleFormConvenioChange = (updates: Partial<typeof formConvenio>) => {
-    setFormConvenio(prev => ({ ...prev, ...updates }));
-  };
+  // Removido: sem formulário de convênio nesta página
 
 
   const formatarData = (data: string) => {
@@ -474,7 +446,7 @@ export const PedidosMedicosPage: React.FC = () => {
     return 'Vigente';
   };
 
-  // Função para renderizar conteúdo baseado na visualização
+  // Função para renderizar conteúdo
   function renderContent() {
     if (!pedidos.length) {
       return (
@@ -485,11 +457,7 @@ export const PedidosMedicosPage: React.FC = () => {
       );
     }
 
-    return (
-      <>
-        {visualizacao === 'tabela' ? renderTableView() : renderCardView()}
-      </>
-    );
+    return renderTableView();
   }
 
   function renderTableView() {
@@ -558,10 +526,7 @@ export const PedidosMedicosPage: React.FC = () => {
                         <FileText className="w-8 h-8 text-gray-400" />
                       </div>
                       <p className="text-gray-500 font-medium">
-                        {busca 
-                          ? 'Nenhum resultado encontrado' 
-                          : `Nenhum pedido ${tipoVisualizacao === 'vencendo' ? 'vencendo' : 'vencido'} encontrado`
-                        }
+                        {busca ? 'Nenhum resultado encontrado' : 'Nenhum pedido encontrado'}
                       </p>
                     </div>
                   </td>
@@ -609,15 +574,7 @@ export const PedidosMedicosPage: React.FC = () => {
                     </td>
                     <td className="px-6 py-2 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => abrirModalEdicao(pedido)}
-                          className="h-8 px-2 hover:bg-blue-50 hover:border-blue-300"
-                          title="Editar paciente"
-                        >
-                          <Edit className="w-4 h-4 text-blue-600" />
-                        </Button>
+                        {/* Removido botão Editar Paciente */}
                         <Button
                           size="sm"
                           variant="outline"
@@ -636,6 +593,20 @@ export const PedidosMedicosPage: React.FC = () => {
                         >
                           <Building2 className="w-4 h-4 text-purple-600" />
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const numeroLimpo = (pedido.pacienteWhatsapp || '').replace(/\D/g, '');
+                            if (!numeroLimpo) return;
+                            const whatsappUrl = `https://api.whatsapp.com/send/?phone=${numeroLimpo}`;
+                            window.open(whatsappUrl, '_blank');
+                          }}
+                          className="h-8 px-2 hover:bg-green-50 hover:border-green-300"
+                          title="Abrir WhatsApp"
+                        >
+                          <MessageCircle className="w-4 h-4 text-green-600" />
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -648,85 +619,7 @@ export const PedidosMedicosPage: React.FC = () => {
     );
   }
 
-  function renderCardView() {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {currentItems.length === 0 ? (
-          <div className="col-span-full text-center py-12">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                <FileText className="w-8 h-8 text-gray-400" />
-              </div>
-              <p className="text-gray-500 font-medium">
-                {busca 
-                  ? 'Nenhum resultado encontrado' 
-                  : `Nenhum pedido ${tipoVisualizacao === 'vencendo' ? 'vencendo' : 'vencido'} encontrado`
-                }
-              </p>
-            </div>
-          </div>
-        ) : (
-          currentItems.map((pedido) => (
-            <Card key={pedido.id} className="h-full hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center justify-between text-base">
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-8 h-8 bg-gradient-to-r ${getAvatarGradient(pedido.pacienteNome)} rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}>
-                      {pedido.pacienteNome.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="truncate">{pedido.pacienteNome}</span>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              
-              <CardContent className="space-y-3">
-                {/* WhatsApp */}
-                <div>
-                  <span className="text-xs font-medium text-gray-500">WhatsApp</span>
-                  <p className="text-sm font-mono bg-green-100 px-2 py-1 rounded text-green-700 inline-block">
-                    {pedido.pacienteWhatsapp ? formatWhatsApp(pedido.pacienteWhatsapp) : '-'}
-                  </p>
-                </div>
-
-                {/* Convênio e Carteirinha na mesma linha */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-xs font-medium text-gray-500">Convênio</span>
-                    <p className="text-sm font-medium text-gray-900">{pedido.convenioNome}</p>
-                  </div>
-                  {pedido.numeroCarteirinha && (
-                    <div>
-                      <span className="text-xs font-medium text-gray-500">Carteirinha</span>
-                      <p className="text-sm text-gray-700">{pedido.numeroCarteirinha}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Datas na mesma linha */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-xs font-medium text-gray-500">Data do Pedido</span>
-                    <p className="text-sm font-medium text-gray-900">{formatarData(pedido.dataPedidoMedico)}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs font-medium text-gray-500">Data de Vencimento</span>
-                    <p className="text-sm font-medium text-gray-900">{formatarData(pedido.dataVencimento)}</p>
-                  </div>
-                </div>
-
-                {/* Status */}
-                <div className="flex justify-center">
-                  <Badge className={getStatusBadge(pedido)}>
-                    {getStatusText(pedido)}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
-    );
-  }
+  // View de cards removida
 
   // Loading state
   if (carregandoDados) {
@@ -790,9 +683,6 @@ export const PedidosMedicosPage: React.FC = () => {
                 Pedidos Médicos
               </span>
             </h1>
-            <p className="text-gray-600 mt-2">
-              Acompanhe a validade dos pedidos médicos dos seus pacientes
-            </p>
           </div>
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -805,123 +695,34 @@ export const PedidosMedicosPage: React.FC = () => {
                 className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            
-            {/* Toggle de visualização */}
-            <div className="flex border rounded-lg p-1 bg-gray-100">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setVisualizacao('tabela')}
-                className={`h-7 px-3 ${visualizacao === 'tabela' ? 'bg-white shadow-sm' : ''}`}
-              >
-                <List className="w-4 h-4 mr-1" />
-                Tabela
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setVisualizacao('cards')}
-                className={`h-7 px-3 ${visualizacao === 'cards' ? 'bg-white shadow-sm' : ''}`}
-              >
-                <LayoutGrid className="w-4 h-4 mr-1" />
-                Cards
-              </Button>
-            </div>
+
+            <FilterButton
+              showFilters={mostrarFiltros}
+              onToggleFilters={() => setMostrarFiltros(prev => !prev)}
+              activeFiltersCount={Object.values(filtrosAplicados).filter(v => v !== '' && v !== undefined && v !== null).length}
+              module="default"
+            />
           </div>
-        </div>
-
-        {/* Cards de estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card className="border-l-4 border-l-blue-500">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total de Pedidos</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-                </div>
-                <FileText className="w-8 h-8 text-blue-500 opacity-60" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-l-4 border-l-green-500">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Pedidos Vigentes</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.vigentes}</p>
-                </div>
-                <Calendar className="w-8 h-8 text-green-500 opacity-60" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-l-4 border-l-yellow-500">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Vencendo em 30 dias</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.vencendo}</p>
-                </div>
-                <Clock className="w-8 h-8 text-yellow-500 opacity-60" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-l-4 border-l-red-500">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Pedidos Vencidos</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.vencidos}</p>
-                </div>
-                <CalendarX className="w-8 h-8 text-red-500 opacity-60" />
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
 
       {/* Conteúdo com scroll independente */}
       <div className="flex-1 overflow-y-auto pt-2 pl-6 pr-6">
-        {/* Toggle grande para separar Vencendo | Vencidos */}
-        <div className="mb-6">
-          <Tabs 
-            value={tipoVisualizacao} 
-            onValueChange={(value) => setTipoVisualizacao(value as 'vencendo' | 'vencidos')}
-            className="w-full"
-          >
-            <TabsList className="grid w-full grid-cols-2 h-12">
-              <TabsTrigger 
-                value="vencendo" 
-                className="flex items-center gap-2 transition-colors duration-200 text-base font-medium data-[state=active]:bg-yellow-100 data-[state=active]:text-yellow-700 data-[state=active]:border-yellow-300"
-              >
-                <AlertTriangle className="w-5 h-5" />
-                Vencendo (30 dias)
-                <Badge variant="secondary" className="ml-1">
-                  {stats.vencendo}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="vencidos" 
-                className="flex items-center gap-2 transition-colors duration-200 text-base font-medium data-[state=active]:bg-red-100 data-[state=active]:text-red-700 data-[state=active]:border-red-300"
-              >
-                <CalendarX className="w-5 h-5" />
-                Vencidos
-                <Badge variant="secondary" className="ml-1">
-                  {stats.vencidos}
-                </Badge>
-              </TabsTrigger>
-            </TabsList>
+        {/* Filtros Avançados */}
+        <AdvancedFilter
+          fields={filterFields}
+          filters={filtros}
+          appliedFilters={filtrosAplicados}
+          onFilterChange={(k, v) => setFiltros(prev => ({ ...prev, [k]: v }))}
+          onApplyFilters={() => setFiltrosAplicados(Object.fromEntries(Object.entries(filtros).filter(([,v]) => v !== '' && v !== undefined && v !== null)))}
+          onClearFilters={() => { setFiltros({}); setFiltrosAplicados({}); }}
+          isVisible={mostrarFiltros}
+          onClose={() => setMostrarFiltros(false)}
+          loading={carregandoDados}
+        />
 
-            <TabsContent value="vencendo" className="mt-6">
-              {renderContent()}
-            </TabsContent>
-
-            <TabsContent value="vencidos" className="mt-6">
-              {renderContent()}
-            </TabsContent>
-          </Tabs>
+        <div className="mt-4">
+          {renderContent()}
         </div>
       </div>
 
@@ -940,101 +741,7 @@ export const PedidosMedicosPage: React.FC = () => {
         </div>
       )}
 
-      {/* Modais reutilizados da PacientesPage */}
-      <EditarPacienteModal
-        showModal={showModal}
-        editando={editando}
-        form={form}
-        formError={formError}
-        formLoading={formLoading}
-        onClose={fecharModal}
-        onFormChange={handleFormChange}
-        onSubmit={async (e) => {
-          e.preventDefault();
-          
-          // Validação - Nome Completo, WhatsApp e Tipo de Serviço são obrigatórios
-          if (!form.nomeCompleto.trim() || form.nomeCompleto.trim().length < 2) {
-            AppToast.error('Erro de Validação', {
-              description: 'O Nome Completo deve ter pelo menos 2 caracteres.'
-            });
-            return;
-          }
-          
-          if (!form.whatsapp.trim()) {
-            AppToast.error('Erro de Validação', {
-              description: 'O WhatsApp é obrigatório.'
-            });
-            return;
-          }
-          
-          if (!form.tipoServico.trim()) {
-            AppToast.error('Erro de Validação', {
-              description: 'O Tipo de Serviço é obrigatório.'
-            });
-            return;
-          }
-          
-          // Validar formato do WhatsApp (8 ou 9 dígitos)
-          const telefone8Digitos = /^\+55 \(\d{2}\) \d{4}-\d{4}$/.test(form.whatsapp.trim());
-          const telefone9Digitos = /^\+55 \(\d{2}\) \d{5}-\d{4}$/.test(form.whatsapp.trim());
-          if (!telefone8Digitos && !telefone9Digitos) {
-            AppToast.error('Erro de Validação', {
-              description: 'WhatsApp inválido. Exemplo: +55 (12) 9999-9999 ou +55 (12) 99999-9999'
-            });
-            return;
-          }
-          
-          // Validar formato do CPF apenas se estiver preenchido
-          if (form.cpf.trim() && form.cpf.length < 14) {
-            AppToast.error('Erro de Validação', {
-              description: 'CPF inválido. Exemplo: xxx.xxx.xxx-xx.'
-            });
-            return;
-          }
-          
-          // Validar formato do email apenas se estiver preenchido
-          if (form.email.trim() && !form.email.includes('@')) {
-            AppToast.error('Erro de Validação', {
-              description: 'E-mail inválido. Exemplo: nome@email.com'
-            });
-            return;
-          }
-
-          setFormLoading(true);
-          setFormError('');
-          
-          // Remover formatação do WhatsApp para salvar apenas números
-          const whatsappNumeros = form.whatsapp.replace(/\D/g, '');
-          
-          const pacientePayload: any = {
-            nomeCompleto: form.nomeCompleto,
-            nomeResponsavel: form.nomeResponsavel.trim() || null,
-            cpf: form.cpf.trim() || null,
-            email: form.email.trim() || null,
-            whatsapp: whatsappNumeros,
-            dataNascimento: form.dataNascimento || null,
-            tipoServico: form.tipoServico,
-          };
-
-          try {
-            if (editando) {
-              await updatePaciente(editando.id, pacientePayload);
-              AppToast.updated('Paciente', 'Os dados do paciente foram atualizados com sucesso.');
-              // Recarregar dados da página para refletir as alterações
-              carregarPedidosMedicos();
-            }
-            fecharModal();
-          } catch (err: any) {
-            let msg = 'Erro ao salvar paciente.';
-            if (err?.response?.data?.message) msg = err.response.data.message;
-            else if (err?.response?.data?.error) msg = err.response.data.error;
-            setFormError(msg);
-          } finally {
-            setFormLoading(false);
-          }
-        }}
-        convenios={convenios}
-      />
+      {/* Removidos modais/fluxos de edição de paciente */}
 
       <AnexoPacientesModal
         showModal={showAnexoModal}

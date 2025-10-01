@@ -55,3 +55,9 @@ export const deletePacientePedido = async (
 ): Promise<void> => {
   await api.delete(`/pacientes/${pacienteId}/pedidos/${pedidoId}`);
 };
+
+// Nova rota: listar todos os pedidos (para dashboards)
+export const getTodosPedidosMedicos = async (): Promise<PacientePedido[]> => {
+  const response = await api.get(`/pacientes/pedidos`);
+  return response.data;
+};
