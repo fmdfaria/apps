@@ -217,9 +217,14 @@ export default function PedidosMedicosModal({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="bg-gradient-to-r from-teal-50 to-emerald-50 -mx-6 -mt-6 px-6 pt-6 pb-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
+            <DialogTitle className="text-xl font-bold text-gray-900 flex items-start gap-3">
               <span className="text-2xl">📋</span>
-              Pedidos Médicos - {paciente.nomeCompleto}
+              <span className="flex flex-col">
+                <span>Pedidos Médicos - {paciente.nomeCompleto}</span>
+                {paciente.numeroCarteirinha && (
+                  <span className="text-sm font-normal text-gray-700">N° Carteirinha: {paciente.numeroCarteirinha}</span>
+                )}
+              </span>
               {loadingConfig && (
                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
                   Carregando regras...

@@ -20,7 +20,6 @@ import {
   ViewToggle, 
   SearchBar, 
   FilterButton,
-  DynamicFilterPanel,
   ResponsiveTable, 
   ResponsiveCards, 
   ResponsivePagination,
@@ -28,11 +27,13 @@ import {
   ResponsiveCardFooter,
   TableColumn 
 } from '@/components/layout';
+import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
 import type { FilterConfig } from '@/types/filters';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
-import { useTableFilters } from '@/hooks/useTableFilters';
+// import { useTableFilters } from '@/hooks/useTableFilters';
 import { getModuleTheme } from '@/types/theme';
+import { getContasBancarias } from '@/services/contas-bancarias';
 
 // Financial components
 import { StatusBadge, ValorDisplay } from '@/components/financeiro';
@@ -42,6 +43,31 @@ import ContaPagarModal from './ContaPagarModal';
 import PagarContaModal from './PagarContaModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import ConfirmacaoModal from '@/components/ConfirmacaoModal';
+
+// Campos do filtro avançado
+const filterFields: FilterField[] = [
+  { key: 'dataInicio', type: 'date', label: 'Data Início' },
+  { key: 'dataFim', type: 'date', label: 'Data Fim' },
+  { key: 'empresaId', type: 'api-select', label: 'Empresa', apiService: getEmpresas, placeholder: 'Selecione uma empresa...', searchFields: ['razaoSocial'] },
+  { key: 'contaBancariaId', type: 'api-select', label: 'Conta Bancária', apiService: getContasBancarias, placeholder: 'Selecione uma conta...', searchFields: ['nome', 'banco'] },
+  { key: 'profissionalId', type: 'api-select', label: 'Profissional', apiService: getProfissionais, placeholder: 'Selecione um profissional...', searchFields: ['nome'] },
+  { key: 'status', type: 'static-select', label: 'Status', options: [
+      { id: 'PENDENTE', nome: 'Pendente' },
+      { id: 'SOLICITADO', nome: 'Solicitado' },
+      { id: 'PARCIAL', nome: 'Parcial' },
+      { id: 'PAGO', nome: 'Pago' },
+      { id: 'VENCIDO', nome: 'Vencido' },
+      { id: 'CANCELADO', nome: 'Cancelado' }
+    ], placeholder: 'Selecione o status...' },
+  { key: 'tipoConta', type: 'static-select', label: 'Tipo da Conta', options: [
+      { id: 'DESPESA', nome: 'Despesa' },
+      { id: 'SALARIO', nome: 'Salário' }
+    ], placeholder: 'Selecione o tipo...' },
+  { key: 'recorrente', type: 'static-select', label: 'Recorrente', options: [
+      { id: 'true', nome: 'Sim' },
+      { id: 'false', nome: 'Não' }
+    ], placeholder: 'Selecionar...' }
+];
 
 export const ContasPagarPage = () => {
   const [contas, setContas] = useState<ContaPagar[]>([]);
@@ -194,21 +220,12 @@ export const ContasPagarPage = () => {
     }
   ];
   
-  // Sistema de filtros dinâmicos
-  const {
-    activeFilters,
-    filterConfigs,
-    activeFiltersCount,
-    setFilter,
-    clearFilter,
-    clearAllFilters,
-    applyFilters
-  } = useTableFilters(columns);
-  
-  // Estado para mostrar/ocultar painel de filtros
+  // AdvancedFilter - estados
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [filtros, setFiltros] = useState<Record<string, string>>({});
+  const [filtrosAplicados, setFiltrosAplicados] = useState<Record<string, string>>({});
   
-  // Filtrar dados baseado na busca e filtros dinâmicos
+  // Filtrar dados baseado somente na busca (filtros avançados consultam backend)
   const contasFiltradas = useMemo(() => {
     const normalizarBusca = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 
@@ -224,9 +241,8 @@ export const ContasPagarPage = () => {
              empresa.includes(buscaNormalizada) || 
              profissional.includes(buscaNormalizada);
     }).sort((a, b) => new Date(a.dataVencimento).getTime() - new Date(b.dataVencimento).getTime());
-    
-    return applyFilters(dadosFiltrados);
-  }, [contas, busca, applyFilters]);
+    return dadosFiltrados;
+  }, [contas, busca]);
 
   const {
     data: contasPaginadas,
@@ -247,11 +263,12 @@ export const ContasPagarPage = () => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (overrideFilters?: any) => {
     setLoading(true);
     try {
+      const backendFilters = overrideFilters ?? mapearFiltrosParaBackend(filtrosAplicados);
       const [contasData, empresasData, profissionaisData] = await Promise.all([
-        getContasPagar(),
+        getContasPagar(backendFilters),
         getEmpresas(),
         getProfissionais()
       ]);
@@ -267,6 +284,40 @@ export const ContasPagarPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helpers filtros avançados
+  const handleFilterChange = (key: string, value: string) => {
+    setFiltros(prev => ({ ...prev, [key]: value }));
+  };
+
+  const aplicarFiltros = async () => {
+    const aplicados = Object.fromEntries(
+      Object.entries(filtros).filter(([, v]) => v !== '' && v !== undefined && v !== null)
+    );
+    const backend = mapearFiltrosParaBackend(aplicados);
+    setFiltrosAplicados(aplicados);
+    await fetchData(backend);
+    setMostrarFiltros(false);
+  };
+
+  const limparFiltros = async () => {
+    setFiltros({});
+    setFiltrosAplicados({});
+    await fetchData({});
+  };
+
+  const mapearFiltrosParaBackend = (aplicados: Record<string, string>) => {
+    const f: any = {};
+    if (aplicados.empresaId) f.empresaId = aplicados.empresaId;
+    if (aplicados.contaBancariaId) f.contaBancariaId = aplicados.contaBancariaId;
+    if (aplicados.profissionalId) f.profissionalId = aplicados.profissionalId;
+    if (aplicados.status) f.status = aplicados.status as any;
+    if (aplicados.tipoConta) f.tipoConta = aplicados.tipoConta as any;
+    if (aplicados.recorrente) f.recorrente = aplicados.recorrente === 'true';
+    if (aplicados.dataInicio) f.dataVencimentoInicio = aplicados.dataInicio;
+    if (aplicados.dataFim) f.dataVencimentoFim = aplicados.dataFim;
+    return f;
   };
 
   const abrirModalNovo = () => {
@@ -583,9 +634,8 @@ export const ContasPagarPage = () => {
           <FilterButton
             showFilters={mostrarFiltros}
             onToggleFilters={() => setMostrarFiltros(prev => !prev)}
-            activeFiltersCount={activeFiltersCount}
+            activeFiltersCount={Object.values(filtrosAplicados).filter(v => v !== '' && v !== undefined && v !== null).length}
             module="financeiro"
-            disabled={filterConfigs.length === 0}
           />
           
           <ViewToggle 
@@ -605,15 +655,17 @@ export const ContasPagarPage = () => {
 
         {/* Conteúdo principal */}
         <PageContent>
-          {/* Painel de Filtros Dinâmicos */}
-          <DynamicFilterPanel
+          {/* Filtros Avançados */}
+          <AdvancedFilter
+            fields={filterFields}
+            filters={filtros}
+            appliedFilters={filtrosAplicados}
+            onFilterChange={handleFilterChange}
+            onApplyFilters={aplicarFiltros}
+            onClearFilters={limparFiltros}
             isVisible={mostrarFiltros}
-            filterConfigs={filterConfigs}
-            activeFilters={activeFilters}
-            onFilterChange={setFilter}
-            onClearAll={clearAllFilters}
             onClose={() => setMostrarFiltros(false)}
-            module="financeiro"
+            loading={loading}
           />
 
           {/* Conteúdo baseado no modo de visualização */}

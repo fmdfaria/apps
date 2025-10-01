@@ -118,6 +118,7 @@ export const LiberarAgendamentoModal: React.FC<LiberarAgendamentoModalProps> = (
   const numeroConselho = agendamento.profissionalNumeroConselho || (agendamento as any).profissional?.numeroConselho || (agendamento as any).profissional?.numero_conselho || '-';
   const procPrimeiro = agendamento.servicoProcedimentoPrimeiro || (agendamento as any).servico?.procedimentoPrimeiroAtendimento || (agendamento as any).servico?.procedimento_primeiro_atendimento || '-';
   const procDemais = agendamento.servicoProcedimentoDemais || (agendamento as any).servico?.procedimentoDemaisAtendimentos || (agendamento as any).servico?.procedimento_demais_atendimentos || '-';
+  const numeroCarteirinha = (agendamento as any).paciente?.numeroCarteirinha || (agendamento as any).paciente?.numero_carteirinha || '';
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -172,13 +173,13 @@ export const LiberarAgendamentoModal: React.FC<LiberarAgendamentoModalProps> = (
               {/* Linha 3 */}
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-gray-500" />
-                <span className="font-medium">Data:</span>
-                <span className="text-gray-700">{data}</span>
+                <span className="font-medium">Data e Hora:</span>
+                <span className="text-gray-700">{`${data} ${hora}`}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-gray-500" />
-                <span className="font-medium">Hora:</span>
-                <span className="text-gray-700">{hora}</span>
+                <FileText className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">N° Carteirinha:</span>
+                <span className="text-gray-700">{numeroCarteirinha || '-'}</span>
               </div>
               {/* Linha 4 */}
               <div className="flex items-center gap-2">

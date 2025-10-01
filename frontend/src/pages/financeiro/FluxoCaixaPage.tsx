@@ -23,7 +23,6 @@ import {
   ViewToggle, 
   SearchBar, 
   FilterButton,
-  DynamicFilterPanel,
   ResponsiveTable, 
   ResponsiveCards, 
   ResponsivePagination,
@@ -31,11 +30,14 @@ import {
   ResponsiveCardFooter,
   TableColumn 
 } from '@/components/layout';
+import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
 import type { FilterConfig } from '@/types/filters';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
-import { useTableFilters } from '@/hooks/useTableFilters';
+// import { useTableFilters } from '@/hooks/useTableFilters';
 import { getModuleTheme } from '@/types/theme';
+import { getContasBancarias } from '@/services/contas-bancarias';
+import { getCategoriasFinanceiras } from '@/services/categorias-financeiras';
 
 // Financial components
 import { StatusBadge, ValorDisplay } from '@/components/financeiro';
@@ -44,6 +46,23 @@ import { StatusBadge, ValorDisplay } from '@/components/financeiro';
 import FluxoCaixaModal from './FluxoCaixaModal';
 import ConciliarMovimentoModal from './ConciliarMovimentoModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+
+// Campos do filtro avançado
+const filterFields: FilterField[] = [
+  { key: 'dataInicio', type: 'date', label: 'Data Início' },
+  { key: 'dataFim', type: 'date', label: 'Data Fim' },
+  { key: 'empresaId', type: 'api-select', label: 'Empresa', apiService: getEmpresas, placeholder: 'Selecione uma empresa...', searchFields: ['razaoSocial'] },
+  { key: 'contaBancariaId', type: 'api-select', label: 'Conta Bancária', apiService: getContasBancarias, placeholder: 'Selecione uma conta...', searchFields: ['nome', 'banco'] },
+  { key: 'categoriaId', type: 'api-select', label: 'Categoria', apiService: getCategoriasFinanceiras, placeholder: 'Selecione uma categoria...', searchFields: ['nome'] },
+  { key: 'tipo', type: 'static-select', label: 'Tipo', options: [
+      { id: 'ENTRADA', nome: 'Entrada' },
+      { id: 'SAIDA', nome: 'Saída' }
+    ], placeholder: 'Selecione o tipo...' },
+  { key: 'conciliado', type: 'static-select', label: 'Conciliado', options: [
+      { id: 'true', nome: 'Sim' },
+      { id: 'false', nome: 'Não' }
+    ], placeholder: 'Selecionar...' }
+];
 
 export const FluxoCaixaPage = () => {
   const [movimentos, setMovimentos] = useState<FluxoCaixa[]>([]);
@@ -222,21 +241,12 @@ export const FluxoCaixaPage = () => {
     }
   ];
   
-  // Sistema de filtros dinâmicos
-  const {
-    activeFilters,
-    filterConfigs,
-    activeFiltersCount,
-    setFilter,
-    clearFilter,
-    clearAllFilters,
-    applyFilters
-  } = useTableFilters(columns);
-  
-  // Estado para mostrar/ocultar painel de filtros
+  // AdvancedFilter - estados
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [filtros, setFiltros] = useState<Record<string, string>>({});
+  const [filtrosAplicados, setFiltrosAplicados] = useState<Record<string, string>>({});
   
-  // Filtrar dados baseado na busca e filtros dinâmicos
+  // Filtrar dados baseado somente na busca (filtros avançados consultam backend)
   const movimentosFiltrados = useMemo(() => {
     const normalizarBusca = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 
@@ -254,9 +264,8 @@ export const FluxoCaixaPage = () => {
              contaBancaria.includes(buscaNormalizada) ||
              formaPagamento.includes(buscaNormalizada);
     }).sort((a, b) => new Date(b.dataMovimento).getTime() - new Date(a.dataMovimento).getTime());
-    
-    return applyFilters(dadosFiltrados);
-  }, [movimentos, busca, applyFilters]);
+    return dadosFiltrados;
+  }, [movimentos, busca]);
 
   const {
     data: movimentosPaginados,
@@ -299,11 +308,12 @@ export const FluxoCaixaPage = () => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (overrideFilters?: any) => {
     setLoading(true);
     try {
+      const backendFilters = overrideFilters ?? mapearFiltrosParaBackend(filtrosAplicados);
       const [movimentosData, empresasData] = await Promise.all([
-        getFluxoCaixa(),
+        getFluxoCaixa(backendFilters),
         getEmpresas()
       ]);
       
@@ -317,6 +327,39 @@ export const FluxoCaixaPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helpers filtros avançados
+  const handleFilterChange = (key: string, value: string) => {
+    setFiltros(prev => ({ ...prev, [key]: value }));
+  };
+
+  const aplicarFiltros = async () => {
+    const aplicados = Object.fromEntries(
+      Object.entries(filtros).filter(([, v]) => v !== '' && v !== undefined && v !== null)
+    );
+    const backend = mapearFiltrosParaBackend(aplicados);
+    setFiltrosAplicados(aplicados);
+    await fetchData(backend);
+    setMostrarFiltros(false);
+  };
+
+  const limparFiltros = async () => {
+    setFiltros({});
+    setFiltrosAplicados({});
+    await fetchData({});
+  };
+
+  const mapearFiltrosParaBackend = (aplicados: Record<string, string>) => {
+    const f: any = {};
+    if (aplicados.empresaId) f.empresaId = aplicados.empresaId;
+    if (aplicados.contaBancariaId) f.contaBancariaId = aplicados.contaBancariaId;
+    if (aplicados.categoriaId) f.categoriaId = aplicados.categoriaId;
+    if (aplicados.tipo) f.tipo = aplicados.tipo as any;
+    if (aplicados.conciliado) f.conciliado = aplicados.conciliado === 'true';
+    if (aplicados.dataInicio) f.dataMovimentoInicio = aplicados.dataInicio;
+    if (aplicados.dataFim) f.dataMovimentoFim = aplicados.dataFim;
+    return f;
   };
 
   const abrirModalNovo = () => {
@@ -553,9 +596,8 @@ export const FluxoCaixaPage = () => {
           <FilterButton
             showFilters={mostrarFiltros}
             onToggleFilters={() => setMostrarFiltros(prev => !prev)}
-            activeFiltersCount={activeFiltersCount}
+            activeFiltersCount={Object.values(filtrosAplicados).filter(v => v !== '' && v !== undefined && v !== null).length}
             module="financeiro"
-            disabled={filterConfigs.length === 0}
           />
           
           <ViewToggle 
@@ -575,15 +617,17 @@ export const FluxoCaixaPage = () => {
 
         {/* Conteúdo principal */}
         <PageContent>
-          {/* Painel de Filtros Dinâmicos */}
-          <DynamicFilterPanel
+          {/* Filtros Avançados */}
+          <AdvancedFilter
+            fields={filterFields}
+            filters={filtros}
+            appliedFilters={filtrosAplicados}
+            onFilterChange={handleFilterChange}
+            onApplyFilters={aplicarFiltros}
+            onClearFilters={limparFiltros}
             isVisible={mostrarFiltros}
-            filterConfigs={filterConfigs}
-            activeFilters={activeFilters}
-            onFilterChange={setFilter}
-            onClearAll={clearAllFilters}
             onClose={() => setMostrarFiltros(false)}
-            module="financeiro"
+            loading={loading}
           />
 
           {/* Conteúdo baseado no modo de visualização */}

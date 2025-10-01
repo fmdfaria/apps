@@ -17,7 +17,6 @@ import {
   ViewToggle, 
   SearchBar, 
   FilterButton,
-  DynamicFilterPanel,
   ResponsiveTable, 
   ResponsiveCards, 
   ResponsivePagination,
@@ -25,11 +24,15 @@ import {
   ResponsiveCardFooter,
   TableColumn 
 } from '@/components/layout';
+import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
 import type { FilterConfig } from '@/types/filters';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
-import { useTableFilters } from '@/hooks/useTableFilters';
+// import { useTableFilters } from '@/hooks/useTableFilters';
 import { getModuleTheme } from '@/types/theme';
+import { getConvenios } from '@/services/convenios';
+import { getPacientes } from '@/services/pacientes';
+import { getContasBancarias } from '@/services/contas-bancarias';
 
 // Financial components
 import { StatusBadge, ValorDisplay } from '@/components/financeiro';
@@ -38,6 +41,23 @@ import { StatusBadge, ValorDisplay } from '@/components/financeiro';
 import ContaReceberModal from './ContaReceberModal';
 import ReceberContaModal from './ReceberContaModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+
+// Configuração dos campos de filtro avançado
+const filterFields: FilterField[] = [
+  { key: 'dataInicio', type: 'date', label: 'Data Início' },
+  { key: 'dataFim', type: 'date', label: 'Data Fim' },
+  { key: 'empresaId', type: 'api-select', label: 'Empresa', apiService: getEmpresas, placeholder: 'Selecione uma empresa...', searchFields: ['razaoSocial'] },
+  { key: 'contaBancariaId', type: 'api-select', label: 'Conta Bancária', apiService: getContasBancarias, placeholder: 'Selecione uma conta bancária...', searchFields: ['nome', 'banco'] },
+  { key: 'convenioId', type: 'api-select', label: 'Convênio', apiService: getConvenios, placeholder: 'Selecione um convênio...', searchFields: ['nome'] },
+  { key: 'pacienteId', type: 'api-select', label: 'Paciente', apiService: getPacientes, placeholder: 'Selecione um paciente...', searchFields: ['nomeCompleto'] },
+  { key: 'status', type: 'static-select', label: 'Status', options: [
+    { id: 'PENDENTE', nome: 'Pendente' },
+    { id: 'PARCIAL', nome: 'Parcial' },
+    { id: 'RECEBIDO', nome: 'Recebido' },
+    { id: 'VENCIDO', nome: 'Vencido' },
+    { id: 'CANCELADO', nome: 'Cancelado' }
+  ], placeholder: 'Selecione o status...' }
+];
 
 export const ContasReceberPage = () => {
   const [contas, setContas] = useState<ContaReceber[]>([]);
@@ -177,21 +197,12 @@ export const ContasReceberPage = () => {
     }
   ];
   
-  // Sistema de filtros dinâmicos
-  const {
-    activeFilters,
-    filterConfigs,
-    activeFiltersCount,
-    setFilter,
-    clearFilter,
-    clearAllFilters,
-    applyFilters
-  } = useTableFilters(columns);
-  
-  // Estado para mostrar/ocultar painel de filtros
+  // AdvancedFilter - estados
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [filtros, setFiltros] = useState<Record<string, string>>({});
+  const [filtrosAplicados, setFiltrosAplicados] = useState<Record<string, string>>({});
   
-  // Filtrar dados baseado na busca e filtros dinâmicos
+  // Filtrar dados baseado somente na busca (filtros avançados consultam backend)
   const contasFiltradas = useMemo(() => {
     const normalizarBusca = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 
@@ -209,9 +220,8 @@ export const ContasReceberPage = () => {
              convenio.includes(buscaNormalizada) || 
              paciente.includes(buscaNormalizada);
     }).sort((a, b) => new Date(a.dataVencimento).getTime() - new Date(b.dataVencimento).getTime());
-    
-    return applyFilters(dadosFiltrados);
-  }, [contas, busca, applyFilters]);
+    return dadosFiltrados;
+  }, [contas, busca]);
 
   const {
     data: contasPaginadas,
@@ -232,11 +242,12 @@ export const ContasReceberPage = () => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (overrideFilters?: any) => {
     setLoading(true);
     try {
+      const backendFilters = overrideFilters ?? mapearFiltrosParaBackend(filtrosAplicados);
       const [contasData, empresasData] = await Promise.all([
-        getContasReceber(),
+        getContasReceber(backendFilters),
         getEmpresas()
       ]);
       
@@ -253,6 +264,39 @@ export const ContasReceberPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helpers de filtros avançados
+  const handleFilterChange = (key: string, value: string) => {
+    setFiltros(prev => ({ ...prev, [key]: value }));
+  };
+
+  const aplicarFiltros = async () => {
+    const aplicados = Object.fromEntries(
+      Object.entries(filtros).filter(([, v]) => v !== '' && v !== undefined && v !== null)
+    );
+    const backendFilters = mapearFiltrosParaBackend(aplicados);
+    setFiltrosAplicados(aplicados);
+    await fetchData(backendFilters);
+    setMostrarFiltros(false);
+  };
+
+  const limparFiltros = async () => {
+    setFiltros({});
+    setFiltrosAplicados({});
+    await fetchData({});
+  };
+
+  const mapearFiltrosParaBackend = (aplicados: Record<string, string>) => {
+    const backendFilters: any = {};
+    if (aplicados.empresaId) backendFilters.empresaId = aplicados.empresaId;
+    if (aplicados.contaBancariaId) backendFilters.contaBancariaId = aplicados.contaBancariaId;
+    if (aplicados.pacienteId) backendFilters.pacienteId = aplicados.pacienteId;
+    if (aplicados.convenioId) backendFilters.convenioId = aplicados.convenioId;
+    if (aplicados.status) backendFilters.status = aplicados.status as any;
+    if (aplicados.dataInicio) backendFilters.dataVencimentoInicio = aplicados.dataInicio;
+    if (aplicados.dataFim) backendFilters.dataVencimentoFim = aplicados.dataFim;
+    return backendFilters;
   };
 
   const abrirModalNovo = () => {
@@ -451,9 +495,8 @@ export const ContasReceberPage = () => {
           <FilterButton
             showFilters={mostrarFiltros}
             onToggleFilters={() => setMostrarFiltros(prev => !prev)}
-            activeFiltersCount={activeFiltersCount}
+            activeFiltersCount={Object.values(filtrosAplicados).filter(v => v !== '' && v !== undefined && v !== null).length}
             module="financeiro"
-            disabled={filterConfigs.length === 0}
           />
           
           <ViewToggle 
@@ -473,15 +516,17 @@ export const ContasReceberPage = () => {
 
         {/* Conteúdo principal */}
         <PageContent>
-          {/* Painel de Filtros Dinâmicos */}
-          <DynamicFilterPanel
+          {/* Filtros Avançados */}
+          <AdvancedFilter
+            fields={filterFields}
+            filters={filtros}
+            appliedFilters={filtrosAplicados}
+            onFilterChange={handleFilterChange}
+            onApplyFilters={aplicarFiltros}
+            onClearFilters={limparFiltros}
             isVisible={mostrarFiltros}
-            filterConfigs={filterConfigs}
-            activeFilters={activeFilters}
-            onFilterChange={setFilter}
-            onClearAll={clearAllFilters}
             onClose={() => setMostrarFiltros(false)}
-            module="financeiro"
+            loading={loading}
           />
 
           {/* Conteúdo baseado no modo de visualização */}
