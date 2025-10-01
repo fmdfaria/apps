@@ -33,7 +33,6 @@ import {
   ViewToggle, 
   SearchBar, 
   FilterButton,
-  DynamicFilterPanel,
   ResponsiveTable, 
   ResponsiveCards, 
   ResponsivePagination,
@@ -41,9 +40,10 @@ import {
   TableColumn,
   ResponsiveCardFooter 
 } from '@/components/layout';
+import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
-import { useTableFilters } from '@/hooks/useTableFilters';
+// import { useTableFilters } from '@/hooks/useTableFilters';
 import { getModuleTheme } from '@/types/theme';
 
 // Opções para dropdowns
@@ -111,7 +111,7 @@ export const ConfiguracoesPage = () => {
   // Hooks responsivos
   const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'configuracoes-view' });
   
-  // Configuração das colunas da tabela com filtros dinâmicos
+  // Configuração das colunas da tabela (filtros via AdvancedFilter)
   const columns: TableColumn<Configuracao>[] = [
     {
       key: 'entidadeTipo',
@@ -257,21 +257,33 @@ export const ConfiguracoesPage = () => {
     }
   ];
   
-  // Sistema de filtros dinâmicos
-  const {
-    activeFilters,
-    filterConfigs,
-    activeFiltersCount,
-    setFilter,
-    clearFilter,
-    clearAllFilters,
-    applyFilters
-  } = useTableFilters(columns);
-  
-  // Estado para mostrar/ocultar painel de filtros
+  // AdvancedFilter
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [filtros, setFiltros] = useState<Record<string, string>>({});
+  const [filtrosAplicados, setFiltrosAplicados] = useState<Record<string, string>>({});
+
+  const filterFields: FilterField[] = [
+    { key: 'entidadeTipo', type: 'static-select', label: 'Entidade', options: [
+      { id: 'convenio', nome: 'Convênio' },
+      { id: 'servico', nome: 'Serviço' },
+      { id: 'global', nome: 'Global' }
+    ], placeholder: 'Selecione a entidade...' },
+    { key: 'contexto', type: 'text', label: 'Contexto', placeholder: 'Ex: pedidos_medicos' },
+    { key: 'chave', type: 'text', label: 'Chave', placeholder: 'Ex: crm_obrigatorio' },
+    { key: 'tipoValor', type: 'static-select', label: 'Tipo', options: [
+      { id: 'string', nome: 'Texto (String)' },
+      { id: 'number', nome: 'Número' },
+      { id: 'boolean', nome: 'Verdadeiro/Falso (Boolean)' },
+      { id: 'json', nome: 'JSON' },
+      { id: 'date', nome: 'Data' }
+    ], placeholder: 'Selecione o tipo...' },
+    { key: 'ativo', type: 'static-select', label: 'Status', options: [
+      { id: 'true', nome: 'Ativo' },
+      { id: 'false', nome: 'Inativo' }
+    ], placeholder: 'Selecionar...' }
+  ];
   
-  // Filtrar dados baseado na busca e filtros dinâmicos
+  // Filtrar dados baseado apenas na busca (AdvancedFilter é client-side aqui)
   const configuracoesFiltradas = useMemo(() => {
     // Primeiro aplicar busca textual
     let dadosFiltrados = configuracoes.filter(c =>
@@ -280,10 +292,15 @@ export const ConfiguracoesPage = () => {
       c.entidadeTipo.toLowerCase().includes(busca.toLowerCase()) ||
       (c.descricao && c.descricao.toLowerCase().includes(busca.toLowerCase()))
     );
-    
-    // Depois aplicar filtros dinâmicos
-    return applyFilters(dadosFiltrados);
-  }, [configuracoes, busca, applyFilters]);
+    // Aplicar filtros avançados no client
+    const f = filtrosAplicados;
+    if (f.entidadeTipo) dadosFiltrados = dadosFiltrados.filter(c => c.entidadeTipo === f.entidadeTipo);
+    if (f.contexto) dadosFiltrados = dadosFiltrados.filter(c => c.contexto.toLowerCase().includes(f.contexto.toLowerCase()));
+    if (f.chave) dadosFiltrados = dadosFiltrados.filter(c => c.chave.toLowerCase().includes(f.chave.toLowerCase()));
+    if (f.tipoValor) dadosFiltrados = dadosFiltrados.filter(c => c.tipoValor === f.tipoValor);
+    if (f.ativo) dadosFiltrados = dadosFiltrados.filter(c => String(c.ativo) === f.ativo);
+    return dadosFiltrados;
+  }, [configuracoes, busca, filtrosAplicados]);
 
   const {
     data: configuracoesPaginadas,
@@ -736,10 +753,8 @@ export const ConfiguracoesPage = () => {
         <FilterButton
           showFilters={mostrarFiltros}
           onToggleFilters={() => setMostrarFiltros(prev => !prev)}
-          activeFiltersCount={activeFiltersCount}
+          activeFiltersCount={Object.values(filtrosAplicados).filter(v => v !== '' && v !== undefined && v !== null).length}
           module="default"
-          disabled={filterConfigs.length === 0}
-          tooltip={filterConfigs.length === 0 ? 'Nenhum filtro configurado' : undefined}
         />
         
         <ViewToggle 
@@ -780,15 +795,17 @@ export const ConfiguracoesPage = () => {
 
       {/* Conteúdo principal */}
       <PageContent>
-        {/* Painel de Filtros Dinâmicos */}
-        <DynamicFilterPanel
+        {/* Filtros Avançados */}
+        <AdvancedFilter
+          fields={filterFields}
+          filters={filtros}
+          appliedFilters={filtrosAplicados}
+          onFilterChange={(k, v) => setFiltros(prev => ({ ...prev, [k]: v }))}
+          onApplyFilters={() => setFiltrosAplicados(Object.fromEntries(Object.entries(filtros).filter(([,v]) => v !== '' && v !== undefined && v !== null)))}
+          onClearFilters={() => { setFiltros({}); setFiltrosAplicados({}); }}
           isVisible={mostrarFiltros}
-          filterConfigs={filterConfigs}
-          activeFilters={activeFilters}
-          onFilterChange={setFilter}
-          onClearAll={clearAllFilters}
           onClose={() => setMostrarFiltros(false)}
-          module="default"
+          loading={loading}
         />
 
         {/* Conteúdo baseado no modo de visualização */}

@@ -32,15 +32,13 @@ export class PacientesPedidosController {
   }
 
   async list(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-    const paramsSchema = z.object({
-      pacienteId: z.string().uuid(),
-    });
-
+    // Se tiver pacienteId nos params, lista por paciente; senão, lista todos
+    const paramsSchema = z.object({ pacienteId: z.string().uuid().optional() });
     const { pacienteId } = paramsSchema.parse(request.params);
-    
+
     const useCase = container.resolve(ListPacientesPedidosUseCase);
     const pedidos = await useCase.execute({ pacienteId });
-    
+
     return reply.status(200).send(pedidos);
   }
 

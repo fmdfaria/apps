@@ -74,6 +74,25 @@ export default function EvolucaoPacientesModal({
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [loadingProfissionais, setLoadingProfissionais] = useState(false);
 
+  // Helper: formata data (string Date ou ISO) para YYYY-MM-DD para inputs type=date
+  const formatDateToInput = (data: string | Date | undefined | null) => {
+    if (!data) return '';
+    let dataObj: Date;
+    if (typeof data === 'string') {
+      if (data.includes('T') && !data.endsWith('Z')) {
+        dataObj = new Date(data + 'Z');
+      } else {
+        dataObj = new Date(data);
+      }
+    } else {
+      dataObj = new Date(data);
+    }
+    const ano = dataObj.getUTCFullYear();
+    const mes = String(dataObj.getUTCMonth() + 1).padStart(2, '0');
+    const dia = String(dataObj.getUTCDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+  };
+
   const isEditing = !!evolucaoParaEditar;
   const isProfissional = user?.roles?.includes('PROFISSIONAL');
   const isStandalone = !agendamentoInicial; // Evolução standalone (sem agendamento)
@@ -107,6 +126,8 @@ export default function EvolucaoPacientesModal({
           pacienteId: agendamentoInicial.pacienteId,
           agendamentoId: agendamentoInicial.id,
           profissionalId: agendamentoInicial.profissionalId || '',
+          // Data da Evolução = Data Liberação por padrão (se existir)
+          dataEvolucao: formatDateToInput(agendamentoInicial.dataCodLiberacao) || prevForm.dataEvolucao
         }));
         setPacienteNome(agendamentoInicial.pacienteNome || '');
         setProfissionalNome(agendamentoInicial.profissionalNome || '');
@@ -377,8 +398,20 @@ export default function EvolucaoPacientesModal({
               </div>
             </div>
 
-            {/* Linha 2: Data da Evolução | Objetivo da Sessão */}
+            {/* Linha 2: Data Liberação | Data da Evolução */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  <span className="font-semibold">Data Liberação</span>
+                </label>
+                <Input
+                  type="date"
+                  value={formatDateToInput(agendamentoInicial?.dataCodLiberacao) || ''}
+                  disabled
+                  className="bg-gray-50 cursor-not-allowed"
+                />
+              </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
@@ -396,27 +429,29 @@ export default function EvolucaoPacientesModal({
                   max={new Date().toISOString().split('T')[0]}
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
-                  <Target className="w-4 h-4" />
-                  <span className="font-semibold">Objetivo da Sessão</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="text"
-                  placeholder="Ex: Avaliação inicial, Fortalecimento muscular, Controle da dor..."
-                  value={form.objetivoSessao}
-                  onChange={(e) => {
-                    setForm({ ...form, objetivoSessao: e.target.value });
-                    setFormError('');
-                  }}
-                  disabled={formLoading}
-                  maxLength={255}
-                />
-              </div>
             </div>
 
-            {/* Linha 3: Descrição da Evolução */}
+            {/* Linha 3: Objetivo da Sessão */}
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <Target className="w-4 h-4" />
+                <span className="font-semibold">Objetivo da Sessão</span>
+                <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="text"
+                placeholder="Ex: Avaliação inicial, Fortalecimento muscular, Controle da dor..."
+                value={form.objetivoSessao}
+                onChange={(e) => {
+                  setForm({ ...form, objetivoSessao: e.target.value });
+                  setFormError('');
+                }}
+                disabled={formLoading}
+                maxLength={255}
+              />
+            </div>
+
+            {/* Linha 4: Descrição da Evolução */}
             <div className="space-y-1">
               <label className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
                 <FileText className="w-4 h-4" />

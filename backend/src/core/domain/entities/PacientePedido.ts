@@ -11,6 +11,7 @@ export class PacientePedido {
   createdAt?: Date | null;
   updatedAt?: Date | null;
   servico?: any; // Relação com serviço
+  paciente?: any; // Relação com paciente (inclui dados como convenio, carteirinha, whatsapp)
 
   constructor() {
     this.id = '';

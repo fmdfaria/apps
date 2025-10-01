@@ -5,7 +5,7 @@ import { IPacientesPedidosRepository } from '../../../domain/repositories/IPacie
 import { IPacientesRepository } from '../../../domain/repositories/IPacientesRepository';
 
 interface IRequest {
-  pacienteId: string;
+  pacienteId?: string;
 }
 
 @injectable()
@@ -18,14 +18,13 @@ export class ListPacientesPedidosUseCase {
   ) {}
 
   async execute({ pacienteId }: IRequest): Promise<PacientePedido[]> {
-    // Verificar se o paciente existe
-    const paciente = await this.pacientesRepository.findById(pacienteId);
-    if (!paciente) {
-      throw new AppError('Paciente não encontrado.', 404);
+    if (pacienteId) {
+      const paciente = await this.pacientesRepository.findById(pacienteId);
+      if (!paciente) {
+        throw new AppError('Paciente não encontrado.', 404);
+      }
+      return this.pacientesPedidosRepository.findByPacienteId(pacienteId);
     }
-
-    const pedidos = await this.pacientesPedidosRepository.findByPacienteId(pacienteId);
-
-    return pedidos;
+    return this.pacientesPedidosRepository.findAll();
   }
 }

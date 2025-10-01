@@ -24,6 +24,15 @@ export async function pacientesPedidosRoutes(fastify: FastifyInstance) {
     controller.list
   );
 
+  // GET /pacientes/pedidos - Listar todos os pedidos médicos (otimizado para dashboards)
+  fastify.get(
+    '/pedidos',
+    {
+      preHandler: [ensureAuthenticated, ensureAuthorized('/pacientes/pedidos', 'GET')],
+    },
+    controller.list
+  );
+
   // PUT /pacientes/:pacienteId/pedidos/:id - Atualizar pedido médico
   fastify.put(
     '/:pacienteId/pedidos/:id',

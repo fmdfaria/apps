@@ -153,10 +153,12 @@ export const PendenciaPage = () => {
       const canResolverPendencia = allowedRoutes.some((route: any) => {
         return route.path === '/agendamentos-pendencias/:id' && route.method.toLowerCase() === 'put';
       });
+      const canVisualizarPendencias = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos-pendencias' && route.method.toLowerCase() === 'get';
+      });
       setCanConcluir(canResolverPendencia);
-      if (!canResolverPendencia) {
-        setAccessDenied(true);
-      }
+      // A página deve abrir com GET; a ação de concluir depende do PUT
+      setAccessDenied(!canVisualizarPendencias);
     } catch (error: any) {
       setCanConcluir(false);
       if (error?.response?.status === 401 || error?.response?.status === 403) {
@@ -215,7 +217,7 @@ export const PendenciaPage = () => {
       if (e?.response?.status === 403) {
         setAccessDenied(true);
         try {
-          const info = await getRouteInfo('/agendamentos-pendencias/:id', 'PUT');
+          const info = await getRouteInfo('/agendamentos-pendencias', 'GET');
           setRouteInfo(info);
         } catch {}
       } else {

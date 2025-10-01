@@ -126,6 +126,36 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
     });
   }
 
+  async findAll(): Promise<PacientePedido[]> {
+    const pedidos = await this.prisma.pacientePedido.findMany({
+      include: {
+        servico: true,
+        paciente: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return pedidos.map((pedido) => {
+      const domainPedido = new PacientePedido();
+      domainPedido.id = pedido.id;
+      domainPedido.dataPedidoMedico = pedido.dataPedidoMedico;
+      domainPedido.crm = pedido.crm;
+      domainPedido.cbo = pedido.cbo;
+      domainPedido.cid = pedido.cid;
+      domainPedido.autoPedidos = pedido.autoPedidos;
+      domainPedido.descricao = pedido.descricao;
+      domainPedido.servicoId = pedido.servicoId;
+      domainPedido.pacienteId = pedido.pacienteId;
+      domainPedido.createdAt = pedido.createdAt;
+      domainPedido.updatedAt = pedido.updatedAt;
+      if (pedido.servico) domainPedido.servico = pedido.servico;
+      if (pedido.paciente) domainPedido.paciente = pedido.paciente;
+      return domainPedido;
+    });
+  }
+
   async save(pedido: PacientePedido): Promise<PacientePedido> {
     const updatedPedido = await this.prisma.pacientePedido.update({
       where: { id: pedido.id },

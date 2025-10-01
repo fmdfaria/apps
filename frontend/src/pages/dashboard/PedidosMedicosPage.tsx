@@ -26,6 +26,9 @@ import {
 } from '@/components/layout';
 import { getPacientes, updatePaciente } from '@/services/pacientes';
 import { getConvenios } from '@/services/convenios';
+import { getServicos } from '@/services/servicos';
+import type { Servico } from '@/types/Servico';
+import { getPacientesPedidos } from '@/services/pacientes-pedidos';
 import type { Paciente } from '@/types/Paciente';
 import type { Convenio } from '@/types/Convenio';
 import { getAnexos } from '@/services/anexos';
@@ -36,7 +39,7 @@ import { AppToast } from '@/services/toast';
 import CriarPacienteModal from '../pacientes/CriarPacienteModal';
 import EditarPacienteModal from '../pacientes/EditarPacienteModal';
 import AnexoPacientesModal from '../pacientes/AnexoPacientesModal';
-import ConvenioModal from '../pacientes/ConvenioModal';
+import PedidosMedicosModal from '../pacientes/PedidosMedicosModal';
 
 // Tipos para Pedidos Médicos baseado em Paciente com dataPedidoMedico
 export interface PedidoMedico {
@@ -145,6 +148,7 @@ const generateMockData = (): PedidoMedico[] => {
 export const PedidosMedicosPage: React.FC = () => {
   const [pedidos, setPedidos] = useState<PedidoMedico[]>([]);
   const [convenios, setConvenios] = useState<Convenio[]>([]);
+  const [servicos, setServicos] = useState<Servico[]>([]);
   const [carregandoDados, setCarregandoDados] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [tipoVisualizacao, setTipoVisualizacao] = useState<'vencendo' | 'vencidos'>('vencendo');
@@ -179,19 +183,9 @@ export const PedidosMedicosPage: React.FC = () => {
   const [anexoToDelete, setAnexoToDelete] = useState<Anexo | null>(null);
   const [deletingAnexo, setDeletingAnexo] = useState(false);
 
-  // Estados para modal de convênio
-  const [showConvenioModal, setShowConvenioModal] = useState(false);
-  const [pacienteConvenio, setPacienteConvenio] = useState<Paciente | null>(null);
-  const [formConvenio, setFormConvenio] = useState({
-    convenioId: '',
-    numeroCarteirinha: '',
-    dataPedidoMedico: '',
-    crm: '',
-    cbo: '',
-    cid: '',
-  });
-  const [formConvenioError, setFormConvenioError] = useState('');
-  const [formConvenioLoading, setFormConvenioLoading] = useState(false);
+  // Modal Pedidos Médicos (novo fluxo)
+  const [showPedidosModal, setShowPedidosModal] = useState(false);
+  const [pacientePedidos, setPacientePedidos] = useState<Paciente | null>(null);
 
   // Carregar dados reais da API
   useEffect(() => {
@@ -203,74 +197,61 @@ export const PedidosMedicosPage: React.FC = () => {
       setCarregandoDados(true);
       setErro(null);
       
-      // Buscar pacientes e convenios em paralelo
-      const [pacientesData, conveniosData] = await Promise.all([
+      // Buscar pacientes, convenios e serviços em paralelo
+      const [pacientesData, conveniosData, servicosData] = await Promise.all([
         getPacientes(),
-        getConvenios()
+        getConvenios(),
+        getServicos()
       ]);
       
       setConvenios(conveniosData);
+      setServicos(servicosData);
       
-      // Filtrar apenas pacientes que têm dataPedidoMedico
-      const pacientesComPedido = pacientesData.filter(p => p.dataPedidoMedico);
-      
-      // Converter pacientes para PedidoMedico
-      const pedidosMedicos: PedidoMedico[] = pacientesComPedido.map(paciente => {
-        // Verificar formato da data e ajustar se necessário
-        let dateToProcess = paciente.dataPedidoMedico!;
-        if (/^\d{4}-\d{2}-\d{2}$/.test(dateToProcess)) {
-          dateToProcess = dateToProcess + 'T00:00:00Z';
-        }
-        
-        const dataPedido = new Date(dateToProcess);
-        
-        // Verificar se a data é válida
-        if (isNaN(dataPedido.getTime())) {
-          console.error('Data de pedido médico inválida:', paciente.dataPedidoMedico);
-          return null; // Pular este paciente se a data for inválida
-        }
-        
-        const dataVencimento = new Date(dataPedido);
-        dataVencimento.setUTCMonth(dataVencimento.getUTCMonth() + 6); // 6 meses de validade
-        
-        const hoje = new Date();
-        const diasParaVencer = Math.ceil((dataVencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
-        
-        let status: 'vigente' | 'vencendo' | 'vencido';
-        if (diasParaVencer < 0) {
-          status = 'vencido';
-        } else if (diasParaVencer <= 30) {
-          status = 'vencendo';
-        } else {
-          status = 'vigente';
-        }
-
-        // Encontrar nome do convenio
-        const convenio = conveniosData.find(c => c.id === paciente.convenioId);
-        
-        // Formatar data de vencimento mantendo UTC
-        const year = dataVencimento.getUTCFullYear();
-        const month = String(dataVencimento.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(dataVencimento.getUTCDate()).padStart(2, '0');
-        const dataVencimentoFormatted = `${year}-${month}-${day}`;
-        
-        return {
-          id: paciente.id,
-          pacienteId: paciente.id,
-          pacienteNome: paciente.nomeCompleto,
-          pacienteWhatsapp: paciente.whatsapp,
-          convenioNome: convenio?.nome || 'Particular',
-          numeroCarteirinha: paciente.numeroCarteirinha || undefined,
-          dataPedidoMedico: paciente.dataPedidoMedico!,
-          dataVencimento: dataVencimentoFormatted,
-          diasParaVencer,
-          status,
-          crm: paciente.crm || undefined,
-          cbo: paciente.cbo || undefined
-        };
-      }).filter(pedido => pedido !== null) as PedidoMedico[];
-      
-      setPedidos(pedidosMedicos);
+      // Buscar pedidos médicos por paciente e montar a lista agregada
+      const pedidosAgregados: PedidoMedico[] = [];
+      await Promise.all(
+        pacientesData.map(async (paciente) => {
+          try {
+            const pedidosPaciente = await getPacientesPedidos(paciente.id);
+            const convenio = conveniosData.find(c => c.id === paciente.convenioId);
+            pedidosPaciente.forEach((pp) => {
+              if (!pp.dataPedidoMedico) return; // ignorar registros sem data
+              // Calcular vencimento (regra: 6 meses após data do pedido)
+              const dataPedido = new Date(pp.dataPedidoMedico + 'T00:00:00Z');
+              if (isNaN(dataPedido.getTime())) return;
+              const dataVenc = new Date(dataPedido);
+              dataVenc.setUTCMonth(dataVenc.getUTCMonth() + 6);
+              const hoje = new Date();
+              const diasParaVencer = Math.ceil((dataVenc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+              let status: 'vigente' | 'vencendo' | 'vencido';
+              if (diasParaVencer < 0) status = 'vencido';
+              else if (diasParaVencer <= 30) status = 'vencendo';
+              else status = 'vigente';
+              const year = dataVenc.getUTCFullYear();
+              const month = String(dataVenc.getUTCMonth() + 1).padStart(2, '0');
+              const day = String(dataVenc.getUTCDate()).padStart(2, '0');
+              const dataVencimentoFormatted = `${year}-${month}-${day}`;
+              pedidosAgregados.push({
+                id: pp.id,
+                pacienteId: paciente.id,
+                pacienteNome: paciente.nomeCompleto,
+                pacienteWhatsapp: paciente.whatsapp,
+                convenioNome: convenio?.nome || 'Particular',
+                numeroCarteirinha: paciente.numeroCarteirinha || undefined,
+                dataPedidoMedico: pp.dataPedidoMedico,
+                dataVencimento: dataVencimentoFormatted,
+                diasParaVencer,
+                status,
+                crm: pp.crm || undefined,
+                cbo: pp.cbo || undefined
+              });
+            });
+          } catch (e) {
+            // Se falhar pedidos de um paciente, segue com os demais
+          }
+        })
+      );
+      setPedidos(pedidosAgregados);
     } catch (error) {
       setErro('Erro ao carregar dados de pedidos médicos. Tente novamente.');
     } finally {
@@ -396,73 +377,11 @@ export const PedidosMedicosPage: React.FC = () => {
     }
   };
 
-  const abrirModalConvenio = async (pedido: PedidoMedico) => {
+  const abrirModalPedidos = async (pedido: PedidoMedico) => {
     const paciente = await buscarPacientePorId(pedido.pacienteId);
     if (paciente) {
-      setPacienteConvenio(paciente);
-      
-      // Debug: Verificar os dados recebidos
-      console.log('🔍 DEBUG ConvenioModal:', {
-        pedido: {
-          dataPedidoMedico: pedido.dataPedidoMedico,
-          pacienteNome: pedido.pacienteNome
-        },
-        paciente: {
-          dataPedidoMedico: paciente.dataPedidoMedico,
-          nomeCompleto: paciente.nomeCompleto
-        }
-      });
-      
-      // Função para garantir formato YYYY-MM-DD para input type="date"
-      const formatDateForInput = (dateString: string) => {
-        if (!dateString) return '';
-        try {
-          // Se a string já está no formato YYYY-MM-DD, retorna como está
-          if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-            return dateString;
-          }
-          
-          // Se a data já contém horário (formato ISO), usar como está
-          let dateToFormat = dateString;
-          
-          // Se é apenas a data (YYYY-MM-DD), adicionar horário UTC
-          if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-            dateToFormat = dateString + 'T00:00:00Z';
-          }
-          
-          const date = new Date(dateToFormat);
-          
-          // Verificar se a data é válida
-          if (isNaN(date.getTime())) {
-            console.error('❌ Data inválida para input:', dateString);
-            return '';
-          }
-          
-          const year = date.getUTCFullYear();
-          const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-          const day = String(date.getUTCDate()).padStart(2, '0');
-          const formatted = `${year}-${month}-${day}`;
-          console.log('📅 Formatação de data:', { original: dateString, formatted });
-          return formatted;
-        } catch (error) {
-          console.error('❌ Erro ao formatar data:', dateString, error);
-          return '';
-        }
-      };
-      
-      const dataFormatada = formatDateForInput(pedido.dataPedidoMedico || paciente.dataPedidoMedico || '');
-      console.log('✅ Data final para o modal:', dataFormatada);
-      
-      setFormConvenio({
-        convenioId: paciente.convenioId || '',
-        numeroCarteirinha: paciente.numeroCarteirinha || '',
-        dataPedidoMedico: dataFormatada,
-        crm: paciente.crm || '',
-        cbo: paciente.cbo || '',
-        cid: paciente.cid || '',
-      });
-      setFormConvenioError('');
-      setShowConvenioModal(true);
+      setPacientePedidos(paciente);
+      setShowPedidosModal(true);
     }
   };
 
@@ -711,9 +630,9 @@ export const PedidosMedicosPage: React.FC = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => abrirModalConvenio(pedido)}
+                          onClick={() => abrirModalPedidos(pedido)}
                           className="h-8 px-2 hover:bg-purple-50 hover:border-purple-300"
-                          title="Dados do Convênio"
+                          title="Pedidos Médicos"
                         >
                           <Building2 className="w-4 h-4 text-purple-600" />
                         </Button>
@@ -1137,100 +1056,11 @@ export const PedidosMedicosPage: React.FC = () => {
         onDeletingAnexoChange={setDeletingAnexo}
       />
 
-      <ConvenioModal
-        showModal={showConvenioModal}
-        paciente={pacienteConvenio}
-        form={formConvenio}
-        formError={formConvenioError}
-        formLoading={formConvenioLoading}
-        convenios={convenios}
-        onClose={fecharModalConvenio}
-        onFormChange={handleFormConvenioChange}
-        onSubmit={async (e) => {
-          e.preventDefault();
-          
-          // Validações obrigatórias
-          if (!formConvenio.convenioId.trim()) {
-            AppToast.error('Erro de Validação', {
-              description: 'Convênio é obrigatório.'
-            });
-            return;
-          }
-          
-          if (!formConvenio.numeroCarteirinha.trim()) {
-            AppToast.error('Erro de Validação', {
-              description: 'Número da Carteirinha é obrigatório.'
-            });
-            return;
-          }
-          
-          if (!formConvenio.dataPedidoMedico.trim()) {
-            AppToast.error('Erro de Validação', {
-              description: 'Data do Pedido Médico é obrigatória.'
-            });
-            return;
-          }
-          
-          if (!formConvenio.crm.trim()) {
-            AppToast.error('Erro de Validação', {
-              description: 'CRM é obrigatório.'
-            });
-            return;
-          }
-          
-          if (!formConvenio.cbo.trim()) {
-            AppToast.error('Erro de Validação', {
-              description: 'CBO é obrigatório.'
-            });
-            return;
-          }
-          
-          if (!formConvenio.cid.trim()) {
-            AppToast.error('Erro de Validação', {
-              description: 'CID é obrigatório.'
-            });
-            return;
-          }
-
-          setFormConvenioLoading(true);
-          setFormConvenioError('');
-
-          try {
-            if (pacienteConvenio) {
-              // Preparar payload com dados do convênio
-              const pacientePayload: any = {
-                // Manter todos os dados existentes do paciente
-                nomeCompleto: pacienteConvenio.nomeCompleto,
-                nomeResponsavel: pacienteConvenio.nomeResponsavel,
-                cpf: pacienteConvenio.cpf,
-                email: pacienteConvenio.email,
-                whatsapp: pacienteConvenio.whatsapp,
-                dataNascimento: pacienteConvenio.dataNascimento,
-                tipoServico: pacienteConvenio.tipoServico,
-                // Atualizar dados do convênio
-                convenioId: formConvenio.convenioId,
-                numeroCarteirinha: formConvenio.numeroCarteirinha.trim(),
-                dataPedidoMedico: formConvenio.dataPedidoMedico,
-                crm: formConvenio.crm.trim(),
-                cbo: formConvenio.cbo.trim(),
-                cid: formConvenio.cid.trim(),
-              };
-              
-              await updatePaciente(pacienteConvenio.id, pacientePayload);
-              AppToast.updated('Dados do Convênio', 'Os dados do convênio foram atualizados com sucesso.');
-              // Recarregar dados da página para refletir as alterações
-              carregarPedidosMedicos();
-            }
-            fecharModalConvenio();
-          } catch (err: any) {
-            let msg = 'Erro ao salvar dados do convênio.';
-            if (err?.response?.data?.message) msg = err.response.data.message;
-            else if (err?.response?.data?.error) msg = err.response.data.error;
-            setFormConvenioError(msg);
-          } finally {
-            setFormConvenioLoading(false);
-          }
-        }}
+      <PedidosMedicosModal
+        showModal={showPedidosModal}
+        paciente={pacientePedidos}
+        servicos={servicos}
+        onClose={() => { setShowPedidosModal(false); setPacientePedidos(null); }}
       />
     </div>
   );
