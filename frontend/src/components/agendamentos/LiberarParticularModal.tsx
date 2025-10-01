@@ -209,7 +209,8 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
       if (_autoReceived && contaCriada?.id) {
         try {
           await receberConta(contaCriada.id, {
-            valorRecebido: _valorRecebido || parseFloat(contaData.valorOriginal),
+            // Usar sempre o valor editado no modal (valorOriginal) para o recebimento
+            valorRecebido: parseFloat(contaData.valorOriginal),
             dataRecebimento: _dataRecebimento,
             formaRecebimento: _formaRecebimento as any, // Conversão de tipo
             contaBancariaId: contaData.contaBancariaId || '',

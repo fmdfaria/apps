@@ -123,8 +123,21 @@ export class PrismaContasReceberRepository implements IContasReceberRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await prisma.contaReceber.delete({
-      where: { id }
+    await prisma.$transaction(async (tx) => {
+      // Remover relacionamentos em agendamentos_contas
+      await tx.agendamentoConta.deleteMany({
+        where: { contaReceberId: id }
+      });
+
+      // Remover lançamentos de fluxo de caixa vinculados a esta conta a receber
+      await tx.fluxoCaixa.deleteMany({
+        where: { contaReceberId: id }
+      });
+
+      // Finalmente remover a conta a receber
+      await tx.contaReceber.delete({
+        where: { id }
+      });
     });
   }
 

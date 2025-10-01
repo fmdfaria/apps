@@ -169,8 +169,21 @@ export class PrismaContasPagarRepository implements IContasPagarRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await prisma.contaPagar.delete({
-      where: { id }
+    await prisma.$transaction(async (tx) => {
+      // Remover relacionamentos em agendamentos_contas
+      await tx.agendamentoConta.deleteMany({
+        where: { contaPagarId: id }
+      });
+
+      // Remover lançamentos de fluxo de caixa vinculados a esta conta a pagar
+      await tx.fluxoCaixa.deleteMany({
+        where: { contaPagarId: id }
+      });
+
+      // Finalmente remover a conta a pagar
+      await tx.contaPagar.delete({
+        where: { id }
+      });
     });
   }
 
