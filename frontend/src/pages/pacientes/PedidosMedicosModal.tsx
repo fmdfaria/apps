@@ -51,6 +51,15 @@ export default function PedidosMedicosModal({
   const [pedidoParaExcluir, setPedidoParaExcluir] = useState<PacientePedido | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   
+  // Formata "YYYY-MM-DD" para "DD/MM/YYYY" sem criar Date (evita timezone)
+  const formatarDataBR = (isoDate?: string | null) => {
+    if (!isoDate) return '-';
+    const onlyDate = isoDate.substring(0, 10);
+    const [yyyy, mm, dd] = onlyDate.split('-');
+    if (!yyyy || !mm || !dd) return '-';
+    return `${dd}/${mm}/${yyyy}`;
+  };
+  
   // Hook para configurações do convênio do paciente
   const { camposObrigatorios, loading: loadingConfig, validarFormulario } = useConfiguracoesConvenio(paciente?.convenioId);
   const [form, setForm] = useState<FormPedido>({
@@ -270,7 +279,7 @@ export default function PedidosMedicosModal({
                             </div>
                           </td>
                           <td className="py-3 px-3 text-sm">
-                            {pedido.dataPedidoMedico ? new Date(pedido.dataPedidoMedico).toLocaleDateString('pt-BR') : '-'}
+                            {formatarDataBR(pedido.dataPedidoMedico)}
                           </td>
                           <td className="py-3 px-3 text-sm">{pedido.crm || '-'}</td>
                           <td className="py-3 px-3 text-sm">{pedido.cbo || '-'}</td>
@@ -523,7 +532,7 @@ export default function PedidosMedicosModal({
               </p>
               {pedidoParaExcluir.dataPedidoMedico && (
                 <p className="text-sm text-gray-600">
-                  Data: {new Date(pedidoParaExcluir.dataPedidoMedico).toLocaleDateString('pt-BR')}
+                  Data: {formatarDataBR(pedidoParaExcluir.dataPedidoMedico)}
                 </p>
               )}
               {pedidoParaExcluir.crm && (

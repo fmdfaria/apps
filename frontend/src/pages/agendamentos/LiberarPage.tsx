@@ -37,8 +37,11 @@ import { formatarDataHoraLocal } from '@/utils/dateUtils';
 import { useAuthStore } from '@/store/auth';
 import { getConvenios } from '@/services/convenios';
 import { getServicos } from '@/services/servicos';
-import { getPacientes } from '@/services/pacientes';
+import { getPacientes, getPacienteById } from '@/services/pacientes';
 import { getProfissionais } from '@/services/profissionais';
+import PedidosMedicosModal from '@/pages/pacientes/PedidosMedicosModal';
+import type { Paciente } from '@/types/Paciente';
+import type { Servico } from '@/types/Servico';
 
 // Interface para item da fila de webhooks
 interface WebhookQueueItem {
@@ -136,6 +139,11 @@ export const LiberarPage = () => {
   const [totalGlobal, setTotalGlobal] = useState(0); // sem filtros adicionais
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [agendamentosProcessando, setAgendamentosProcessando] = useState<Set<string>>(new Set());
+  
+  // Pedidos Médicos - estados
+  const [showPedidosModal, setShowPedidosModal] = useState(false);
+  const [pacientePedidos, setPacientePedidos] = useState<Paciente | null>(null);
+  const [servicosPedidos, setServicosPedidos] = useState<Servico[]>([]);
   
   // Estados para confirmação de reenvio
   const [showConfirmacaoReenvio, setShowConfirmacaoReenvio] = useState(false);
@@ -603,6 +611,26 @@ export const LiberarPage = () => {
 
 
 
+  // Pedidos Médicos - handlers
+  const abrirModalPedidos = async (agendamento: Agendamento) => {
+    try {
+      const paciente = await getPacienteById(agendamento.pacienteId);
+      if (servicosPedidos.length === 0) {
+        const lista = await getServicos();
+        setServicosPedidos(lista);
+      }
+      setPacientePedidos(paciente);
+      setShowPedidosModal(true);
+    } catch (err) {
+      AppToast.error('Erro ao carregar dados do paciente');
+    }
+  };
+
+  const fecharModalPedidos = () => {
+    setShowPedidosModal(false);
+    setPacientePedidos(null);
+  };
+
   const renderCardView = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {agendamentosPaginados.length === 0 ? (
@@ -694,6 +722,15 @@ export const LiberarPage = () => {
                     onClick={() => handleWhatsApp(agendamento)}
                   >
                     WhatsApp
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-7 text-xs border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white"
+                    onClick={() => abrirModalPedidos(agendamento)}
+                    title="Pedidos Médicos"
+                  >
+                    Pedidos Médicos
                   </Button>
                   {canLiberar ? (
                     <Button 
@@ -880,6 +917,15 @@ export const LiberarPage = () => {
                         title="WhatsApp"
                       >
                         <MessageCircle className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => abrirModalPedidos(agendamento)}
+                        title="Pedidos Médicos"
+                      >
+                        <FileText className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
                       </Button>
                       {canLiberar ? (
                         <Button
@@ -1157,6 +1203,13 @@ export const LiberarPage = () => {
           setShowDetalhesAgendamento(false);
           setAgendamentoDetalhes(null);
         }}
+      />
+
+      <PedidosMedicosModal
+        showModal={showPedidosModal}
+        paciente={pacientePedidos}
+        servicos={servicosPedidos}
+        onClose={fecharModalPedidos}
       />
     </div>
   );
