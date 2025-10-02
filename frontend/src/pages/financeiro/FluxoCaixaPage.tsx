@@ -41,6 +41,7 @@ import { getCategoriasFinanceiras } from '@/services/categorias-financeiras';
 
 // Financial components
 import { StatusBadge, ValorDisplay } from '@/components/financeiro';
+import { formatarApenasData } from '@/utils/dateUtils';
 
 // Modal Components
 import FluxoCaixaModal from './FluxoCaixaModal';
@@ -147,7 +148,7 @@ export const FluxoCaixaPage = () => {
       essential: true,
       render: (item) => (
         <span className="text-sm">
-          {new Date(item.dataMovimento).toLocaleDateString('pt-BR')}
+          {formatarApenasData(item.dataMovimento)}
         </span>
       )
     },
@@ -452,7 +453,7 @@ export const FluxoCaixaPage = () => {
       <CardHeader className="pb-2 pt-3 px-3">
         <div className="flex items-start justify-between">
           <CardTitle className="text-sm font-medium truncate">
-            {movimento.empresa?.razaoSocial || 'Movimento'} - {new Date(movimento.dataMovimento).toLocaleDateString('pt-BR')}
+            {movimento.empresa?.razaoSocial || 'Movimento'} - {formatarApenasData(movimento.dataMovimento)}
           </CardTitle>
           <div className="flex flex-col gap-1 ml-2 flex-shrink-0">
             <Badge 
@@ -497,7 +498,7 @@ export const FluxoCaixaPage = () => {
             <div className="flex items-center justify-between">
               <span className="text-gray-600">📅 Data:</span>
               <span className="text-gray-800">
-                {new Date(movimento.dataMovimento).toLocaleDateString('pt-BR')}
+                {formatarApenasData(movimento.dataMovimento)}
               </span>
             </div>
 
@@ -689,7 +690,7 @@ export const FluxoCaixaPage = () => {
           onClose={() => setExcluindo(null)}
           onConfirm={handleDelete}
           title="Confirmar Exclusão de Movimento"
-          entityName={excluindo ? `${excluindo.empresa?.razaoSocial || 'Movimento'} - ${new Date(excluindo.dataMovimento).toLocaleDateString('pt-BR')}` : ''}
+          entityName={excluindo ? `${excluindo.empresa?.razaoSocial || 'Movimento'} - ${formatarApenasData(excluindo.dataMovimento)}` : ''}
           entityType="movimento de fluxo de caixa"
           isLoading={deleteLoading}
           loadingText="Excluindo movimento..."

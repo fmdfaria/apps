@@ -37,6 +37,7 @@ import { getContasBancarias } from '@/services/contas-bancarias';
 
 // Financial components
 import { StatusBadge, ValorDisplay } from '@/components/financeiro';
+import { formatarApenasData } from '@/utils/dateUtils';
 
 // Modal Components
 import ContaPagarModal from './ContaPagarModal';
@@ -143,7 +144,7 @@ export const ContasPagarPage = () => {
       essential: true,
       render: (item) => (
         <span className="text-sm">
-          {new Date(item.dataVencimento).toLocaleDateString('pt-BR')}
+          {formatarApenasData(item.dataVencimento)}
         </span>
       )
     },
@@ -555,7 +556,7 @@ export const ContasPagarPage = () => {
             <div className="flex items-center justify-between">
               <span className="text-gray-600">📅 Vencimento:</span>
               <span className="text-gray-800">
-                {new Date(conta.dataVencimento).toLocaleDateString('pt-BR')}
+                {formatarApenasData(conta.dataVencimento)}
               </span>
             </div>
           </div>
