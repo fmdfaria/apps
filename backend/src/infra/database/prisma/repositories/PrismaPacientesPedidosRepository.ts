@@ -128,6 +128,11 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
 
   async findAll(): Promise<PacientePedido[]> {
     const pedidos = await this.prisma.pacientePedido.findMany({
+      where: {
+        paciente: {
+          ativo: true,
+        },
+      },
       include: {
         servico: true,
         paciente: true,
