@@ -20,12 +20,20 @@ export const useViewMode = (options: UseViewModeOptions = {}) => {
 
   // Inicializar com valor do localStorage se persistir estiver habilitado
   const getInitialMode = (): ViewMode => {
-    if (persistMode && typeof window !== 'undefined') {
+    // Sempre usa defaultMode quando persistMode é false
+    if (!persistMode) {
+      return defaultMode;
+    }
+
+    // Se persistMode é true, verifica localStorage
+    if (typeof window !== 'undefined') {
       const savedMode = localStorage.getItem(localStorageKey) as ViewMode;
       if (savedMode === 'table' || savedMode === 'cards') {
         return savedMode;
       }
     }
+
+    // Se não houver valor salvo ou persistMode for false, usa defaultMode
     return defaultMode;
   };
 

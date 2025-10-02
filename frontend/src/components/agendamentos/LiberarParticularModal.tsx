@@ -115,7 +115,6 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
       numeroDocumento: '', // Deixar vazio para o usuário preencher
       valorOriginal: valorOriginal.toString(),
       dataEmissao: new Date().toISOString().split('T')[0],
-      dataVencimento: formData.dataLiberacao,
       observacoes,
       // Dados extras para controlar o fluxo de recebimento
       _autoReceived: true, // Flag para indicar que deve ser marcado como recebido automaticamente
@@ -123,6 +122,9 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
       _formaRecebimento: 'PIX', // Padrão, mas será editável
       _valorRecebido: valorOriginal,
       _showFormaRecebimento: true, // Flag para mostrar o campo de forma de recebimento
+      // Flags para deixar campos sem pré-seleção no modal
+      _leaveStatusEmpty: true,
+      _leaveDataVencimentoEmpty: true,
       // Pré-preenchimentos dos novos campos
       _empresaNome: 'CELEBRAMENTE', // Nome da empresa para buscar
       _contaBancariaNome: 'Banco Inter da Celebramente', // Nome da conta bancária para buscar

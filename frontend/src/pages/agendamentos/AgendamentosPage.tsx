@@ -46,6 +46,8 @@ import { AppToast } from '@/services/toast';
 import { useAuthStore } from '@/store/auth';
 import { formatarDataHoraLocal } from '@/utils/dateUtils';
 import { getConvenios } from '@/services/convenios';
+import { useBreakpoint } from '@/hooks/useInfiniteScroll';
+import { useViewMode } from '@/hooks/useViewMode';
 import { getServicos } from '@/services/servicos';
 import { getPacientes } from '@/services/pacientes';
 import { getProfissionais } from '@/services/profissionais';
@@ -132,6 +134,38 @@ const filterFields: FilterField[] = [
 
 export const AgendamentosPage = () => {
   const { user } = useAuthStore();
+
+  // Detecta breakpoint para definir visualização padrão
+  const { isDesktop } = useBreakpoint(); // isDesktop = xl ou 2xl (>= 1280px)
+
+  // Limpa localStorage se não for desktop (garante que não tenha 'table' salvo)
+  useEffect(() => {
+    if (!isDesktop) {
+      localStorage.removeItem('agendamentos-view');
+    }
+  }, [isDesktop]);
+
+  // Hook de visualização - Cards para < 1280px (FORÇADO), Tabela para >= 1280px (persistível)
+  const { viewMode, setViewMode } = useViewMode({
+    defaultMode: isDesktop ? 'table' : 'cards',
+    persistMode: isDesktop, // Só persiste quando for desktop
+    localStorageKey: 'agendamentos-view'
+  });
+
+  // FORÇA cards quando não for desktop (< 1280px)
+  useEffect(() => {
+    if (!isDesktop && viewMode !== 'cards') {
+      setViewMode('cards');
+    }
+  }, [isDesktop, viewMode, setViewMode]);
+
+  // FORÇA table quando for desktop (>= 1280px) e não houver preferência salva
+  useEffect(() => {
+    if (isDesktop && viewMode !== 'table' && !localStorage.getItem('agendamentos-view')) {
+      setViewMode('table');
+    }
+  }, [isDesktop, viewMode, setViewMode]);
+
   const [paginatedData, setPaginatedData] = useState<IPaginatedAgendamentos>({
     data: [],
     pagination: { page: 1, limit: 10, total: 0, totalPages: 0 }
@@ -139,7 +173,6 @@ export const AgendamentosPage = () => {
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
   const [buscaDebounced, setBuscaDebounced] = useState('');
-  const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
   const [filtroStatus, setFiltroStatus] = useState<StatusAgendamento | 'TODOS'>('TODOS');
   
   // Estados para controle de permissões RBAC
@@ -626,7 +659,7 @@ export const AgendamentosPage = () => {
   const renderCardView = () => (
     <div className="space-y-6">
       {/* Cards dos Agendamentos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
         {agendamentosPaginados.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-500">
             <Activity className="w-12 h-12 mb-4" />
@@ -1027,82 +1060,99 @@ export const AgendamentosPage = () => {
   return (
     <div className="pt-2 pl-6 pr-6 h-full min-h-0 flex flex-col">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <span className="text-4xl">📅</span>
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Agendamentos
-            </span>
-          </h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar agendamentos..."
-              value={busca}
-              onChange={e => setBusca(e.target.value)}
-              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          
-          {/* Toggle de visualização */}
-          <div className="flex border rounded-lg p-1 bg-gray-100">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setVisualizacao('tabela')}
-              className={`h-7 px-3 ${visualizacao === 'tabela' ? 'bg-white shadow-sm' : ''}`}
-            >
-              <List className="w-4 h-4 mr-1" />
-              Tabela
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setVisualizacao('cards')}
-              className={`h-7 px-3 ${visualizacao === 'cards' ? 'bg-white shadow-sm' : ''}`}
-            >
-              <LayoutGrid className="w-4 h-4 mr-1" />
-              Cards
-            </Button>
+      <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
+        {/* Layout responsivo: 3 linhas < 640px, 2 linhas 640-1023px, 1 linha >= 1024px */}
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+          {/* Primeira linha: Título (mobile < 640) | Título + Busca (>= 640) */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-1">
+            <div className="flex-shrink-0">
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2 lg:gap-3">
+                <span className="text-3xl lg:text-4xl">📅</span>
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Agendamentos
+                </span>
+              </h1>
+            </div>
+
+            {/* Busca - segunda linha em mobile (< 640), primeira linha em sm+ */}
+            <div className="relative w-full sm:flex-1 sm:max-w-md">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar agendamentos..."
+                value={busca}
+                onChange={e => setBusca(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
           </div>
 
-          {/* Botão Filtros Avançados */}
-          <Button
-            variant="outline"
-            onClick={() => setMostrarFiltros(!mostrarFiltros)}
-            className={`${mostrarFiltros ? 'bg-blue-50 border-blue-300' : ''} ${temFiltrosAtivos ? 'border-blue-500 bg-blue-50' : ''}`}
-          >
-            <Filter className="w-4 h-4 mr-2" />
-            Filtros
-            {temFiltrosAtivos && (
-              <Badge variant="secondary" className="ml-2 h-4 px-1">
-                {Object.values(filtros).filter(f => f !== '').length}
-              </Badge>
+          {/* Segunda linha: Controles */}
+          <div className="flex items-center justify-center lg:justify-end gap-1.5 lg:gap-4 flex-wrap">
+
+            {/* Toggle de visualização */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className={`h-7 lg:h-8 px-2 lg:px-3 ${viewMode === 'table' ? 'bg-white shadow-sm' : ''}`}
+                title="Visualização em Tabela"
+              >
+                <List className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span className="ml-1 2xl:inline hidden">Tabela</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('cards')}
+                className={`h-7 lg:h-8 px-2 lg:px-3 ${viewMode === 'cards' ? 'bg-white shadow-sm' : ''}`}
+                title="Visualização em Cards"
+              >
+                <LayoutGrid className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span className="ml-1 2xl:inline hidden">Cards</span>
+              </Button>
+            </div>
+
+            {/* Botão Filtros Avançados */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMostrarFiltros(!mostrarFiltros)}
+              className={`h-7 lg:h-8 px-2 lg:px-3 text-xs lg:text-sm ${mostrarFiltros ? 'bg-blue-50 border-blue-300' : ''} ${temFiltrosAtivos ? 'border-blue-500 bg-blue-50' : ''}`}
+              title="Filtros Avançados"
+            >
+              <Filter className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+              <span className="ml-1.5 lg:ml-2 2xl:inline hidden">Filtros</span>
+              {temFiltrosAtivos && (
+                <Badge variant="secondary" className="ml-1.5 lg:ml-2 h-3.5 lg:h-4 px-1 text-xs">
+                  {Object.values(filtros).filter(f => f !== '').length}
+                </Badge>
+              )}
+            </Button>
+
+            {/* Botão Novo Agendamento */}
+            {canCreate ? (
+              <Button
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 h-7 lg:h-8 px-2 lg:px-3 text-xs lg:text-sm"
+                onClick={handleAbrirNovoAgendamento}
+              >
+                <Plus className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span className="ml-1.5 lg:ml-2 2xl:inline hidden">Novo Agendamento</span>
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                disabled={true}
+                className="bg-gray-400 cursor-not-allowed h-7 lg:h-8 px-2 lg:px-3 text-xs lg:text-sm"
+                title="Você não tem permissão para criar agendamentos"
+              >
+                <Plus className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span className="ml-1.5 lg:ml-2 2xl:inline hidden">Novo Agendamento</span>
+              </Button>
             )}
-          </Button>
-          
-          {canCreate ? (
-            <Button 
-              className="bg-blue-600 hover:bg-blue-700"
-              onClick={handleAbrirNovoAgendamento}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Agendamento
-            </Button>
-          ) : (
-            <Button 
-              disabled={true}
-              className="bg-gray-400 cursor-not-allowed"
-              title="Você não tem permissão para criar agendamentos"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Agendamento
-            </Button>
-          )}
+          </div>
         </div>
       </div>
 
@@ -1120,7 +1170,7 @@ export const AgendamentosPage = () => {
       />
 
       {/* Conteúdo */}
-      {visualizacao === 'cards' ? (
+      {viewMode === 'cards' ? (
         <div className="flex-1 min-h-0 overflow-y-auto">
           {renderCardView()}
         </div>

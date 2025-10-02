@@ -18,6 +18,7 @@ import { getPacientesAtivos } from '@/services/pacientes';
 import { getConveniosAtivos } from '@/services/convenios';
 import { getCurrentUser } from '@/services/auth';
 import type { CategoriaFinanceira } from '@/types/CategoriaFinanceira';
+import { AppToast } from '@/services/toast';
 import type { ContaBancaria } from '@/types/ContaBancaria';
 
 interface ContaReceberModalProps {
@@ -55,7 +56,7 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
     numeroDocumento: '',
     observacoes: '',
     formaRecebimento: 'DINHEIRO',
-    status: 'PENDENTE'
+    status: ''
   });
   
   // Controla se deve mostrar o campo forma recebimento
@@ -79,12 +80,16 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
         numeroDocumento: conta.numeroDocumento || '',
         observacoes: conta.observacoes || '',
         formaRecebimento: contaComControle._formaRecebimento || conta.formaRecebimento || 'PIX',
-        status: conta.status || 'PENDENTE'
+        status: contaComControle?._leaveStatusEmpty ? '' : (conta.status || 'PENDENTE')
       });
       
       // Verificar se deve mostrar o campo forma recebimento
       // Mostra se: 1) tem flag especial OU 2) está editando uma conta existente (que tem ID)
       setShowFormaRecebimento(!!contaComControle._showFormaRecebimento || !!conta.id);
+      // Se vier flag para deixar vencimento em branco, não pré-preencher
+      if (contaComControle?._leaveDataVencimentoEmpty) {
+        setForm(prev => ({ ...prev, dataVencimento: '' }));
+      }
     } else {
       setForm({
         descricao: '',
@@ -99,7 +104,7 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
         numeroDocumento: '',
         observacoes: '',
         formaRecebimento: 'PIX',
-        status: 'PENDENTE'
+        status: ''
       });
       setShowFormaRecebimento(true);
     }
@@ -196,22 +201,27 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
     e.preventDefault();
     
     if (!form.descricao.trim()) {
-      setError('Descrição é obrigatória');
+      AppToast.validation('Campos obrigatórios', 'Descrição é obrigatória');
       return;
     }
 
     if (!form.valorOriginal || parseFloat(form.valorOriginal) <= 0) {
-      setError('Valor deve ser maior que zero');
+      AppToast.validation('Campos obrigatórios', 'Valor deve ser maior que zero');
       return;
     }
 
     if (!form.dataEmissao) {
-      setError('Data de emissão é obrigatória');
+      AppToast.validation('Campos obrigatórios', 'Data de emissão é obrigatória');
       return;
     }
 
     if (!form.dataVencimento) {
-      setError('Data de vencimento é obrigatória');
+      AppToast.validation('Campos obrigatórios', 'Data de vencimento é obrigatória');
+      return;
+    }
+
+    if (!form.status) {
+      AppToast.validation('Campos obrigatórios', 'Status é obrigatório');
       return;
     }
 
@@ -349,11 +359,6 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
 
           {/* Linha 1: Descrição (2 colunas) | Valor (1 coluna) | Status (1 coluna) */}
           <div className="grid grid-cols-4 gap-4">
@@ -366,7 +371,6 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
                 value={form.descricao}
                 onChange={(e) => handleChange('descricao', e.target.value)}
                 placeholder="Descrição da conta a receber"
-                required
               />
             </div>
             
@@ -382,13 +386,12 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
                 value={form.valorOriginal}
                 onChange={(e) => handleChange('valorOriginal', e.target.value)}
                 placeholder="0,00"
-                required
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="status">
-                Status
+                Status <span className="text-red-500">*</span>
               </Label>
               <SingleSelectDropdown
                 options={[
@@ -398,14 +401,14 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
                   { id: 'VENCIDO', nome: 'Vencido' },
                   { id: 'CANCELADO', nome: 'Cancelado' }
                 ]}
-                selected={[
+                selected={form.status ? [
                   { id: 'PENDENTE', nome: 'Pendente' },
                   { id: 'PARCIAL', nome: 'Parcial' },
                   { id: 'RECEBIDO', nome: 'Recebido' },
                   { id: 'VENCIDO', nome: 'Vencido' },
                   { id: 'CANCELADO', nome: 'Cancelado' }
-                ].find(option => option.id === form.status) || null}
-                onChange={(option) => handleChange('status', option?.id || 'PENDENTE')}
+                ].find(option => option.id === form.status) || null : null}
+                onChange={(option) => handleChange('status', option?.id || '')}
                 placeholder="Selecione o status"
                 formatOption={(option) => option.nome}
                 headerText="Status da conta"
@@ -456,7 +459,6 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
                 type="date"
                 value={form.dataVencimento}
                 onChange={(e) => handleChange('dataVencimento', e.target.value)}
-                required
               />
             </div>
             
@@ -469,7 +471,6 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
                 type="date"
                 value={form.dataEmissao}
                 onChange={(e) => handleChange('dataEmissao', e.target.value)}
-                required
               />
             </div>
           </div>

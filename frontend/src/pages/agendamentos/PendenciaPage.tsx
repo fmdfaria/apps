@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { 
+import {
   ClipboardCheck,
   Clock,
   Users,
@@ -17,7 +17,8 @@ import {
   FilterX,
   X,
   Eye,
-  CheckSquare
+  CheckSquare,
+  CheckCircle2
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { getAgendamentos, resolverPendencia, IPaginatedAgendamentos } from '@/services/agendamentos';
@@ -29,6 +30,8 @@ import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
 import { getConvenios } from '@/services/convenios';
 import { getServicos } from '@/services/servicos';
+import { useBreakpoint } from '@/hooks/useInfiniteScroll';
+import { useViewMode } from '@/hooks/useViewMode';
 import { getPacientes } from '@/services/pacientes';
 import { getProfissionais } from '@/services/profissionais';
 
@@ -93,6 +96,38 @@ const filterFields: FilterField[] = [
 
 export const PendenciaPage = () => {
   const { user } = useAuth();
+
+  // Detecta breakpoint para definir visualização padrão
+  const { isDesktop } = useBreakpoint(); // isDesktop = xl ou 2xl (>= 1280px)
+
+  // Limpa localStorage se não for desktop (garante que não tenha 'table' salvo)
+  useEffect(() => {
+    if (!isDesktop) {
+      localStorage.removeItem('pendencia-view');
+    }
+  }, [isDesktop]);
+
+  // Hook de visualização - Cards para < 1280px (FORÇADO), Tabela para >= 1280px (persistível)
+  const { viewMode, setViewMode } = useViewMode({
+    defaultMode: isDesktop ? 'table' : 'cards',
+    persistMode: isDesktop, // Só persiste quando for desktop
+    localStorageKey: 'pendencia-view'
+  });
+
+  // FORÇA cards quando não for desktop (< 1280px)
+  useEffect(() => {
+    if (!isDesktop && viewMode !== 'cards') {
+      setViewMode('cards');
+    }
+  }, [isDesktop, viewMode, setViewMode]);
+
+  // FORÇA table quando for desktop (>= 1280px) e não houver preferência salva
+  useEffect(() => {
+    if (isDesktop && viewMode !== 'table' && !localStorage.getItem('pendencia-view')) {
+      setViewMode('table');
+    }
+  }, [isDesktop, viewMode, setViewMode]);
+
   const [paginatedData, setPaginatedData] = useState<IPaginatedAgendamentos>({
     data: [],
     pagination: { page: 1, limit: 10, total: 0, totalPages: 0 }
@@ -103,7 +138,6 @@ export const PendenciaPage = () => {
   const [canConcluir, setCanConcluir] = useState(true);
   const [busca, setBusca] = useState('');
   const [buscaDebounced, setBuscaDebounced] = useState('');
-  const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
   const [showConfirmacaoModal, setShowConfirmacaoModal] = useState(false);
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<Agendamento | null>(null);
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
@@ -328,7 +362,7 @@ export const PendenciaPage = () => {
   };
 
   const renderCardView = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
       {agendamentosPaginados.length === 0 ? (
         <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-500">
           <ClipboardCheck className="w-12 h-12 mb-4" />
@@ -340,47 +374,66 @@ export const PendenciaPage = () => {
           const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
           return (
             <Card key={agendamento.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-2 pt-3 px-3">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <ClipboardCheck className="w-5 h-5" />
-                    <CardTitle className="text-lg">{agendamento.pacienteNome}</CardTitle>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <ClipboardCheck className="w-4 h-4 flex-shrink-0 text-yellow-600" />
+                    <CardTitle className="text-sm font-medium truncate">{agendamento.pacienteNome}</CardTitle>
                   </div>
-                  <Badge className="bg-yellow-100 text-yellow-700">{agendamento.status}</Badge>
+                  <Badge className="text-xs flex-shrink-0 ml-2 bg-yellow-100 text-yellow-700">{agendamento.status}</Badge>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Users className="w-4 h-4" />
-                    <span>{agendamento.profissionalNome}</span>
+              <CardContent className="pt-0 px-3 pb-3">
+                <div className="space-y-1 mb-3">
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <Users className="w-3 h-3" />
+                    <span className="truncate">{agendamento.profissionalNome}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <FileText className="w-4 h-4" />
-                    <span>{agendamento.servicoNome}</span>
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <FileText className="w-3 h-3" />
+                    <span className="truncate">{agendamento.servicoNome}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar className="w-4 h-4" />
-                    <span>{data}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock className="w-4 h-4" />
-                    <span>{hora}</span>
+                  <div className="flex items-center justify-between text-xs text-gray-600">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      <span>{data}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      <span>{hora}</span>
+                    </div>
                   </div>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <div className="flex gap-1">
-                    <Button size="sm" variant="default" className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700" onClick={() => handleVerDetalhes(agendamento)}>
-                      Visualizar
-                    </Button>
-                  </div>
+
+                <div className="flex gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                    onClick={() => handleVerDetalhes(agendamento)}
+                    title="Visualizar Agendamento"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Button>
                   {canConcluir ? (
-                    <Button size="sm" variant="outline" className="w-full h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white" onClick={() => handleAvaliar(agendamento)} title="Pendência Resolvida">
-                      Pendência Resolvida
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                      onClick={() => handleAvaliar(agendamento)}
+                      title="Pendência Resolvida"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
                     </Button>
                   ) : (
-                    <Button size="sm" disabled className="w-full h-7 text-xs border-gray-300 text-gray-400 cursor-not-allowed" title="Você não tem permissão para resolver">
-                      Pendência Resolvida
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={true}
+                      className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                      title="Você não tem permissão para resolver"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
                     </Button>
                   )}
                 </div>
@@ -489,30 +542,78 @@ export const PendenciaPage = () => {
 
   return (
     <div className="pt-2 pl-6 pr-6 h-full flex flex-col">
-      <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <span className="text-4xl">⏳</span>
-            <span className="bg-gradient-to-r from-yellow-600 to-amber-600 bg-clip-text text-transparent">Pendências</span>
-          </h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input type="text" placeholder="Buscar agendamentos..." value={busca} onChange={e => setBusca(e.target.value)} className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-yellow-100 focus:border-yellow-500 transition-all duration-200 hover:border-yellow-300" />
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
+        {/* Layout responsivo: 3 linhas < 640px, 2 linhas 640-1023px, 1 linha >= 1024px */}
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+          {/* Primeira linha: Título (mobile < 640) | Título + Busca (>= 640) */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-1">
+            <div className="flex-shrink-0">
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2 lg:gap-3">
+                <span className="text-3xl lg:text-4xl">⏳</span>
+                <span className="bg-gradient-to-r from-yellow-600 to-amber-600 bg-clip-text text-transparent">
+                  Pendências
+                </span>
+              </h1>
+            </div>
+
+            {/* Busca - segunda linha em mobile (< 640), primeira linha em sm+ */}
+            <div className="relative w-full sm:flex-1 sm:max-w-md">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar agendamentos..."
+                value={busca}
+                onChange={e => setBusca(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+              />
+            </div>
           </div>
-          <div className="flex border rounded-lg p-1 bg-gray-100">
-            <Button variant="ghost" size="sm" onClick={() => setVisualizacao('tabela')} className={`h-7 px-3 ${visualizacao === 'tabela' ? 'bg-white shadow-sm' : ''}`}>
-              <List className="w-4 h-4 mr-1" /> Tabela
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setVisualizacao('cards')} className={`h-7 px-3 ${visualizacao === 'cards' ? 'bg-white shadow-sm' : ''}`}>
-              <LayoutGrid className="w-4 h-4 mr-1" /> Cards
+
+          {/* Segunda linha: Controles */}
+          <div className="flex items-center justify-center lg:justify-end gap-1.5 lg:gap-4 flex-wrap">
+
+            {/* Toggle de visualização */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className={`h-7 lg:h-8 px-2 lg:px-3 ${viewMode === 'table' ? 'bg-white shadow-sm' : ''}`}
+                title="Visualização em Tabela"
+              >
+                <List className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span className="ml-1 2xl:inline hidden">Tabela</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('cards')}
+                className={`h-7 lg:h-8 px-2 lg:px-3 ${viewMode === 'cards' ? 'bg-white shadow-sm' : ''}`}
+                title="Visualização em Cards"
+              >
+                <LayoutGrid className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span className="ml-1 2xl:inline hidden">Cards</span>
+              </Button>
+            </div>
+
+            {/* Botão Filtros Avançados */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMostrarFiltros(!mostrarFiltros)}
+              className={`h-7 lg:h-8 px-2 lg:px-3 text-xs lg:text-sm ${mostrarFiltros ? 'bg-yellow-50 border-yellow-300' : ''} ${temFiltrosAtivos ? 'border-yellow-500 bg-yellow-50' : ''}`}
+              title="Filtros Avançados"
+            >
+              <Filter className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+              <span className="ml-1.5 lg:ml-2 2xl:inline hidden">Filtros</span>
+              {temFiltrosAtivos && (
+                <Badge variant="secondary" className="ml-1.5 lg:ml-2 h-3.5 lg:h-4 px-1 text-xs">
+                  {Object.values(filtrosAplicados).filter(f => f !== '').length}
+                </Badge>
+              )}
             </Button>
           </div>
-          <Button variant="outline" onClick={() => setMostrarFiltros(!mostrarFiltros)} className={`${mostrarFiltros ? 'bg-yellow-50 border-yellow-300' : ''} ${temFiltrosAtivos ? 'border-yellow-500 bg-yellow-50' : ''}`}>
-            <Filter className="w-4 h-4 mr-2" /> Filtros
-            {temFiltrosAtivos && (<Badge variant="secondary" className="ml-2 h-4 px-1">{Object.values(filtrosAplicados).filter(f => f !== '').length}</Badge>)}
-          </Button>
         </div>
       </div>
 
@@ -529,7 +630,7 @@ export const PendenciaPage = () => {
       />
 
       <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-sm border border-gray-100">
-        {visualizacao === 'cards' ? renderCardView() : renderTableView()}
+        {viewMode === 'cards' ? renderCardView() : renderTableView()}
       </div>
 
       {paginatedData.pagination.total > 0 && (

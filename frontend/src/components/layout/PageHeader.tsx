@@ -75,37 +75,37 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   
   return (
     <div className={cn(
-      "sticky top-0 z-20 bg-white backdrop-blur border-b border-gray-200 shadow-sm flex-shrink-0",
+      "sticky top-0 z-20 bg-white backdrop-blur border-b border-gray-200 shadow-sm flex-shrink-0 px-6 py-4",
       className
     )}>
-      {/* sm/md: Layout 2 linhas */}
-      <div className="block lg:hidden px-3 py-3 space-y-3">
-        {/* Linha 1: Título + Busca centralizada */}
-        <div className="flex items-center justify-center gap-3">
+      {/* Layout responsivo: 3 linhas < 640px, 2 linhas 640-1023px, 1 linha >= 1024px */}
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+        {/* Primeira linha: Título (mobile < 640) | Título + Busca (>= 640) */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-1">
           <div className="flex-shrink-0">
-            <h1 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
-              {icon && <span className="text-xl sm:text-2xl">{icon}</span>}
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2 lg:gap-3">
+              {icon && <span className="text-3xl lg:text-4xl">{icon}</span>}
               <span className={`bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent`}>
                 {title}
               </span>
             </h1>
           </div>
-          
-          {/* Busca na linha 1 para sm/md */}
+
+          {/* Busca - segunda linha em mobile (< 640), primeira linha em sm+ */}
           {children && (
-            <div className="flex-1 max-w-xs">
-              {React.Children.toArray(children).find((child: any) => 
+            <div className="w-full sm:flex-1 sm:max-w-md">
+              {React.Children.toArray(children).find((child: any) =>
                 React.isValidElement(child) && child.props.placeholder
               )}
             </div>
           )}
         </div>
-        
-        {/* Linha 2: Filtros + Toggles + Botão (apenas ícones) centralizada */}
+
+        {/* Segunda linha: Controles */}
         {children && (
-          <div className="flex items-center justify-center gap-2">
-            {cloneChildrenWithProps(true)
-              .filter((child: any) => 
+          <div className="flex items-center justify-center lg:justify-end gap-1.5 lg:gap-4 flex-wrap">
+            {React.Children.toArray(children)
+              .filter((child: any) =>
                 React.isValidElement(child) && !child.props?.placeholder
               )
               .map((child, index) => (
@@ -114,73 +114,6 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                 </div>
               ))
             }
-          </div>
-        )}
-      </div>
-
-      {/* lg: Layout 1 linha compacta */}
-      <div className="hidden lg:block xl:hidden px-3 py-3">
-        <div className="flex items-center justify-between gap-4">
-          {/* Título + Busca à esquerda */}
-          <div className="flex items-center gap-3">
-            <div className="flex-shrink-0">
-              <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                {icon && <span className="text-xl">{icon}</span>}
-                <span className={`bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent`}>
-                  {title}
-                </span>
-              </h1>
-            </div>
-            
-            {/* Busca na mesma linha do título */}
-            {children && (
-              <div>
-                {React.Children.toArray(children).find((child: any) => 
-                  React.isValidElement(child) && child.props.placeholder
-                ) && React.cloneElement(
-                  React.Children.toArray(children).find((child: any) => 
-                    React.isValidElement(child) && child.props.placeholder
-                  ) as React.ReactElement,
-                  { className: "w-40 max-w-40" }
-                )}
-              </div>
-            )}
-          </div>
-          
-          {/* Controles à direita (sem busca, apenas ícones) */}
-          {children && (
-            <div className="flex items-center gap-2">
-              {cloneChildrenWithProps(true)
-                .filter((child: any) => 
-                  React.isValidElement(child) && !child.props?.placeholder
-                )
-                .map((child, index) => (
-                  <div key={index}>
-                    {child}
-                  </div>
-                ))
-              }
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* xl/2xl: Layout completo original */}
-      <div className="hidden xl:flex xl:justify-between xl:items-center px-3 py-3 gap-4">
-        {/* Título */}
-        <div className="flex-shrink-0">
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-            {icon && <span className="text-3xl">{icon}</span>}
-            <span className={`bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent`}>
-              {title}
-            </span>
-          </h1>
-        </div>
-        
-        {/* Controles completos */}
-        {children && (
-          <div className="flex items-center gap-4 flex-shrink-0">
-            {children}
           </div>
         )}
       </div>

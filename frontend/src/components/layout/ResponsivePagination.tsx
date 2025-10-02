@@ -65,17 +65,17 @@ export const ResponsivePagination: React.FC<ResponsivePaginationProps> = ({
   return (
     <div className={cn(
       "sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200",
-      "hidden xl:flex flex-col md:flex-row items-center justify-between gap-4 py-3 px-3 z-30 shadow-lg flex-shrink-0",
+      "flex flex-col md:flex-row items-center justify-between gap-2 lg:gap-4 py-2 lg:py-3 px-2 lg:px-3 z-30 shadow-lg flex-shrink-0",
       className
     )}>
       {/* Items per page selector */}
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-gray-600 flex items-center gap-2">
-          <span className="text-lg">📊</span>
-          Exibir
+      <div className="flex items-center gap-1.5 lg:gap-3">
+        <span className="text-xs lg:text-sm text-gray-600 flex items-center gap-1 lg:gap-2">
+          <span className="hidden lg:inline text-lg">📊</span>
+          <span className="hidden lg:inline">Exibir</span>
         </span>
         <select
-          className={`border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 ${theme.focusRing} focus:border-rose-500 transition-all duration-200 hover:border-rose-300`}
+          className={`border border-gray-200 lg:border-2 rounded-lg px-2 lg:px-3 py-1 lg:py-2 text-xs lg:text-sm focus:ring-2 ${theme.focusRing} focus:border-rose-500 transition-all duration-200 hover:border-rose-300`}
           value={itemsPerPage}
           onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
         >
@@ -83,17 +83,20 @@ export const ResponsivePagination: React.FC<ResponsivePaginationProps> = ({
             <option key={qtd} value={qtd}>{qtd}</option>
           ))}
         </select>
-        <span className="text-sm text-gray-600">itens por página</span>
+        <span className="text-xs lg:text-sm text-gray-600 hidden md:inline">itens</span>
+        <span className="text-xs lg:text-sm text-gray-600 hidden lg:inline">por página</span>
       </div>
-      
+
       {/* Items count */}
-      <div className="text-sm text-gray-600 flex items-center gap-2">
-        <span className="text-lg">📈</span>
-        {startItem} a {endItem} de {totalItems} resultados
+      <div className="text-xs lg:text-sm text-gray-600 flex items-center gap-1 lg:gap-2">
+        <span className="hidden lg:inline text-lg">📈</span>
+        <span className="hidden md:inline">{startItem} a {endItem} de</span>
+        <span className="font-medium">{totalItems}</span>
+        <span className="hidden md:inline">resultados</span>
       </div>
 
       {/* Pagination controls */}
-      <div className="flex gap-2">
+      <div className="flex gap-1 lg:gap-2">
         {/* Previous button */}
         <Button
           variant="ghost"
@@ -101,12 +104,12 @@ export const ResponsivePagination: React.FC<ResponsivePaginationProps> = ({
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1 || totalPages === 1}
           className={(currentPage === 1 || totalPages === 1)
-            ? `!border-2 !border-gray-200 !text-gray-400 !bg-gray-50 cursor-not-allowed font-medium !shadow-none !hover:bg-gray-50` 
-            : `!border-2 !border-gray-200 !text-gray-700 !bg-white hover:!bg-gradient-to-r ${theme.hoverBg} ${theme.hoverTextColor} hover:!shadow-lg hover:!scale-110 !transition-all !duration-300 transform font-medium focus:!ring-2 ${theme.focusRing} focus:!ring-offset-2`
+            ? `h-7 lg:h-8 px-2 lg:px-3 text-xs lg:text-sm !border !border-gray-200 lg:!border-2 !text-gray-400 !bg-gray-50 cursor-not-allowed font-medium !shadow-none !hover:bg-gray-50`
+            : `h-7 lg:h-8 px-2 lg:px-3 text-xs lg:text-sm !border !border-gray-200 lg:!border-2 !text-gray-700 !bg-white hover:!bg-gradient-to-r ${theme.hoverBg} ${theme.hoverTextColor} hover:!shadow-lg hover:!scale-105 lg:hover:!scale-110 !transition-all !duration-300 transform font-medium focus:!ring-2 ${theme.focusRing} focus:!ring-offset-2`
           }
         >
-          <ChevronLeft className="w-4 h-4 mr-1" />
-          <span className="hidden sm:inline">Anterior</span>
+          <ChevronLeft className="w-3 h-3 lg:w-4 lg:h-4 lg:mr-1" />
+          <span className="hidden lg:inline">Anterior</span>
         </Button>
 
         {/* Page numbers */}
@@ -117,11 +120,11 @@ export const ResponsivePagination: React.FC<ResponsivePaginationProps> = ({
             size="sm"
             onClick={() => totalPages > 1 ? onPageChange(pageNumber) : undefined}
             disabled={totalPages === 1}
-            className={pageNumber === currentPage 
-              ? `!bg-gradient-to-r ${theme.primaryButton} !text-white !shadow-lg font-semibold !border-0` 
+            className={pageNumber === currentPage
+              ? `h-7 lg:h-8 px-2 lg:px-3 text-xs lg:text-sm !bg-gradient-to-r ${theme.primaryButton} !text-white !shadow-lg font-semibold !border-0`
               : totalPages === 1
-              ? `!border-2 !border-gray-200 !text-gray-400 !bg-gray-50 cursor-not-allowed font-medium !shadow-none !hover:bg-gray-50`
-              : `!border-2 !border-gray-200 !text-gray-700 !bg-white hover:!bg-gradient-to-r ${theme.hoverBg} ${theme.hoverTextColor} hover:!shadow-lg hover:!scale-110 !transition-all !duration-300 transform font-medium focus:!ring-2 ${theme.focusRing} focus:!ring-offset-2`
+              ? `h-7 lg:h-8 px-2 lg:px-3 text-xs lg:text-sm !border !border-gray-200 lg:!border-2 !text-gray-400 !bg-gray-50 cursor-not-allowed font-medium !shadow-none !hover:bg-gray-50`
+              : `h-7 lg:h-8 px-2 lg:px-3 text-xs lg:text-sm !border !border-gray-200 lg:!border-2 !text-gray-700 !bg-white hover:!bg-gradient-to-r ${theme.hoverBg} ${theme.hoverTextColor} hover:!shadow-lg hover:!scale-105 lg:hover:!scale-110 !transition-all !duration-300 transform font-medium focus:!ring-2 ${theme.focusRing} focus:!ring-offset-2`
             }
           >
             {pageNumber}
@@ -135,12 +138,12 @@ export const ResponsivePagination: React.FC<ResponsivePaginationProps> = ({
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages || totalPages === 1}
           className={(currentPage === totalPages || totalPages === 1)
-            ? `!border-2 !border-gray-200 !text-gray-400 !bg-gray-50 cursor-not-allowed font-medium !shadow-none !hover:bg-gray-50` 
-            : `!border-2 !border-gray-200 !text-gray-700 !bg-white hover:!bg-gradient-to-r ${theme.hoverBg} ${theme.hoverTextColor} hover:!shadow-lg hover:!scale-110 !transition-all !duration-300 transform font-medium focus:!ring-2 ${theme.focusRing} focus:!ring-offset-2`
+            ? `h-7 lg:h-8 px-2 lg:px-3 text-xs lg:text-sm !border !border-gray-200 lg:!border-2 !text-gray-400 !bg-gray-50 cursor-not-allowed font-medium !shadow-none !hover:bg-gray-50`
+            : `h-7 lg:h-8 px-2 lg:px-3 text-xs lg:text-sm !border !border-gray-200 lg:!border-2 !text-gray-700 !bg-white hover:!bg-gradient-to-r ${theme.hoverBg} ${theme.hoverTextColor} hover:!shadow-lg hover:!scale-105 lg:hover:!scale-110 !transition-all !duration-300 transform font-medium focus:!ring-2 ${theme.focusRing} focus:!ring-offset-2`
           }
         >
-          <span className="hidden sm:inline">Próximo</span>
-          <ChevronRight className="w-4 h-4 ml-1" />
+          <span className="hidden lg:inline">Próximo</span>
+          <ChevronRight className="w-3 h-3 lg:w-4 lg:h-4 lg:ml-1" />
         </Button>
       </div>
     </div>

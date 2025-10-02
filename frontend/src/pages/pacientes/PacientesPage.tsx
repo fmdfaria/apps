@@ -42,6 +42,7 @@ import {
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
 import { useMenuPermissions } from '@/hooks/useMenuPermissions';
+import { useBreakpoint } from '@/hooks/useInfiniteScroll';
 import { getModuleTheme } from '@/types/theme';
 import { formatWhatsAppDisplay, isValidWhatsApp } from '@/utils/whatsapp';
 import { getAnexos } from '@/services/anexos';
@@ -156,10 +157,37 @@ export const PacientesPage = () => {
 
   // Máscara passou a ser responsabilidade do componente WhatsAppInput nos modais
 
-  // Hooks responsivos
-  const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'pacientes-view' });
-  
-  
+  // Detecta breakpoint para definir visualização padrão
+  const { isDesktop } = useBreakpoint(); // isDesktop = xl ou 2xl (>= 1280px)
+
+  // Limpa localStorage se não for desktop (garante que não tenha 'table' salvo)
+  useEffect(() => {
+    if (!isDesktop) {
+      localStorage.removeItem('pacientes-view');
+    }
+  }, [isDesktop]);
+
+  // Hooks responsivos - Cards para < 1280px (FORÇADO), Tabela para >= 1280px (persistível)
+  const { viewMode, setViewMode } = useViewMode({
+    defaultMode: isDesktop ? 'table' : 'cards',
+    persistMode: isDesktop, // Só persiste quando for desktop
+    localStorageKey: 'pacientes-view'
+  });
+
+  // FORÇA cards quando não for desktop (< 1280px)
+  useEffect(() => {
+    if (!isDesktop && viewMode !== 'cards') {
+      setViewMode('cards');
+    }
+  }, [isDesktop, viewMode, setViewMode]);
+
+  // FORÇA table quando for desktop (>= 1280px) e não houver preferência salva
+  useEffect(() => {
+    if (isDesktop && viewMode !== 'table' && !localStorage.getItem('pacientes-view')) {
+      setViewMode('table');
+    }
+  }, [isDesktop, viewMode, setViewMode]);
+
   // Hook de permissões
   const { hasPermission } = useMenuPermissions();
   
@@ -554,7 +582,7 @@ export const PacientesPage = () => {
     handlePageChange,
     handleItemsPerPageChange,
     // Infinite scroll específico
-    isDesktop,
+    isDesktop: isDesktopTable,
     isMobile,
     hasNextPage,
     isLoadingMore,
@@ -1038,44 +1066,48 @@ export const PacientesPage = () => {
           module="pacientes"
         />
         
+        <ViewToggle
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          module="pacientes"
+        />
+
         <Button
           variant="outline"
+          size="sm"
           onClick={() => setMostrarFiltros(!mostrarFiltros)}
-          className={`${mostrarFiltros ? 'bg-teal-50 border-teal-300' : ''} ${temFiltrosAtivos ? 'border-teal-500 bg-teal-50' : ''}`}
+          className={`h-7 lg:h-8 px-2 lg:px-3 text-xs lg:text-sm ${mostrarFiltros ? 'bg-teal-50 border-teal-300' : ''} ${temFiltrosAtivos ? 'border-teal-500 bg-teal-50' : ''}`}
+          title="Filtros Avançados"
         >
-          <Filter className="w-4 h-4 mr-2" />
-          Filtros
+          <Filter className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+          <span className="ml-1.5 lg:ml-2 2xl:inline hidden">Filtros</span>
           {temFiltrosAtivos && (
-            <Badge variant="secondary" className="ml-2 h-4 px-1">
+            <Badge variant="secondary" className="ml-1.5 lg:ml-2 h-3.5 lg:h-4 px-1 text-xs">
               {Object.values(filtrosAplicados).filter(f => f !== '').length}
             </Badge>
           )}
         </Button>
-        
-        <ViewToggle 
-          viewMode={viewMode} 
-          onViewModeChange={setViewMode} 
-          module="pacientes"
-        />
-        
+
         {canCreate ? (
-          <Button 
-            className={`!h-10 bg-gradient-to-r ${getModuleTheme('pacientes').primaryButton} ${getModuleTheme('pacientes').primaryButtonHover} shadow-lg hover:shadow-xl transition-all duration-200 font-semibold`}
+          <Button
+            size="sm"
+            className={`bg-gradient-to-r ${getModuleTheme('pacientes').primaryButton} ${getModuleTheme('pacientes').primaryButtonHover} h-7 lg:h-8 px-2 lg:px-3 text-xs lg:text-sm shadow-lg hover:shadow-xl transition-all duration-200 font-semibold`}
             onClick={abrirModalNovo}
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Novo Paciente
+            <Plus className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+            <span className="ml-1.5 lg:ml-2 2xl:inline hidden">Novo Paciente</span>
           </Button>
         ) : (
           <Tooltip>
             <TooltipTrigger asChild>
               <span className="inline-block">
-                <Button 
-                  className={`!h-10 bg-gradient-to-r ${getModuleTheme('pacientes').primaryButton} ${getModuleTheme('pacientes').primaryButtonHover} shadow-lg hover:shadow-xl transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed`}
+                <Button
+                  size="sm"
+                  className={`bg-gradient-to-r ${getModuleTheme('pacientes').primaryButton} ${getModuleTheme('pacientes').primaryButtonHover} h-7 lg:h-8 px-2 lg:px-3 text-xs lg:text-sm shadow-lg transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed`}
                   disabled={true}
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Novo Paciente
+                  <Plus className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                  <span className="ml-1.5 lg:ml-2 2xl:inline hidden">Novo Paciente</span>
                 </Button>
               </span>
             </TooltipTrigger>

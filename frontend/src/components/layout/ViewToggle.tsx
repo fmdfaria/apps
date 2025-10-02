@@ -24,33 +24,26 @@ export const ViewToggle: React.FC<ViewToggleProps> = ({
   const theme = getModuleTheme(module);
   
   return (
-    <div className={`flex items-center !h-10 border-2 border-gray-200 rounded-lg bg-gray-50 overflow-hidden ${iconOnly ? 'w-20' : ''} ${className || ''}`} style={{ minHeight: '40px' }}>
+    <div className={`flex items-center gap-1 ${className || ''}`}>
       <Button
         variant="ghost"
-        size="default"
+        size="sm"
         onClick={() => onViewModeChange('table')}
-        title={iconOnly ? "Visualização em tabela" : undefined}
-        className={viewMode === 'table' 
-          ? `!h-10 ${iconOnly ? '!px-1.5' : '!px-4'} !bg-gradient-to-r ${theme.primaryButton} !text-white !shadow-lg font-semibold !border-0 !rounded-none !m-0 flex-1` 
-          : `!h-10 ${iconOnly ? '!px-1.5' : '!px-4'} !bg-transparent !text-gray-600 hover:!bg-gradient-to-r ${theme.hoverBg} ${theme.hoverTextColor} !transition-all !duration-200 !rounded-none !m-0 flex-1`
-        }
+        className={`h-7 lg:h-8 px-2 lg:px-3 ${viewMode === 'table' ? 'bg-white shadow-sm' : ''}`}
+        title="Visualização em Tabela"
       >
-        <List className={`w-4 h-4 ${iconOnly ? '' : 'mr-1'}`} />
-        {!iconOnly && <span className="hidden sm:inline">Tabela</span>}
+        <List className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+        <span className="ml-1 2xl:inline hidden">Tabela</span>
       </Button>
-      <div className="w-px h-6 bg-gray-300"></div>
       <Button
         variant="ghost"
-        size="default"
+        size="sm"
         onClick={() => onViewModeChange('cards')}
-        title={iconOnly ? "Visualização em cards" : undefined}
-        className={viewMode === 'cards' 
-          ? `!h-10 ${iconOnly ? '!px-1.5' : '!px-4'} !bg-gradient-to-r ${theme.primaryButton} !text-white !shadow-lg font-semibold !border-0 !rounded-none !m-0 flex-1` 
-          : `!h-10 ${iconOnly ? '!px-1.5' : '!px-4'} !bg-transparent !text-gray-600 hover:!bg-gradient-to-r ${theme.hoverBg} ${theme.hoverTextColor} !transition-all !duration-200 !rounded-none !m-0 flex-1`
-        }
+        className={`h-7 lg:h-8 px-2 lg:px-3 ${viewMode === 'cards' ? 'bg-white shadow-sm' : ''}`}
+        title="Visualização em Cards"
       >
-        <LayoutGrid className={`w-4 h-4 ${iconOnly ? '' : 'mr-1'}`} />
-        {!iconOnly && <span className="hidden sm:inline">Cards</span>}
+        <LayoutGrid className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+        <span className="ml-1 2xl:inline hidden">Cards</span>
       </Button>
     </div>
   );

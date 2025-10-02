@@ -603,12 +603,12 @@ export const CalendarioProfissionalPage = () => {
   }
 
   return (
-    <div className="pt-2 pl-6 pr-6 h-screen flex flex-col overflow-hidden">
+    <div className="pt-2 px-3 lg:px-6 h-screen flex flex-col overflow-hidden">
       {/* Header */}
-      <div className={`bg-gradient-to-r ${theme.headerBg} border border-gray-200 flex items-center mb-6 px-6 py-4 rounded-lg gap-4 flex-shrink-0 shadow-sm`}>
+      <div className={`bg-gradient-to-r ${theme.headerBg} border border-gray-200 flex items-center mb-3 lg:mb-6 px-3 lg:px-6 py-3 lg:py-4 rounded-lg gap-2 lg:gap-4 flex-shrink-0 shadow-sm`}>
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <span>👨‍⚕️</span>
+          <h1 className="text-xl lg:text-3xl font-bold flex items-center gap-1.5 lg:gap-2">
+            <span className="text-2xl lg:text-3xl">👨‍⚕️</span>
             <span className={`bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent`}>
               Minha Agenda
             </span>
@@ -617,55 +617,72 @@ export const CalendarioProfissionalPage = () => {
       </div>
 
       {/* Navegação da Semana */}
-      <Card className="mb-6 flex-shrink-0">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between relative">
-            <div className="flex items-center gap-4">
+      <Card className="mb-3 lg:mb-6 flex-shrink-0">
+        <CardHeader className="pb-2 lg:pb-4 px-3 lg:px-6 py-3 lg:py-4">
+          {/* Layout responsivo: 2 linhas abaixo de lg */}
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 lg:gap-4">
+            {/* Linha 1: Navegação + Mês */}
+            <div className="flex items-center gap-2 lg:gap-4 justify-between lg:justify-start">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToPreviousWeek}
+                  className="h-7 w-7 lg:h-8 lg:w-8 p-0"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                </Button>
+
+                <h2 className="text-sm lg:text-lg font-semibold whitespace-nowrap">
+                  {weekDays[0].date.toLocaleDateString('pt-BR', {
+                    month: 'long',
+                    year: 'numeric'
+                  })}
+                </h2>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToNextWeek}
+                  className="h-7 w-7 lg:h-8 lg:w-8 p-0"
+                >
+                  <ChevronRight className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                </Button>
+              </div>
+
+              {/* Botão Esta Semana - visível em mobile */}
               <Button
                 variant="outline"
                 size="sm"
-                onClick={goToPreviousWeek}
-                className="h-8 w-8 p-0"
+                className={`lg:hidden h-7 px-2 bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} text-white shadow-md transition-all duration-200 text-xs`}
+                onClick={goToCurrentWeek}
               >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              
-              <h2 className="text-lg font-semibold">
-                {weekDays[0].date.toLocaleDateString('pt-BR', { 
-                  month: 'long', 
-                  year: 'numeric' 
-                })}
-              </h2>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={goToNextWeek}
-                className="h-8 w-8 p-0"
-              >
-                <ChevronRight className="w-4 h-4" />
+                <CalendarIcon className="w-3.5 h-3.5 mr-1" />
+                Hoje
               </Button>
             </div>
 
-            {/* Nome do profissional no centro */}
-            <div className="absolute left-1/2 transform -translate-x-1/2">
-              <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-                <User className="w-4 h-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-800">
+            {/* Linha 2: Nome do profissional + Botão Esta Semana (desktop) */}
+            <div className="flex items-center justify-between lg:justify-end gap-2 lg:gap-4">
+              {/* Nome do profissional */}
+              <div className="flex items-center gap-1.5 lg:gap-2 px-2 lg:px-4 py-1.5 lg:py-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <User className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-blue-600" />
+                <span className="text-xs lg:text-sm font-medium text-blue-800 truncate">
                   {userProfissional.nome}
                 </span>
               </div>
-            </div>
 
-            <Button 
-              variant="outline"
-              size="sm"
-              className={`!h-10 px-3 bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} text-white shadow-md transition-all duration-200`}
-              onClick={goToCurrentWeek}
-            >
-              <CalendarIcon className="w-4 h-4 mr-1" />
-              Esta Semana
-            </Button>
+              {/* Botão Esta Semana - desktop */}
+              <Button
+                variant="outline"
+                size="sm"
+                className={`hidden lg:flex h-8 lg:h-10 px-2 lg:px-3 bg-gradient-to-r ${theme.primaryButton} ${theme.primaryButtonHover} text-white shadow-md transition-all duration-200 text-xs lg:text-sm`}
+                onClick={goToCurrentWeek}
+              >
+                <CalendarIcon className="w-3.5 h-3.5 lg:w-4 lg:h-4 lg:mr-1" />
+                <span className="hidden lg:inline">Esta Semana</span>
+              </Button>
+            </div>
           </div>
         </CardHeader>
       </Card>
@@ -675,18 +692,19 @@ export const CalendarioProfissionalPage = () => {
         <CardContent className="p-0 h-full">
           <div className="flex h-full border rounded-lg overflow-hidden bg-white">
             {/* Time Column */}
-            <div className="w-20 bg-gray-50 border-r flex flex-col flex-shrink-0">
+            <div className="w-12 lg:w-20 bg-gray-50 border-r flex flex-col flex-shrink-0">
               {/* Fixed Time Header */}
-              <div className="h-16 border-b bg-white flex items-center justify-center text-sm font-semibold text-gray-700 sticky top-0 z-40 shadow-sm">
-                Hora
+              <div className="h-12 lg:h-16 border-b bg-white flex items-center justify-center text-xs lg:text-sm font-semibold text-gray-700 sticky top-0 z-40 shadow-sm">
+                <span className="hidden lg:inline">Hora</span>
+                <Clock className="w-3.5 h-3.5 lg:hidden" />
               </div>
-              
+
               {/* Scrollable Time Content */}
-              <div 
+              <div
                 ref={timeColumnRef}
                 className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden"
-                style={{ 
-                  scrollbarWidth: 'none', 
+                style={{
+                  scrollbarWidth: 'none',
                   msOverflowStyle: 'none'
                 }}
               >
@@ -694,11 +712,12 @@ export const CalendarioProfissionalPage = () => {
                   {timeSlots.map((timeSlot, index) => (
                     <div
                       key={timeSlot.time}
-                      className={`h-[60px] border-b border-gray-100 flex items-center justify-center text-sm text-gray-600 font-medium flex-shrink-0 ${
+                      className={`h-[50px] lg:h-[60px] border-b border-gray-100 flex items-center justify-center text-xs lg:text-sm text-gray-600 font-medium flex-shrink-0 ${
                         index % 2 === 0 ? "bg-gray-50" : "bg-white"
                       }`}
                     >
-                      {timeSlot.time}
+                      <span className="hidden lg:inline">{timeSlot.time}</span>
+                      <span className="lg:hidden">{timeSlot.time.split(':')[0]}</span>
                     </div>
                   ))}
                 </div>
@@ -708,16 +727,19 @@ export const CalendarioProfissionalPage = () => {
             {/* Day Columns */}
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* Fixed Headers */}
-              <div className="bg-white border-b h-16 flex-shrink-0 z-30 shadow-sm flex pr-3">
+              <div className="bg-white border-b h-12 lg:h-16 flex-shrink-0 z-30 shadow-sm flex pr-1 lg:pr-3">
                 {weekDays.map((day, index) => (
                   <div
                     key={index}
-                    className="flex-1 border-r border-gray-200 p-3 flex flex-col items-center justify-center gap-1 min-w-0"
+                    className="flex-1 border-r border-gray-200 p-1 lg:p-3 flex flex-col items-center justify-center gap-0.5 lg:gap-1 min-w-0"
                   >
-                    <div className="text-sm font-medium text-gray-600">{day.dayName}</div>
-                    <div className={`text-lg font-bold ${
-                      day.isToday 
-                        ? `text-white bg-gradient-to-r ${theme.primaryButton} rounded-full w-8 h-8 flex items-center justify-center` 
+                    <div className="text-xs lg:text-sm font-medium text-gray-600 truncate">
+                      <span className="hidden lg:inline">{day.dayName}</span>
+                      <span className="lg:hidden">{day.dayName.substring(0, 3)}</span>
+                    </div>
+                    <div className={`text-sm lg:text-lg font-bold ${
+                      day.isToday
+                        ? `text-white bg-gradient-to-r ${theme.primaryButton} rounded-full w-6 h-6 lg:w-8 lg:h-8 flex items-center justify-center text-xs lg:text-base`
                         : 'text-gray-800'
                     }`}>
                       {day.dayNumber}
@@ -736,7 +758,7 @@ export const CalendarioProfissionalPage = () => {
                 }}
               >
                 {/* Grid */}
-                <div className="flex min-w-full" style={{ height: `${timeSlots.length * 60}px`, minHeight: '600px' }}>
+                <div className="flex min-w-full lg:hidden" style={{ height: `${timeSlots.length * 50}px`, minHeight: '500px' }}>
                   {weekDays.map((day, dayIndex) => (
                     <div
                       key={dayIndex}
@@ -745,7 +767,77 @@ export const CalendarioProfissionalPage = () => {
                       {/* Time grid background */}
                       {timeSlots.map((timeSlot, timeIndex) => {
                         const status = verificarDisponibilidade(day.date, timeSlot);
-                        
+
+                        return (
+                          <div
+                            key={timeIndex}
+                            className={`h-[50px] border-b border-gray-100 transition-colors relative ${getSlotColor(day.date, timeSlot)}`}
+                          >
+                          </div>
+                        );
+                      })}
+
+                      {/* Agendamentos posicionados absolutamente */}
+                      {getAgendamentosForDay(day.date).map((agendamento) => {
+                        // Calcular horário fim baseado na duração
+                        const [startHour, startMinute] = agendamento.time.split(':').map(Number);
+                        const endTotalMinutes = startHour * 60 + startMinute + agendamento.duration;
+                        const endHour = Math.floor(endTotalMinutes / 60) % 24;
+                        const endMinute = endTotalMinutes % 60;
+                        const horarioFim = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+
+                        // Ajustar posicionamento para mobile (50px por slot)
+                        const startMinutes = parseInt(agendamento.time.split(':')[0]) * 60 + parseInt(agendamento.time.split(':')[1]);
+                        const endMinutes = parseInt(horarioFim.split(':')[0]) * 60 + parseInt(horarioFim.split(':')[1]);
+                        const baseMinutes = minHour * 60;
+                        const top = ((startMinutes - baseMinutes) / 30) * 50;
+                        const height = ((endMinutes - startMinutes) / 30) * 50;
+
+                        return (
+                          <div
+                            key={agendamento.id}
+                            className="absolute left-0.5 right-0.5 z-10"
+                            style={{ top: `${top}px`, height: `${height}px` }}
+                          >
+                            <AppointmentCard
+                              appointment={{
+                                id: agendamento.id,
+                                profissionalId: agendamento.agendamento.profissionalId,
+                                paciente: agendamento.paciente,
+                                servico: agendamento.servico,
+                                convenio: agendamento.agendamento.convenioNome || '',
+                                tipo: agendamento.tipo,
+                                horarioInicio: agendamento.time,
+                                horarioFim,
+                                status: (agendamento.status || '').toLowerCase(),
+                                data: new Date(agendamento.agendamento.dataHoraInicio),
+                                profissionalNome: userProfissional?.nome,
+                                recursoNome: agendamento.recurso,
+                              }}
+                              viewType="profissionais"
+                              className="w-full h-full border-l-4 rounded-md shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md"
+                              style={{ borderLeftColor: agendamento.color, backgroundColor: '#ffffff' }}
+                              onDetailsClick={() => handleVerDetalhes(agendamento.agendamento)}
+                              onEditClick={() => handleEditarAgendamento(agendamento.id)}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Grid Desktop */}
+                <div className="hidden lg:flex min-w-full" style={{ height: `${timeSlots.length * 60}px`, minHeight: '600px' }}>
+                  {weekDays.map((day, dayIndex) => (
+                    <div
+                      key={dayIndex}
+                      className="flex-1 border-r border-gray-200 relative bg-white min-w-0"
+                    >
+                      {/* Time grid background */}
+                      {timeSlots.map((timeSlot, timeIndex) => {
+                        const status = verificarDisponibilidade(day.date, timeSlot);
+
                         return (
                           <div
                             key={timeIndex}

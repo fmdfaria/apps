@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
-import { 
+import {
   Stethoscope,
   Clock,
   Users,
@@ -25,7 +25,8 @@ import {
   PenTool,
   UserCheck2,
   AlertCircle,
-  Check
+  Check,
+  Video
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Agendamento } from '@/types/Agendamento';
@@ -48,6 +49,8 @@ import { AppToast } from '@/services/toast';
 import { useAuthStore } from '@/store/auth';
 import { formatarDataHoraLocal } from '@/utils/dateUtils';
 import { useMultipleConfiguracoesAtenderPage } from '@/hooks/useConfiguracoesAtenderPage';
+import { useBreakpoint } from '@/hooks/useInfiniteScroll';
+import { useViewMode } from '@/hooks/useViewMode';
 
 // Opções estáticas (movidas para fora do componente)
 const tipoAtendimentoOptions = [
@@ -110,9 +113,41 @@ const filterFields: FilterField[] = [
 
 export const AtenderPage = () => {
   const { user } = useAuthStore();
+
+  // Detecta breakpoint para definir visualização padrão
+  const { isDesktop } = useBreakpoint(); // isDesktop = xl ou 2xl (>= 1280px)
+
+  // Limpa localStorage se não for desktop (garante que não tenha 'table' salvo)
+  useEffect(() => {
+    if (!isDesktop) {
+      localStorage.removeItem('atender-view');
+    }
+  }, [isDesktop]);
+
+  // Hook de visualização - Cards para < 1280px (FORÇADO), Tabela para >= 1280px (persistível)
+  const { viewMode, setViewMode } = useViewMode({
+    defaultMode: isDesktop ? 'table' : 'cards',
+    persistMode: isDesktop, // Só persiste quando for desktop
+    localStorageKey: 'atender-view'
+  });
+
+  // FORÇA cards quando não for desktop (< 1280px)
+  useEffect(() => {
+    if (!isDesktop && viewMode !== 'cards') {
+      setViewMode('cards');
+    }
+  }, [isDesktop, viewMode, setViewMode]);
+
+  // FORÇA table quando for desktop (>= 1280px) e não houver preferência salva
+  useEffect(() => {
+    if (isDesktop && viewMode !== 'table' && !localStorage.getItem('atender-view')) {
+      setViewMode('table');
+    }
+  }, [isDesktop, viewMode, setViewMode]);
+
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Estados para controle de permissões RBAC
   const [accessDenied, setAccessDenied] = useState(false);
   const [canAtender, setCanAtender] = useState(true);
@@ -122,7 +157,6 @@ export const AtenderPage = () => {
   const [canDeleteEvolucoes, setCanDeleteEvolucoes] = useState(true);
   const [busca, setBusca] = useState('');
   const [buscaDebounced, setBuscaDebounced] = useState('');
-  const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
   const [showAtenderAgendamento, setShowAtenderAgendamento] = useState(false);
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<Agendamento | null>(null);
   const [showDetalhesAgendamento, setShowDetalhesAgendamento] = useState(false);
@@ -650,7 +684,7 @@ export const AtenderPage = () => {
   };
 
   const renderCardView = () => (
-    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
       {agendamentosPaginados.length === 0 ? (
         <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-500">
           <Stethoscope className="w-12 h-12 mb-4" />
@@ -667,93 +701,75 @@ export const AtenderPage = () => {
           
           return (
             <Card key={agendamento.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-2 pt-3 px-3">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                      {agendamento.pacienteNome?.charAt(0).toUpperCase()}
-                    </div>
-                    <CardTitle className="text-lg">{agendamento.pacienteNome}</CardTitle>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Stethoscope className="w-4 h-4 flex-shrink-0 text-blue-600" />
+                    <CardTitle className="text-sm font-medium truncate">{agendamento.pacienteNome}</CardTitle>
                   </div>
-                  <Badge className={`text-xs px-3 py-1 rounded-full font-medium ${
-                    agendamento.status === 'LIBERADO' 
-                      ? 'bg-green-100 text-green-800' 
+                  <Badge className={`text-xs flex-shrink-0 ml-2 ${
+                    agendamento.status === 'LIBERADO'
+                      ? 'bg-green-100 text-green-800'
                       : 'bg-gray-100 text-gray-800'
                   }`}>
                     {agendamento.status}
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Informações Básicas */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="w-4 h-4 text-gray-500" />
-                    <span className="font-mono bg-gray-100 px-2 py-1 rounded text-gray-700">{data}</span>
+              <CardContent className="pt-0 px-3 pb-3">
+                <div className="space-y-1 mb-3">
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <Users className="w-3 h-3" />
+                    <span className="truncate">{agendamento.profissionalNome}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Clock className="w-4 h-4 text-gray-500" />
-                    <span className="font-mono bg-blue-100 px-2 py-1 rounded text-blue-700">{hora}</span>
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <CreditCard className="w-3 h-3" />
+                    <span className="truncate">{agendamento.convenioNome}</span>
                   </div>
-                </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <FileText className="w-3 h-3" />
+                    <span className="truncate">{agendamento.servicoNome}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-600">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      <span>{data}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      <span>{hora}</span>
+                    </div>
+                  </div>
 
-                {/* Detalhes do Atendimento */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Users className="w-4 h-4" />
-                    <span className="font-medium">Profissional:</span>
-                    <span>{agendamento.profissionalNome}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <CreditCard className="w-4 h-4" />
-                    <span className="font-medium">Convênio:</span>
-                    <span>{agendamento.convenioNome}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <FileText className="w-4 h-4" />
-                    <span className="font-medium">Serviço:</span>
-                    <span>{agendamento.servicoNome}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span className="text-lg">🏥</span>
-                    <span className="font-medium">Tipo:</span>
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      agendamento.tipoAtendimento === 'online' 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-green-100 text-green-800'
-                    }`}>
+                  <div className="flex items-center justify-between">
+                    <Badge variant="outline" className="text-xs px-1 py-0">
                       {agendamento.tipoAtendimento}
-                    </span>
+                    </Badge>
                   </div>
                 </div>
-
 
                 {/* Botões de Ação */}
-                <div className="flex flex-col gap-1 pt-2 border-t">
-                  {/* Botão Meet para agendamentos online */}
+                <div className="flex gap-1.5">
                   {agendamento.tipoAtendimento === 'online' && agendamento.urlMeet && (
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => window.open(agendamento.urlMeet!, '_blank', 'noopener,noreferrer')}
-                      className="border-2 border-blue-300 text-blue-700 hover:border-blue-400 hover:bg-blue-50 w-full font-semibold"
+                      className="group border-2 border-cyan-300 text-cyan-600 hover:bg-cyan-600 hover:text-white hover:border-cyan-600 focus:ring-4 focus:ring-cyan-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                       title="Entrar no Google Meet"
                     >
-                      <span className="mr-2">📹</span>
-                      Meet
+                      <Video className="w-4 h-4 text-cyan-600 group-hover:text-white transition-colors" />
                     </Button>
                   )}
-                  
-                  <div className="flex justify-center gap-1">
-                    <Button 
-                      size="sm" 
-                      variant="default"
-                      className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
-                      onClick={() => handleVerDetalhes(agendamento)}
-                      title="Visualizar Agendamento"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                    onClick={() => handleVerDetalhes(agendamento)}
+                    title="Visualizar Agendamento"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Button>
                     {canViewEvolucoes ? (
                       <Button 
                         size="sm" 
@@ -832,8 +848,8 @@ export const AtenderPage = () => {
                         <CheckSquare className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
                       </Button>
                     ) : (
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         disabled={true}
                         className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
                         title="Você não tem permissão para finalizar atendimentos"
@@ -841,7 +857,6 @@ export const AtenderPage = () => {
                         <CheckSquare className="w-4 h-4" />
                       </Button>
                     )}
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1102,63 +1117,77 @@ export const AtenderPage = () => {
       )}
 
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <span className="text-4xl">🩺</span>
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Atendimentos
-            </span>
-          </h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar agendamentos..."
-              value={busca}
-              onChange={e => setBusca(e.target.value)}
-              className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 hover:border-blue-300"
-            />
+      <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
+        {/* Layout responsivo: 3 linhas < 640px, 2 linhas 640-1023px, 1 linha >= 1024px */}
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+          {/* Primeira linha: Título (mobile < 640) | Título + Busca (>= 640) */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-1">
+            <div className="flex-shrink-0">
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2 lg:gap-3">
+                <span className="text-3xl lg:text-4xl">🩺</span>
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Atendimentos
+                </span>
+              </h1>
+            </div>
+
+            {/* Busca - segunda linha em mobile (< 640), primeira linha em sm+ */}
+            <div className="relative w-full sm:flex-1 sm:max-w-md">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar agendamentos..."
+                value={busca}
+                onChange={e => setBusca(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
           </div>
 
-          {/* Toggle de visualização */}
-          <div className="flex border rounded-lg p-1 bg-gray-100">
+          {/* Segunda linha: Controles */}
+          <div className="flex items-center justify-center lg:justify-end gap-1.5 lg:gap-4 flex-wrap">
+
+            {/* Toggle de visualização */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className={`h-7 lg:h-8 px-2 lg:px-3 ${viewMode === 'table' ? 'bg-white shadow-sm' : ''}`}
+                title="Visualização em Tabela"
+              >
+                <List className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span className="ml-1 2xl:inline hidden">Tabela</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('cards')}
+                className={`h-7 lg:h-8 px-2 lg:px-3 ${viewMode === 'cards' ? 'bg-white shadow-sm' : ''}`}
+                title="Visualização em Cards"
+              >
+                <LayoutGrid className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span className="ml-1 2xl:inline hidden">Cards</span>
+              </Button>
+            </div>
+
+            {/* Botão Filtros Avançados */}
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={() => setVisualizacao('tabela')}
-              className={`h-7 px-3 ${visualizacao === 'tabela' ? 'bg-white shadow-sm' : ''}`}
+              onClick={() => setMostrarFiltros(!mostrarFiltros)}
+              className={`h-7 lg:h-8 px-2 lg:px-3 text-xs lg:text-sm ${mostrarFiltros ? 'bg-blue-50 border-blue-300' : ''} ${temFiltrosAtivos ? 'border-blue-500 bg-blue-50' : ''}`}
+              title="Filtros Avançados"
             >
-              <List className="w-4 h-4 mr-1" />
-              Tabela
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setVisualizacao('cards')}
-              className={`h-7 px-3 ${visualizacao === 'cards' ? 'bg-white shadow-sm' : ''}`}
-            >
-              <LayoutGrid className="w-4 h-4 mr-1" />
-              Cards
+              <Filter className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+              <span className="ml-1.5 lg:ml-2 2xl:inline hidden">Filtros</span>
+              {temFiltrosAtivos && (
+                <Badge variant="secondary" className="ml-1.5 lg:ml-2 h-3.5 lg:h-4 px-1 text-xs">
+                  {Object.values(filtrosAplicados).filter(f => f !== '').length}
+                </Badge>
+              )}
             </Button>
           </div>
-
-          {/* Botão Filtros Avançados */}
-          <Button
-            variant="outline"
-            onClick={() => setMostrarFiltros(!mostrarFiltros)}
-            className={`${mostrarFiltros ? 'bg-blue-50 border-blue-300' : ''} ${temFiltrosAtivos ? 'border-blue-500 bg-blue-50' : ''}`}
-          >
-            <Filter className="w-4 h-4 mr-2" />
-            Filtros
-            {temFiltrosAtivos && (
-              <Badge variant="secondary" className="ml-2 h-4 px-1">
-                {Object.values(filtrosAplicados).filter(f => f !== '').length}
-              </Badge>
-            )}
-          </Button>
         </div>
       </div>
 
@@ -1176,7 +1205,7 @@ export const AtenderPage = () => {
 
       {/* Conteúdo */}
       <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-sm border border-gray-100">
-        {visualizacao === 'cards' ? renderCardView() : renderTableView()}
+        {viewMode === 'cards' ? renderCardView() : renderTableView()}
       </div>
 
       {/* Paginação */}
