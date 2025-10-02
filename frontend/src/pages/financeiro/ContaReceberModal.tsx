@@ -54,7 +54,8 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
     convenioId: '',
     numeroDocumento: '',
     observacoes: '',
-    formaRecebimento: 'DINHEIRO'
+    formaRecebimento: 'DINHEIRO',
+    status: 'PENDENTE'
   });
   
   // Controla se deve mostrar o campo forma recebimento
@@ -77,7 +78,8 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
         convenioId: conta.convenioId || '',
         numeroDocumento: conta.numeroDocumento || '',
         observacoes: conta.observacoes || '',
-        formaRecebimento: contaComControle._formaRecebimento || conta.formaRecebimento || 'PIX'
+        formaRecebimento: contaComControle._formaRecebimento || conta.formaRecebimento || 'PIX',
+        status: conta.status || 'PENDENTE'
       });
       
       // Verificar se deve mostrar o campo forma recebimento
@@ -96,7 +98,8 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
         convenioId: '',
         numeroDocumento: '',
         observacoes: '',
-        formaRecebimento: 'PIX'
+        formaRecebimento: 'PIX',
+        status: 'PENDENTE'
       });
       setShowFormaRecebimento(true);
     }
@@ -352,8 +355,8 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
             </div>
           )}
 
-          {/* Linha 1: Descrição (2 colunas) | Valor (1 coluna) */}
-          <div className="grid grid-cols-3 gap-4">
+          {/* Linha 1: Descrição (2 colunas) | Valor (1 coluna) | Status (1 coluna) */}
+          <div className="grid grid-cols-4 gap-4">
             <div className="col-span-2 space-y-2">
               <Label htmlFor="descricao">
                 Descrição <span className="text-red-500">*</span>
@@ -380,6 +383,33 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
                 onChange={(e) => handleChange('valorOriginal', e.target.value)}
                 placeholder="0,00"
                 required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="status">
+                Status
+              </Label>
+              <SingleSelectDropdown
+                options={[
+                  { id: 'PENDENTE', nome: 'Pendente' },
+                  { id: 'PARCIAL', nome: 'Parcial' },
+                  { id: 'RECEBIDO', nome: 'Recebido' },
+                  { id: 'VENCIDO', nome: 'Vencido' },
+                  { id: 'CANCELADO', nome: 'Cancelado' }
+                ]}
+                selected={[
+                  { id: 'PENDENTE', nome: 'Pendente' },
+                  { id: 'PARCIAL', nome: 'Parcial' },
+                  { id: 'RECEBIDO', nome: 'Recebido' },
+                  { id: 'VENCIDO', nome: 'Vencido' },
+                  { id: 'CANCELADO', nome: 'Cancelado' }
+                ].find(option => option.id === form.status) || null}
+                onChange={(option) => handleChange('status', option?.id || 'PENDENTE')}
+                placeholder="Selecione o status"
+                formatOption={(option) => option.nome}
+                headerText="Status da conta"
+                disabled={false}
               />
             </div>
           </div>

@@ -74,7 +74,9 @@ export interface ReceberContaData {
   observacoes?: string;
 }
 
-export interface UpdateContaReceberData extends Partial<CreateContaReceberData> {}
+export interface UpdateContaReceberData extends Partial<CreateContaReceberData> {
+  status?: StatusContaReceber;
+}
 
 export interface CancelarContaData {
   motivo?: string;
