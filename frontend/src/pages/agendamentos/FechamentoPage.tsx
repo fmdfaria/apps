@@ -1154,7 +1154,11 @@ export const FechamentoPage = () => {
   };
 
   const dadosConvenios = processarDadosConvenios();
-  const dadosParticulares = processarDadosParticulares();
+  const dadosParticulares = processarDadosParticulares().filter(item => {
+    // Filtrar apenas registros com recebimento pendente (não completo)
+    const status = verificarStatusRecebimento(item.agendamentos);
+    return status !== true; // Remove registros com status "Completo" (true)
+  });
 
   const dadosAtivos = tipoVisualizacao === 'convenios' ? dadosConvenios : dadosParticulares;
   
