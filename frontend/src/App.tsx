@@ -53,6 +53,10 @@ import { TestPDFOrientation } from '@/components/TestPDFOrientation';
 import { TestDigitalizarGuias } from '@/components/TestDigitalizarGuias';
 import ScannerS3Page from '@/pages/test/ScannerS3Page';
 import { EmpresasPage, ContasBancariasPage, ContasReceberPage, ContasPagarPage, CategoriasFinanceirasPage, FluxoCaixaPage, RelatoriosFinanceirosPage } from '@/pages/financeiro';
+import Privacy from '@/pages/legal/Privacy';
+import Terms from '@/pages/legal/Terms';
+import Cookies from '@/pages/legal/Cookies';
+import LGPD from '@/pages/legal/LGPD';
 
 export default function App() {
   const initializeAuth = useAuthStore((s) => s.initializeAuth);
@@ -74,6 +78,10 @@ export default function App() {
         <Route path="/auth/password-reset" element={<PasswordReset />} />
         <Route path="/auth/email-confirmation" element={<EmailConfirmation />} />
         <Route path="/" element={<Landing />} />
+        <Route path="/privacidade" element={<Privacy />} />
+        <Route path="/termos" element={<Terms />} />
+        <Route path="/cookies" element={<Cookies />} />
+        <Route path="/lgpd" element={<LGPD />} />
 
         {/* Rotas protegidas */}
         <Route element={<PrivateRoute />}> 

@@ -577,15 +577,15 @@ export const atenderAgendamento = async (id: string, dadosAtendimento: {
     status: 'ATENDIDO'
   });
   
-  // Se for convênio "Particular", finalizar automaticamente (pula etapa de aprovação)
-  if (dadosAtendimento.convenioNome === 'Particular') {
+  // Se for convênio "Particular" ou "Solumedi", finalizar automaticamente (pula etapa de aprovação)
+  if (dadosAtendimento.convenioNome === 'Particular' || dadosAtendimento.convenioNome === 'Solumedi') {
     try {
       const responseFinalizado = await api.put(`/agendamentos-concluir/${id}`, {
         status: 'FINALIZADO'
       });
       return responseFinalizado.data;
     } catch (error) {
-      console.warn('Erro ao finalizar agendamento particular automaticamente:', error);
+      console.warn('Erro ao finalizar agendamento automaticamente:', error);
       // Se falhar a finalização, retorna pelo menos o agendamento atendido
       return response.data;
     }

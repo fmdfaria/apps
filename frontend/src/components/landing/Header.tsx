@@ -14,7 +14,7 @@ export const Header = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <div className="flex items-center">
+          <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
             {logoLoading ? (
               <div className="ml-2 h-14 w-36 bg-gray-200 animate-pulse rounded" />
             ) : logoUrl ? (
@@ -34,8 +34,7 @@ export const Header = () => {
           <nav className="hidden md:flex space-x-8">
             <a href="#inicio" className="text-gray-700 hover:text-blue-600 transition-colors">Início</a>
             <a href="#funcionalidades" className="text-gray-700 hover:text-blue-600 transition-colors">Funcionalidades</a>
-            <a href="#precos" className="text-gray-700 hover:text-blue-600 transition-colors">Preços</a>
-            <a href="#contato" className="text-gray-700 hover:text-blue-600 transition-colors">Contato</a>
+            <a href="#sobre" className="text-gray-700 hover:text-blue-600 transition-colors">Sobre</a>
           </nav>
 
           {/* CTA Button */}
@@ -62,8 +61,7 @@ export const Header = () => {
             <div className="px-2 pt-2 pb-3 space-y-1">
               <a href="#inicio" className="block px-3 py-2 text-gray-700 hover:text-blue-600">Início</a>
               <a href="#funcionalidades" className="block px-3 py-2 text-gray-700 hover:text-blue-600">Funcionalidades</a>
-              <a href="#precos" className="block px-3 py-2 text-gray-700 hover:text-blue-600">Preços</a>
-              <a href="#contato" className="block px-3 py-2 text-gray-700 hover:text-blue-600">Contato</a>
+              <a href="#sobre" className="block px-3 py-2 text-gray-700 hover:text-blue-600">Sobre</a>
               <div className="px-3 py-2">
                 <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white" onClick={() => navigate('/auth/login')}>
                   Login

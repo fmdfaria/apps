@@ -5,8 +5,8 @@ export const FeaturesSection = () => {
   const features = [
     {
       icon: Calendar,
-      title: 'Agendamento Online',
-      description: 'Interface intuitiva para pacientes agendarem consultas 24/7, com sincronização automática.'
+      title: 'Agendamentos',
+      description: 'Interface intuitiva para agendamentos de consultas, com sincronização automática.'
     },
     {
       icon: Users,
@@ -16,12 +16,12 @@ export const FeaturesSection = () => {
     {
       icon: Bell,
       title: 'Notificações Inteligentes',
-      description: 'Lembretes automáticos por SMS e email para reduzir faltas e melhorar atendimento.'
+      description: 'Lembretes automáticos por whatsapp para reduzir faltas e melhorar atendimento.'
     },
     {
       icon: BarChart3,
       title: 'Relatórios e Estatísticas',
-      description: 'Dashboards completos com métricas de desempenho e análises financeiras.'
+      description: 'Dashboards completos com métricas de desempenho e análises.'
     },
     {
       icon: Shield,
@@ -40,10 +40,10 @@ export const FeaturesSection = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
-            Funcionalidades que fazem a diferença
+            Funcionalidades do Sistema
           </h2>
           <p className="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">
-            Todas as ferramentas que você precisa para modernizar sua clínica e oferecer a melhor experiência aos seus pacientes.
+            Gestão completa da clínica CelebraMente com foco em eficiência e cuidado com o paciente.
           </p>
         </div>
 

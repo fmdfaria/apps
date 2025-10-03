@@ -858,14 +858,34 @@ export const PacientesPage = () => {
       </CardContent>
       
       <ResponsiveCardFooter>
-        <ActionButton
-          variant="view"
-          module="pacientes"
-          onClick={() => abrirModalEditar(paciente)}
-          title="Editar dados do paciente"
-        >
-          <Edit className="w-4 h-4" />
-        </ActionButton>
+        {canUpdate ? (
+          <ActionButton
+            variant="view"
+            module="pacientes"
+            onClick={() => abrirModalEditar(paciente)}
+            title="Editar dados do paciente"
+          >
+            <Edit className="w-4 h-4" />
+          </ActionButton>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-block">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0 border-gray-300 text-gray-400 cursor-not-allowed"
+                  disabled
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Você não tem permissão para editar pacientes</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
         {canViewAnexos ? (
           <ActionButton
             variant="view"

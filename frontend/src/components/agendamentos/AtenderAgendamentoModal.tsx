@@ -53,9 +53,9 @@ export const AtenderAgendamentoModal: React.FC<AtenderAgendamentoModalProps> = (
       });
       
       // Mensagem diferente baseada no convênio
-      const isParticular = agendamento.convenioNome === 'Particular';
-      const mensagem = isParticular 
-        ? 'O atendimento foi registrado e finalizado com sucesso!' 
+      const isAutoFinalizado = agendamento.convenioNome === 'Particular' || agendamento.convenioNome === 'Solumedi';
+      const mensagem = isAutoFinalizado
+        ? 'O atendimento foi registrado e finalizado com sucesso!'
         : 'O atendimento foi registrado com sucesso!';
       
       AppToast.updated('Agendamento', mensagem);

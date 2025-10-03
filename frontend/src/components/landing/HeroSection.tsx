@@ -9,18 +9,15 @@ export const HeroSection = () => {
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div className="text-center lg:text-left">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
-              Transforme sua <span className="text-blue-600">clínica</span> com agendamento inteligente
+              Clínica <span className="text-blue-600">CelebraMente</span>
             </h1>
             <p className="mt-6 text-xl text-gray-600 leading-relaxed">
-              Simplifique a gestão de agendamentos, pacientes e profissionais com nossa plataforma completa e fácil de usar.
+              Sistema de agendamento completo para gestão de consultas, pacientes e profissionais da clínica.
             </p>
             <div className="mt-8">
-              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg">
-                Comece agora grátis
+              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg" onClick={() => window.location.href = '/auth/login'}>
+                Acessar Sistema
               </Button>
-              <p className="mt-3 text-sm text-gray-500">
-                Teste grátis por 14 dias • Sem cartão de crédito
-              </p>
             </div>
           </div>
           

@@ -40,18 +40,18 @@ export const ContactSection = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
-            Pronto para começar?
+            Entre em Contato
           </h2>
           <p className="mt-4 text-xl text-gray-600">
-            Entre em contato conosco ou se inscreva em nossa newsletter para ficar por dentro das novidades
+            Envie sua mensagem ou dúvida sobre o sistema
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-12">
+        <div className="max-w-2xl mx-auto">
           {/* Formulário de Contato */}
           <div className="bg-white rounded-xl p-8 shadow-sm">
             <h3 className="text-2xl font-bold text-gray-900 mb-6">
-              Fale Conosco
+              Envie sua Mensagem
             </h3>
             
             {submitted ? (
@@ -115,31 +115,6 @@ export const ContactSection = () => {
                 </Button>
               </form>
             )}
-          </div>
-
-          {/* Newsletter */}
-          <div className="bg-blue-600 rounded-xl p-8 text-white">
-            <h3 className="text-2xl font-bold mb-6">
-              Newsletter
-            </h3>
-            <p className="text-blue-100 mb-6">
-              Receba dicas exclusivas sobre gestão de clínicas, novidades do sistema e conteúdos que vão te ajudar a crescer.
-            </p>
-            
-            <div className="space-y-4">
-              <Input
-                type="email"
-                placeholder="Seu melhor email"
-                className="bg-white/10 border-white/20 text-white placeholder:text-blue-200"
-              />
-              <Button className="w-full bg-white text-blue-600 hover:bg-blue-50">
-                Quero Receber
-              </Button>
-            </div>
-            
-            <p className="text-xs text-blue-200 mt-4">
-              Você pode cancelar a qualquer momento. Não fazemos spam.
-            </p>
           </div>
         </div>
       </div>

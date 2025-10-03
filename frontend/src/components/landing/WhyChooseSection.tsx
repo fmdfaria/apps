@@ -6,35 +6,35 @@ export const WhyChooseSection = () => {
   const benefits = [
     {
       icon: Award,
-      title: 'Confiança Comprovada',
-      description: 'Mais de 5 anos no mercado com 99,9% de uptime e certificações de segurança.'
+      title: 'Excelência em Saúde Mental',
+      description: 'Sistema especializado em atendimento clínicos.'
     },
     {
       icon: Zap,
-      title: 'Implementação Rápida',
-      description: 'Configure sua clínica em menos de 30 minutos com nossa equipe de onboarding.'
+      title: 'Agilidade no Atendimento',
+      description: 'Agendamento rápido e organizado para otimizar o tempo dos profissionais.'
     },
     {
       icon: Users,
-      title: 'Suporte Especializado',
-      description: 'Equipe dedicada com conhecimento em gestão de clínicas para te ajudar sempre.'
+      title: 'Gestão de Equipe',
+      description: 'Controle completo de profissionais, especialidades e disponibilidade.'
     },
     {
       icon: HeartHandshake,
-      title: 'Sem Fidelidade',
-      description: 'Cancele quando quiser. Acreditamos que você vai ficar porque somos realmente bons.'
+      title: 'Cuidado com o Paciente',
+      description: 'Sistema pensado para oferecer a melhor experiência ao paciente.'
     }
   ];
 
   return (
-    <section className="py-20 bg-blue-600 text-white">
+    <section id="sobre" className="py-20 bg-blue-600 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold">
-            Por que escolher o ClínicaAgenda?
+            Sobre a Clínica CelebraMente
           </h2>
           <p className="mt-4 text-xl text-blue-100 max-w-3xl mx-auto">
-            Não somos apenas um software. Somos seu parceiro na transformação digital da sua clínica.
+            Sistema completo de gestão da clínica.
           </p>
         </div>
 
@@ -53,13 +53,13 @@ export const WhyChooseSection = () => {
         <div className="text-center mt-16">
           <div className="bg-white/10 rounded-2xl p-8 max-w-4xl mx-auto">
             <h3 className="text-2xl font-bold mb-4">
-              Junte-se a mais de 1.000 clínicas que já transformaram seu atendimento
+              Sistema CelebraMente
             </h3>
             <p className="text-blue-100 mb-6">
-              Comece seu teste gratuito agora e veja como é fácil modernizar sua clínica
+              Plataforma completa para gestão de consultas, prontuários e agendamentos
             </p>
-            <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-4 text-lg">
-              Começar Teste Gratuito
+            <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-4 text-lg" onClick={() => window.location.href = '/auth/login'}>
+              Acessar Sistema
             </Button>
           </div>
         </div>
