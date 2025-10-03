@@ -17,17 +17,23 @@ export interface DetalhesConflito {
  */
 export const formatarDataHoraBR = (data: Date): string => {
   const diasSemana = [
-    'Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 
+    'Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira',
     'Quinta-feira', 'Sexta-feira', 'Sábado'
   ];
-  
-  const diaSemana = diasSemana[data.getDay()];
-  const dataFormatada = data.toLocaleDateString('pt-BR');
-  const horaFormatada = data.toLocaleTimeString('pt-BR', { 
-    hour: '2-digit', 
-    minute: '2-digit' 
-  });
-  
+
+  // Converter para timezone do Brasil (UTC-3)
+  const dataBrasil = new Date(data.getTime() - (3 * 60 * 60 * 1000));
+
+  const diaSemana = diasSemana[dataBrasil.getUTCDay()];
+  const dia = String(dataBrasil.getUTCDate()).padStart(2, '0');
+  const mes = String(dataBrasil.getUTCMonth() + 1).padStart(2, '0');
+  const ano = dataBrasil.getUTCFullYear();
+  const hora = String(dataBrasil.getUTCHours()).padStart(2, '0');
+  const minuto = String(dataBrasil.getUTCMinutes()).padStart(2, '0');
+
+  const dataFormatada = `${dia}/${mes}/${ano}`;
+  const horaFormatada = `${hora}:${minuto}`;
+
   return `${diaSemana}, ${dataFormatada} às ${horaFormatada}`;
 };
 
