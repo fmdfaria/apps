@@ -293,6 +293,38 @@ export class AgendamentosController {
     return reply.status(200).send(agendamento);
   }
 
+  async updateStatus(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const paramsSchema = z.object({ id: z.string().uuid() });
+    const bodySchema = z.object({
+      status: z.enum(['AGENDADO','SOLICITADO','LIBERADO','ATENDIDO','FINALIZADO','CANCELADO','ARQUIVADO'])
+    });
+
+    const { id } = paramsSchema.parse(request.params);
+    const { status: novoStatus } = bodySchema.parse(request.body);
+
+    // Carregar agendamento atual
+    const useCase = container.resolve(UpdateAgendamentoUseCase);
+    // Buscar estado atual via repositório indireto: reaproveitar Update use case para validar existência
+    // Primeiro precisamos do atual para validar regras
+    const repo = container.resolve<any>('AgendamentosRepository');
+    const atual = await repo.findById(id);
+    if (!atual) {
+      return reply.status(404).send({ message: 'Agendamento não encontrado.' });
+    }
+
+    // Regras aprovadas:
+    // - Bloquear transição para CANCELADO se atual for FINALIZADO ou ARQUIVADO
+    if (novoStatus === 'CANCELADO' && (atual.status === 'FINALIZADO' || atual.status === 'ARQUIVADO')) {
+      return reply.status(400).send({ message: 'Não é possível cancelar um agendamento FINALIZADO ou ARQUIVADO.' });
+    }
+
+    // - Permitir sair de CANCELADO para AGENDADO sempre
+    // Outras transições: permitir por padrão
+
+    const agendamento = await useCase.execute(id, { status: novoStatus });
+    return reply.status(200).send(agendamento);
+  }
+
   async fechamentoPagamento(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     // Schema para o fechamento de pagamento
     const fechamentoPagamentoBodySchema = z.object({

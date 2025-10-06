@@ -55,6 +55,11 @@ export async function agendamentosRoutes(app: FastifyInstance) {
     preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos-concluir/:id', 'PUT')] 
   }, controller.concluir);
   
+  // Rota dedicada para atualização de status de agendamentos
+  app.patch('/agendamentos/:id/status', {
+    preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos/:id/status', 'PATCH')]
+  }, controller.updateStatus);
+
   // Rota específica para resolver pendências (PENDENTE → ATENDIDO)
   app.put('/agendamentos-pendencias/:id', { 
     preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos-pendencias/:id', 'PUT')] 

@@ -630,6 +630,12 @@ export const cancelarAgendamento = async (id: string, dadosCancelamento: {
   });
 };
 
+// Nova rota dedicada para atualização de status (RBAC segregado)
+export const setStatusAgendamento = async (id: string, status: StatusAgendamento): Promise<Agendamento> => {
+  const response = await api.patch(`/agendamentos/${id}/status`, { status });
+  return response.data;
+};
+
 export const getAgendamentoFormData = async (filtros?: {
   data?: string; // Data no formato YYYY-MM-DD
   profissionalId?: string;

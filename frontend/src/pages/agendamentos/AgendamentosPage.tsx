@@ -32,7 +32,7 @@ import {
   Loader2
 } from 'lucide-react';
 import type { Agendamento, StatusAgendamento } from '@/types/Agendamento';
-import { getAgendamentos, deleteAgendamento, updateAgendamento, IPaginatedAgendamentos } from '@/services/agendamentos';
+import { getAgendamentos, deleteAgendamento, updateAgendamento, IPaginatedAgendamentos, setStatusAgendamento } from '@/services/agendamentos';
 import { 
   AgendamentoModal,
   DetalhesAgendamentoModal
@@ -181,6 +181,7 @@ export const AgendamentosPage = () => {
   const [canCreate, setCanCreate] = useState(true);
   const [canUpdate, setCanUpdate] = useState(true);
   const [canDelete, setCanDelete] = useState(true);
+  const [canCancel, setCanCancel] = useState(true);
   // Estados para modais de agendamento
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
   
@@ -302,11 +303,15 @@ export const AgendamentosPage = () => {
       const canDelete = allowedRoutes.some((route: any) => {
         return route.path === '/agendamentos/:id' && route.method.toLowerCase() === 'delete';
       });
+      const canCancel = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos/:id/status' && route.method.toLowerCase() === 'patch';
+      });
       
       setCanRead(canRead);
       setCanCreate(canCreate);
       setCanUpdate(canUpdate);
       setCanDelete(canDelete);
+      setCanCancel(canCancel);
       
       // Se não tem nem permissão de leitura, marca como access denied
       if (!canRead) {
@@ -319,6 +324,7 @@ export const AgendamentosPage = () => {
       setCanCreate(false);
       setCanUpdate(false);
       setCanDelete(false);
+      setCanCancel(false);
       
       // Se retornar 401/403 no endpoint de permissões, considera acesso negado
       if (error?.response?.status === 401 || error?.response?.status === 403) {
@@ -607,7 +613,7 @@ export const AgendamentosPage = () => {
 
     setCancelLoading(true);
     try {
-      await updateAgendamento(agendamentoCancelando.id, { status: 'CANCELADO' });
+      await setStatusAgendamento(agendamentoCancelando.id, 'CANCELADO');
       AppToast.success('Agendamento cancelado', {
         description: 'O agendamento foi cancelado com sucesso.'
       });
@@ -629,7 +635,7 @@ export const AgendamentosPage = () => {
 
     setCancelLoading(true);
     try {
-      await updateAgendamento(agendamentoCancelando.id, { status: novoStatus.id });
+      await setStatusAgendamento(agendamentoCancelando.id, novoStatus.id as StatusAgendamento);
       AppToast.success('Status alterado', {
         description: `O status foi alterado para ${novoStatus.nome} com sucesso.`
       });
