@@ -204,7 +204,11 @@ export const UsuariosPage = () => {
     setLoading(true);
     try {
       const data = await getUsers();
-      setUsuarios(data);
+      // Ordenar usuários por nome em ordem alfabética
+      const usuariosOrdenados = data.sort((a, b) =>
+        a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' })
+      );
+      setUsuarios(usuariosOrdenados);
     } catch (e) {
       AppToast.error('Erro ao carregar usuários', {
         description: 'Ocorreu um problema ao carregar a lista de usuários. Tente novamente.'

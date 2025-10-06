@@ -26,10 +26,11 @@ import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { useAuth } from '@/hooks/useAuth';
 
-// Gerar opções de horário para início (05:00 até 22:00)
+// Gerar opções de horário para início (06:00 até 22:00 - atualizado)
 const gerarOpcoesHorarioInicio = () => {
   const opcoes = [];
-  for (let hora = 5; hora <= 22; hora++) {
+  // Intervalo atualizado: 06:00 até 22:00
+  for (let hora = 6; hora <= 22; hora++) {
     for (let minuto = 0; minuto < 60; minuto += 30) {
       if (hora === 22 && minuto > 0) break; // Para às 22:00
       const horarioFormatado = `${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
@@ -42,12 +43,13 @@ const gerarOpcoesHorarioInicio = () => {
   return opcoes;
 };
 
-// Gerar opções de horário para fim (05:30 até 22:30)
+// Gerar opções de horário para fim (06:30 até 22:30 - atualizado)
 const gerarOpcoesHorarioFim = () => {
   const opcoes = [];
-  for (let hora = 5; hora <= 22; hora++) {
+  // Intervalo atualizado: 06:30 até 22:30
+  for (let hora = 6; hora <= 22; hora++) {
     for (let minuto = 0; minuto < 60; minuto += 30) {
-      if (hora === 5 && minuto === 0) continue; // Começa às 05:30
+      if (hora === 6 && minuto === 0) continue; // Pula 06:00, começa em 06:30
       const horarioFormatado = `${hora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
       opcoes.push({
         id: horarioFormatado,
@@ -96,6 +98,10 @@ const filtrarOpcoesHorarioFim = (horarioInicio: string | null): {id: string, nom
 const OPCOES_HORARIO_INICIO = gerarOpcoesHorarioInicio();
 const OPCOES_HORARIO_FIM = gerarOpcoesHorarioFim();
 
+// Debug: Verificar horários gerados
+console.log('🕐 Horários de INÍCIO:', OPCOES_HORARIO_INICIO.length, 'opções', '- Primeiro:', OPCOES_HORARIO_INICIO[0]?.nome, '- Último:', OPCOES_HORARIO_INICIO[OPCOES_HORARIO_INICIO.length - 1]?.nome);
+console.log('🕐 Horários de FIM:', OPCOES_HORARIO_FIM.length, 'opções', '- Primeiro:', OPCOES_HORARIO_FIM[0]?.nome, '- Último:', OPCOES_HORARIO_FIM[OPCOES_HORARIO_FIM.length - 1]?.nome);
+
 export default function DisponibilidadeProfissionaisPage() {
   const { user } = useAuth();
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
@@ -119,14 +125,14 @@ export default function DisponibilidadeProfissionaisPage() {
   
   // Estados para data específica
   const [dataEspecifica, setDataEspecifica] = useState('');
-  const [horaInicioEspecifica, setHoraInicioEspecifica] = useState('05:00');
+  const [horaInicioEspecifica, setHoraInicioEspecifica] = useState('06:00');
   const [horaFimEspecifica, setHoraFimEspecifica] = useState('22:30');
   const [observacaoEspecifica, setObservacaoEspecifica] = useState('');
   const [disponibilidadesEspecificas, setDisponibilidadesEspecificas] = useState<any[]>([]);
-  
+
   // Estados para os dropdowns de horário na data específica
   const [horarioInicioEspecificoSelecionado, setHorarioInicioEspecificoSelecionado] = useState<{id: string, nome: string} | null>(
-    OPCOES_HORARIO_INICIO.find(op => op.nome === '05:00') || null
+    OPCOES_HORARIO_INICIO.find(op => op.nome === '06:00') || null
   );
   const [horarioFimEspecificoSelecionado, setHorarioFimEspecificoSelecionado] = useState<{id: string, nome: string} | null>(
     OPCOES_HORARIO_FIM.find(op => op.nome === '22:30') || null
@@ -282,13 +288,13 @@ export default function DisponibilidadeProfissionaisPage() {
     
     // Limpar formulário de data específica
     setDataEspecifica('');
-    setHoraInicioEspecifica('05:00');
+    setHoraInicioEspecifica('06:00');
     setHoraFimEspecifica('22:30');
     setObservacaoEspecifica('');
     setRecursoSelecionado(null);
     
     // Resetar dropdowns de horário para valores padrão
-    setHorarioInicioEspecificoSelecionado(OPCOES_HORARIO_INICIO.find(op => op.nome === '05:00') || null);
+    setHorarioInicioEspecificoSelecionado(OPCOES_HORARIO_INICIO.find(op => op.nome === '06:00') || null);
     setHorarioFimEspecificoSelecionado(OPCOES_HORARIO_FIM.find(op => op.nome === '22:30') || null);
   };
 
@@ -400,7 +406,7 @@ export default function DisponibilidadeProfissionaisPage() {
         }
       }
     } else {
-      setHoraInicioEspecifica('05:00');
+      setHoraInicioEspecifica('06:00');
       setHorarioFimEspecificoSelecionado(null);
       setHoraFimEspecifica('22:30');
     }
@@ -463,13 +469,13 @@ export default function DisponibilidadeProfissionaisPage() {
 
       // Limpar formulário
       setDataEspecifica('');
-      setHoraInicioEspecifica('05:00');
+      setHoraInicioEspecifica('06:00');
       setHoraFimEspecifica('22:30');
       setObservacaoEspecifica('');
       setRecursoSelecionado(null);
       
       // Resetar dropdowns para valores padrão
-      setHorarioInicioEspecificoSelecionado(OPCOES_HORARIO_INICIO.find(op => op.nome === '05:00') || null);
+      setHorarioInicioEspecificoSelecionado(OPCOES_HORARIO_INICIO.find(op => op.nome === '06:00') || null);
       setHorarioFimEspecificoSelecionado(OPCOES_HORARIO_FIM.find(op => op.nome === '22:30') || null);
 
       AppToast.created('Disponibilidade específica', 'Disponibilidade específica adicionada com sucesso!');

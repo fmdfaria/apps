@@ -324,15 +324,6 @@ export const useAgendamentoForm = ({
     const dataHoraCombinada = `${dataAgendamento}T${horaAgendamento}`;
     const dataHoraComOffset = buildIsoWithLocalOffset(dataAgendamento, horaAgendamento);
 
-    // Validação adicional: verificar se a data/hora não é no passado
-    const dataHoraSelecionada = new Date(dataHoraComOffset);
-    const agora = new Date();
-    
-    if (dataHoraSelecionada <= agora) {
-      AppToast.validation('Data inválida', 'A data e hora do agendamento deve ser no futuro.');
-      return;
-    }
-
     // Validação de recurso x disponibilidade
     const recursoConforme = await validarRecursoConformeDisponibilidade(
       formData.profissionalId, 

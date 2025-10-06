@@ -22,7 +22,7 @@ export const criarHorarioSemanaPadrao = (): HorarioSemana[] => {
     ativo: dia.numero >= 1 && dia.numero <= 5, // Segunda a sexta ativo por padrão
     intervalos: dia.numero >= 1 && dia.numero <= 5 ? [
       {
-        horaInicio: '08:00',
+        horaInicio: '06:00',
         horaFim: '12:00',
         tipo: 'presencial',
         recursoId: null
@@ -35,7 +35,7 @@ export const criarHorarioSemanaPadrao = (): HorarioSemana[] => {
       },
       {
         horaInicio: '13:00',
-        horaFim: '17:00',
+        horaFim: '22:00',
         tipo: 'presencial',
         recursoId: null
       }

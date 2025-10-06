@@ -91,8 +91,8 @@ export const FormularioPorData: React.FC<FormularioPorDataProps> = ({ context })
         id: pv.profissionalId,
         nome: pv.nome,
         disponivel: pv.verificacao.status !== 'indisponivel' && !pv.verificacao.isOcupado,
-        tipo: pv.verificacao.dotColor === 'green' ? 'online' as const : 
-              pv.verificacao.dotColor === 'blue' ? 'presencial' as const : 
+        tipo: pv.verificacao.dotColor === 'green' ? 'presencial' as const :
+              pv.verificacao.dotColor === 'blue' ? 'online' as const :
               'indisponivel' as const,
         motivo: pv.verificacao.motivo
       }));
@@ -184,7 +184,6 @@ export const FormularioPorData: React.FC<FormularioPorDataProps> = ({ context })
                 value={dataAgendamento}
                 onChange={(e) => updateDataAgendamento(e.target.value)}
                 required
-                min={new Date().toISOString().split('T')[0]}
                 className="border-2 border-green-200 focus:border-green-500 focus:ring-green-100"
               />
             </div>
@@ -274,6 +273,16 @@ export const FormularioPorData: React.FC<FormularioPorDataProps> = ({ context })
                   placeholder={carregandoProfissionaisDisponiveis ? "Verificando disponibilidade..." : loadingData ? "Carregando profissionais..." : "Selecione um profissional..."}
                   headerText="Profissionais disponíveis"
                   formatOption={(option) => option.nome}
+                  getDotColor={(option) => {
+                    if (profissionaisDisponiveis.length > 0) {
+                      const profissionalInfo = profissionaisDisponiveis.find(p => p.id === option.id);
+                      if (!profissionalInfo) return 'gray';
+                      if (!profissionalInfo.disponivel) return 'red';
+                      // Verde para presencial, Azul para online
+                      return profissionalInfo.tipo === 'presencial' ? 'green' : 'blue';
+                    }
+                    return 'gray';
+                  }}
                   getDisabled={(option) => {
                     if (profissionaisDisponiveis.length > 0) {
                       const profissionalInfo = profissionaisDisponiveis.find(p => p.id === option.id);

@@ -215,7 +215,6 @@ export const FormularioPorProfissional: React.FC<FormularioPorProfissionalProps>
                   value={dataAgendamento}
                   onChange={(e) => updateDataAgendamento(e.target.value)}
                   required
-                  min={new Date().toISOString().split('T')[0]}
                   className="border-2 border-green-200 focus:border-green-500 focus:ring-green-100"
                 />
               </div>

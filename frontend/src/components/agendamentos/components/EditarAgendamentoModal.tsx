@@ -53,7 +53,6 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
     };
   } | null>(null);
   const [loadingSerieInfo, setLoadingSerieInfo] = useState(false);
-  const [isAgendamentoPassado, setIsAgendamentoPassado] = useState(false);
 
   // Estados para modal de conflitos de recorrência
   const [showConflictModal, setShowConflictModal] = useState(false);
@@ -78,18 +77,7 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
       setDataAgendamento(localDate);
       setHoraAgendamento(localTime);
       setTipoEdicao('apenas_esta');
-      
-      // Verificar se o agendamento já passou (data e hora completa)
-      const dataHoraAgendamento = new Date(agendamento.dataHoraInicio);
-      const agora = new Date();
-      const isPassado = dataHoraAgendamento < agora;
-      setIsAgendamentoPassado(isPassado);
-      
-      // Se for agendamento passado, forçar tipo apenas_esta
-      if (isPassado) {
-        setTipoEdicao('apenas_esta');
-      }
-      
+
       // Buscar informações da série usando o backend
       buscarInformacoesSerie(agendamento.id);
     } else {
@@ -97,7 +85,6 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
       setHoraAgendamento('');
       setTipoEdicao('apenas_esta');
       setSerieInfo(null);
-      setIsAgendamentoPassado(false);
     }
   }, [isOpen, agendamento]);
 
@@ -304,28 +291,6 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
     if (camposFaltando.length > 0) {
       AppToast.error('Campos obrigatórios', {
         description: gerarMensagemCampoObrigatorio(camposFaltando)
-      });
-      return;
-    }
-
-    // Check if trying to edit a past appointment as series
-    if (isAgendamentoPassado && tipoEdicao !== 'apenas_esta') {
-      AppToast.error('Operação não permitida', {
-        description: gerarMensagemOperacaoAgendamentoPassado('alterar recorrência')
-      });
-      return;
-    }
-
-    // Check if the selected date is in the past
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    // Parse manual da data YYYY-MM-DD para evitar interpretação UTC
-    const [selYear, selMonth, selDay] = dataAgendamento.split('-').map(Number);
-    const selectedDate = new Date(selYear, selMonth - 1, selDay, 0, 0, 0, 0);
-    
-    if (selectedDate < today) {
-      AppToast.error('Data inválida', {
-        description: gerarMensagemDataPassada('edição de agendamento')
       });
       return;
     }
@@ -567,8 +532,8 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
                     {/* Mostrar opções baseadas na posição na série */}
                     {!serieInfo.posicaoNaSerie?.isAnterior && (
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="esta_e_futuras" id="esta_e_futuras" disabled={isAgendamentoPassado} />
-                        <Label htmlFor="esta_e_futuras" className={`text-sm ${isAgendamentoPassado ? 'text-gray-400 cursor-not-allowed' : ''}`}>
+                        <RadioGroupItem value="esta_e_futuras" id="esta_e_futuras" />
+                        <Label htmlFor="esta_e_futuras" className="text-sm">
                           Esta e futuras
                           <div className="text-xs text-gray-500 mt-1">
                             Editar este e próximos agendamentos da série
@@ -576,16 +541,11 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
                         </Label>
                       </div>
                     )}
-                    
+
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="toda_serie" id="toda_serie" disabled={isAgendamentoPassado} />
-                      <Label htmlFor="toda_serie" className={`text-sm ${isAgendamentoPassado ? 'text-gray-400 cursor-not-allowed' : ''}`}>
+                      <RadioGroupItem value="toda_serie" id="toda_serie" />
+                      <Label htmlFor="toda_serie" className="text-sm">
                         Toda a série ({serieInfo.totalAgendamentos} agendamentos)
-                        {isAgendamentoPassado && (
-                          <div className="text-xs text-red-500 mt-1">
-                            Não permitido para agendamentos passados
-                          </div>
-                        )}
                       </Label>
                     </div>
                   </RadioGroup>
@@ -620,7 +580,6 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
                     value={dataAgendamento}
                     onChange={(e) => setDataAgendamento(e.target.value)}
                     required
-                    min={new Date().toISOString().split('T')[0]}
                     className="border-2 border-green-200 focus:border-green-500"
                   />
                 </div>

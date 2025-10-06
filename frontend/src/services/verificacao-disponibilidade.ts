@@ -1,5 +1,5 @@
 import { getAgendamentos } from './agendamentos';
-import { getDisponibilidadesProfissional } from './disponibilidades';
+import { getDisponibilidadesProfissional, getAllDisponibilidades } from './disponibilidades';
 import { parseDataLocal } from '@/lib/utils';
 import type { Agendamento } from '@/types/Agendamento';
 import type { DisponibilidadeProfissional } from '@/types/DisponibilidadeProfissional';
@@ -214,14 +214,14 @@ const verificarStatusCompleto = (
       return {
         status: ocupado ? 'ocupado' : 'disponivel',
         motivo: ocupado ? gerarMensagemHorarioOcupado(resultadoOcupacao.agendamentoConflitante, 'presencial') : 'Disponível para atendimento presencial',
-        dotColor: 'blue',
+        dotColor: 'green',
         isOcupado: ocupado
       };
     case 'online':
       return {
         status: ocupado ? 'ocupado' : 'disponivel',
         motivo: ocupado ? gerarMensagemHorarioOcupado(resultadoOcupacao.agendamentoConflitante, 'online') : 'Disponível para atendimento online',
-        dotColor: 'green',
+        dotColor: 'blue',
         isOcupado: ocupado
       };
     case 'folga':
@@ -276,11 +276,11 @@ export const verificarHorariosProfissional = async (
 
     // Debug removido para melhorar performance
 
-    // Lista de horários padrão (de 07:00 às 18:00, de 30 em 30 minutos)
+    // Lista de horários padrão (de 06:00 às 22:00, de 30 em 30 minutos)
     const horarios = [];
-    for (let hora = 7; hora <= 18; hora++) {
+    for (let hora = 6; hora <= 22; hora++) {
       horarios.push(`${hora.toString().padStart(2, '0')}:00`);
-      if (hora < 18) {
+      if (hora < 22) {
         horarios.push(`${hora.toString().padStart(2, '0')}:30`);
       }
     }
@@ -303,13 +303,13 @@ export const verificarHorariosProfissional = async (
     console.error('Erro ao verificar horários do profissional:', error);
     // Retornar horários padrão como indisponíveis em caso de erro
     const horarios = [];
-    for (let hora = 7; hora <= 18; hora++) {
+    for (let hora = 6; hora <= 22; hora++) {
       horarios.push(`${hora.toString().padStart(2, '0')}:00`);
-      if (hora < 18) {
+      if (hora < 22) {
         horarios.push(`${hora.toString().padStart(2, '0')}:30`);
       }
     }
-    
+
     return horarios.map(horario => ({
       horario,
       verificacao: {
@@ -329,38 +329,20 @@ export const verificarProfissionaisDisponibilidade = async (
   nomesProfissionais: { [id: string]: string }
 ): Promise<ProfissionalVerificado[]> => {
   try {
-    // Formatar data para busca (início e fim do dia)
-    const dataInicio = new Date(data);
-    dataInicio.setHours(0, 0, 0, 0);
-    
-    const dataFim = new Date(data);
-    dataFim.setHours(23, 59, 59, 999);
+    // Formatar data para enviar como filtro ao backend (YYYY-MM-DD)
+    const year = data.getFullYear();
+    const month = (data.getMonth() + 1).toString().padStart(2, '0');
+    const day = data.getDate().toString().padStart(2, '0');
+    const dataStr = `${year}-${month}-${day}`;
 
-    // Carregar dados necessários
-    const [disponibilidades, agendamentos] = await Promise.all([
+    // OTIMIZAÇÃO: Carregar dados necessários COM FILTRO DE DATA no backend
+    const [disponibilidades, agendamentosResp] = await Promise.all([
       getAllDisponibilidades(),
-      getAgendamentos()
-      // Buscar todos os agendamentos e filtrar depois
+      getAgendamentos({ dataInicio: dataStr, dataFim: dataStr })
     ]);
 
-    // Filtrar agendamentos apenas da data e horário solicitados (usar parse manual igual ao CalendarioPage)
-    const agendamentosDaDataHorario = agendamentos.filter(agendamento => {
-      // Parse da string de data sem conversão de timezone (igual ao CalendarioPage)
-      const agendamentoDateStr = agendamento.dataHoraInicio.split('T')[0]; // "2025-08-04"
-      
-      // Formatar data solicitada sem conversão UTC (igual ao CalendarioPage)
-      const year = data.getFullYear();
-      const month = (data.getMonth() + 1).toString().padStart(2, '0');
-      const day = data.getDate().toString().padStart(2, '0');
-      const dataSolicitadaStr = `${year}-${month}-${day}`; // "2025-08-04"
-      
-      return agendamentoDateStr === dataSolicitadaStr;
-    });
-
-    // Debug simplificado para profissionais
-    if (agendamentosDaDataHorario.length > 0) {
-      // console.log('📅 Verificando profissionais - agendamentos encontrados:', agendamentosDaDataHorario.length);
-    }
+    // Os agendamentos já vêm filtrados pelo backend, não precisa filtrar novamente
+    const agendamentosDaDataHorario = agendamentosResp.data;
 
     // Verificar cada profissional
     return profissionaisIds.map(profissionalId => ({
