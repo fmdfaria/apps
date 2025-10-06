@@ -8,7 +8,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import {
   Calendar,
-  Clock,
   User,
   FileText,
   CreditCard,
@@ -19,7 +18,8 @@ import {
   Key,
   CalendarCheck,
   Stethoscope,
-  AlertTriangle
+  AlertTriangle,
+  Timer
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { getAgendamentos } from '@/services/agendamentos';
@@ -86,6 +86,24 @@ export const DetalhesAgendamentoModal: React.FC<DetalhesAgendamentoModalProps> =
 
   const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
 
+  // Calcular duração em minutos
+  const calcularDuracao = () => {
+    if (!agendamento.dataHoraInicio || !agendamento.dataHoraFim) return '-';
+
+    const inicio = new Date(agendamento.dataHoraInicio);
+    const fim = new Date(agendamento.dataHoraFim);
+    const diffMs = fim.getTime() - inicio.getTime();
+    const diffMinutos = Math.round(diffMs / 60000);
+
+    if (diffMinutos < 60) {
+      return `${diffMinutos} min`;
+    } else {
+      const horas = Math.floor(diffMinutos / 60);
+      const minutos = diffMinutos % 60;
+      return minutos > 0 ? `${horas}h ${minutos}min` : `${horas}h`;
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -123,7 +141,7 @@ export const DetalhesAgendamentoModal: React.FC<DetalhesAgendamentoModalProps> =
                 <span className="font-medium">Profissional:</span>
                 <span className="text-gray-700">{agendamento.profissionalNome}</span>
               </div>
-              
+
               {/* Linha 2 */}
               <div className="flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-gray-500" />
@@ -135,17 +153,17 @@ export const DetalhesAgendamentoModal: React.FC<DetalhesAgendamentoModalProps> =
                 <span className="font-medium">Serviço:</span>
                 <span className="text-gray-700">{agendamento.servicoNome}</span>
               </div>
-              
+
               {/* Linha 3 */}
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-gray-500" />
-                <span className="font-medium">Data:</span>
-                <span className="text-gray-700">{data}</span>
+                <span className="font-medium">Data e Hora:</span>
+                <span className="text-gray-700">{data} - {hora}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-gray-500" />
-                <span className="font-medium">Hora:</span>
-                <span className="text-gray-700">{hora}</span>
+                <Timer className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Duração:</span>
+                <span className="text-gray-700">{calcularDuracao()}</span>
               </div>
               
               {/* Linha 4 */}

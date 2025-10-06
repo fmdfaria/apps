@@ -601,6 +601,7 @@ export const AgendamentosPage = () => {
 
     // Se já está cancelado, mostrar dropdown para alterar status
     if (agendamento.status === 'CANCELADO') {
+      setNovoStatus({ id: 'AGENDADO', nome: 'Agendado' });
       setShowAlterarStatusModal(true);
     } else {
       // Senão, mostrar confirmação de cancelamento
@@ -768,7 +769,7 @@ export const AgendamentosPage = () => {
                         <Edit className="w-4 h-4" />
                       </Button>
                     )}
-                    {canDelete ? (
+                    {canCancel ? (
                       <Button
                         variant="outline"
                         size="sm"
@@ -977,7 +978,7 @@ export const AgendamentosPage = () => {
                           <Edit className="w-4 h-4" />
                         </Button>
                       )}
-                      {canDelete ? (
+                      {canCancel ? (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1349,7 +1350,7 @@ export const AgendamentosPage = () => {
               Novo Status
             </label>
             <SingleSelectDropdown
-              options={statusOptions}
+              options={[{ id: 'AGENDADO', nome: 'Agendado' }]}
               selected={novoStatus}
               onChange={setNovoStatus}
               placeholder="Selecione o novo status..."
