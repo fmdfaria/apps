@@ -59,6 +59,11 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
   const [conflitosRecorrencia, setConflitosRecorrencia] = useState<ConflitosRecorrencia | null>(null);
   const [disponibilidades, setDisponibilidades] = useState<any[]>([]);
 
+  // Estados para modal de seleção de recurso
+  const [showRecursoModal, setShowRecursoModal] = useState(false);
+  const [recursosDisponiveis, setRecursosDisponiveis] = useState<Array<{ id: string; nome: string }>>([]);
+  const [recursoSelecionado, setRecursoSelecionado] = useState<string | null>(null);
+
   // Hook para verificação de disponibilidade
   const {
     carregandoHorarios,
@@ -134,6 +139,7 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
     valido: boolean;
     mensagem: string;
     disponibilidadesEncontradas?: Array<{
+      recursoId: string;
       recursoNome: string;
       horaInicio: string;
       horaFim: string;
@@ -274,6 +280,7 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
       valido: false,
       mensagem,
       disponibilidadesEncontradas: disponibilidadesNoDia.map(disp => ({
+        recursoId: disp.recursoId,
         recursoNome: disp.recursoNome,
         horaInicio: disp.horaInicio,
         horaFim: disp.horaFim
@@ -325,13 +332,35 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
       
       // Validação de recurso x disponibilidade usando formato simples
       const dataHoraCombinada = `${dataAgendamento}T${horaAgendamento}`;
+      const recursoParaValidar = recursoSelecionado || agendamento.recursoId;
       const validacaoRecurso = await validarRecursoConformeDisponibilidade(
-        agendamento.profissionalId, 
-        agendamento.recursoId, 
+        agendamento.profissionalId,
+        recursoParaValidar,
         dataHoraCombinada
       );
 
       if (!validacaoRecurso.valido) {
+        // Se houver recursos disponíveis, abrir modal de seleção
+        if (validacaoRecurso.disponibilidadesEncontradas && validacaoRecurso.disponibilidadesEncontradas.length > 0) {
+          // Preparar lista de recursos disponíveis
+          const recursos = validacaoRecurso.disponibilidadesEncontradas.map(disp => ({
+            id: disp.recursoId,
+            nome: disp.recursoNome
+          }));
+          setRecursosDisponiveis(recursos);
+
+          // Pré-selecionar o primeiro recurso disponível
+          if (!recursoSelecionado) {
+            setRecursoSelecionado(recursos[0].id);
+          }
+
+          // Abrir modal de seleção de recurso
+          setShowRecursoModal(true);
+          setSaving(false);
+          return;
+        }
+
+        // Se não houver recursos disponíveis, mostrar erro
         AppToast.error('Conflito no agendamento', {
           description: validacaoRecurso.mensagem
         });
@@ -348,7 +377,7 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
         profissionalId: agendamento.profissionalId,
         servicoId: agendamento.servicoId,
         convenioId: agendamento.convenioId,
-        recursoId: agendamento.recursoId,
+        recursoId: recursoSelecionado || agendamento.recursoId,
         tipoAtendimento: agendamento.tipoAtendimento,
         status: agendamento.status,
         // Informar ao backend o tipo de edição selecionado
@@ -393,6 +422,20 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
     setShowConflictModal(false);
     setConflitosRecorrencia(null);
     // O usuário permanece no formulário para ajustar data/hora
+  };
+
+  // Função para confirmar seleção de recurso
+  const handleConfirmarRecurso = () => {
+    setShowRecursoModal(false);
+    // Tenta salvar novamente com o recurso selecionado
+    handleSave();
+  };
+
+  // Função para cancelar seleção de recurso
+  const handleCancelarRecurso = () => {
+    setShowRecursoModal(false);
+    setRecursoSelecionado(null);
+    setRecursosDisponiveis([]);
   };
 
   // Funções para status
@@ -708,9 +751,9 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
             month: '2-digit'
           });
           const paciente = conflito.agendamentoConflitante?.pacienteNome || '-';
-          const servico = conflito.agendamentoConflitante?.servicoNome || 
+          const servico = conflito.agendamentoConflitante?.servicoNome ||
                         (conflito.tipo === 'indisponivel' ? conflito.motivo : '-');
-          
+
           return `| ${dataFormatada} | ${conflito.hora} | ${paciente} | ${servico} |`;
         }) || [])
       ]}
@@ -725,6 +768,74 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
       showCloseButton={true}
       maxWidth="4xl"
     />
+
+    {/* Modal de seleção de recurso */}
+    <Dialog open={showRecursoModal} onOpenChange={(open) => !open && handleCancelarRecurso()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <MapPin className="w-6 h-6 text-orange-500" />
+            Alterar Recurso do Agendamento
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <p className="text-sm text-gray-700">
+              O recurso <strong>{agendamento?.recursoNome}</strong> não está disponível para o profissional <strong>{agendamento?.profissionalNome}</strong> no horário selecionado.
+            </p>
+            <p className="text-sm text-gray-700 mt-2">
+              Selecione um dos recursos disponíveis abaixo:
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Recurso Disponível <span className="text-red-500">*</span>
+            </label>
+            <SingleSelectDropdown
+              options={recursosDisponiveis.map(r => ({
+                id: r.id,
+                nome: r.nome,
+                sigla: undefined
+              }))}
+              selected={recursoSelecionado ? {
+                id: recursoSelecionado,
+                nome: recursosDisponiveis.find(r => r.id === recursoSelecionado)?.nome || '',
+                sigla: undefined
+              } : null}
+              onChange={(selected) => {
+                setRecursoSelecionado(selected?.id || null);
+              }}
+              placeholder="Selecione um recurso..."
+              headerText="Recursos disponíveis"
+              formatOption={(option) => option.nome}
+            />
+          </div>
+        </div>
+
+        <DialogFooter className="mt-6">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleCancelarRecurso}
+            className="border-2 border-gray-300 text-gray-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700 font-semibold px-6"
+          >
+            <X className="w-4 h-4 mr-2" />
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={handleConfirmarRecurso}
+            disabled={!recursoSelecionado}
+            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl font-semibold px-8"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            Confirmar e Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </>
   );
 };
