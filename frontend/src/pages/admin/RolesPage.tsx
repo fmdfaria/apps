@@ -13,6 +13,8 @@ import { rbacService } from '@/services/rbac';
 import type { Role, CreateRoleRequest, UpdateRoleRequest } from '@/types/RBAC';
 import { FormErrorMessage } from '@/components/form-error-message';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
+import api from '@/services/api';
 import { 
   PageContainer, 
   PageHeader, 
@@ -43,6 +45,11 @@ export const RolesPage = () => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Estados para controle de acesso RBAC
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState<Role | null>(null);
   const [form, setForm] = useState<RoleFormData>({
@@ -189,18 +196,58 @@ export const RolesPage = () => {
   } = useResponsiveTable(rolesFiltradas, 10);
 
   useEffect(() => {
+    checkPermissions();
     fetchRoles();
   }, []);
 
+  const checkPermissions = async () => {
+    try {
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data;
+
+      // Verificar permissão de leitura de roles
+      const canRead = allowedRoutes.some((route: any) => {
+        return route.path === '/roles' && route.method.toLowerCase() === 'get';
+      });
+
+      // Se não tem permissão de leitura, marca como access denied
+      if (!canRead) {
+        setAccessDenied(true);
+      }
+
+    } catch (error: any) {
+      // Se retornar 401/403 no endpoint de permissões, considera acesso negado
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setAccessDenied(true);
+      }
+    }
+  };
+
   const fetchRoles = async () => {
     setLoading(true);
+    setAccessDenied(false);
+    setRoles([]); // Limpa dados para evitar mostrar dados antigos
+
     try {
       const data = await rbacService.getRoles();
       setRoles(data);
-    } catch (e) {
-      AppToast.error('Erro ao carregar roles', {
-        description: 'Ocorreu um problema ao carregar a lista de roles. Tente novamente.'
-      });
+    } catch (e: any) {
+      console.error('Erro ao carregar roles:', e);
+      if (e?.response?.status === 403) {
+        setAccessDenied(true);
+        // Buscar informações da rota para mensagem mais específica
+        try {
+          const info = await getRouteInfo('/roles', 'GET');
+          setRouteInfo(info);
+        } catch (routeError) {
+          // Erro ao buscar informações da rota
+        }
+        // Não mostra toast aqui pois o interceptor já cuida disso
+      } else {
+        AppToast.error('Erro ao carregar roles', {
+          description: 'Ocorreu um problema ao carregar a lista de roles. Tente novamente.'
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -404,6 +451,32 @@ export const RolesPage = () => {
       setDeleteLoading(false);
     }
   };
+
+  // Se acesso negado, mostrar mensagem
+  if (accessDenied) {
+    return (
+      <PageContainer>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <span className="text-3xl">🚫</span>
+          </div>
+          <p className="text-red-600 font-medium mb-2">Acesso Negado</p>
+          <div className="text-gray-600 text-sm space-y-1 max-w-md">
+            {routeInfo ? (
+              <>
+                <p><strong>Rota:</strong> {routeInfo.nome}</p>
+                <p><strong>Descrição:</strong> {routeInfo.descricao}</p>
+                {routeInfo.modulo && <p><strong>Módulo:</strong> {routeInfo.modulo}</p>}
+                <p className="text-gray-400 mt-2">Você não tem permissão para acessar este recurso</p>
+              </>
+            ) : (
+              <p>Você não tem permissão para acessar roles</p>
+            )}
+          </div>
+        </div>
+      </PageContainer>
+    );
+  }
 
   if (loading) {
     return (

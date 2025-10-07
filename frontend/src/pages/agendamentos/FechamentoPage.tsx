@@ -176,18 +176,19 @@ export const FechamentoPage = () => {
     try {
       const response = await api.get('/users/me/permissions');
       const allowedRoutes = response.data;
-      
-      // Para fechamento, pode usar as mesmas permissões de agendamentos ou criar específicas
-      const canViewAgendamentos = allowedRoutes.some((route: any) => {
-        return route.path.includes('/agendamentos');
+
+      // Verificar permissão de leitura de fechamento
+      const canRead = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos-fechamento' && route.method.toLowerCase() === 'get';
       });
-      
-      if (!canViewAgendamentos) {
+
+      // Se não tem permissão de leitura, marca como access denied
+      if (!canRead) {
         setAccessDenied(true);
       }
-      
+
     } catch (error: any) {
-      // Em caso de erro, verifica se é problema de permissão
+      // Se retornar 401/403 no endpoint de permissões, considera acesso negado
       if (error?.response?.status === 401 || error?.response?.status === 403) {
         setAccessDenied(true);
       }
@@ -196,10 +197,12 @@ export const FechamentoPage = () => {
 
   const carregarAgendamentos = async () => {
     setLoading(true);
-    setAgendamentos([]); // Inicializa como array vazio para evitar erro de filter
+    setAccessDenied(false);
+    setAgendamentos([]); // Limpa dados para evitar mostrar dados antigos
+
     try {
       // Usar status FINALIZADO para fechamentos
-      const dados = await getAgendamentos({ 
+      const dados = await getAgendamentos({
         status: 'FINALIZADO',
         page: 1,
         // Removido limit para usar padrão da API (dados serão agrupados)
@@ -210,18 +213,21 @@ export const FechamentoPage = () => {
         ...(filtrosAplicados.pacienteId ? { pacienteId: filtrosAplicados.pacienteId } : {}),
         ...(filtrosAplicados.profissionalId ? { profissionalId: filtrosAplicados.profissionalId } : {}),
       });
-      
+
       // A nova API retorna { data: [], pagination: {} }
       setAgendamentos(dados.data || []);
     } catch (e: any) {
+      console.error('Erro ao carregar agendamentos:', e);
       if (e?.response?.status === 403) {
         setAccessDenied(true);
+        // Buscar informações da rota para mensagem mais específica
         try {
-          const info = await getRouteInfo('/agendamentos', 'GET');
+          const info = await getRouteInfo('/agendamentos-fechamento', 'GET');
           setRouteInfo(info);
         } catch (routeError) {
           // Erro ao buscar informações da rota
         }
+        // Não mostra toast aqui pois o interceptor já cuida disso
       } else {
         AppToast.error('Erro ao carregar agendamentos', {
           description: 'Ocorreu um problema ao carregar a lista de agendamentos. Tente novamente.'

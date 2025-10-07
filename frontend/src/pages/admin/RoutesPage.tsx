@@ -14,6 +14,8 @@ import { rbacService } from '@/services/rbac';
 import type { Route, CreateRouteRequest, UpdateRouteRequest } from '@/types/RBAC';
 import { FormErrorMessage } from '@/components/form-error-message';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
+import api from '@/services/api';
 import { 
   PageContainer, 
   PageHeader, 
@@ -102,6 +104,8 @@ export const RoutesPage = () => {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState<Route | null>(null);
   const [form, setForm] = useState<RouteFormData>({
@@ -307,18 +311,47 @@ export const RoutesPage = () => {
   } = useResponsiveTable(routesFiltradas, 10);
 
   useEffect(() => {
+    checkPermissions();
     fetchRoutes();
   }, []);
 
+  const checkPermissions = async () => {
+    try {
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data;
+      const canRead = allowedRoutes.some((route: any) => {
+        return route.path === '/routes' && route.method.toLowerCase() === 'get';
+      });
+      if (!canRead) {
+        setAccessDenied(true);
+      }
+    } catch (error: any) {
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setAccessDenied(true);
+      }
+    }
+  };
+
   const fetchRoutes = async () => {
     setLoading(true);
+    setAccessDenied(false);
+    setRoutes([]);
     try {
       const data = await rbacService.getRoutes();
       setRoutes(data);
-    } catch (e) {
-      AppToast.error('Erro ao carregar rotas', {
-        description: 'Ocorreu um problema ao carregar a lista de rotas. Tente novamente.'
-      });
+    } catch (e: any) {
+      console.error('Erro ao carregar rotas:', e);
+      if (e?.response?.status === 403) {
+        setAccessDenied(true);
+        try {
+          const info = await getRouteInfo('/routes', 'GET');
+          setRouteInfo(info);
+        } catch (routeError) {}
+      } else {
+        AppToast.error('Erro ao carregar rotas', {
+          description: 'Ocorreu um problema ao carregar a lista de rotas. Tente novamente.'
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -570,6 +603,31 @@ export const RoutesPage = () => {
       setDeleteLoading(false);
     }
   };
+
+  if (accessDenied) {
+    return (
+      <PageContainer>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <span className="text-3xl">🚫</span>
+          </div>
+          <p className="text-red-600 font-medium mb-2">Acesso Negado</p>
+          <div className="text-gray-600 text-sm space-y-1 max-w-md">
+            {routeInfo ? (
+              <>
+                <p><strong>Rota:</strong> {routeInfo.nome}</p>
+                <p><strong>Descrição:</strong> {routeInfo.descricao}</p>
+                {routeInfo.modulo && <p><strong>Módulo:</strong> {routeInfo.modulo}</p>}
+                <p className="text-gray-400 mt-2">Você não tem permissão para acessar este recurso</p>
+              </>
+            ) : (
+              <p>Você não tem permissão para acessar rotas</p>
+            )}
+          </div>
+        </div>
+      </PageContainer>
+    );
+  }
 
   if (loading) {
     return (

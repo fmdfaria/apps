@@ -7,6 +7,8 @@ import { AppToast } from '@/services/toast';
 import { getEmpresas, createEmpresa, updateEmpresa, deleteEmpresa, updateEmpresaStatus } from '@/services/empresas';
 import type { Empresa } from '@/types/Empresa';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
+import api from '@/services/api';
 
 import { 
   PageContainer, 
@@ -37,6 +39,8 @@ export const EmpresasPage = () => {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   
   // Modal states
   const [showModal, setShowModal] = useState(false);
@@ -223,20 +227,46 @@ export const EmpresasPage = () => {
     targetRef
   } = useResponsiveTable(empresasFiltradas, 10);
 
+  const checkPermissions = async () => {
+    try {
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data;
+      const canRead = allowedRoutes.some((route: any) => {
+        return route.path === '/empresas' && route.method.toLowerCase() === 'get';
+      });
+      if (!canRead) {
+        setAccessDenied(true);
+      }
+    } catch (error: any) {
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setAccessDenied(true);
+      }
+    }
+  };
+
   useEffect(() => {
+    checkPermissions();
     fetchData();
   }, []);
 
   const fetchData = async () => {
+    setAccessDenied(false);
     setLoading(true);
+    setEmpresas([]);
     try {
       const data = await getEmpresas();
       setEmpresas(data);
     } catch (error: any) {
       console.error('Erro ao carregar empresas:', error);
-      AppToast.error('Erro ao carregar empresas', {
-        description: 'Ocorreu um problema ao carregar os dados. Tente novamente.'
-      });
+      if (error?.response?.status === 403) {
+        const info = await getRouteInfo('/empresas');
+        setRouteInfo(info);
+        setAccessDenied(true);
+      } else {
+        AppToast.error('Erro ao carregar empresas', {
+          description: 'Ocorreu um problema ao carregar os dados. Tente novamente.'
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -416,6 +446,31 @@ export const EmpresasPage = () => {
       </ResponsiveCardFooter>
     </Card>
   );
+
+  if (accessDenied) {
+    return (
+      <PageContainer>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <span className="text-3xl">🚫</span>
+          </div>
+          <p className="text-red-600 font-medium mb-2">Acesso Negado</p>
+          <div className="text-gray-600 text-sm space-y-1 max-w-md">
+            {routeInfo ? (
+              <>
+                <p><strong>Rota:</strong> {routeInfo.nome}</p>
+                <p><strong>Descrição:</strong> {routeInfo.descricao}</p>
+                {routeInfo.modulo && <p><strong>Módulo:</strong> {routeInfo.modulo}</p>}
+                <p className="text-gray-400 mt-2">Você não tem permissão para acessar este recurso</p>
+              </>
+            ) : (
+              <p>Você não tem permissão para acessar este recurso</p>
+            )}
+          </div>
+        </div>
+      </PageContainer>
+    );
+  }
 
   if (loading) {
     return (

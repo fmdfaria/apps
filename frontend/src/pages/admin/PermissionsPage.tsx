@@ -10,25 +10,27 @@ import type { RoleRoute, Role, Route, AssignRouteToRoleRequest, UpdateRoleRouteR
 import { FormErrorMessage } from '@/components/form-error-message';
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
-import { 
-  PageContainer, 
-  PageHeader, 
-  PageContent, 
+import {
+  PageContainer,
+  PageHeader,
+  PageContent,
   ViewToggle,
-  SearchBar, 
+  SearchBar,
   FilterButton,
   DynamicFilterPanel,
-  ResponsiveTable, 
-  ResponsiveCards, 
+  ResponsiveTable,
+  ResponsiveCards,
   ResponsivePagination,
   ActionButton,
   TableColumn,
-  ResponsiveCardFooter 
+  ResponsiveCardFooter
 } from '@/components/layout';
 import type { FilterConfig } from '@/types/filters';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useResponsiveTable } from '@/hooks/useResponsiveTable';
 import { useTableFilters } from '@/hooks/useTableFilters';
+import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
+import api from '@/services/api';
 
 interface RoleRouteFormData {
   roleId: string;
@@ -93,6 +95,8 @@ export const PermissionsPage = () => {
   const [formError, setFormError] = useState('');
   const [excluindo, setExcluindo] = useState<RoleRouteDisplay | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
 
   // Hooks responsivos
   const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'permissions-view' });
@@ -265,7 +269,25 @@ export const PermissionsPage = () => {
     targetRef
   } = useResponsiveTable(roleRoutesFiltradas, 10);
 
+  const checkPermissions = async () => {
+    try {
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data;
+      const canRead = allowedRoutes.some((route: any) => {
+        return route.path === '/role-routes' && route.method.toLowerCase() === 'get';
+      });
+      if (!canRead) {
+        setAccessDenied(true);
+      }
+    } catch (error: any) {
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setAccessDenied(true);
+      }
+    }
+  };
+
   useEffect(() => {
+    checkPermissions();
     fetchRoleRoutes();
     fetchRoles();
     fetchRoutes();
@@ -273,13 +295,21 @@ export const PermissionsPage = () => {
 
   const fetchRoleRoutes = async () => {
     setLoading(true);
+    setAccessDenied(false);
+    setRoleRoutes([]);
     try {
       const data = await rbacService.getAllRoleRoutes();
       setRoleRoutes(data);
-    } catch (e) {
-      AppToast.error('Erro ao carregar permissões', {
-        description: 'Ocorreu um problema ao carregar as permissões. Tente novamente.'
-      });
+    } catch (e: any) {
+      if (e?.response?.status === 403) {
+        setAccessDenied(true);
+        const info = getRouteInfo('/role-routes', 'GET');
+        setRouteInfo(info);
+      } else {
+        AppToast.error('Erro ao carregar permissões', {
+          description: 'Ocorreu um problema ao carregar as permissões. Tente novamente.'
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -535,6 +565,31 @@ export const PermissionsPage = () => {
       setDeleteLoading(false);
     }
   };
+
+  if (accessDenied) {
+    return (
+      <PageContainer>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <span className="text-3xl">🚫</span>
+          </div>
+          <p className="text-red-600 font-medium mb-2">Acesso Negado</p>
+          <div className="text-gray-600 text-sm space-y-1 max-w-md">
+            {routeInfo ? (
+              <>
+                <p><strong>Rota:</strong> {routeInfo.nome}</p>
+                <p><strong>Descrição:</strong> {routeInfo.descricao}</p>
+                {routeInfo.modulo && <p><strong>Módulo:</strong> {routeInfo.modulo}</p>}
+                <p className="text-gray-400 mt-2">Você não tem permissão para acessar este recurso</p>
+              </>
+            ) : (
+              <p>Você não tem permissão para acessar permissões</p>
+            )}
+          </div>
+        </div>
+      </PageContainer>
+    );
+  }
 
   if (loading) {
     return (

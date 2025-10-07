@@ -134,19 +134,15 @@ export const PagamentosPage = () => {
     try {
       const response = await api.get('/users/me/permissions');
       const allowedRoutes = response.data;
-      
+
+      // Verificar permissão de leitura de pagamentos
       const canRead = allowedRoutes.some((route: any) => {
-        return route.path === '/agendamentos' && route.method.toLowerCase() === 'get';
+        return route.path === '/agendamentos-pagamentos' && route.method.toLowerCase() === 'get';
       });
-      
+
+      // Se não tem permissão de leitura, marca como access denied
       if (!canRead) {
         setAccessDenied(true);
-        try {
-          const info = await getRouteInfo('/agendamentos', 'GET');
-          setRouteInfo(info);
-        } catch (routeError) {
-          console.error('Erro ao buscar informações da rota:', routeError);
-        }
       }
       
     } catch (error: any) {
@@ -158,12 +154,15 @@ export const PagamentosPage = () => {
 
   const carregarDados = async () => {
     if (accessDenied) return;
-    
+
     setLoading(true);
-    setAgendamentos([]); // Inicializar como array vazio
+    setAccessDenied(false);
+    setAgendamentos([]); // Limpa dados para evitar mostrar dados antigos
+    setPrecosServicoProfissional([]);
+
     try {
       const [agendamentosData, precosData] = await Promise.all([
-        getAgendamentos({ 
+        getAgendamentos({
           status: 'FINALIZADO',
           page: 1,
           // Removido limit para usar padrão da API (dados serão agrupados)
@@ -174,13 +173,22 @@ export const PagamentosPage = () => {
         }),
         carregarPrecosServicoProfissional()
       ]);
-      
+
       // A nova API retorna { data: [], pagination: {} }
       setAgendamentos(agendamentosData.data || []);
       setPrecosServicoProfissional(precosData);
     } catch (e: any) {
+      console.error('Erro ao carregar dados:', e);
       if (e?.response?.status === 403) {
         setAccessDenied(true);
+        // Buscar informações da rota para mensagem mais específica
+        try {
+          const info = await getRouteInfo('/agendamentos-pagamentos', 'GET');
+          setRouteInfo(info);
+        } catch (routeError) {
+          // Erro ao buscar informações da rota
+        }
+        // Não mostra toast aqui pois o interceptor já cuida disso
       } else {
         AppToast.error('Erro ao carregar dados', {
           description: 'Ocorreu um problema ao carregar os dados. Tente novamente.'
@@ -633,17 +641,23 @@ export const PagamentosPage = () => {
   if (accessDenied) {
     return (
       <div className="pt-2 pl-6 pr-6 h-full flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
             <span className="text-3xl">🚫</span>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Acesso Negado</h2>
-          <p className="text-gray-600 mb-4">
-            {routeInfo?.descricao || 'Você não tem permissão para acessar esta funcionalidade.'}
-          </p>
-          <p className="text-sm text-gray-500">
-            Entre em contato com o administrador do sistema para solicitar as devidas permissões.
-          </p>
+          <p className="text-red-600 font-medium mb-2">Acesso Negado</p>
+          <div className="text-gray-600 text-sm space-y-1 max-w-md">
+            {routeInfo ? (
+              <>
+                <p><strong>Rota:</strong> {routeInfo.nome}</p>
+                <p><strong>Descrição:</strong> {routeInfo.descricao}</p>
+                {routeInfo.modulo && <p><strong>Módulo:</strong> {routeInfo.modulo}</p>}
+                <p className="text-gray-400 mt-2">Você não tem permissão para acessar este recurso</p>
+              </>
+            ) : (
+              <p>Você não tem permissão para acessar pagamentos de profissionais</p>
+            )}
+          </div>
         </div>
       </div>
     );

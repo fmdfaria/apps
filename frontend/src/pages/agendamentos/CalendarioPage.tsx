@@ -38,6 +38,7 @@ import api from '@/services/api';
 import { getModuleTheme } from '@/types/theme';
 import { useNavigate } from 'react-router-dom';
 import { formatarDataHoraLocal } from '@/utils/dateUtils';
+import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 
 interface CalendarProfissional {
   id: string;
@@ -113,8 +114,10 @@ export const CalendarioPage = () => {
   // Estados para filtro de funcionários ativos
   const [filtrarFuncionariosAtivos, setFiltrarFuncionariosAtivos] = useState(false);
   
-  // Estados para controle de permissões
+  // Estados para controle de permissões e acesso RBAC
   const [canCreate, setCanCreate] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
 
   // Funções de controle do modal unificado
   const handleFecharAgendamentoModal = () => {
@@ -212,22 +215,46 @@ export const CalendarioPage = () => {
     try {
       const response = await api.get('/users/me/permissions');
       const allowedRoutes = response.data;
-      
+
+      // Verificar permissão de leitura do calendário
+      const canRead = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos-calendario' && route.method.toLowerCase() === 'get';
+      });
+
       // Verificar permissão para criar agendamentos
       const canCreate = allowedRoutes.some((route: any) => {
         return route.path === '/agendamentos' && route.method.toLowerCase() === 'post';
       });
-      
+
       setCanCreate(canCreate);
-      
+
+      // Se não tem permissão de leitura, marca como access denied
+      if (!canRead) {
+        setAccessDenied(true);
+      }
+
     } catch (error: any) {
       // Em caso de erro, desabilita criação por segurança
       setCanCreate(false);
+
+      // Se retornar 401/403 no endpoint de permissões, considera acesso negado
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setAccessDenied(true);
+      }
     }
   };
 
   const carregarDados = async () => {
     setLoading(true);
+    setAccessDenied(false);
+
+    // Limpa dados para evitar mostrar dados antigos
+    setAgendamentos([]);
+    setProfissionais([]);
+    setConvenios([]);
+    setRecursos([]);
+    setDisponibilidades([]);
+
     try {
       // Format current date for API call (YYYY-MM-DD)
       const year = currentDate.getFullYear();
@@ -242,13 +269,25 @@ export const CalendarioPage = () => {
         getRecursos(),
         getAllDisponibilidades()
       ]);
-      
+
       setAgendamentos(agendamentosData.data);
       setProfissionais(profissionaisData);
       setConvenios(conveniosData);
       setRecursos(recursosData);
       setDisponibilidades(disponibilidadesData);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Erro ao carregar dados:', error);
+      if (error?.response?.status === 403) {
+        setAccessDenied(true);
+        // Buscar informações da rota para mensagem mais específica
+        try {
+          const info = await getRouteInfo('/agendamentos-calendario', 'GET');
+          setRouteInfo(info);
+        } catch (routeError) {
+          // Erro ao buscar informações da rota
+        }
+        // Não mostra toast aqui pois o interceptor já cuida disso
+      }
     } finally {
       setLoading(false);
     }
@@ -624,6 +663,32 @@ export const CalendarioPage = () => {
       setShowDetalhesAgendamento(true);
     }
   };
+
+  // Se acesso negado, mostrar mensagem
+  if (accessDenied) {
+    return (
+      <div className="pt-2 pl-6 pr-6 h-full flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <span className="text-3xl">🚫</span>
+          </div>
+          <p className="text-red-600 font-medium mb-2">Acesso Negado</p>
+          <div className="text-gray-600 text-sm space-y-1 max-w-md">
+            {routeInfo ? (
+              <>
+                <p><strong>Rota:</strong> {routeInfo.nome}</p>
+                <p><strong>Descrição:</strong> {routeInfo.descricao}</p>
+                {routeInfo.modulo && <p><strong>Módulo:</strong> {routeInfo.modulo}</p>}
+                <p className="text-gray-400 mt-2">Você não tem permissão para acessar este recurso</p>
+              </>
+            ) : (
+              <p>Você não tem permissão para acessar o calendário</p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

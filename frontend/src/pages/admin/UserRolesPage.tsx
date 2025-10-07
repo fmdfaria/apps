@@ -14,6 +14,8 @@ import type { User } from '@/types/User';
 import { FormErrorMessage } from '@/components/form-error-message';
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
+import api from '@/services/api';
 import { 
   PageContainer, 
   PageHeader, 
@@ -75,6 +77,8 @@ export const UserRolesPage = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState<UserRoleDisplay | null>(null);
   const [form, setForm] = useState<UserRoleFormData>({
@@ -254,38 +258,63 @@ export const UserRolesPage = () => {
 
   useEffect(() => {
     const loadAllData = async () => {
+      await checkPermissions();
       setLoading(true);
       try {
-        // Primeiro carregar usuários e roles
         await Promise.all([
-          fetchRoles(), 
+          fetchRoles(),
           fetchUsers()
         ]);
-        // Depois carregar as associações user-roles
-        // (será executado via useEffect separado)
       } finally {
         setLoading(false);
       }
     };
-    
+
     loadAllData();
   }, []);
 
-  // Carregar user-roles após users e roles estarem disponíveis
   useEffect(() => {
     if (users.length > 0 && roles.length > 0) {
       fetchUserRoles();
     }
   }, [users, roles]);
 
+  const checkPermissions = async () => {
+    try {
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data;
+      const canRead = allowedRoutes.some((route: any) => {
+        return route.path === '/user-roles' && route.method.toLowerCase() === 'get';
+      });
+      if (!canRead) {
+        setAccessDenied(true);
+      }
+    } catch (error: any) {
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setAccessDenied(true);
+      }
+    }
+  };
+
   const fetchUserRoles = async () => {
+    setAccessDenied(false);
+    setRawUserRoles([]);
     try {
       const userRoles = await rbacService.getAllUserRoles();
       setRawUserRoles(userRoles);
-    } catch (e) {
-      AppToast.error('Erro ao carregar atribuições', {
-        description: 'Ocorreu um problema ao carregar as atribuições de usuário. Tente novamente.'
-      });
+    } catch (e: any) {
+      console.error('Erro ao carregar atribuições:', e);
+      if (e?.response?.status === 403) {
+        setAccessDenied(true);
+        try {
+          const info = await getRouteInfo('/user-roles', 'GET');
+          setRouteInfo(info);
+        } catch (routeError) {}
+      } else {
+        AppToast.error('Erro ao carregar atribuições', {
+          description: 'Ocorreu um problema ao carregar as atribuições de usuário. Tente novamente.'
+        });
+      }
     }
   };
 
@@ -550,6 +579,31 @@ export const UserRolesPage = () => {
       setDeleteLoading(false);
     }
   };
+
+  if (accessDenied) {
+    return (
+      <PageContainer>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <span className="text-3xl">🚫</span>
+          </div>
+          <p className="text-red-600 font-medium mb-2">Acesso Negado</p>
+          <div className="text-gray-600 text-sm space-y-1 max-w-md">
+            {routeInfo ? (
+              <>
+                <p><strong>Rota:</strong> {routeInfo.nome}</p>
+                <p><strong>Descrição:</strong> {routeInfo.descricao}</p>
+                {routeInfo.modulo && <p><strong>Módulo:</strong> {routeInfo.modulo}</p>}
+                <p className="text-gray-400 mt-2">Você não tem permissão para acessar este recurso</p>
+              </>
+            ) : (
+              <p>Você não tem permissão para acessar atribuições de usuários</p>
+            )}
+          </div>
+        </div>
+      </PageContainer>
+    );
+  }
 
   if (loading) {
     return (

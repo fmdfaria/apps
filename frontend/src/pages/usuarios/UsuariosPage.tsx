@@ -14,6 +14,8 @@ import { FormErrorMessage } from '@/components/form-error-message';
 import { WhatsAppInput } from '@/components/ui/whatsapp-input';
 import { formatWhatsAppDisplay, isValidWhatsApp } from '@/utils/whatsapp';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
+import api from '@/services/api';
 import { 
   PageContainer, 
   PageHeader, 
@@ -49,6 +51,11 @@ export const UsuariosPage = () => {
   const [usuarios, setUsuarios] = useState<User[]>([]);
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Estados para controle de acesso RBAC
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState<User | null>(null);
   const [form, setForm] = useState<FormularioUsuario>({
@@ -196,12 +203,39 @@ export const UsuariosPage = () => {
   } = useResponsiveTable(usuariosFiltrados, 10);
 
   useEffect(() => {
+    checkPermissions();
     fetchUsuarios();
     fetchProfissionais();
   }, []);
 
+  const checkPermissions = async () => {
+    try {
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data;
+
+      // Verificar permissão de leitura de usuários
+      const canRead = allowedRoutes.some((route: any) => {
+        return route.path === '/users' && route.method.toLowerCase() === 'get';
+      });
+
+      // Se não tem permissão de leitura, marca como access denied
+      if (!canRead) {
+        setAccessDenied(true);
+      }
+
+    } catch (error: any) {
+      // Se retornar 401/403 no endpoint de permissões, considera acesso negado
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setAccessDenied(true);
+      }
+    }
+  };
+
   const fetchUsuarios = async () => {
     setLoading(true);
+    setAccessDenied(false);
+    setUsuarios([]); // Limpa dados para evitar mostrar dados antigos
+
     try {
       const data = await getUsers();
       // Ordenar usuários por nome em ordem alfabética
@@ -209,10 +243,23 @@ export const UsuariosPage = () => {
         a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' })
       );
       setUsuarios(usuariosOrdenados);
-    } catch (e) {
-      AppToast.error('Erro ao carregar usuários', {
-        description: 'Ocorreu um problema ao carregar a lista de usuários. Tente novamente.'
-      });
+    } catch (e: any) {
+      console.error('Erro ao carregar usuários:', e);
+      if (e?.response?.status === 403) {
+        setAccessDenied(true);
+        // Buscar informações da rota para mensagem mais específica
+        try {
+          const info = await getRouteInfo('/users', 'GET');
+          setRouteInfo(info);
+        } catch (routeError) {
+          // Erro ao buscar informações da rota
+        }
+        // Não mostra toast aqui pois o interceptor já cuida disso
+      } else {
+        AppToast.error('Erro ao carregar usuários', {
+          description: 'Ocorreu um problema ao carregar a lista de usuários. Tente novamente.'
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -451,6 +498,32 @@ export const UsuariosPage = () => {
       setDeleteLoading(false);
     }
   };
+
+  // Se acesso negado, mostrar mensagem
+  if (accessDenied) {
+    return (
+      <PageContainer>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <span className="text-3xl">🚫</span>
+          </div>
+          <p className="text-red-600 font-medium mb-2">Acesso Negado</p>
+          <div className="text-gray-600 text-sm space-y-1 max-w-md">
+            {routeInfo ? (
+              <>
+                <p><strong>Rota:</strong> {routeInfo.nome}</p>
+                <p><strong>Descrição:</strong> {routeInfo.descricao}</p>
+                {routeInfo.modulo && <p><strong>Módulo:</strong> {routeInfo.modulo}</p>}
+                <p className="text-gray-400 mt-2">Você não tem permissão para acessar este recurso</p>
+              </>
+            ) : (
+              <p>Você não tem permissão para acessar usuários</p>
+            )}
+          </div>
+        </div>
+      </PageContainer>
+    );
+  }
 
   if (loading) {
     return (

@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  Users, UserCheck, Calendar, TrendingUp, Clock, 
+import {
+  Users, UserCheck, Calendar, TrendingUp, Clock,
   DollarSign, AlertCircle, Activity, Heart,
   ArrowUpRight, ArrowDownRight, CalendarX, AlertTriangle,
   Stethoscope, Building2, CreditCard, Target, PieChart,
@@ -16,6 +16,8 @@ import { getPacientesAtivos } from '@/services/pacientes';
 import { getServicosAtivos } from '@/services/servicos';
 import { getAgendamentos } from '@/services/agendamentos';
 import { getProfissionais } from '@/services/profissionais';
+import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
+import api from '@/services/api';
 import type { Paciente } from '@/types/Paciente';
 import type { Servico } from '@/types/Servico';
 import type { Agendamento } from '@/types/Agendamento';
@@ -101,12 +103,16 @@ export const Dashboard = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [selectedMetric, setSelectedMetric] = useState('revenue');
   const [showCurrencyValues, setShowCurrencyValues] = useState(false);
-  
+
+  // Estados para controle de acesso RBAC
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+
   // Estados para dados reais da API
   const [pacientesAtivos, setPacientesAtivos] = useState<Paciente[]>([]);
   const [loadingPacientes, setLoadingPacientes] = useState(true);
   const [errorPacientes, setErrorPacientes] = useState<string | null>(null);
-  
+
   // Estados para serviços, agendamentos e profissionais
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
@@ -115,17 +121,58 @@ export const Dashboard = () => {
   const [loadingServicos, setLoadingServicos] = useState(true);
   const [errorServicos, setErrorServicos] = useState<string | null>(null);
 
+  // Função para verificar permissões RBAC
+  const checkPermissions = async () => {
+    try {
+      const response = await api.get('/users/me/permissions');
+      const allowedRoutes = response.data;
+
+      // Verificar permissão de leitura do dashboard
+      const canRead = allowedRoutes.some((route: any) => {
+        return route.path === '/dashboard' && route.method.toLowerCase() === 'get';
+      });
+
+      // Se não tem permissão de leitura, marca como access denied
+      if (!canRead) {
+        setAccessDenied(true);
+      }
+
+    } catch (error: any) {
+      // Em caso de erro, desabilita por segurança
+
+      // Se retornar 401/403 no endpoint de permissões, considera acesso negado
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setAccessDenied(true);
+      }
+    }
+  };
+
   // Função para carregar dados da API
   const carregarDados = async () => {
+    setAccessDenied(false);
+
     // Carregar pacientes
     try {
       setLoadingPacientes(true);
       setErrorPacientes(null);
+      setPacientesAtivos([]); // Limpa dados para evitar mostrar dados antigos
       const pacientesAtivosData = await getPacientesAtivos();
       setPacientesAtivos(pacientesAtivosData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar pacientes ativos:', error);
-      setErrorPacientes('Erro ao carregar pacientes ativos');
+      if (error?.response?.status === 403) {
+        setAccessDenied(true);
+        // Buscar informações da rota para mensagem mais específica
+        try {
+          const info = await getRouteInfo('/dashboard', 'GET');
+          setRouteInfo(info);
+        } catch (routeError) {
+          // Erro ao buscar informações da rota
+        }
+        // Não mostra toast aqui pois o interceptor já cuida disso
+      } else {
+        setErrorPacientes('Erro ao carregar pacientes ativos');
+      }
     } finally {
       setLoadingPacientes(false);
     }
@@ -134,22 +181,26 @@ export const Dashboard = () => {
     try {
       setLoadingServicos(true);
       setErrorServicos(null);
-      
+      setServicos([]); // Limpa dados para evitar mostrar dados antigos
+      setAgendamentos([]);
+      setAgendamentosProximos7([]);
+      setProfissionais([]);
+
       const hoje = new Date();
-      
+
       // Para receita (últimos 30 dias)
       const trintaDiasAtras = new Date(hoje);
       trintaDiasAtras.setDate(hoje.getDate() - 30);
       const dataInicio30 = trintaDiasAtras.toISOString().split('T')[0];
       const dataFim30 = hoje.toISOString().split('T')[0];
-      
+
       // Para ocupação (próximos 7 dias)
       const inicioHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
       const proximosSete = new Date(inicioHoje);
       proximosSete.setDate(proximosSete.getDate() + 7);
       const dataInicioOcup = inicioHoje.toISOString().split('T')[0];
       const dataFimOcup = proximosSete.toISOString().split('T')[0];
-      
+
       const [servicosData, agendamentosResult, agendamentosOcupResult, profissionaisData] = await Promise.all([
         getServicosAtivos(),
         getAgendamentos({
@@ -162,15 +213,27 @@ export const Dashboard = () => {
         }),
         getProfissionais({ ativo: true })
       ]);
-      
+
       setServicos(servicosData);
       setAgendamentos(agendamentosResult.data);
       setAgendamentosProximos7(agendamentosOcupResult.data);
       setProfissionais(profissionaisData);
-      
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('Erro ao carregar dados:', error);
-      setErrorServicos('Erro ao carregar dados');
+      if (error?.response?.status === 403) {
+        setAccessDenied(true);
+        // Buscar informações da rota para mensagem mais específica
+        try {
+          const info = await getRouteInfo('/dashboard', 'GET');
+          setRouteInfo(info);
+        } catch (routeError) {
+          // Erro ao buscar informações da rota
+        }
+        // Não mostra toast aqui pois o interceptor já cuida disso
+      } else {
+        setErrorServicos('Erro ao carregar dados');
+      }
     } finally {
       setLoadingServicos(false);
     }
@@ -178,6 +241,7 @@ export const Dashboard = () => {
 
   // Carregar dados da API na inicialização
   useEffect(() => {
+    checkPermissions();
     carregarDados();
   }, []);
 
@@ -499,6 +563,32 @@ export const Dashboard = () => {
     </div>
   );
 
+  // Se acesso negado, mostrar mensagem
+  if (accessDenied) {
+    return (
+      <div className="p-6 space-y-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <span className="text-3xl">🚫</span>
+          </div>
+          <p className="text-red-600 font-medium mb-2">Acesso Negado</p>
+          <div className="text-gray-600 text-sm space-y-1 max-w-md">
+            {routeInfo ? (
+              <>
+                <p><strong>Rota:</strong> {routeInfo.nome}</p>
+                <p><strong>Descrição:</strong> {routeInfo.descricao}</p>
+                {routeInfo.modulo && <p><strong>Módulo:</strong> {routeInfo.modulo}</p>}
+                <p className="text-gray-400 mt-2">Você não tem permissão para acessar este recurso</p>
+              </>
+            ) : (
+              <p>Você não tem permissão para acessar o dashboard</p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
       {/* Header Moderno */}
@@ -512,9 +602,9 @@ export const Dashboard = () => {
           </p>
         </div>
         <div className="flex items-center gap-3 mt-4 lg:mt-0">
-          <Button 
-            variant="outline" 
-            className="gap-2" 
+          <Button
+            variant="outline"
+            className="gap-2"
             onClick={carregarDados}
             disabled={loadingPacientes || loadingServicos}
           >
