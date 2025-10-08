@@ -311,7 +311,7 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     for (const agendamento of agendamentos) {
       const chave = `${agendamento.pacienteId}-${agendamento.profissionalId}-${agendamento.servicoId}`;
 
-      // Buscar contagem total até a data deste agendamento
+      // Buscar contagem total até a data deste agendamento (excluindo cancelados)
       const count = await this.prisma.agendamento.count({
         where: {
           pacienteId: agendamento.pacienteId,
@@ -319,6 +319,9 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
           servicoId: agendamento.servicoId,
           dataHoraInicio: {
             lte: agendamento.dataHoraInicio
+          },
+          status: {
+            not: 'CANCELADO'
           }
         }
       });
