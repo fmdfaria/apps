@@ -55,6 +55,12 @@ const tipoAtendimentoOptions = [
   { id: 'online', nome: 'Online' }
 ];
 
+// Opções para filtro de primeira sessão
+const primeiraSessaoOptions = [
+  { id: 'true', nome: 'SIM' },
+  { id: 'false', nome: 'NÃO' }
+];
+
 // Função para buscar convênios excluindo o particular (para filtro avançado)
 const getConveniosNaoParticulares = async () => {
   const convenios = await getConvenios();
@@ -106,13 +112,20 @@ const filterFields: FilterField[] = [
     placeholder: 'Selecione um paciente...',
     searchFields: ['nomeCompleto']
   },
-  { 
-    key: 'profissionalId', 
-    type: 'api-select', 
+  {
+    key: 'profissionalId',
+    type: 'api-select',
     label: 'Profissional',
     apiService: getProfissionais,
     placeholder: 'Selecione um profissional...',
     searchFields: ['nome']
+  },
+  {
+    key: 'primeiraSessao',
+    type: 'static-select',
+    label: 'Primeira Sessão?',
+    options: primeiraSessaoOptions,
+    placeholder: 'Selecione...'
   }
 ];
 
@@ -356,9 +369,9 @@ export const LiberarPage = () => {
       }
 
       // Buscar duas listas paginadas por status relevantes para liberação, excluindo convênio particular
-      const agendadosParams = { 
-        page: paginaAtual, 
-        limit: itensPorPagina, 
+      const agendadosParams = {
+        page: paginaAtual,
+        limit: itensPorPagina,
         status: 'AGENDADO',
         // Só excluir convênio particular se NÃO há filtro de convênio específico aplicado
         ...(convenioParticularId && !filtrosAplicados.convenioId ? { convenioIdExcluir: convenioParticularId } : {}),
@@ -371,10 +384,11 @@ export const LiberarPage = () => {
         ...(filtrosAplicados.pacienteId ? { pacienteId: filtrosAplicados.pacienteId } : {}),
         ...(filtrosAplicados.profissionalId && !profissionalIdFiltro ? { profissionalId: filtrosAplicados.profissionalId } : {}),
         ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
+        ...(filtrosAplicados.primeiraSessao && filtrosAplicados.primeiraSessao !== '' ? { primeiraSessao: filtrosAplicados.primeiraSessao } : {}),
       };
-      const solicitadosParams = { 
-        page: paginaAtual, 
-        limit: itensPorPagina, 
+      const solicitadosParams = {
+        page: paginaAtual,
+        limit: itensPorPagina,
         status: 'SOLICITADO',
         // Só excluir convênio particular se NÃO há filtro de convênio específico aplicado
         ...(convenioParticularId && !filtrosAplicados.convenioId ? { convenioIdExcluir: convenioParticularId } : {}),
@@ -387,9 +401,11 @@ export const LiberarPage = () => {
         ...(filtrosAplicados.pacienteId ? { pacienteId: filtrosAplicados.pacienteId } : {}),
         ...(filtrosAplicados.profissionalId && !profissionalIdFiltro ? { profissionalId: filtrosAplicados.profissionalId } : {}),
         ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
+        ...(filtrosAplicados.primeiraSessao && filtrosAplicados.primeiraSessao !== '' ? { primeiraSessao: filtrosAplicados.primeiraSessao } : {}),
       };
       
       console.log('📡 API calls LiberarPage:', { agendadosParams, solicitadosParams });
+      console.log('🔍 Filtros aplicados:', filtrosAplicados);
       
       const [agendadosRes, solicitadosRes] = await Promise.all([
         getAgendamentos(agendadosParams),
@@ -655,15 +671,26 @@ export const LiberarPage = () => {
                     <CheckCircle className="w-5 h-5" />
                     <CardTitle className="text-lg">{agendamento.pacienteNome}</CardTitle>
                   </div>
-                  <Badge 
-                    variant={agendamento.status === 'AGENDADO' ? 'outline' : 'default'}
-                    className={agendamento.status === 'AGENDADO' 
-                      ? 'border-blue-300 text-blue-700 bg-blue-50' 
-                      : 'border-orange-300 text-orange-700 bg-orange-50'
-                    }
-                  >
-                    {agendamento.status}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {agendamento.numeroSessao && (
+                      <Badge className={`text-xs font-bold ${
+                        agendamento.numeroSessao === 1
+                          ? 'bg-red-500 text-white hover:bg-red-600'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}>
+                        Sessão #{agendamento.numeroSessao}
+                      </Badge>
+                    )}
+                    <Badge
+                      variant={agendamento.status === 'AGENDADO' ? 'outline' : 'default'}
+                      className={agendamento.status === 'AGENDADO'
+                        ? 'border-blue-300 text-blue-700 bg-blue-50'
+                        : 'border-orange-300 text-orange-700 bg-orange-50'
+                      }
+                    >
+                      {agendamento.status}
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -689,67 +716,68 @@ export const LiberarPage = () => {
                     <span>{agendamento.convenioNome}</span>
                   </div>
                 </div>
-                
-                <div className="flex gap-1">
-                  <Button 
-                    size="sm" 
+
+                <div className="flex gap-1.5 justify-center">
+                  <Button
                     variant="default"
-                    className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                    size="sm"
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                     onClick={() => handleVerDetalhes(agendamento)}
+                    title="Visualizar Agendamento"
                   >
-                    Visualizar
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    className="flex-1 h-7 text-xs border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white"
-                    onClick={() => handleSolicitarLiberacaoClick(agendamento)}
-                    disabled={estaProcessando(agendamento.id)}
-                  >
-                    {estaProcessando(agendamento.id) ? (
-                      <>
-                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                        Enviando...
-                      </>
-                    ) : (
-                      'Solicitar Liberação'
-                    )}
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    className="flex-1 h-7 text-xs border-green-300 text-green-600 hover:bg-green-600 hover:text-white"
-                    onClick={() => handleWhatsApp(agendamento)}
-                  >
-                    WhatsApp
+                    <Eye className="w-4 h-4" />
                   </Button>
                   <Button
-                    size="sm"
                     variant="outline"
-                    className="flex-1 h-7 text-xs border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white"
+                    size="sm"
+                    className="group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                    onClick={() => handleSolicitarLiberacaoClick(agendamento)}
+                    disabled={estaProcessando(agendamento.id)}
+                    title="Solicitar Liberação"
+                  >
+                    {estaProcessando(agendamento.id) ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Unlock className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="group border-2 border-green-300 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                    onClick={() => handleWhatsApp(agendamento)}
+                    title="WhatsApp"
+                  >
+                    <MessageCircle className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="group border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                     onClick={() => abrirModalPedidos(agendamento)}
                     title="Pedidos Médicos"
                   >
-                    Pedidos Médicos
+                    <FileText className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
                   </Button>
                   {canLiberar ? (
-                    <Button 
-                      size="sm" 
+                    <Button
                       variant="outline"
-                      className="flex-1 h-7 text-xs border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white"
+                      size="sm"
+                      className="group border-2 border-emerald-300 text-emerald-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 focus:ring-4 focus:ring-emerald-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                       onClick={() => handleLiberar(agendamento)}
                       title="Liberado Atendimento"
                     >
-                      Liberado Atendimento
+                      <CheckSquare className="w-4 h-4 text-emerald-600 group-hover:text-white transition-colors" />
                     </Button>
                   ) : (
-                    <Button 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       disabled={true}
-                      className="flex-1 h-7 text-xs border-gray-300 text-gray-400 cursor-not-allowed"
+                      className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
                       title="Você não tem permissão para liberar agendamentos"
                     >
-                      Liberado Atendimento
+                      <CheckSquare className="w-4 h-4" />
                     </Button>
                   )}
                 </div>
@@ -816,6 +844,12 @@ export const LiberarPage = () => {
             </TableHead>
             <TableHead className="py-3 text-sm font-semibold text-gray-700">
               <div className="flex items-center gap-2">
+                <span className="text-lg">🔢</span>
+                Sessão
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
                 <span className="text-lg">⚙️</span>
                 Ações
               </div>
@@ -825,7 +859,7 @@ export const LiberarPage = () => {
         <TableBody>
           {agendamentosPaginados.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="py-12 text-center">
+              <TableCell colSpan={10} className="py-12 text-center">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                     <span className="text-3xl">🔓</span>
@@ -877,12 +911,25 @@ export const LiberarPage = () => {
                   </TableCell>
                   <TableCell className="py-2">
                     <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-                      agendamento.status === 'AGENDADO' 
-                        ? 'bg-blue-100 text-blue-800' 
+                      agendamento.status === 'AGENDADO'
+                        ? 'bg-blue-100 text-blue-800'
                         : 'bg-orange-100 text-orange-800'
                     }`}>
                       {agendamento.status}
                     </span>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    {agendamento.numeroSessao ? (
+                      <Badge className={`text-xs font-bold ${
+                        agendamento.numeroSessao === 1
+                          ? 'bg-red-500 text-white hover:bg-red-600'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}>
+                        Sessão #{agendamento.numeroSessao}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
+                    )}
                   </TableCell>
                   <TableCell className="py-2">
                     <div className="flex gap-1.5">

@@ -38,7 +38,10 @@ export class Agendamento {
   dataAtendimento?: Date | null;
   observacoes?: string | null;
   resultadoConsulta?: string | null;
-  
+
+  // Campo calculado - número da sessão
+  numeroSessao?: number;
+
   createdAt!: Date;
   updatedAt!: Date;
 

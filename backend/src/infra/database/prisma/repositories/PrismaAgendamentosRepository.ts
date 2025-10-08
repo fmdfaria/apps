@@ -246,12 +246,12 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     // Configurar opções da consulta
     const queryOptions: any = {
       where: whereConditions,
-      include: { 
-        servico: true, 
-        paciente: true, 
-        profissional: { include: { conselho: true } }, 
-        recurso: true, 
-        convenio: true 
+      include: {
+        servico: true,
+        paciente: true,
+        profissional: { include: { conselho: true } },
+        recurso: true,
+        convenio: true
       },
       orderBy: { [orderBy]: orderDirection },
     };
@@ -270,17 +270,63 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
       })
     ]);
 
-    const totalPages = limit ? Math.ceil(total / limit) : 1;
+    // Calcular número de sessão para cada agendamento de forma otimizada
+    const agendamentosComSessao = await this.calcularNumerosSessao(agendamentos);
+
+    // Filtro de primeira sessão (aplicado após calcular números)
+    let agendamentosFiltrados = agendamentosComSessao;
+    if (filters?.primeiraSessao && (filters.primeiraSessao === 'true' || filters.primeiraSessao === 'false')) {
+      const isPrimeiraSessaoFilter = filters.primeiraSessao === 'true';
+      agendamentosFiltrados = agendamentosComSessao.filter(
+        agendamento => (agendamento.numeroSessao === 1) === isPrimeiraSessaoFilter
+      );
+    }
+
+    // Atualizar total se houve filtragem de primeira sessão
+    const totalFinal = filters?.primeiraSessao && (filters.primeiraSessao === 'true' || filters.primeiraSessao === 'false')
+      ? agendamentosFiltrados.length
+      : total;
+
+    const totalPages = limit ? Math.ceil(totalFinal / limit) : 1;
 
     return {
-      data: agendamentos.map(toDomain),
+      data: agendamentosFiltrados.map(toDomain),
       pagination: {
         page: limit ? page : 1,
         limit: limit || 0, // Retorna 0 quando não há limite especificado
-        total,
+        total: totalFinal,
         totalPages,
       },
     };
+  }
+
+  // Função para calcular número de sessão de forma otimizada
+  private async calcularNumerosSessao(agendamentos: any[]): Promise<any[]> {
+    if (agendamentos.length === 0) return [];
+
+    // Criar mapa de contagens por chave única (paciente+profissional+serviço)
+    const contagemMap = new Map<string, number>();
+
+    // Para cada agendamento, buscar todos os agendamentos anteriores da mesma combinação
+    for (const agendamento of agendamentos) {
+      const chave = `${agendamento.pacienteId}-${agendamento.profissionalId}-${agendamento.servicoId}`;
+
+      // Buscar contagem total até a data deste agendamento
+      const count = await this.prisma.agendamento.count({
+        where: {
+          pacienteId: agendamento.pacienteId,
+          profissionalId: agendamento.profissionalId,
+          servicoId: agendamento.servicoId,
+          dataHoraInicio: {
+            lte: agendamento.dataHoraInicio
+          }
+        }
+      });
+
+      agendamento.numeroSessao = count;
+    }
+
+    return agendamentos;
   }
 
   async findByProfissionalAndDataHoraInicio(profissionalId: string, dataHoraInicio: Date): Promise<Agendamento | null> {

@@ -43,7 +43,7 @@ export interface IAgendamentoFilters {
   limit?: number;
   orderBy?: string;
   orderDirection?: 'asc' | 'desc';
-  
+
   // Filtros
   status?: string;
   profissionalId?: string;
@@ -55,7 +55,8 @@ export interface IAgendamentoFilters {
   dataInicio?: Date;
   dataFim?: Date;
   tipoAtendimento?: string;
-  
+  primeiraSessao?: string; // 'true', 'false' ou vazio
+
   // Busca textual
   search?: string;
   pacienteNome?: string;

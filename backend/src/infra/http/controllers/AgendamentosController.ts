@@ -57,7 +57,7 @@ export class AgendamentosController {
       limit: z.coerce.number().int().min(1).max(100).optional(),
       orderBy: z.string().optional().default('dataHoraInicio'),
       orderDirection: z.enum(['asc', 'desc']).optional().default('asc'),
-      
+
       // Filtros
       status: z.string().optional(),
       profissionalId: z.string().uuid().optional(),
@@ -69,7 +69,8 @@ export class AgendamentosController {
       dataInicio: z.coerce.date().optional(),
       dataFim: z.coerce.date().optional(),
       tipoAtendimento: z.string().optional(),
-      
+      primeiraSessao: z.string().optional(), // 'true', 'false' ou vazio
+
       // Busca textual
       search: z.string().optional(),
       pacienteNome: z.string().optional(),
@@ -77,7 +78,7 @@ export class AgendamentosController {
       servicoNome: z.string().optional(),
       convenioNome: z.string().optional(),
     });
-    
+
     const filters = querySchema.parse(request.query);
     const useCase = container.resolve(ListAgendamentosUseCase);
     const result = await useCase.execute(filters);

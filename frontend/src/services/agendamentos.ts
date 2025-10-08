@@ -357,7 +357,8 @@ export interface IAgendamentoFilters {
   dataInicio?: string;
   dataFim?: string;
   tipoAtendimento?: string;
-  
+  primeiraSessao?: string;
+
   // Busca textual
   search?: string;
   pacienteNome?: string;
@@ -387,7 +388,8 @@ export const getAgendamentos = async (filtros?: IAgendamentoFilters): Promise<IP
       if (filtros.dataInicio) params.append('dataInicio', filtros.dataInicio);
       if (filtros.dataFim) params.append('dataFim', filtros.dataFim);
       if (filtros.tipoAtendimento) params.append('tipoAtendimento', filtros.tipoAtendimento);
-      
+      if (filtros.primeiraSessao) params.append('primeiraSessao', filtros.primeiraSessao);
+
       // Busca textual
       if (filtros.search) params.append('search', filtros.search);
       if (filtros.pacienteNome) params.append('pacienteNome', filtros.pacienteNome);

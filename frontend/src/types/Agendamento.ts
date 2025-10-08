@@ -67,6 +67,7 @@ export interface Agendamento {
   convenioNome?: string;
   servicoNome?: string;
   recursoNome?: string;
+  numeroSessao?: number; // Número da sessão calculado pelo backend
   // Campos auxiliares para exibição no modal de liberação
   profissionalConselhoSigla?: string;
   profissionalNumeroConselho?: string;
