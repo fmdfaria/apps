@@ -94,7 +94,7 @@ export const processarErroBackend = (error: any): string => {
   }
   
   if (mensagemBackend.includes('paciente já possui agendamento')) {
-    return 'Conflito de paciente: Este paciente já possui um agendamento neste horário.';
+    return 'Conflito de paciente: Este paciente já possui um agendamento neste horário com o profissional selecionado.';
   }
   
   if (mensagemBackend.includes('Serviço não encontrado')) {

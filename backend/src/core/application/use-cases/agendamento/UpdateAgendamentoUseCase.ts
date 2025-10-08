@@ -139,10 +139,11 @@ export class UpdateAgendamentoUseCase {
       }
     }
 
-    if (data.dataHoraInicio || data.pacienteId) {
+    if (data.dataHoraInicio || data.pacienteId || data.profissionalId) {
       const existentePaciente = await this.agendamentosRepository.findByPacienteAndDataHoraInicio(
         pacienteAlvo, 
-        dataHoraInicioAlvo
+        dataHoraInicioAlvo,
+        profissionalAlvo
       );
       if (existentePaciente && existentePaciente.id !== agendamentoId) {
         // Buscar dados para mensagem detalhada

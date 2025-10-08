@@ -61,11 +61,12 @@ export class CreateAgendamentoUseCase {
         ) : Promise.resolve(null),
         this.agendamentosRepository.findByPacienteAndDataHoraInicio(
           agendamentoData.pacienteId,
-          agendamentoData.dataHoraInicio
+          agendamentoData.dataHoraInicio,
+          agendamentoData.profissionalId
         ),
       ];
       
-      const [existenteProf, existenteRecurso, existentePaciente] = await Promise.all(conflictChecks);
+      const [existenteProf, existenteRecurso, existentePacienteMesmoProfissional] = await Promise.all(conflictChecks);
       
       if (existenteProf) {
         // Buscar dados para mensagem detalhada
@@ -103,16 +104,16 @@ export class CreateAgendamentoUseCase {
         throw new AppError(mensagem, 400);
       }
       
-      if (existentePaciente) {
+      if (existentePacienteMesmoProfissional) {
         // Buscar dados para mensagem detalhada
         const [paciente, profissionalExistente, servicoExistente] = await Promise.all([
           this.pacientesRepository.findById(agendamentoData.pacienteId),
-          this.profissionaisRepository.findById(existentePaciente.profissionalId),
-          this.servicosRepository.findById(existentePaciente.servicoId)
+          this.profissionaisRepository.findById(existentePacienteMesmoProfissional.profissionalId),
+          this.servicosRepository.findById(existentePacienteMesmoProfissional.servicoId)
         ]);
         
         const mensagem = gerarMensagemConflitoPaciente({
-          agendamentoExistente: existentePaciente,
+          agendamentoExistente: existentePacienteMesmoProfissional,
           pacienteNome: paciente?.nomeCompleto,
           profissionalNome: profissionalExistente?.nome,
           servicoNome: servicoExistente?.nome
@@ -222,11 +223,12 @@ export class CreateAgendamentoUseCase {
         ) : Promise.resolve(null),
         this.agendamentosRepository.findByPacienteAndDataHoraInicio(
           baseData.pacienteId,
-          dataHoraInicio
+          dataHoraInicio,
+          baseData.profissionalId
         ),
       ];
       
-      const [existeProf, existeRecurso, existePaciente] = await Promise.all(conflictChecks);
+        const [existeProf, existeRecurso, existePacienteMesmoProfissional] = await Promise.all(conflictChecks);
       
       if (existeProf) {
         // Buscar dados para mensagem detalhada
@@ -264,20 +266,20 @@ export class CreateAgendamentoUseCase {
         throw new AppError(mensagem);
       }
       
-      if (existePaciente) {
-        // Buscar dados para mensagem detalhada
-        const [paciente, profissionalExistente, servicoExistente] = await Promise.all([
-          this.pacientesRepository.findById(baseData.pacienteId),
-          this.profissionaisRepository.findById(existePaciente.profissionalId),
-          this.servicosRepository.findById(existePaciente.servicoId)
-        ]);
-        
-        const mensagem = gerarMensagemConflitoPaciente({
-          agendamentoExistente: existePaciente,
-          pacienteNome: paciente?.nomeCompleto,
-          profissionalNome: profissionalExistente?.nome,
-          servicoNome: servicoExistente?.nome
-        });
+        if (existePacienteMesmoProfissional) {
+          // Buscar dados para mensagem detalhada
+          const [paciente, profissionalExistente, servicoExistente] = await Promise.all([
+            this.pacientesRepository.findById(baseData.pacienteId),
+            this.profissionaisRepository.findById(existePacienteMesmoProfissional.profissionalId),
+            this.servicosRepository.findById(existePacienteMesmoProfissional.servicoId)
+          ]);
+          
+          const mensagem = gerarMensagemConflitoPaciente({
+            agendamentoExistente: existePacienteMesmoProfissional,
+            pacienteNome: paciente?.nomeCompleto,
+            profissionalNome: profissionalExistente?.nome,
+            servicoNome: servicoExistente?.nome
+          });
         
         throw new AppError(mensagem);
       }

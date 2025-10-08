@@ -73,7 +73,7 @@ export const gerarMensagemConflitoPaciente = (detalhes: DetalhesConflito): strin
   
   const dataHoraFormatada = formatarDataHoraBR(agendamentoExistente.dataHoraInicio);
   const nomePaciente = pacienteNome || 'Paciente';
-  const nomeProfissionalExistente = profissionalNome || 'outro profissional';
+  const nomeProfissionalExistente = profissionalNome || 'o profissional selecionado';
   const nomeServicoExistente = servicoNome || 'um atendimento';
   
   return `Conflito de paciente: ${nomePaciente} já possui ${nomeServicoExistente} agendado para ${dataHoraFormatada} com ${nomeProfissionalExistente}.`;
