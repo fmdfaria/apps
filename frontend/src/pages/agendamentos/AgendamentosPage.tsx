@@ -689,13 +689,24 @@ export const AgendamentosPage = () => {
               <Card key={agendamento.id} className="hover:shadow-md transition-shadow">
                 <CardHeader className="pb-2 pt-3 px-3">
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <StatusIcon className="w-4 h-4 flex-shrink-0" />
-                      <CardTitle className="text-sm font-medium truncate">{agendamento.pacienteNome}</CardTitle>
-                    </div>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <StatusIcon className="w-4 h-4 flex-shrink-0" />
+                    <CardTitle className="text-sm font-medium truncate">{agendamento.pacienteNome}</CardTitle>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {typeof agendamento.numeroSessao === 'number' && (
+                      <Badge className={`text-xs font-bold ${
+                        agendamento.numeroSessao === 1
+                          ? 'bg-red-500 text-white hover:bg-red-600'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}>
+                        Sessão #{agendamento.numeroSessao}
+                      </Badge>
+                    )}
                     <Badge className={`text-xs flex-shrink-0 ml-2 ${getStatusColor(agendamento.status)}`}>
                       {agendamento.status}
                     </Badge>
+                  </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0 px-3 pb-3">
@@ -870,6 +881,12 @@ export const AgendamentosPage = () => {
             </TableHead>
             <TableHead className="py-3 text-sm font-semibold text-gray-700">
               <div className="flex items-center gap-2">
+                <span className="text-lg">🔢</span>
+                Sessão
+              </div>
+            </TableHead>
+            <TableHead className="py-3 text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
                 <span className="text-lg">⚙️</span>
                 Ações
               </div>
@@ -879,7 +896,7 @@ export const AgendamentosPage = () => {
         <TableBody>
           {agendamentosPaginados.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="py-12 text-center">
+              <TableCell colSpan={9} className="py-12 text-center">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                     <span className="text-3xl">📅</span>
@@ -933,6 +950,19 @@ export const AgendamentosPage = () => {
                     <Badge className={`text-xs ${getStatusColor(agendamento.status)}`}>
                       {agendamento.status}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    {typeof agendamento.numeroSessao === 'number' ? (
+                      <Badge className={`text-xs font-bold ${
+                        agendamento.numeroSessao === 1
+                          ? 'bg-red-500 text-white hover:bg-red-600'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}>
+                        Sessão #{agendamento.numeroSessao}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
+                    )}
                   </TableCell>
                   <TableCell className="py-2">
                     <div className="flex gap-1.5">

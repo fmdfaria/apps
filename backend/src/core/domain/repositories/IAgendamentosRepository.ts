@@ -85,8 +85,7 @@ export interface IAgendamentosRepository {
   findByRecursoAndDataHoraInicio(recursoId: string, dataHoraInicio: Date): Promise<Agendamento | null>;
   findByPacienteAndDataHoraInicio(
     pacienteId: string,
-    dataHoraInicio: Date,
-    profissionalId?: string
+    dataHoraInicio: Date
   ): Promise<Agendamento | null>;
   findByRecursoAndDateRange(recursoId: string, dataInicio: Date, dataFim: Date): Promise<Agendamento[]>;
   delete(id: string): Promise<void>;

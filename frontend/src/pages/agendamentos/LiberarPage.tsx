@@ -55,11 +55,6 @@ const tipoAtendimentoOptions = [
   { id: 'online', nome: 'Online' }
 ];
 
-// Opções para filtro de primeira sessão
-const primeiraSessaoOptions = [
-  { id: 'true', nome: 'SIM' },
-  { id: 'false', nome: 'NÃO' }
-];
 
 // Função para buscar convênios excluindo o particular (para filtro avançado)
 const getConveniosNaoParticulares = async () => {
@@ -119,13 +114,6 @@ const filterFields: FilterField[] = [
     apiService: getProfissionais,
     placeholder: 'Selecione um profissional...',
     searchFields: ['nome']
-  },
-  {
-    key: 'primeiraSessao',
-    type: 'static-select',
-    label: 'Primeira Sessão?',
-    options: primeiraSessaoOptions,
-    placeholder: 'Selecione...'
   }
 ];
 
@@ -369,7 +357,7 @@ export const LiberarPage = () => {
       }
 
       // Buscar duas listas paginadas por status relevantes para liberação, excluindo convênio particular
-      const agendadosParams = {
+      const agendadosParams: any = {
         page: paginaAtual,
         limit: itensPorPagina,
         status: 'AGENDADO',
@@ -384,9 +372,8 @@ export const LiberarPage = () => {
         ...(filtrosAplicados.pacienteId ? { pacienteId: filtrosAplicados.pacienteId } : {}),
         ...(filtrosAplicados.profissionalId && !profissionalIdFiltro ? { profissionalId: filtrosAplicados.profissionalId } : {}),
         ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
-        ...(filtrosAplicados.primeiraSessao && filtrosAplicados.primeiraSessao !== '' ? { primeiraSessao: filtrosAplicados.primeiraSessao } : {}),
       };
-      const solicitadosParams = {
+      const solicitadosParams: any = {
         page: paginaAtual,
         limit: itensPorPagina,
         status: 'SOLICITADO',
@@ -401,7 +388,6 @@ export const LiberarPage = () => {
         ...(filtrosAplicados.pacienteId ? { pacienteId: filtrosAplicados.pacienteId } : {}),
         ...(filtrosAplicados.profissionalId && !profissionalIdFiltro ? { profissionalId: filtrosAplicados.profissionalId } : {}),
         ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
-        ...(filtrosAplicados.primeiraSessao && filtrosAplicados.primeiraSessao !== '' ? { primeiraSessao: filtrosAplicados.primeiraSessao } : {}),
       };
       
       console.log('📡 API calls LiberarPage:', { agendadosParams, solicitadosParams });

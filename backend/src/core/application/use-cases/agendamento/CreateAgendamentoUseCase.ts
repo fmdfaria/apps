@@ -61,8 +61,7 @@ export class CreateAgendamentoUseCase {
         ) : Promise.resolve(null),
         this.agendamentosRepository.findByPacienteAndDataHoraInicio(
           agendamentoData.pacienteId,
-          agendamentoData.dataHoraInicio,
-          agendamentoData.profissionalId
+          agendamentoData.dataHoraInicio
         ),
       ];
       
@@ -223,8 +222,7 @@ export class CreateAgendamentoUseCase {
         ) : Promise.resolve(null),
         this.agendamentosRepository.findByPacienteAndDataHoraInicio(
           baseData.pacienteId,
-          dataHoraInicio,
-          baseData.profissionalId
+          dataHoraInicio
         ),
       ];
       

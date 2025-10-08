@@ -309,13 +309,12 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
 
     // Para cada agendamento, buscar todos os agendamentos anteriores da mesma combinação
     for (const agendamento of agendamentos) {
-      const chave = `${agendamento.pacienteId}-${agendamento.profissionalId}-${agendamento.servicoId}`;
+      const chave = `${agendamento.pacienteId}-${agendamento.servicoId}`;
 
       // Buscar contagem total até a data deste agendamento (excluindo cancelados)
       const count = await this.prisma.agendamento.count({
         where: {
           pacienteId: agendamento.pacienteId,
-          profissionalId: agendamento.profissionalId,
           servicoId: agendamento.servicoId,
           dataHoraInicio: {
             lte: agendamento.dataHoraInicio
@@ -348,14 +347,12 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
 
   async findByPacienteAndDataHoraInicio(
     pacienteId: string,
-    dataHoraInicio: Date,
-    profissionalId?: string
+    dataHoraInicio: Date
   ): Promise<Agendamento | null> {
     const agendamento = await this.prisma.agendamento.findFirst({
       where: {
         pacienteId,
         dataHoraInicio,
-        ...(profissionalId ? { profissionalId } : {}),
       },
     });
     return agendamento ? toDomain(agendamento) : null;

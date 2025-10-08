@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, User, Calendar, Clock, FileText, CreditCard, UserCheck, Monitor, MapPin, Users } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
-import { liberarAgendamentoParticular, liberarAgendamentosParticularesMensal, getAgendamentos } from '@/services/agendamentos';
+import { liberarAgendamentoParticular, liberarAgendamentosParticularesMensal } from '@/services/agendamentos';
 import { AppToast } from '@/services/toast';
 import { formatarDataHoraLocal } from '@/utils/dateUtils';
 import ContaReceberModal from '@/pages/financeiro/ContaReceberModal';
@@ -47,8 +47,7 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
   onSuccess
 }) => {
   const [loading, setLoading] = useState(false);
-  const [sessionNumber, setSessionNumber] = useState<number | null>(null);
-  const [loadingSessions, setLoadingSessions] = useState(false);
+  // Número da sessão agora vem do backend: agendamento.numeroSessao
   const [showContaReceberModal, setShowContaReceberModal] = useState(false);
   const [contaReceberData, setContaReceberData] = useState<any>(null);
   const [formData, setFormData] = useState({
@@ -326,35 +325,7 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
 
   const formatarDataHora = formatarDataHoraLocal;
   
-  // Calcular número da sessão ao abrir o modal
-  useEffect(() => {
-    const calcularSessao = async () => {
-      if (!agendamento) return;
-      try {
-        setLoadingSessions(true);
-        // Obter data (YYYY-MM-DD) do agendamento
-        const [dataStr] = agendamento.dataHoraInicio.split('T');
-        const agendamentoDate = new Date(agendamento.dataHoraInicio);
-
-        // Chamada única: tudo até o fim do dia atual; filtramos localmente horários do mesmo dia posteriores
-        const sameDayRes = await getAgendamentos({
-          pacienteId: agendamento.pacienteId,
-          profissionalId: agendamento.profissionalId,
-          servicoId: agendamento.servicoId,
-          dataFim: dataStr,
-          // backend limita a 100
-          limit: 100,
-        });
-        const anterioresAteAgora = sameDayRes.data.filter(a => new Date(a.dataHoraInicio).getTime() < agendamentoDate.getTime()).length;
-        setSessionNumber(anterioresAteAgora + 1);
-      } catch (e) {
-        setSessionNumber(null);
-      } finally {
-        setLoadingSessions(false);
-      }
-    };
-    calcularSessao();
-  }, [agendamento?.id]);
+  // Removido cálculo local de sessão
 
   if (!agendamento) return null;
 
@@ -379,9 +350,9 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
                   {grupo.quantidadeAgendamentos} agendamentos
                 </Badge>
               )}
-              {!grupo && sessionNumber !== null && (
+              {!grupo && typeof agendamento.numeroSessao === 'number' && (
                 <Badge className="bg-emerald-100 text-emerald-700">
-                  Sessão #{sessionNumber}
+                  Sessão #{agendamento.numeroSessao}
                 </Badge>
               )}
               <Badge className="bg-blue-100 text-blue-700">

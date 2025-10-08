@@ -380,7 +380,18 @@ export const PendenciaPage = () => {
                     <ClipboardCheck className="w-4 h-4 flex-shrink-0 text-yellow-600" />
                     <CardTitle className="text-sm font-medium truncate">{agendamento.pacienteNome}</CardTitle>
                   </div>
-                  <Badge className="text-xs flex-shrink-0 ml-2 bg-yellow-100 text-yellow-700">{agendamento.status}</Badge>
+                  <div className="flex items-center gap-2">
+                    {typeof agendamento.numeroSessao === 'number' && (
+                      <Badge className={`text-xs font-bold ${
+                        agendamento.numeroSessao === 1
+                          ? 'bg-red-500 text-white hover:bg-red-600'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}>
+                        Sessão #{agendamento.numeroSessao}
+                      </Badge>
+                    )}
+                    <Badge className="text-xs flex-shrink-0 ml-2 bg-yellow-100 text-yellow-700">{agendamento.status}</Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="pt-0 px-3 pb-3">
@@ -392,6 +403,15 @@ export const PendenciaPage = () => {
                   <div className="flex items-center gap-2 text-xs text-gray-600">
                     <FileText className="w-3 h-3" />
                     <span className="truncate">{agendamento.servicoNome}</span>
+                    {typeof agendamento.numeroSessao === 'number' && (
+                      <Badge className={`text-[10px] font-bold ${
+                        agendamento.numeroSessao === 1
+                          ? 'bg-red-500 text-white hover:bg-red-600'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}>
+                        Sessão #{agendamento.numeroSessao}
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center justify-between text-xs text-gray-600">
                     <div className="flex items-center gap-1">

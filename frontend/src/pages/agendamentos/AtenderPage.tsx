@@ -707,13 +707,24 @@ export const AtenderPage = () => {
                     <Stethoscope className="w-4 h-4 flex-shrink-0 text-blue-600" />
                     <CardTitle className="text-sm font-medium truncate">{agendamento.pacienteNome}</CardTitle>
                   </div>
-                  <Badge className={`text-xs flex-shrink-0 ml-2 ${
-                    agendamento.status === 'LIBERADO'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {agendamento.status}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {typeof agendamento.numeroSessao === 'number' && (
+                      <Badge className={`text-xs font-bold ${
+                        agendamento.numeroSessao === 1
+                          ? 'bg-red-500 text-white hover:bg-red-600'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}>
+                        Sessão #{agendamento.numeroSessao}
+                      </Badge>
+                    )}
+                    <Badge className={`text-xs flex-shrink-0 ml-2 ${
+                      agendamento.status === 'LIBERADO'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {agendamento.status}
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="pt-0 px-3 pb-3">
@@ -729,6 +740,15 @@ export const AtenderPage = () => {
                   <div className="flex items-center gap-2 text-xs text-gray-600">
                     <FileText className="w-3 h-3" />
                     <span className="truncate">{agendamento.servicoNome}</span>
+                    {typeof agendamento.numeroSessao === 'number' && (
+                      <Badge className={`text-[10px] font-bold ${
+                        agendamento.numeroSessao === 1
+                          ? 'bg-red-500 text-white hover:bg-red-600'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}>
+                        Sessão #{agendamento.numeroSessao}
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center justify-between text-xs text-gray-600">
                     <div className="flex items-center gap-1">
@@ -902,6 +922,12 @@ export const AtenderPage = () => {
               </TableHead>
               <TableHead className="py-3 text-sm font-semibold text-gray-700">
                 <div className="flex items-center gap-2">
+                  <span className="text-lg">🔢</span>
+                  Sessão
+                </div>
+              </TableHead>
+              <TableHead className="py-3 text-sm font-semibold text-gray-700">
+                <div className="flex items-center gap-2">
                   <span className="text-lg">⚙️</span>
                   Ações
                 </div>
@@ -911,7 +937,7 @@ export const AtenderPage = () => {
         <TableBody>
           {agendamentosPaginados.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="py-12 text-center">
+              <TableCell colSpan={7} className="py-12 text-center">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                     <span className="text-3xl">🩺</span>
@@ -948,6 +974,19 @@ export const AtenderPage = () => {
                   </TableCell>
                   <TableCell className="py-2">
                     <span className="text-sm">{agendamento.servicoNome}</span>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    {typeof agendamento.numeroSessao === 'number' ? (
+                      <Badge className={`text-xs font-bold ${
+                        agendamento.numeroSessao === 1
+                          ? 'bg-red-500 text-white hover:bg-red-600'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}>
+                        Sessão #{agendamento.numeroSessao}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right py-2">
                     <div className="flex justify-end gap-1">

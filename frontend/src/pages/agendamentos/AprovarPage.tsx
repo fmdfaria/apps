@@ -336,9 +336,20 @@ export const AprovarPage = () => {
                     <ClipboardCheck className="w-5 h-5" />
                     <CardTitle className="text-lg">{agendamento.pacienteNome}</CardTitle>
                   </div>
-                  <Badge className="bg-yellow-100 text-yellow-700">
-                    {agendamento.status}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {typeof agendamento.numeroSessao === 'number' && (
+                      <Badge className={`text-xs font-bold ${
+                        agendamento.numeroSessao === 1
+                          ? 'bg-red-500 text-white hover:bg-red-600'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}>
+                        Sessão #{agendamento.numeroSessao}
+                      </Badge>
+                    )}
+                    <Badge className="bg-yellow-100 text-yellow-700">
+                      {agendamento.status}
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -350,6 +361,15 @@ export const AprovarPage = () => {
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <FileText className="w-4 h-4" />
                     <span>{agendamento.servicoNome}</span>
+                    {typeof agendamento.numeroSessao === 'number' && (
+                      <Badge className={`text-xs font-bold ${
+                        agendamento.numeroSessao === 1
+                          ? 'bg-red-500 text-white hover:bg-red-600'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}>
+                        Sessão #{agendamento.numeroSessao}
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Calendar className="w-4 h-4" />

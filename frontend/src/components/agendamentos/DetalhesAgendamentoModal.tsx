@@ -22,7 +22,6 @@ import {
   Timer
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
-import { getAgendamentos } from '@/services/agendamentos';
 import { formatarDataHoraLocal, formatarApenasData } from '@/utils/dateUtils';
 
 interface DetalhesAgendamentoModalProps {
@@ -41,29 +40,7 @@ export const DetalhesAgendamentoModal: React.FC<DetalhesAgendamentoModalProps> =
   const formatarDataHora = formatarDataHoraLocal;
   const formatarDataHoraCompleta = formatarApenasData;
 
-  // Sessão #
-  const [sessionNumber, setSessionNumber] = useState<number | null>(null);
-  useEffect(() => {
-    const calcularSessao = async () => {
-      if (!agendamento) return;
-      try {
-        const [dataStr] = agendamento.dataHoraInicio.split('T');
-        const res = await getAgendamentos({
-          pacienteId: agendamento.pacienteId,
-          profissionalId: agendamento.profissionalId,
-          servicoId: agendamento.servicoId,
-          dataFim: dataStr,
-          limit: 1,
-        });
-        const totalAteData = res.pagination?.total ?? (res.data?.length || 0);
-        setSessionNumber(totalAteData);
-      } catch {
-        setSessionNumber(null);
-      }
-    };
-    calcularSessao();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agendamento?.id]);
+  // Número da sessão agora vem do backend em agendamento.numeroSessao
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -114,9 +91,9 @@ export const DetalhesAgendamentoModal: React.FC<DetalhesAgendamentoModalProps> =
               Detalhes do Agendamento
             </span>
             <span className="flex items-center gap-2 mr-8">
-              {sessionNumber !== null && (
+              {typeof agendamento.numeroSessao === 'number' && (
                 <Badge className="bg-emerald-100 text-emerald-700">
-                  Sessão #{sessionNumber}
+                  Sessão #{agendamento.numeroSessao}
                 </Badge>
               )}
               <Badge className={`${getStatusColor(agendamento.status)}`}>
