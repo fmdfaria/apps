@@ -186,16 +186,19 @@ export const VerificarAgendaPage: React.FC = () => {
       setSlotsDisponiveis([]);
       
       // 1. Buscar agendamentos dos próximos 30 dias para otimização
+      // IMPORTANTE: Não filtrar por servicoId aqui, pois precisamos verificar conflitos
+      // de horário com TODOS os agendamentos do profissional, independente do serviço
       const hoje = new Date();
       const dataFim = new Date(hoje);
       dataFim.setDate(hoje.getDate() + 30);
-      
+
       const dataInicioStr = hoje.toISOString().split('T')[0];
       const dataFimStr = dataFim.toISOString().split('T')[0];
-      
-      const agendamentosResponse = await getAgendamentos({ 
-        dataInicio: dataInicioStr, 
-        dataFim: dataFimStr 
+
+      const agendamentosResponse = await getAgendamentos({
+        dataInicio: dataInicioStr,
+        dataFim: dataFimStr
+        // Não incluir servicoId: precisamos ver todos os agendamentos para evitar conflitos
       });
       const agendamentos = agendamentosResponse.data;
       
@@ -299,37 +302,47 @@ export const VerificarAgendaPage: React.FC = () => {
                 if (ag.profissionalId !== profServico.profissionalId || ag.status === 'CANCELADO') {
                   return false;
                 }
-                
-                // Parse da string de data da API sem conversão de timezone
-                const [datePart, timePart] = ag.dataHoraInicio.split('T');
-                const dataAgendamentoStr = datePart; // já no formato YYYY-MM-DD
-                
+
+                // Parse da string de data da API corrigindo timezone
+                // O backend salva em UTC mas representa horário local BRT (-03:00)
+                // Converter UTC para horário local do Brasil
+                const dataAgendamento = new Date(ag.dataHoraInicio);
+
+                // Converter para horário local brasileiro
+                const dataAgendamentoLocal = new Date(dataAgendamento.getTime() - (3 * 60 * 60 * 1000));
+
+                const anoAg = dataAgendamentoLocal.getUTCFullYear();
+                const mesAg = (dataAgendamentoLocal.getUTCMonth() + 1).toString().padStart(2, '0');
+                const diaAg = dataAgendamentoLocal.getUTCDate().toString().padStart(2, '0');
+                const dataAgendamentoStr = `${anoAg}-${mesAg}-${diaAg}`;
+
                 // Verificar se é a mesma data
                 if (dataAgendamentoStr !== dataStr) {
                   return false;
                 }
-                
-                // Parse dos horários
-                const [horaAgStr, minutoAgStr] = timePart.split(':');
-                const inicioAgendamento = parseInt(horaAgStr) * 60 + parseInt(minutoAgStr); // em minutos
-                
+
+                // Extrair horário em horário local
+                const horaAgLocal = dataAgendamentoLocal.getUTCHours();
+                const minutoAgLocal = dataAgendamentoLocal.getUTCMinutes();
+                const inicioAgendamento = horaAgLocal * 60 + minutoAgLocal; // em minutos
+
                 // Calcular fim do agendamento (usar dataHoraFim se disponível, senão assumir 60 min)
                 let fimAgendamento = inicioAgendamento + 60; // padrão 60 min
                 if (ag.dataHoraFim) {
-                  const [, timePartFim] = ag.dataHoraFim.split('T');
-                  const [horaFimStr, minutoFimStr] = timePartFim.split(':');
-                  fimAgendamento = parseInt(horaFimStr) * 60 + parseInt(minutoFimStr);
+                  const dataFimAgendamento = new Date(ag.dataHoraFim);
+                  const dataFimAgendamentoLocal = new Date(dataFimAgendamento.getTime() - (3 * 60 * 60 * 1000));
+                  const horaFimLocal = dataFimAgendamentoLocal.getUTCHours();
+                  const minutoFimLocal = dataFimAgendamentoLocal.getUTCMinutes();
+                  fimAgendamento = horaFimLocal * 60 + minutoFimLocal;
                 }
-                
+
                 // Converter horário do slot atual para minutos
                 const inicioSlot = horaAtual.getHours() * 60 + horaAtual.getMinutes();
                 const fimSlot = inicioSlot + duracaoServico;
-                
+
                 // Verificar sobreposição: slots se sobrepõem se um começar antes do outro terminar
                 const temSobreposicao = inicioSlot < fimAgendamento && fimSlot > inicioAgendamento;
-                
-                // Conflito de horário detectado (slot ocupado)
-                
+
                 return temSobreposicao;
               });
               
