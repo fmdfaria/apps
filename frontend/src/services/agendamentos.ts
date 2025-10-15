@@ -570,30 +570,32 @@ export const liberarAgendamentosParticularesMensal = async (dadosLiberacao: {
 export const atenderAgendamento = async (id: string, dadosAtendimento: {
   dataAtendimento?: string;
   observacoes?: string;
-  convenioNome?: string;
+  convenioId: string;
 }): Promise<Agendamento> => {
-  // Primeiro, sempre registrar o atendimento com status ATENDIDO
-  const response = await api.put(`/agendamentos-atender/${id}`, {
-    dataAtendimento: dadosAtendimento.dataAtendimento,
-    observacoes: dadosAtendimento.observacoes,
-    status: 'ATENDIDO'
-  });
-  
-  // Se for convênio "Particular" ou "Solumedi", finalizar automaticamente (pula etapa de aprovação)
-  if (dadosAtendimento.convenioNome === 'Particular' || dadosAtendimento.convenioNome === 'Solumedi') {
-    try {
-      const responseFinalizado = await api.put(`/agendamentos-concluir/${id}`, {
-        status: 'FINALIZADO'
-      });
-      return responseFinalizado.data;
-    } catch (error) {
-      console.warn('Erro ao finalizar agendamento automaticamente:', error);
-      // Se falhar a finalização, retorna pelo menos o agendamento atendido
-      return response.data;
-    }
+  // Importar dinamicamente para evitar dependência circular
+  const { verificarLiberadoParaFinalizado } = await import('./configuracoes');
+
+  // 1️⃣ Verificar configuração ANTES de chamar API
+  const deveFinalizar = await verificarLiberadoParaFinalizado(dadosAtendimento.convenioId);
+
+  // 2️⃣ Fazer UMA ÚNICA chamada de API com o status correto
+  if (deveFinalizar) {
+    // Vai DIRETO para FINALIZADO (pula etapa de aprovação)
+    const response = await api.put(`/agendamentos-concluir/${id}`, {
+      dataAtendimento: dadosAtendimento.dataAtendimento,
+      observacoes: dadosAtendimento.observacoes,
+      status: 'FINALIZADO'
+    });
+    return response.data;
+  } else {
+    // Vai para ATENDIDO (fluxo normal - precisa de aprovação)
+    const response = await api.put(`/agendamentos-atender/${id}`, {
+      dataAtendimento: dadosAtendimento.dataAtendimento,
+      observacoes: dadosAtendimento.observacoes,
+      status: 'ATENDIDO'
+    });
+    return response.data;
   }
-  
-  return response.data;
 };
 
 export const aprovarAgendamento = async (id: string, dadosAprovacao: {

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { 
+import {
   CheckCircle,
   Clock,
   Users,
@@ -23,7 +23,8 @@ import {
   Eye,
   Unlock,
   CheckSquare,
-  MessageCircle
+  MessageCircle,
+  Paperclip
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { getAgendamentos, updateAgendamento } from '@/services/agendamentos';
@@ -40,8 +41,11 @@ import { getServicos } from '@/services/servicos';
 import { getPacientes, getPacienteById } from '@/services/pacientes';
 import { getProfissionais } from '@/services/profissionais';
 import PedidosMedicosModal from '@/pages/pacientes/PedidosMedicosModal';
+import AnexoPacientesModal from '@/pages/pacientes/AnexoPacientesModal';
 import type { Paciente } from '@/types/Paciente';
 import type { Servico } from '@/types/Servico';
+import type { Anexo } from '@/types/Anexo';
+import { getAnexos } from '@/services/anexos';
 
 // Interface para item da fila de webhooks
 interface WebhookQueueItem {
@@ -145,6 +149,17 @@ export const LiberarPage = () => {
   const [showPedidosModal, setShowPedidosModal] = useState(false);
   const [pacientePedidos, setPacientePedidos] = useState<Paciente | null>(null);
   const [servicosPedidos, setServicosPedidos] = useState<Servico[]>([]);
+
+  // Anexos - estados
+  const [showAnexoModal, setShowAnexoModal] = useState(false);
+  const [pacienteAnexo, setPacienteAnexo] = useState<Paciente | null>(null);
+  const [anexoFiles, setAnexoFiles] = useState<File[]>([]);
+  const [anexoDescricao, setAnexoDescricao] = useState('');
+  const [anexos, setAnexos] = useState<Anexo[]>([]);
+  const [anexoError, setAnexoError] = useState('');
+  const [anexoToDelete, setAnexoToDelete] = useState<Anexo | null>(null);
+  const [deletingAnexo, setDeletingAnexo] = useState(false);
+  const [saving, setSaving] = useState(false);
   
   // Estados para confirmação de reenvio
   const [showConfirmacaoReenvio, setShowConfirmacaoReenvio] = useState(false);
@@ -633,6 +648,37 @@ export const LiberarPage = () => {
     setPacientePedidos(null);
   };
 
+  // Anexos - handlers
+  const abrirModalAnexo = async (agendamento: Agendamento) => {
+    try {
+      const paciente = await getPacienteById(agendamento.pacienteId);
+      setPacienteAnexo(paciente);
+      setAnexoFiles([]);
+      setAnexoDescricao('');
+      setAnexoError('');
+      setAnexos([]);
+      setShowAnexoModal(true);
+      // Buscar anexos reais
+      try {
+        const anexosDb = await getAnexos(paciente.id, 'pacientes');
+        setAnexos(Array.isArray(anexosDb) ? anexosDb.filter((a: any) => !a.bucket || a.bucket === 'pacientes') : []);
+      } catch (e) {
+        setAnexos([]);
+      }
+    } catch (err) {
+      AppToast.error('Erro ao carregar dados do paciente');
+    }
+  };
+
+  const fecharModalAnexo = () => {
+    setShowAnexoModal(false);
+    setPacienteAnexo(null);
+    setAnexoFiles([]);
+    setAnexoDescricao('');
+    setAnexoError('');
+    setAnexos([]);
+  };
+
   const renderCardView = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {agendamentosPaginados.length === 0 ? (
@@ -744,6 +790,15 @@ export const LiberarPage = () => {
                     title="Pedidos Médicos"
                   >
                     <FileText className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                    onClick={() => abrirModalAnexo(agendamento)}
+                    title="Anexos"
+                  >
+                    <Paperclip className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
                   </Button>
                   {canLiberar ? (
                     <Button
@@ -959,6 +1014,15 @@ export const LiberarPage = () => {
                         title="Pedidos Médicos"
                       >
                         <FileText className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => abrirModalAnexo(agendamento)}
+                        title="Anexos"
+                      >
+                        <Paperclip className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
                       </Button>
                       {canLiberar ? (
                         <Button
@@ -1243,6 +1307,26 @@ export const LiberarPage = () => {
         paciente={pacientePedidos}
         servicos={servicosPedidos}
         onClose={fecharModalPedidos}
+      />
+
+      <AnexoPacientesModal
+        showModal={showAnexoModal}
+        paciente={pacienteAnexo}
+        anexoFiles={anexoFiles}
+        anexoDescricao={anexoDescricao}
+        anexos={anexos}
+        anexoError={anexoError}
+        saving={saving}
+        anexoToDelete={anexoToDelete}
+        deletingAnexo={deletingAnexo}
+        onClose={fecharModalAnexo}
+        onAnexoFilesChange={setAnexoFiles}
+        onAnexoDescricaoChange={setAnexoDescricao}
+        onAnexosChange={setAnexos}
+        onAnexoErrorChange={setAnexoError}
+        onSavingChange={setSaving}
+        onAnexoToDeleteChange={setAnexoToDelete}
+        onDeletingAnexoChange={setDeletingAnexo}
       />
     </div>
   );

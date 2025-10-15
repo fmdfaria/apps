@@ -222,43 +222,58 @@ export const CalendarioProfissionalPage = () => {
 
   // Sincronizar scroll vertical
   useLayoutEffect(() => {
-    // Pequeno delay para garantir que os elementos estejam renderizados
-    const timer = setTimeout(() => {
-      const timeCol = timeColumnRef.current;
-      const contentCol = contentScrollRef.current;
-      
-      if (!timeCol || !contentCol) return;
+    const timeCol = timeColumnRef.current;
+    const contentCol = contentScrollRef.current;
 
-      let isScrolling = false;
+    if (!timeCol || !contentCol) return;
 
-      const handleTimeScroll = () => {
-        if (isScrolling) return;
-        isScrolling = true;
-        contentCol.scrollTop = timeCol.scrollTop;
-        requestAnimationFrame(() => {
-          isScrolling = false;
-        });
-      };
+    let syncingScroll = false;
+    let scrollTimeout: NodeJS.Timeout;
 
-      const handleContentScroll = () => {
-        if (isScrolling) return;
-        isScrolling = true;
-        timeCol.scrollTop = contentCol.scrollTop;
-        requestAnimationFrame(() => {
-          isScrolling = false;
-        });
-      };
+    const handleTimeScroll = () => {
+      if (syncingScroll) return;
+      syncingScroll = true;
 
-      timeCol.addEventListener('scroll', handleTimeScroll, { passive: true });
-      contentCol.addEventListener('scroll', handleContentScroll, { passive: true });
+      // Sincronização imediata
+      contentCol.scrollTop = timeCol.scrollTop;
 
-      return () => {
-        timeCol.removeEventListener('scroll', handleTimeScroll);
-        contentCol.removeEventListener('scroll', handleContentScroll);
-      };
-    }, 100);
+      // Correção adicional após scroll parar (mesma técnica do SchedulerGrid)
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        if (contentCol) {
+          contentCol.scrollTop = timeCol.scrollTop;
+        }
+      }, 50);
 
-    return () => clearTimeout(timer);
+      syncingScroll = false;
+    };
+
+    const handleContentScroll = () => {
+      if (syncingScroll) return;
+      syncingScroll = true;
+
+      // Sincronização imediata
+      timeCol.scrollTop = contentCol.scrollTop;
+
+      // Correção adicional após scroll parar (mesma técnica do SchedulerGrid)
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        if (timeCol) {
+          timeCol.scrollTop = contentCol.scrollTop;
+        }
+      }, 50);
+
+      syncingScroll = false;
+    };
+
+    timeCol.addEventListener('scroll', handleTimeScroll, { passive: true });
+    contentCol.addEventListener('scroll', handleContentScroll, { passive: true });
+
+    return () => {
+      timeCol.removeEventListener('scroll', handleTimeScroll);
+      contentCol.removeEventListener('scroll', handleContentScroll);
+      clearTimeout(scrollTimeout);
+    };
   }, [loading, userProfissional]);
 
 
@@ -720,6 +735,8 @@ export const CalendarioProfissionalPage = () => {
                       <span className="lg:hidden">{timeSlot.time.split(':')[0]}</span>
                     </div>
                   ))}
+                  {/* Footer espaçador para evitar desalinhamento no fim do scroll */}
+                  <div className="h-[50px] lg:h-[60px] bg-gray-50"></div>
                 </div>
               </div>
             </div>
@@ -757,12 +774,13 @@ export const CalendarioProfissionalPage = () => {
                   scrollBehavior: 'smooth'
                 }}
               >
-                {/* Grid */}
-                <div className="flex min-w-full lg:hidden" style={{ height: `${timeSlots.length * 50}px`, minHeight: '500px' }}>
+                {/* Grid Mobile */}
+                <div className="flex min-w-full lg:hidden" style={{ height: `${timeSlots.length * 50 + 50}px` }}>
                   {weekDays.map((day, dayIndex) => (
                     <div
                       key={dayIndex}
                       className="flex-1 border-r border-gray-200 relative bg-white min-w-0"
+                      style={{ height: `${timeSlots.length * 50 + 50}px` }}
                     >
                       {/* Time grid background */}
                       {timeSlots.map((timeSlot, timeIndex) => {
@@ -776,6 +794,9 @@ export const CalendarioProfissionalPage = () => {
                           </div>
                         );
                       })}
+
+                      {/* Footer espaçador para evitar desalinhamento no fim do scroll */}
+                      <div className="h-[50px] bg-gray-50"></div>
 
                       {/* Agendamentos posicionados absolutamente */}
                       {getAgendamentosForDay(day.date).map((agendamento) => {
@@ -828,11 +849,12 @@ export const CalendarioProfissionalPage = () => {
                 </div>
 
                 {/* Grid Desktop */}
-                <div className="hidden lg:flex min-w-full" style={{ height: `${timeSlots.length * 60}px`, minHeight: '600px' }}>
+                <div className="hidden lg:flex min-w-full" style={{ height: `${timeSlots.length * 60 + 60}px` }}>
                   {weekDays.map((day, dayIndex) => (
                     <div
                       key={dayIndex}
                       className="flex-1 border-r border-gray-200 relative bg-white min-w-0"
+                      style={{ height: `${timeSlots.length * 60 + 60}px` }}
                     >
                       {/* Time grid background */}
                       {timeSlots.map((timeSlot, timeIndex) => {
@@ -846,6 +868,9 @@ export const CalendarioProfissionalPage = () => {
                           </div>
                         );
                       })}
+
+                      {/* Footer espaçador para evitar desalinhamento no fim do scroll */}
+                      <div className="h-[60px] bg-gray-50"></div>
 
                       {/* Agendamentos posicionados absolutamente */}
                       {getAgendamentosForDay(day.date).map((agendamento) => {

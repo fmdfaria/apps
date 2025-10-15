@@ -239,11 +239,11 @@ export const PacientesPage = () => {
         label: 'Tipo de Serviço'
       },
       render: (item) => (
-        <Badge 
-          variant="outline" 
+        <Badge
+          variant="outline"
           className={`text-xs ${
-            item.tipoServico === 'Convênio' 
-              ? 'bg-rose-50 text-rose-700 border-rose-200' 
+            item.tipoServico === 'Convênio'
+              ? 'bg-rose-50 text-rose-700 border-rose-200'
               : 'bg-pink-50 text-pink-700 border-pink-200'
           }`}
         >
@@ -267,6 +267,16 @@ export const PacientesPage = () => {
           </span>
         );
       }
+    },
+    {
+      key: 'dataNascimento',
+      header: '🎂 Data Nascimento',
+      essential: false,
+      render: (item) => (
+        <span className="text-sm text-gray-600">
+          {item.dataNascimento ? new Date(item.dataNascimento).toLocaleDateString('pt-BR') : '-'}
+        </span>
+      )
     },
     {
       key: 'status',
@@ -845,7 +855,15 @@ export const PacientesPage = () => {
               </div>
             )}
 
-            
+            {paciente.dataNascimento && (
+              <div className="flex items-center gap-1">
+                <span>🎂</span>
+                <span className="text-gray-600">
+                  {new Date(paciente.dataNascimento).toLocaleDateString('pt-BR')}
+                </span>
+              </div>
+            )}
+
             {paciente.convenio && (
               <div className="flex items-center gap-1">
                 <span>🏥</span>
