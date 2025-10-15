@@ -482,7 +482,19 @@ export class SeriesManager {
       }
     }
 
-    await this.agendamentosRepository.delete(agendamentoId);
+    try {
+      await this.agendamentosRepository.delete(agendamentoId);
+    } catch (error: any) {
+      // Verificar se é erro de foreign key constraint relacionado a agendamentos_contas
+      if (error.code === 'P2003' || error.message?.includes('agendamentos_contas') || error.message?.includes('Foreign key constraint')) {
+        throw new AppError(
+          'Não é possível excluir este agendamento pois existem contas financeiras vinculadas a ele. Remova primeiro as contas a receber ou a pagar associadas.',
+          400
+        );
+      }
+      // Relançar outros erros
+      throw error;
+    }
   }
 
   /**

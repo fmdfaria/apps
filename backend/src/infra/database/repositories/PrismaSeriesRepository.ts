@@ -55,11 +55,24 @@ export class PrismaSeriesRepository implements ISeriesRepository {
   }
 
   async deleteMultipleAgendamentos(agendamentoIds: string[]): Promise<void> {
-    await this.prisma.agendamento.deleteMany({
-      where: {
-        id: { in: agendamentoIds }
+    try {
+      await this.prisma.agendamento.deleteMany({
+        where: {
+          id: { in: agendamentoIds }
+        }
+      });
+    } catch (error: any) {
+      // Verificar se é erro de foreign key constraint relacionado a agendamentos_contas
+      if (error.code === 'P2003' || error.message?.includes('agendamentos_contas') || error.message?.includes('Foreign key constraint')) {
+        const { AppError } = await import('../../../shared/errors/AppError');
+        throw new AppError(
+          'Não é possível excluir um ou mais agendamentos desta série pois existem contas financeiras vinculadas. Remova primeiro as contas a receber ou a pagar associadas.',
+          400
+        );
       }
-    });
+      // Relançar outros erros
+      throw error;
+    }
   }
 
   async findAgendamentosFromDate(

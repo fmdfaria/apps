@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { inject, injectable } from 'tsyringe';
 import { Agendamento } from '../../../../core/domain/entities/Agendamento';
 import { IAgendamentosRepository, ICreateAgendamentoDTO, IUpdateAgendamentoDTO, IAgendamentoFilters, IPaginatedResponse } from '../../../../core/domain/repositories/IAgendamentosRepository';
+import { AppError } from '../../../../shared/errors/AppError';
 
 // Função para normalizar texto removendo acentos
 function normalizeText(text: string): string {
@@ -374,6 +375,22 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await this.prisma.agendamento.delete({ where: { id } });
+    try {
+      await this.prisma.agendamento.delete({ where: { id } });
+    } catch (error: any) {
+      // Verificar se é erro de foreign key constraint relacionado a agendamentos_contas
+      if (
+        error.code === 'P2003' ||
+        error.message?.includes('agendamentos_contas') ||
+        error.message?.includes('Foreign key constraint')
+      ) {
+        throw new AppError(
+          'Não é possível excluir este agendamento pois existem contas financeiras vinculadas a ele. Remova primeiro as contas a receber ou a pagar associadas.',
+          400
+        );
+      }
+      // Relançar outros erros
+      throw error;
+    }
   }
 } 

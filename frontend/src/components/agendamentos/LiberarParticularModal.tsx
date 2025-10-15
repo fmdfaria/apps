@@ -189,10 +189,10 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
     try {
       // Extrair dados especiais do controle de fluxo
       const { _autoReceived, _dataRecebimento, _formaRecebimento, _valorRecebido, ...contaData } = dadosConta;
-      
-      // Criar a conta a receber como PENDENTE
+
+      // Criar a conta a receber com o status selecionado no modal
       const contaCriada = await createContaReceber(contaData);
-      
+
       // Criar relacionamento agendamento-conta
       if (contaCriada?.id && agendamento?.id) {
         try {
@@ -205,9 +205,12 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
           // Não interrompe o fluxo se falhar ao criar o relacionamento
         }
       }
-      
-      // Se deve marcar como recebido automaticamente
-      if (_autoReceived && contaCriada?.id) {
+
+      // IMPORTANTE: Só marcar como recebido se o status selecionado for 'RECEBIDO'
+      // Se o usuário selecionou 'PENDENTE' ou outro status, respeitar a escolha
+      const deveMarcarComoRecebido = _autoReceived && contaData.status === 'RECEBIDO';
+
+      if (deveMarcarComoRecebido && contaCriada?.id) {
         try {
           await receberConta(contaCriada.id, {
             // Usar sempre o valor editado no modal (valorOriginal) para o recebimento
@@ -217,10 +220,10 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
             contaBancariaId: contaData.contaBancariaId || '',
             observacoes: 'Recebimento automático pela liberação de agendamento particular'
           });
-          
+
           // Após criar conta a receber com sucesso, executar liberação do agendamento
           await executarLiberacaoAutomatica();
-          
+
           AppToast.created('Conta a Receber', 'Conta a receber criada e marcada como recebida com sucesso!');
         } catch (receiveError: any) {
           // Se falhar ao marcar como recebido, pelo menos a conta foi criada
@@ -228,9 +231,16 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
           return; // Não continua com a liberação se houve erro
         }
       } else {
-        AppToast.created('Conta a Receber', 'Conta a receber criada com sucesso!');
+        // Status diferente de RECEBIDO ou não deve auto-receber
+        // Executar liberação do agendamento mesmo sem marcar como recebido
+        await executarLiberacaoAutomatica();
+
+        const mensagem = contaData.status === 'RECEBIDO'
+          ? 'Conta a receber criada com sucesso!'
+          : `Conta a receber criada com status ${contaData.status}!`;
+        AppToast.created('Conta a Receber', mensagem);
       }
-      
+
       // Fechar o modal de conta a receber
       setShowContaReceberModal(false);
       setContaReceberData(null);
