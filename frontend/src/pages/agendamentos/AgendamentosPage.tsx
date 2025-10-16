@@ -367,7 +367,23 @@ export const AgendamentosPage = () => {
       if (filtrosAplicados.status && filtrosAplicados.status !== filtroStatus) filtrosAPI.status = filtrosAplicados.status;
       if (filtrosAplicados.dataInicio) filtrosAPI.dataInicio = filtrosAplicados.dataInicio;
       if (filtrosAplicados.dataFim) filtrosAPI.dataFim = filtrosAplicados.dataFim;
-      
+
+      // Calcular data final: dia 01 do sexto mês à frente (apenas se não houver filtro de dataFim aplicado)
+      if (!filtrosAplicados.dataFim) {
+        const hoje = new Date();
+        const mesAtual = hoje.getMonth(); // 0-11
+        const anoAtual = hoje.getFullYear();
+
+        // Adicionar 6 meses
+        const mesFinal = (mesAtual + 6) % 12;
+        const anoFinal = anoAtual + Math.floor((mesAtual + 6) / 12);
+
+        // Formatar como YYYY-MM-DD (sempre dia 01)
+        const mes = String(mesFinal + 1).padStart(2, '0');
+
+        filtrosAPI.dataFim = `${anoFinal}-${mes}-01`;
+      }
+
       // Se o usuário for PROFISSIONAL, filtrar apenas os agendamentos dele
       if (user?.roles?.includes('PROFISSIONAL')) {
         try {
@@ -381,7 +397,7 @@ export const AgendamentosPage = () => {
           return;
         }
       }
-      
+
       const dados = await getAgendamentos(filtrosAPI);
       setPaginatedData(dados);
     } catch (e: any) {

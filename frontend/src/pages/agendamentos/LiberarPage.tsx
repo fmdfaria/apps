@@ -371,11 +371,29 @@ export const LiberarPage = () => {
         console.log('⚠️ Usando ID hardcoded para convênio particular:', convenioParticularId);
       }
 
+      // Calcular data final: dia 01 do segundo mês à frente (apenas se não houver filtro de dataFim aplicado)
+      let dataFimDoisMeses: string | undefined;
+      if (!filtrosAplicados.dataFim) {
+        const hoje = new Date();
+        const mesAtual = hoje.getMonth(); // 0-11
+        const anoAtual = hoje.getFullYear();
+
+        // Adicionar 2 meses
+        const mesFinal = (mesAtual + 2) % 12;
+        const anoFinal = anoAtual + Math.floor((mesAtual + 2) / 12);
+
+        // Formatar como YYYY-MM-DD (sempre dia 01)
+        const mes = String(mesFinal + 1).padStart(2, '0');
+
+        dataFimDoisMeses = `${anoFinal}-${mes}-01`;
+      }
+
       // Buscar duas listas paginadas por status relevantes para liberação, excluindo convênio particular
       const agendadosParams: any = {
         page: paginaAtual,
         limit: itensPorPagina,
         status: 'AGENDADO',
+        ...(dataFimDoisMeses ? { dataFim: dataFimDoisMeses } : {}),
         // Só excluir convênio particular se NÃO há filtro de convênio específico aplicado
         ...(convenioParticularId && !filtrosAplicados.convenioId ? { convenioIdExcluir: convenioParticularId } : {}),
         ...(buscaDebounced ? { search: buscaDebounced } : {}),
@@ -392,6 +410,7 @@ export const LiberarPage = () => {
         page: paginaAtual,
         limit: itensPorPagina,
         status: 'SOLICITADO',
+        ...(dataFimDoisMeses ? { dataFim: dataFimDoisMeses } : {}),
         // Só excluir convênio particular se NÃO há filtro de convênio específico aplicado
         ...(convenioParticularId && !filtrosAplicados.convenioId ? { convenioIdExcluir: convenioParticularId } : {}),
         ...(buscaDebounced ? { search: buscaDebounced } : {}),

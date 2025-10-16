@@ -652,11 +652,30 @@ export const LiberarParticularPage = () => {
       // ID fixo do convênio particular
       const convenioParticularId = 'f4af6586-8b56-4cf3-8b87-d18605cea381';
 
+      // Calcular data final: dia 01 do terceiro mês à frente
+      const calcularDataFimTresMeses = () => {
+        const hoje = new Date();
+        const mesAtual = hoje.getMonth(); // 0-11
+        const anoAtual = hoje.getFullYear();
+
+        // Adicionar 3 meses
+        const mesFinal = (mesAtual + 3) % 12;
+        const anoFinal = anoAtual + Math.floor((mesAtual + 3) / 12);
+
+        // Formatar como YYYY-MM-DD (sempre dia 01)
+        const mes = String(mesFinal + 1).padStart(2, '0');
+
+        return `${anoFinal}-${mes}-01`;
+      };
+
+      const dataFimTresMeses = calcularDataFimTresMeses();
+
       // Buscar agendamentos do convênio particular com status AGENDADO e SOLICITADO (sem limit para agrupamento)
       const [agendadosRes, solicitadosRes] = await Promise.all([
-        getAgendamentos({ 
+        getAgendamentos({
           status: 'AGENDADO',
           convenioId: convenioParticularId,
+          dataFim: dataFimTresMeses,
           ...(buscaDebounced ? { search: buscaDebounced } : {}),
           ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
           ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
@@ -666,9 +685,10 @@ export const LiberarParticularPage = () => {
           ...(filtrosAplicados.profissionalId && !profissionalIdFiltro ? { profissionalId: filtrosAplicados.profissionalId } : {}),
           ...(profissionalIdFiltro ? { profissionalId: profissionalIdFiltro } : {}),
         }),
-        getAgendamentos({ 
+        getAgendamentos({
           status: 'SOLICITADO',
           convenioId: convenioParticularId,
+          dataFim: dataFimTresMeses,
           ...(buscaDebounced ? { search: buscaDebounced } : {}),
           ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
           ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
