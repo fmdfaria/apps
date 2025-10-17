@@ -206,11 +206,15 @@ export const PedidosMedicosPage: React.FC = () => {
 
           // Usar data de vencimento do banco (já calculada no backend)
           const dataVencStr = pp.dataVencimentoPedido as string | null;
-          const dataVenc = dataVencStr ? new Date(dataVencStr + 'T00:00:00Z') : null;
+          // A data já vem como ISO completo (ex: '2026-03-25T00:00:00.000Z')
+          const dataVenc = dataVencStr ? new Date(dataVencStr) : null;
 
+          // Criar data de hoje em UTC (zerando horas) para comparação justa
           const hoje = new Date();
+          const hojeUTC = new Date(Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()));
+
           const diasParaVencer = dataVenc
-            ? Math.ceil((dataVenc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
+            ? Math.ceil((dataVenc.getTime() - hojeUTC.getTime()) / (1000 * 60 * 60 * 24))
             : null;
 
           // Calcular status
@@ -433,6 +437,11 @@ export const PedidosMedicosPage: React.FC = () => {
   };
 
   const getStatusBadge = (pedido: PedidoMedico) => {
+    // Se não tem data de vencimento
+    if (pedido.dataVencimento === '-') {
+      return 'bg-gray-100 text-gray-800';
+    }
+
     if (pedido.status === 'vencido') {
       return 'bg-red-100 text-red-800';
     } else if (pedido.status === 'vencendo') {
@@ -442,6 +451,11 @@ export const PedidosMedicosPage: React.FC = () => {
   };
 
   const getStatusText = (pedido: PedidoMedico) => {
+    // Se não tem data de vencimento
+    if (pedido.dataVencimento === '-') {
+      return 'Sem vencimento';
+    }
+
     if (pedido.status === 'vencido') {
       return `Vencido há ${Math.abs(pedido.diasParaVencer)} dias`;
     } else if (pedido.status === 'vencendo') {
