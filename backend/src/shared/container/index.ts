@@ -109,6 +109,9 @@ import { PrismaRoleRoutesRepository } from '../../infra/database/prisma/reposito
 import { IConfiguracoesRepository } from '../../core/domain/repositories/IConfiguracoesRepository';
 import { PrismaConfiguracoesRepository } from '../../infra/database/prisma/repositories/PrismaConfiguracoesRepository';
 
+// Pedido Vencimento Service
+import { PedidoVencimentoService } from '../../core/application/services/PedidoVencimentoService';
+
 // RBAC Use Cases
 import { CreateRoleUseCase } from '../../core/application/use-cases/role/CreateRoleUseCase';
 import { ListRolesUseCase } from '../../core/application/use-cases/role/ListRolesUseCase';
@@ -412,6 +415,12 @@ container.register('DeleteRoleRouteUseCase', DeleteRoleRouteUseCase);
 container.register<IConfiguracoesRepository>(
   'ConfiguracoesRepository',
   PrismaConfiguracoesRepository
+);
+
+// Pedido Vencimento Service
+container.registerSingleton<PedidoVencimentoService>(
+  'PedidoVencimentoService',
+  PedidoVencimentoService
 );
 
 container.register('CreateConfiguracaoUseCase', CreateConfiguracaoUseCase);

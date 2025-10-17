@@ -481,19 +481,23 @@ model RoleRoute {
 }
 
 model PacientePedido {
-  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  dataPedidoMedico  DateTime? @map("data_pedido_medico") @db.Date
-  crm               String?   @db.VarChar(100)
-  cbo               String?   @db.VarChar(100)
-  cid               String?   @db.VarChar(255)
-  autoPedidos       Boolean?  @default(true) @map("auto_pedidos")
-  descricao         String?   @db.Text
-  servicoId         String?   @map("servico_id") @db.Uuid
-  pacienteId        String    @map("paciente_id") @db.Uuid
-  createdAt         DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  paciente          Paciente  @relation(fields: [pacienteId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  servico           Servico?  @relation(fields: [servicoId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dataPedidoMedico       DateTime? @map("data_pedido_medico") @db.Date
+  dataVencimentoPedido   DateTime? @map("data_vencimento_pedido") @db.Date
+  enviado30dias          Boolean?  @default(false) @map("enviado_30dias")
+  enviado10dias          Boolean?  @default(false) @map("enviado_10dias")
+  enviadoVencido         Boolean?  @default(false) @map("enviado_vencido")
+  crm                    String?   @db.VarChar(100)
+  cbo                    String?   @db.VarChar(100)
+  cid                    String?   @db.VarChar(255)
+  autoPedidos            Boolean?  @default(true) @map("auto_pedidos")
+  descricao              String?   @db.Text
+  servicoId              String?   @map("servico_id") @db.Uuid
+  pacienteId             String    @map("paciente_id") @db.Uuid
+  createdAt              DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  paciente               Paciente  @relation(fields: [pacienteId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  servico                Servico?  @relation(fields: [servicoId], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@index([pacienteId], map: "idx_pacientes_pedidos_paciente_id")
   @@index([servicoId], map: "idx_pacientes_pedidos_servico_id")

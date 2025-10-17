@@ -3,6 +3,8 @@ import { AppError } from '../../../../shared/errors/AppError';
 import { PacientePedido } from '../../../domain/entities/PacientePedido';
 import { IPacientesPedidosRepository } from '../../../domain/repositories/IPacientesPedidosRepository';
 import { IServicosRepository } from '../../../domain/repositories/IServicosRepository';
+import { IPacientesRepository } from '../../../domain/repositories/IPacientesRepository';
+import { PedidoVencimentoService } from '../../services/PedidoVencimentoService';
 
 interface IRequest {
   id: string;
@@ -21,7 +23,11 @@ export class UpdatePacientePedidoUseCase {
     @inject('PacientesPedidosRepository')
     private pacientesPedidosRepository: IPacientesPedidosRepository,
     @inject('ServicosRepository')
-    private servicosRepository: IServicosRepository
+    private servicosRepository: IServicosRepository,
+    @inject('PacientesRepository')
+    private pacientesRepository: IPacientesRepository,
+    @inject('PedidoVencimentoService')
+    private pedidoVencimentoService: PedidoVencimentoService
   ) {}
 
   async execute({ id, ...data }: IRequest): Promise<PacientePedido> {
@@ -39,6 +45,10 @@ export class UpdatePacientePedidoUseCase {
       }
     }
 
+    // Verificar se a data do pedido foi alterada
+    const dataPedidoAlterada = data.dataPedidoMedico !== undefined &&
+      data.dataPedidoMedico?.getTime() !== pedido.dataPedidoMedico?.getTime();
+
     // Atualizar os dados do pedido
     pedido.dataPedidoMedico = data.dataPedidoMedico;
     pedido.crm = data.crm;
@@ -47,6 +57,27 @@ export class UpdatePacientePedidoUseCase {
     pedido.autoPedidos = data.autoPedidos;
     pedido.descricao = data.descricao;
     pedido.servicoId = data.servicoId;
+
+    // Se a data do pedido foi alterada, recalcular vencimento e resetar flags
+    if (dataPedidoAlterada) {
+      // Buscar paciente para obter convenioId
+      const paciente = await this.pacientesRepository.findById(pedido.pacienteId);
+
+      if (data.dataPedidoMedico && paciente?.convenioId) {
+        const dataVencimento = await this.pedidoVencimentoService.calcularDataVencimento(
+          data.dataPedidoMedico,
+          paciente.convenioId
+        );
+        pedido.dataVencimentoPedido = dataVencimento;
+      } else {
+        pedido.dataVencimentoPedido = null;
+      }
+
+      // Resetar flags de notificação
+      pedido.enviado30dias = false;
+      pedido.enviado10dias = false;
+      pedido.enviadoVencido = false;
+    }
 
     const updatedPedido = await this.pacientesPedidosRepository.save(pedido);
 

@@ -203,26 +203,31 @@ export const PedidosMedicosPage: React.FC = () => {
         .map(pp => {
           const paciente = pacientesData.find(p => p.id === pp.pacienteId);
           const convenio = conveniosData.find(c => c.id === (paciente?.convenioId));
-          // Normaliza data do pedido (aceita 'YYYY-MM-DD' ou ISO) e calcula vencimento em UTC
-          const dataPedidoStr = pp.dataPedidoMedico as string;
-          const pedidoIso = /T/.test(dataPedidoStr) ? dataPedidoStr : `${dataPedidoStr}T00:00:00Z`;
-          const dataPedido = new Date(pedidoIso);
-          const isValidPedido = !isNaN(dataPedido.getTime());
-          const mesesValidade = (convenio?.nome?.toLowerCase() || '') === 'petrobras' ? 3 : 6;
-          const dataVenc = isValidPedido 
-            ? new Date(Date.UTC(dataPedido.getUTCFullYear(), dataPedido.getUTCMonth(), dataPedido.getUTCDate()))
-            : null;
-          if (dataVenc) dataVenc.setUTCMonth(dataVenc.getUTCMonth() + mesesValidade);
+
+          // Usar data de vencimento do banco (já calculada no backend)
+          const dataVencStr = pp.dataVencimentoPedido as string | null;
+          const dataVenc = dataVencStr ? new Date(dataVencStr + 'T00:00:00Z') : null;
+
           const hoje = new Date();
-          const diasParaVencer = dataVenc ? Math.ceil((dataVenc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+          const diasParaVencer = dataVenc
+            ? Math.ceil((dataVenc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
+            : null;
+
+          // Calcular status
           let status: 'vigente' | 'vencendo' | 'vencido';
-          if (!dataVenc) status = 'vigente';
-          else if (diasParaVencer < 0) status = 'vencido';
-          else if (diasParaVencer <= 30) status = 'vencendo';
-          else status = 'vigente';
-          const dataVencimentoFormatted = dataVenc 
+          if (!dataVenc) {
+            status = 'vigente'; // Sem data de vencimento = não tem controle de vencimento
+          } else if (diasParaVencer < 0) {
+            status = 'vencido';
+          } else if (diasParaVencer <= 30) {
+            status = 'vencendo';
+          } else {
+            status = 'vigente';
+          }
+
+          const dataVencimentoFormatted = dataVenc
             ? `${dataVenc.getUTCFullYear()}-${String(dataVenc.getUTCMonth() + 1).padStart(2, '0')}-${String(dataVenc.getUTCDate()).padStart(2, '0')}`
-            : dataPedidoStr;
+            : (pp.dataPedidoMedico as string);
 
           return {
             id: pp.id,
@@ -233,7 +238,7 @@ export const PedidosMedicosPage: React.FC = () => {
             numeroCarteirinha: paciente?.numeroCarteirinha || undefined,
             dataPedidoMedico: (pp.dataPedidoMedico as string),
             dataVencimento: dataVencimentoFormatted,
-            diasParaVencer,
+            diasParaVencer: diasParaVencer ?? 0,
             status,
             crm: pp.crm || undefined,
             cbo: pp.cbo || undefined

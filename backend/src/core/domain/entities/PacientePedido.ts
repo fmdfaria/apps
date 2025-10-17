@@ -1,6 +1,10 @@
 export class PacientePedido {
   id: string;
   dataPedidoMedico?: Date | null;
+  dataVencimentoPedido?: Date | null;
+  enviado30dias?: boolean | null;
+  enviado10dias?: boolean | null;
+  enviadoVencido?: boolean | null;
   crm?: string | null;
   cbo?: string | null;
   cid?: string | null;

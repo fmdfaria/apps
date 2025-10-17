@@ -4,6 +4,7 @@ import { PacientePedido } from '../../../domain/entities/PacientePedido';
 import { IPacientesPedidosRepository } from '../../../domain/repositories/IPacientesPedidosRepository';
 import { IPacientesRepository } from '../../../domain/repositories/IPacientesRepository';
 import { IServicosRepository } from '../../../domain/repositories/IServicosRepository';
+import { PedidoVencimentoService } from '../../services/PedidoVencimentoService';
 
 interface IRequest {
   dataPedidoMedico?: Date | null;
@@ -24,7 +25,9 @@ export class CreatePacientePedidoUseCase {
     @inject('PacientesRepository')
     private pacientesRepository: IPacientesRepository,
     @inject('ServicosRepository')
-    private servicosRepository: IServicosRepository
+    private servicosRepository: IServicosRepository,
+    @inject('PedidoVencimentoService')
+    private pedidoVencimentoService: PedidoVencimentoService
   ) {}
 
   async execute(data: IRequest): Promise<PacientePedido> {
@@ -51,6 +54,22 @@ export class CreatePacientePedidoUseCase {
     pedido.descricao = data.descricao;
     pedido.servicoId = data.servicoId;
     pedido.pacienteId = data.pacienteId;
+
+    // Calcular data de vencimento se tiver data do pedido e convênio
+    if (data.dataPedidoMedico && paciente.convenioId) {
+      const dataVencimento = await this.pedidoVencimentoService.calcularDataVencimento(
+        data.dataPedidoMedico,
+        paciente.convenioId
+      );
+      pedido.dataVencimentoPedido = dataVencimento;
+    } else {
+      pedido.dataVencimentoPedido = null;
+    }
+
+    // Inicializar flags de notificação
+    pedido.enviado30dias = false;
+    pedido.enviado10dias = false;
+    pedido.enviadoVencido = false;
 
     const createdPedido = await this.pacientesPedidosRepository.create(pedido);
 
