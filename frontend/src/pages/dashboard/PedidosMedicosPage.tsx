@@ -225,9 +225,8 @@ export const PedidosMedicosPage: React.FC = () => {
             status = 'vigente';
           }
 
-          const dataVencimentoFormatted = dataVenc
-            ? `${dataVenc.getUTCFullYear()}-${String(dataVenc.getUTCMonth() + 1).padStart(2, '0')}-${String(dataVenc.getUTCDate()).padStart(2, '0')}`
-            : (pp.dataPedidoMedico as string);
+          // Formatar data de vencimento (usar valor direto do banco ou '-' se não tiver)
+          const dataVencimentoFormatted = dataVencStr || '-';
 
           return {
             id: pp.id,

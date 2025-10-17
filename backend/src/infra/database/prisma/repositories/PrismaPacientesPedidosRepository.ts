@@ -11,6 +11,10 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
     const createdPedido = await this.prisma.pacientePedido.create({
       data: {
         dataPedidoMedico: pedido.dataPedidoMedico,
+        dataVencimentoPedido: pedido.dataVencimentoPedido,
+        enviado30dias: pedido.enviado30dias,
+        enviado10dias: pedido.enviado10dias,
+        enviadoVencido: pedido.enviadoVencido,
         crm: pedido.crm,
         cbo: pedido.cbo,
         cid: pedido.cid,
@@ -28,6 +32,10 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
     const domainPedido = new PacientePedido();
     domainPedido.id = createdPedido.id;
     domainPedido.dataPedidoMedico = createdPedido.dataPedidoMedico;
+    domainPedido.dataVencimentoPedido = createdPedido.dataVencimentoPedido;
+    domainPedido.enviado30dias = createdPedido.enviado30dias;
+    domainPedido.enviado10dias = createdPedido.enviado10dias;
+    domainPedido.enviadoVencido = createdPedido.enviadoVencido;
     domainPedido.crm = createdPedido.crm;
     domainPedido.cbo = createdPedido.cbo;
     domainPedido.cid = createdPedido.cid;
@@ -37,7 +45,7 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
     domainPedido.pacienteId = createdPedido.pacienteId;
     domainPedido.createdAt = createdPedido.createdAt;
     domainPedido.updatedAt = createdPedido.updatedAt;
-    
+
     // Incluir dados do serviço se estiver disponível
     if (createdPedido.servico) {
       domainPedido.servico = createdPedido.servico;
@@ -62,6 +70,10 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
     const domainPedido = new PacientePedido();
     domainPedido.id = pedido.id;
     domainPedido.dataPedidoMedico = pedido.dataPedidoMedico;
+    domainPedido.dataVencimentoPedido = pedido.dataVencimentoPedido;
+    domainPedido.enviado30dias = pedido.enviado30dias;
+    domainPedido.enviado10dias = pedido.enviado10dias;
+    domainPedido.enviadoVencido = pedido.enviadoVencido;
     domainPedido.crm = pedido.crm;
     domainPedido.cbo = pedido.cbo;
     domainPedido.cid = pedido.cid;
@@ -71,7 +83,7 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
     domainPedido.pacienteId = pedido.pacienteId;
     domainPedido.createdAt = pedido.createdAt;
     domainPedido.updatedAt = pedido.updatedAt;
-    
+
     // Incluir dados do serviço se estiver disponível
     if (pedido.servico) {
       domainPedido.servico = pedido.servico;
@@ -104,6 +116,10 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
       const domainPedido = new PacientePedido();
       domainPedido.id = pedido.id;
       domainPedido.dataPedidoMedico = pedido.dataPedidoMedico;
+      domainPedido.dataVencimentoPedido = pedido.dataVencimentoPedido;
+      domainPedido.enviado30dias = pedido.enviado30dias;
+      domainPedido.enviado10dias = pedido.enviado10dias;
+      domainPedido.enviadoVencido = pedido.enviadoVencido;
       domainPedido.crm = pedido.crm;
       domainPedido.cbo = pedido.cbo;
       domainPedido.cid = pedido.cid;
@@ -113,7 +129,7 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
       domainPedido.pacienteId = pedido.pacienteId;
       domainPedido.createdAt = pedido.createdAt;
       domainPedido.updatedAt = pedido.updatedAt;
-      
+
       // Incluir dados do serviço se estiver disponível
       if (pedido.servico) {
         console.log('Mapeando serviço:', pedido.servico);
@@ -121,7 +137,7 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
       } else {
         console.log('Serviço não encontrado para pedido:', pedido.id, 'servicoId:', pedido.servicoId);
       }
-      
+
       return domainPedido;
     });
   }
@@ -146,6 +162,10 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
       const domainPedido = new PacientePedido();
       domainPedido.id = pedido.id;
       domainPedido.dataPedidoMedico = pedido.dataPedidoMedico;
+      domainPedido.dataVencimentoPedido = pedido.dataVencimentoPedido;
+      domainPedido.enviado30dias = pedido.enviado30dias;
+      domainPedido.enviado10dias = pedido.enviado10dias;
+      domainPedido.enviadoVencido = pedido.enviadoVencido;
       domainPedido.crm = pedido.crm;
       domainPedido.cbo = pedido.cbo;
       domainPedido.cid = pedido.cid;
@@ -166,6 +186,10 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
       where: { id: pedido.id },
       data: {
         dataPedidoMedico: pedido.dataPedidoMedico,
+        dataVencimentoPedido: pedido.dataVencimentoPedido,
+        enviado30dias: pedido.enviado30dias,
+        enviado10dias: pedido.enviado10dias,
+        enviadoVencido: pedido.enviadoVencido,
         crm: pedido.crm,
         cbo: pedido.cbo,
         cid: pedido.cid,
@@ -182,6 +206,10 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
     const domainPedido = new PacientePedido();
     domainPedido.id = updatedPedido.id;
     domainPedido.dataPedidoMedico = updatedPedido.dataPedidoMedico;
+    domainPedido.dataVencimentoPedido = updatedPedido.dataVencimentoPedido;
+    domainPedido.enviado30dias = updatedPedido.enviado30dias;
+    domainPedido.enviado10dias = updatedPedido.enviado10dias;
+    domainPedido.enviadoVencido = updatedPedido.enviadoVencido;
     domainPedido.crm = updatedPedido.crm;
     domainPedido.cbo = updatedPedido.cbo;
     domainPedido.cid = updatedPedido.cid;
@@ -191,7 +219,7 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
     domainPedido.pacienteId = updatedPedido.pacienteId;
     domainPedido.createdAt = updatedPedido.createdAt;
     domainPedido.updatedAt = updatedPedido.updatedAt;
-    
+
     // Incluir dados do serviço se estiver disponível
     if (updatedPedido.servico) {
       domainPedido.servico = updatedPedido.servico;
