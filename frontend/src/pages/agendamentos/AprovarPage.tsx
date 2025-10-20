@@ -373,11 +373,7 @@ export const AprovarPage = () => {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Calendar className="w-4 h-4" />
-                    <span>{data}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock className="w-4 h-4" />
-                    <span>{hora}</span>
+                    <span>{data} - {hora}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <CreditCard className="w-4 h-4" />
@@ -449,13 +445,7 @@ export const AprovarPage = () => {
               <TableHead className="py-3 text-sm font-semibold text-gray-700">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">📅</span>
-                  Data
-                </div>
-              </TableHead>
-              <TableHead className="py-3 text-sm font-semibold text-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">⏰</span>
-                  Horário
+                  Data - Hora
                 </div>
               </TableHead>
               <TableHead className="py-3 text-sm font-semibold text-gray-700">
@@ -505,7 +495,7 @@ export const AprovarPage = () => {
         <TableBody>
           {agendamentosPaginados.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="py-12 text-center">
+              <TableCell colSpan={8} className="py-12 text-center">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                     <span className="text-3xl">🔍</span>
@@ -524,10 +514,7 @@ export const AprovarPage = () => {
               return (
                 <TableRow key={agendamento.id} className="hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-200 h-12">
                   <TableCell className="py-2">
-                    <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded text-gray-700">{data}</span>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <span className="text-sm font-mono bg-green-100 px-2 py-1 rounded text-green-700">{hora}</span>
+                    <span className="text-sm font-mono bg-gradient-to-r from-gray-100 to-green-100 px-3 py-1 rounded text-gray-700">{data} - {hora}</span>
                   </TableCell>
                   <TableCell className="py-2">
                     <div className="flex items-center gap-3">

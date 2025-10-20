@@ -1454,13 +1454,7 @@ export const LiberarParticularPage = () => {
             <TableHead className="py-3 text-sm font-semibold text-gray-700">
               <div className="flex items-center gap-2">
                 <span className="text-lg">📅</span>
-                Data
-              </div>
-            </TableHead>
-            <TableHead className="py-3 text-sm font-semibold text-gray-700">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">⏰</span>
-                Horário
+                Data - Hora
               </div>
             </TableHead>
             <TableHead className="py-3 text-sm font-semibold text-gray-700">
@@ -1522,7 +1516,7 @@ export const LiberarParticularPage = () => {
         <TableBody>
           {agendamentosPaginados.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={11} className="py-12 text-center">
+              <TableCell colSpan={10} className="py-12 text-center">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
                     <span className="text-3xl">💰</span>
@@ -1546,13 +1540,8 @@ export const LiberarParticularPage = () => {
                 return (
                   <TableRow key={grupo.id} className="hover:bg-gradient-to-r hover:from-yellow-50 hover:to-orange-50 transition-all duration-200 h-12 bg-blue-50">
                     <TableCell className="py-2">
-                      <span className="text-sm font-mono bg-blue-100 px-2 py-1 rounded text-blue-700">
-                        {grupo.mesAnoOtimizado}
-                      </span>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <span className="text-sm font-mono bg-blue-100 px-2 py-1 rounded text-blue-700">
-                        Mensal
+                      <span className="text-xs font-mono bg-gradient-to-r from-blue-100 to-purple-100 px-2 py-1 rounded text-blue-700 whitespace-nowrap">
+                        {grupo.mesAnoOtimizado} - Mensal
                       </span>
                     </TableCell>
                     <TableCell className="py-2">
@@ -1664,10 +1653,7 @@ export const LiberarParticularPage = () => {
                 return (
                   <TableRow key={agendamento.id} className="hover:bg-gradient-to-r hover:from-yellow-50 hover:to-orange-50 transition-all duration-200 h-12">
                   <TableCell className="py-2">
-                    <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded text-gray-700">{data}</span>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <span className="text-sm font-mono bg-yellow-100 px-2 py-1 rounded text-yellow-700">{hora}</span>
+                    <span className="text-xs font-mono bg-gradient-to-r from-gray-100 to-yellow-100 px-2 py-1 rounded text-gray-700 whitespace-nowrap">{data} - {hora}</span>
                   </TableCell>
                   <TableCell className="py-2">
                     <div className="flex items-center gap-3">

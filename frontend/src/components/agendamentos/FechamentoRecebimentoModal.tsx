@@ -279,14 +279,9 @@ export const FechamentoRecebimentoModal: React.FC<FechamentoRecebimentoModalProp
                           className="hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-200"
                         >
                           <TableCell className="py-1.5">
-                            <div className="flex items-center gap-1">
-                              <div className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">
-                                {data}
-                              </div>
-                              <div className="text-xs font-mono bg-blue-100 px-1.5 py-0.5 rounded text-blue-700">
-                                {hora}
-                              </div>
-                            </div>
+                            <span className="text-xs font-mono bg-gradient-to-r from-gray-100 to-blue-100 px-2 py-0.5 rounded text-gray-700">
+                              {data} - {hora}
+                            </span>
                           </TableCell>
                           
                           <TableCell className="py-1.5">
