@@ -239,11 +239,17 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
     hoje.setHours(0, 0, 0, 0);
 
     // Calcular datas de referência
-    const data30Dias = new Date(hoje);
-    data30Dias.setDate(data30Dias.getDate() + 30);
+    const amanha = new Date(hoje);
+    amanha.setDate(amanha.getDate() + 1);
 
-    const data10Dias = new Date(hoje);
-    data10Dias.setDate(data10Dias.getDate() + 10);
+    const em10Dias = new Date(hoje);
+    em10Dias.setDate(em10Dias.getDate() + 10);
+
+    const em11Dias = new Date(hoje);
+    em11Dias.setDate(em11Dias.getDate() + 11);
+
+    const em30Dias = new Date(hoje);
+    em30Dias.setDate(em30Dias.getDate() + 30);
 
     // Construir condições WHERE baseadas no tipo
     let whereConditions: any = {
@@ -253,22 +259,24 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
     };
 
     if (tipo === '30dias') {
+      // 30 dias até 11 dias antes do vencimento (intervalo: 11-30 dias)
       whereConditions.enviado30dias = false;
       whereConditions.dataVencimentoPedido = {
-        gte: data30Dias,
-        lt: new Date(data30Dias.getTime() + 24 * 60 * 60 * 1000), // +1 dia
+        gte: em11Dias, // A partir de 11 dias no futuro
+        lte: em30Dias, // Até 30 dias no futuro
       };
     } else if (tipo === '10dias') {
+      // 10 dias até 1 dia antes do vencimento (intervalo: 1-10 dias)
       whereConditions.enviado10dias = false;
       whereConditions.dataVencimentoPedido = {
-        gte: data10Dias,
-        lt: new Date(data10Dias.getTime() + 24 * 60 * 60 * 1000), // +1 dia
+        gte: amanha, // A partir de amanhã
+        lte: em10Dias, // Até 10 dias no futuro
       };
     } else if (tipo === 'vencido') {
+      // Todos com dataVencimento <= hoje
       whereConditions.enviadoVencido = false;
       whereConditions.dataVencimentoPedido = {
-        gte: hoje,
-        lt: new Date(hoje.getTime() + 24 * 60 * 60 * 1000), // +1 dia (hoje)
+        lte: hoje, // Menor ou igual a hoje
       };
     }
     // Se tipo === 'todos', não adiciona filtros de data e enviado
