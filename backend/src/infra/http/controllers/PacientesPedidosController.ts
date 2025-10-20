@@ -5,6 +5,8 @@ import { CreatePacientePedidoUseCase } from '../../../core/application/use-cases
 import { ListPacientesPedidosUseCase } from '../../../core/application/use-cases/paciente-pedido/ListPacientesPedidosUseCase';
 import { UpdatePacientePedidoUseCase } from '../../../core/application/use-cases/paciente-pedido/UpdatePacientePedidoUseCase';
 import { DeletePacientePedidoUseCase } from '../../../core/application/use-cases/paciente-pedido/DeletePacientePedidoUseCase';
+import { ListPedidosPorVencimentoUseCase } from '../../../core/application/use-cases/paciente-pedido/ListPedidosPorVencimentoUseCase';
+import { MarcarPedidoNotificadoUseCase } from '../../../core/application/use-cases/paciente-pedido/MarcarPedidoNotificadoUseCase';
 
 const bodySchema = z.object({
   dataPedidoMedico: z.coerce.date().optional().nullable(),
@@ -64,10 +66,41 @@ export class PacientesPedidosController {
     });
 
     const { id } = paramsSchema.parse(request.params);
-    
+
     const useCase = container.resolve(DeletePacientePedidoUseCase);
     await useCase.execute({ id });
-    
+
     return reply.status(204).send();
+  }
+
+  async listByVencimento(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const querySchema = z.object({
+      tipo: z.enum(['30dias', '10dias', 'vencido', 'todos']).default('todos'),
+    });
+
+    const { tipo } = querySchema.parse(request.query);
+
+    const useCase = container.resolve(ListPedidosPorVencimentoUseCase);
+    const pedidos = await useCase.execute({ tipo });
+
+    return reply.status(200).send(pedidos);
+  }
+
+  async marcarNotificado(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const paramsSchema = z.object({
+      id: z.string().uuid(),
+    });
+
+    const bodySchema = z.object({
+      tipo: z.enum(['30dias', '10dias', 'vencido']),
+    });
+
+    const { id } = paramsSchema.parse(request.params);
+    const { tipo } = bodySchema.parse(request.body);
+
+    const useCase = container.resolve(MarcarPedidoNotificadoUseCase);
+    const pedido = await useCase.execute({ id, tipo });
+
+    return reply.status(200).send(pedido);
   }
 }

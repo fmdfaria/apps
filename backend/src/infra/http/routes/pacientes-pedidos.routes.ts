@@ -33,6 +33,24 @@ export async function pacientesPedidosRoutes(fastify: FastifyInstance) {
     controller.list
   );
 
+  // GET /pacientes/pedidos/vencimentos - Listar pedidos por vencimento (para automação n8n)
+  fastify.get(
+    '/pedidos/vencimentos',
+    {
+      preHandler: [ensureAuthenticated, ensureAuthorized('/pacientes/pedidos/vencimentos', 'GET')],
+    },
+    controller.listByVencimento
+  );
+
+  // PUT /pacientes/pedidos/:id/notificacao - Marcar pedido como notificado
+  fastify.put(
+    '/pedidos/:id/notificacao',
+    {
+      preHandler: [ensureAuthenticated, ensureAuthorized('/pacientes/pedidos/:id/notificacao', 'PUT')],
+    },
+    controller.marcarNotificado
+  );
+
   // PUT /pacientes/:pacienteId/pedidos/:id - Atualizar pedido médico
   fastify.put(
     '/:pacienteId/pedidos/:id',

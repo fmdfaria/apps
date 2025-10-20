@@ -1,7 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { PrismaClient } from '@prisma/client';
 import { PacientePedido } from '../../../../core/domain/entities/PacientePedido';
-import { IPacientesPedidosRepository } from '../../../../core/domain/repositories/IPacientesPedidosRepository';
+import { IPacientesPedidosRepository, TipoNotificacao } from '../../../../core/domain/repositories/IPacientesPedidosRepository';
 
 @injectable()
 export class PrismaPacientesPedidosRepository implements IPacientesPedidosRepository {
@@ -231,6 +231,99 @@ export class PrismaPacientesPedidosRepository implements IPacientesPedidosReposi
   async delete(id: string): Promise<void> {
     await this.prisma.pacientePedido.delete({
       where: { id },
+    });
+  }
+
+  async findPedidosPorVencimento(tipo: TipoNotificacao): Promise<PacientePedido[]> {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    // Calcular datas de referência
+    const data30Dias = new Date(hoje);
+    data30Dias.setDate(data30Dias.getDate() + 30);
+
+    const data10Dias = new Date(hoje);
+    data10Dias.setDate(data10Dias.getDate() + 10);
+
+    // Construir condições WHERE baseadas no tipo
+    let whereConditions: any = {
+      autoPedidos: true,
+      dataVencimentoPedido: { not: null },
+      paciente: { ativo: true },
+    };
+
+    if (tipo === '30dias') {
+      whereConditions.enviado30dias = false;
+      whereConditions.dataVencimentoPedido = {
+        gte: data30Dias,
+        lt: new Date(data30Dias.getTime() + 24 * 60 * 60 * 1000), // +1 dia
+      };
+    } else if (tipo === '10dias') {
+      whereConditions.enviado10dias = false;
+      whereConditions.dataVencimentoPedido = {
+        gte: data10Dias,
+        lt: new Date(data10Dias.getTime() + 24 * 60 * 60 * 1000), // +1 dia
+      };
+    } else if (tipo === 'vencido') {
+      whereConditions.enviadoVencido = false;
+      whereConditions.dataVencimentoPedido = {
+        gte: hoje,
+        lt: new Date(hoje.getTime() + 24 * 60 * 60 * 1000), // +1 dia (hoje)
+      };
+    }
+    // Se tipo === 'todos', não adiciona filtros de data e enviado
+
+    const pedidos = await this.prisma.pacientePedido.findMany({
+      where: whereConditions,
+      include: {
+        servico: {
+          select: {
+            id: true,
+            nome: true,
+            descricao: true,
+          },
+        },
+        paciente: {
+          select: {
+            id: true,
+            nomeCompleto: true,
+            email: true,
+            whatsapp: true,
+            convenio: {
+              select: {
+                id: true,
+                nome: true,
+              },
+            },
+            numeroCarteirinha: true,
+          },
+        },
+      },
+      orderBy: {
+        dataVencimentoPedido: 'asc',
+      },
+    });
+
+    return pedidos.map((pedido) => {
+      const domainPedido = new PacientePedido();
+      domainPedido.id = pedido.id;
+      domainPedido.dataPedidoMedico = pedido.dataPedidoMedico;
+      domainPedido.dataVencimentoPedido = pedido.dataVencimentoPedido;
+      domainPedido.enviado30dias = pedido.enviado30dias;
+      domainPedido.enviado10dias = pedido.enviado10dias;
+      domainPedido.enviadoVencido = pedido.enviadoVencido;
+      domainPedido.crm = pedido.crm;
+      domainPedido.cbo = pedido.cbo;
+      domainPedido.cid = pedido.cid;
+      domainPedido.autoPedidos = pedido.autoPedidos;
+      domainPedido.descricao = pedido.descricao;
+      domainPedido.servicoId = pedido.servicoId;
+      domainPedido.pacienteId = pedido.pacienteId;
+      domainPedido.createdAt = pedido.createdAt;
+      domainPedido.updatedAt = pedido.updatedAt;
+      if (pedido.servico) domainPedido.servico = pedido.servico;
+      if (pedido.paciente) domainPedido.paciente = pedido.paciente;
+      return domainPedido;
     });
   }
 }
