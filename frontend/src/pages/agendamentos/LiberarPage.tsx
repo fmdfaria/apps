@@ -756,15 +756,7 @@ export const LiberarPage = () => {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Calendar className="w-4 h-4" />
-                    <span>{data}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock className="w-4 h-4" />
-                    <span>{hora}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <CreditCard className="w-4 h-4" />
-                    <span>{agendamento.convenioNome}</span>
+                    <span>{data} - {hora}</span>
                   </div>
                 </div>
 
@@ -857,13 +849,7 @@ export const LiberarPage = () => {
             <TableHead className="py-3 text-sm font-semibold text-gray-700">
               <div className="flex items-center gap-2">
                 <span className="text-lg">📅</span>
-                Data
-              </div>
-            </TableHead>
-            <TableHead className="py-3 text-sm font-semibold text-gray-700">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">⏰</span>
-                Horário
+                Data - Hora
               </div>
             </TableHead>
             <TableHead className="py-3 text-sm font-semibold text-gray-700">
@@ -882,12 +868,6 @@ export const LiberarPage = () => {
               <div className="flex items-center gap-2">
                 <span className="text-lg">🩺</span>
                 Serviço
-              </div>
-            </TableHead>
-            <TableHead className="py-3 text-sm font-semibold text-gray-700">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🏥</span>
-                Convênio
               </div>
             </TableHead>
             <TableHead className="py-3 text-sm font-semibold text-gray-700">
@@ -919,7 +899,7 @@ export const LiberarPage = () => {
         <TableBody>
           {agendamentosPaginados.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={10} className="py-12 text-center">
+              <TableCell colSpan={8} className="py-12 text-center">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                     <span className="text-3xl">🔓</span>
@@ -938,10 +918,7 @@ export const LiberarPage = () => {
               return (
                 <TableRow key={agendamento.id} className="hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 transition-all duration-200 h-12">
                   <TableCell className="py-2">
-                    <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded text-gray-700">{data}</span>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <span className="text-sm font-mono bg-orange-100 px-2 py-1 rounded text-orange-700">{hora}</span>
+                    <span className="text-sm font-mono bg-gradient-to-r from-gray-100 to-orange-100 px-3 py-1 rounded text-gray-700">{data} - {hora}</span>
                   </TableCell>
                   <TableCell className="py-2">
                     <div className="flex items-center gap-3">
@@ -958,12 +935,9 @@ export const LiberarPage = () => {
                     <span className="text-sm">{agendamento.servicoNome}</span>
                   </TableCell>
                   <TableCell className="py-2">
-                    <span className="text-sm">{agendamento.convenioNome}</span>
-                  </TableCell>
-                  <TableCell className="py-2">
                     <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-                      agendamento.tipoAtendimento === 'presencial' 
-                        ? 'bg-green-100 text-green-800' 
+                      agendamento.tipoAtendimento === 'presencial'
+                        ? 'bg-green-100 text-green-800'
                         : 'bg-blue-100 text-blue-800'
                     }`}>
                       {agendamento.tipoAtendimento}

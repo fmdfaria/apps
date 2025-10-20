@@ -413,15 +413,9 @@ export const PendenciaPage = () => {
                       </Badge>
                     )}
                   </div>
-                  <div className="flex items-center justify-between text-xs text-gray-600">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      <span>{data}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      <span>{hora}</span>
-                    </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <Calendar className="w-3 h-3" />
+                    <span>{data} - {hora}</span>
                   </div>
                 </div>
 
@@ -469,8 +463,7 @@ export const PendenciaPage = () => {
     <Table>
       <TableHeader>
         <TableRow className="bg-gradient-to-r from-yellow-50 to-amber-50 border-b border-gray-200">
-          <TableHead className="py-3 text-sm font-semibold text-gray-700"><div className="flex items-center gap-2"><span className="text-lg">📅</span>Data</div></TableHead>
-          <TableHead className="py-3 text-sm font-semibold text-gray-700"><div className="flex items-center gap-2"><span className="text-lg">⏰</span>Horário</div></TableHead>
+          <TableHead className="py-3 text-sm font-semibold text-gray-700"><div className="flex items-center gap-2"><span className="text-lg">📅</span>Data - Hora</div></TableHead>
           <TableHead className="py-3 text-sm font-semibold text-gray-700"><div className="flex items-center gap-2"><span className="text-lg">👤</span>Paciente</div></TableHead>
           <TableHead className="py-3 text-sm font-semibold text-gray-700"><div className="flex items-center gap-2"><span className="text-lg">👨‍⚕️</span>Profissional</div></TableHead>
           <TableHead className="py-3 text-sm font-semibold text-gray-700"><div className="flex items-center gap-2"><span className="text-lg">🩺</span>Serviço</div></TableHead>
@@ -482,7 +475,7 @@ export const PendenciaPage = () => {
       <TableBody>
         {agendamentosPaginados.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={8} className="py-12 text-center">
+            <TableCell colSpan={7} className="py-12 text-center">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center"><span className="text-3xl">🔍</span></div>
                 <p className="text-gray-500 font-medium">{(buscaDebounced || temFiltrosAtivos) ? 'Nenhum resultado encontrado' : 'Nenhum agendamento pendente'}</p>
@@ -495,8 +488,7 @@ export const PendenciaPage = () => {
             const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
             return (
               <TableRow key={agendamento.id} className="hover:bg-gradient-to-r hover:from-yellow-50 hover:to-amber-50 transition-all duration-200 h-12">
-                <TableCell className="py-2"><span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded text-gray-700">{data}</span></TableCell>
-                <TableCell className="py-2"><span className="text-sm font-mono bg-yellow-100 px-2 py-1 rounded text-yellow-700">{hora}</span></TableCell>
+                <TableCell className="py-2"><span className="text-sm font-mono bg-gradient-to-r from-gray-100 to-yellow-100 px-3 py-1 rounded text-gray-700">{data} - {hora}</span></TableCell>
                 <TableCell className="py-2"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-gradient-to-r from-yellow-500 to-amber-600 rounded-full flex items-center justify-center text-white text-sm font-bold">{agendamento.pacienteNome?.charAt(0).toUpperCase()}</div><span className="text-sm font-medium">{agendamento.pacienteNome}</span></div></TableCell>
                 <TableCell className="py-2"><span className="text-sm">{agendamento.profissionalNome}</span></TableCell>
                 <TableCell className="py-2"><span className="text-sm">{agendamento.servicoNome}</span></TableCell>
