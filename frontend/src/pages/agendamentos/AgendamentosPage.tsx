@@ -28,14 +28,16 @@ import {
   FilterX,
   Eye,
   Edit,
+  FilePenLine,
   Trash2,
   Loader2
 } from 'lucide-react';
 import type { Agendamento, StatusAgendamento } from '@/types/Agendamento';
 import { getAgendamentos, deleteAgendamento, updateAgendamento, IPaginatedAgendamentos, setStatusAgendamento } from '@/services/agendamentos';
-import { 
+import {
   AgendamentoModal,
-  DetalhesAgendamentoModal
+  DetalhesAgendamentoModal,
+  EditarCamposAgendamentosModal
 } from '@/components/agendamentos';
 import { EditarAgendamentoModal } from '@/components/agendamentos/components/EditarAgendamentoModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
@@ -191,6 +193,11 @@ export const AgendamentosPage = () => {
   // Estados para edição de agendamento
   const [showEditarAgendamento, setShowEditarAgendamento] = useState(false);
   const [agendamentoEdicao, setAgendamentoEdicao] = useState<Agendamento | null>(null);
+
+  // Estados para edição de campos do agendamento
+  const [showEditarCampos, setShowEditarCampos] = useState(false);
+  const [agendamentoCampos, setAgendamentoCampos] = useState<Agendamento | null>(null);
+
   const [itensPorPagina, setItensPorPagina] = useState(10);
   const [paginaAtual, setPaginaAtual] = useState(1);
   
@@ -511,6 +518,17 @@ export const AgendamentosPage = () => {
     setAgendamentoEdicao(null);
   };
 
+  const handleEditarCampos = (agendamento: Agendamento) => {
+    setAgendamentoCampos(agendamento);
+    setShowEditarCampos(true);
+  };
+
+  const handleSuccessEdicaoCampos = () => {
+    carregarAgendamentos();
+    setShowEditarCampos(false);
+    setAgendamentoCampos(null);
+  };
+
   // Funções de exclusão
   const confirmarExclusao = async (agendamento: Agendamento) => {
     // Preparar estado
@@ -790,6 +808,27 @@ export const AgendamentosPage = () => {
                         <Edit className="w-4 h-4" />
                       </Button>
                     )}
+                    {canUpdate ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleEditarCampos(agendamento)}
+                        title="Editar Campos"
+                      >
+                        <FilePenLine className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={true}
+                        className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                        title="Você não tem permissão para editar campos"
+                      >
+                        <FilePenLine className="w-4 h-4" />
+                      </Button>
+                    )}
                     {canCancel ? (
                       <Button
                         variant="outline"
@@ -1007,6 +1046,27 @@ export const AgendamentosPage = () => {
                           title="Você não tem permissão para editar agendamentos"
                         >
                           <Edit className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {canUpdate ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                          onClick={() => handleEditarCampos(agendamento)}
+                          title="Editar Campos"
+                        >
+                          <FilePenLine className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={true}
+                          className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                          title="Você não tem permissão para editar campos"
+                        >
+                          <FilePenLine className="w-4 h-4" />
                         </Button>
                       )}
                       {canCancel ? (
@@ -1346,6 +1406,17 @@ export const AgendamentosPage = () => {
           setAgendamentoEdicao(null);
         }}
         onSuccess={handleSuccessEdicao}
+      />
+
+      {/* Modal de edição de campos do agendamento */}
+      <EditarCamposAgendamentosModal
+        isOpen={showEditarCampos}
+        agendamento={agendamentoCampos}
+        onClose={() => {
+          setShowEditarCampos(false);
+          setAgendamentoCampos(null);
+        }}
+        onSuccess={handleSuccessEdicaoCampos}
       />
 
       {/* Modal de confirmação de cancelamento */}
