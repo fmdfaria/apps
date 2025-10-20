@@ -45,6 +45,9 @@ export interface PedidoMedico {
   status: 'vigente' | 'vencendo' | 'vencido';
   crm?: string;
   cbo?: string;
+  enviado30dias?: boolean | null;
+  enviado10dias?: boolean | null;
+  enviadoVencido?: boolean | null;
 }
 
 // Função para formatar WhatsApp (suporta 8 e 9 dígitos)
@@ -244,7 +247,10 @@ export const PedidosMedicosPage: React.FC = () => {
             diasParaVencer: diasParaVencer ?? 0,
             status,
             crm: pp.crm || undefined,
-            cbo: pp.cbo || undefined
+            cbo: pp.cbo || undefined,
+            enviado30dias: pp.enviado30dias,
+            enviado10dias: pp.enviado10dias,
+            enviadoVencido: pp.enviadoVencido
           } as PedidoMedico;
         });
 
@@ -294,8 +300,38 @@ export const PedidosMedicosPage: React.FC = () => {
     if (f.dataInicio) resultado = resultado.filter(p => p.dataPedidoMedico >= f.dataInicio);
     if (f.dataFim) resultado = resultado.filter(p => p.dataPedidoMedico <= f.dataFim);
 
-    // Ordenação: primeiro maiores atrasos (dias negativos mais baixos), depois mais próximos de vencer (dias positivos menores)
-    return resultado.slice().sort((a, b) => (a.diasParaVencer ?? 0) - (b.diasParaVencer ?? 0));
+    // Ordenação por prioridade:
+    // 1. Vencidos (ordenados do mais antigo para o mais recente - dias negativos menores primeiro)
+    // 2. Vencendo (ordenados do mais próximo para o mais distante - dias positivos menores primeiro)
+    // 3. Vigente (com data de vencimento, ordenados por proximidade)
+    // 4. Sem vencimento (por último)
+    return resultado.slice().sort((a, b) => {
+      const semVencimentoA = a.dataVencimento === '-';
+      const semVencimentoB = b.dataVencimento === '-';
+
+      // Sem vencimento sempre por último
+      if (semVencimentoA && !semVencimentoB) return 1;
+      if (!semVencimentoA && semVencimentoB) return -1;
+      if (semVencimentoA && semVencimentoB) return 0;
+
+      const diasA = a.diasParaVencer ?? 0;
+      const diasB = b.diasParaVencer ?? 0;
+
+      const vencidoA = a.status === 'vencido';
+      const vencidoB = b.status === 'vencido';
+
+      // Ambos vencidos: ordenar por dias (mais negativo = mais antigo = prioridade)
+      if (vencidoA && vencidoB) return diasA - diasB;
+
+      // Apenas A vencido: A tem prioridade
+      if (vencidoA && !vencidoB) return -1;
+
+      // Apenas B vencido: B tem prioridade
+      if (!vencidoA && vencidoB) return 1;
+
+      // Nenhum vencido: ordenar por proximidade (menor dias = prioridade)
+      return diasA - diasB;
+    });
   }, [pedidos, busca, filtrosAplicados, convenios]);
 
   // Paginação
@@ -464,6 +500,28 @@ export const PedidosMedicosPage: React.FC = () => {
     return 'Vigente';
   };
 
+  const getNotificacaoBadge = (pedido: PedidoMedico) => {
+    if (pedido.enviadoVencido) {
+      return 'bg-red-100 text-red-800';
+    } else if (pedido.enviado10dias) {
+      return 'bg-orange-100 text-orange-800';
+    } else if (pedido.enviado30dias) {
+      return 'bg-blue-100 text-blue-800';
+    }
+    return 'bg-gray-100 text-gray-600';
+  };
+
+  const getNotificacaoText = (pedido: PedidoMedico) => {
+    if (pedido.enviadoVencido) {
+      return 'Vencido';
+    } else if (pedido.enviado10dias) {
+      return '10 dias';
+    } else if (pedido.enviado30dias) {
+      return '30 dias';
+    }
+    return '-';
+  };
+
   // Função para renderizar conteúdo
   function renderContent() {
     if (!pedidos.length) {
@@ -480,70 +538,112 @@ export const PedidosMedicosPage: React.FC = () => {
 
   function renderTableView() {
     return (
-      <div className="bg-white rounded-lg border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
+      <div className="bg-white rounded-lg border overflow-hidden w-full">
+        {/* Wrapper com scroll horizontal customizado */}
+        <div
+          className="overflow-x-auto overflow-y-visible custom-scrollbar"
+          style={{
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#9ca3af #f3f4f6'
+          }}
+        >
+          <style>{`
+            .custom-scrollbar::-webkit-scrollbar {
+              height: 10px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-track {
+              background: #f3f4f6;
+              border-radius: 5px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+              background: #9ca3af;
+              border-radius: 5px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+              background: #6b7280;
+            }
+          `}</style>
+          {/* Tabela com largura mínima para forçar scroll horizontal */}
+          <div className="min-w-[1200px]">
+            <table className="w-full">
+              {/* Desktop: Tabela completa */}
+              <thead className="hidden lg:table-header-group bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">👤</span>
-                    Paciente
+                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">
+                  <div className="flex items-center gap-1">
+                    <span>👤</span>
+                    <span>Paciente</span>
                   </div>
                 </th>
-                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-lg">📱</span>
-                    WhatsApp
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">
+                  <div className="flex items-center justify-center gap-1">
+                    <span>📱</span>
+                    <span>WhatsApp</span>
                   </div>
                 </th>
-                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-lg">🏥</span>
-                    Convênio
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">
+                  <div className="flex items-center justify-center gap-1">
+                    <span>🏥</span>
+                    <span>Convênio</span>
                   </div>
                 </th>
-                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-lg">🎫</span>
-                    N° Carteirinha
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">
+                  <div className="flex items-center justify-center gap-1">
+                    <span>🎫</span>
+                    <span>Carteirinha</span>
                   </div>
                 </th>
-                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-lg">📅</span>
-                    Data Pedido
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">
+                  <div className="flex items-center justify-center gap-1">
+                    <span>📅</span>
+                    <span>Pedido</span>
                   </div>
                 </th>
-                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-lg">📆</span>
-                    Data Vencimento
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">
+                  <div className="flex items-center justify-center gap-1">
+                    <span>📆</span>
+                    <span>Vencimento</span>
                   </div>
                 </th>
-                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-lg">⏰</span>
-                    Status
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">
+                  <div className="flex items-center justify-center gap-1">
+                    <span>⏰</span>
+                    <span>Status</span>
                   </div>
                 </th>
-                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-lg">⚙️</span>
-                    Ações
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">
+                  <div className="flex items-center justify-center gap-1">
+                    <span>🔔</span>
+                    <span>Notif.</span>
+                  </div>
+                </th>
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">
+                  <div className="flex items-center justify-center gap-1">
+                    <span>⚙️</span>
+                    <span>Ações</span>
                   </div>
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+
+            {/* Tablet: Colunas essenciais */}
+            <thead className="hidden md:table-header-group lg:hidden bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
+              <tr>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Paciente</th>
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">WhatsApp</th>
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">Vencimento</th>
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">Status</th>
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">Ações</th>
+              </tr>
+            </thead>
+            {/* Desktop: Todas as colunas */}
+            <tbody className="hidden lg:table-row-group bg-white divide-y divide-gray-200">
               {currentItems.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center">
+                  <td colSpan={9} className="py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                        <FileText className="w-8 h-8 text-gray-400" />
-                      </div>
-                      <p className="text-gray-500 font-medium">
+                      <FileText className="w-12 h-12 text-gray-400" />
+                      <p className="text-sm text-gray-500 font-medium">
                         {busca ? 'Nenhum resultado encontrado' : 'Nenhum pedido encontrado'}
                       </p>
                     </div>
@@ -552,78 +652,114 @@ export const PedidosMedicosPage: React.FC = () => {
               ) : (
                 currentItems.map((pedido) => (
                   <tr key={pedido.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200">
-                    <td className="px-6 py-2">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-8 h-8 bg-gradient-to-r ${getAvatarGradient(pedido.pacienteNome)} rounded-full flex items-center justify-center text-white text-sm font-bold`}>
+                    <td className="px-3 py-1.5">
+                      <div className="flex items-center space-x-2">
+                        <div className={`w-6 h-6 bg-gradient-to-r ${getAvatarGradient(pedido.pacienteNome)} rounded-full flex items-center justify-center text-white text-xs font-bold`}>
                           {pedido.pacienteNome.charAt(0).toUpperCase()}
                         </div>
-                        <div>
-                          <span className="text-sm font-medium text-gray-900">{pedido.pacienteNome}</span>
-                        </div>
+                        <span className="text-xs font-medium text-gray-900">{pedido.pacienteNome}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-2 text-center">
-                      <span className="text-sm font-mono bg-green-100 px-2 py-1 rounded text-green-700">
+                    <td className="px-3 py-1.5 text-center">
+                      <span className="text-xs font-mono bg-green-100 px-1.5 py-0.5 rounded text-green-700">
                         {pedido.pacienteWhatsapp ? formatWhatsApp(pedido.pacienteWhatsapp) : '-'}
                       </span>
                     </td>
-                    <td className="px-6 py-2 text-center">
-                      <span className="text-sm text-gray-900">{pedido.convenioNome}</span>
+                    <td className="px-3 py-1.5 text-center">
+                      <span className="text-xs text-gray-900">{pedido.convenioNome}</span>
                     </td>
-                    <td className="px-6 py-2 text-center">
-                      <span className="text-sm text-gray-900">
-                        {pedido.numeroCarteirinha || '-'}
-                      </span>
+                    <td className="px-3 py-1.5 text-center">
+                      <span className="text-xs text-gray-900">{pedido.numeroCarteirinha || '-'}</span>
                     </td>
-                    <td className="px-6 py-2 text-center">
-                      <span className="text-sm font-medium text-gray-900">
-                        {formatarData(pedido.dataPedidoMedico)}
-                      </span>
+                    <td className="px-3 py-1.5 text-center">
+                      <span className="text-xs text-gray-900">{formatarData(pedido.dataPedidoMedico)}</span>
                     </td>
-                    <td className="px-6 py-2 text-center">
-                      <span className="text-sm font-medium text-gray-900">
-                        {formatarData(pedido.dataVencimento)}
-                      </span>
+                    <td className="px-3 py-1.5 text-center">
+                      <span className="text-xs text-gray-900">{formatarData(pedido.dataVencimento)}</span>
                     </td>
-                    <td className="px-6 py-2 text-center">
-                      <Badge className={getStatusBadge(pedido)}>
+                    <td className="px-3 py-1.5 text-center">
+                      <Badge className={`text-xs ${getStatusBadge(pedido)}`}>
                         {getStatusText(pedido)}
                       </Badge>
                     </td>
-                    <td className="px-6 py-2 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        {/* Removido botão Editar Paciente */}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => abrirModalAnexo(pedido)}
-                          className="h-8 px-2 hover:bg-green-50 hover:border-green-300"
-                          title="Gerenciar Anexos"
-                        >
-                          <Paperclip className="w-4 h-4 text-green-600" />
+                    <td className="px-3 py-1.5 text-center">
+                      <Badge className={`text-xs ${getNotificacaoBadge(pedido)}`}>
+                        {getNotificacaoText(pedido)}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-1.5 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Button size="sm" variant="outline" onClick={() => abrirModalAnexo(pedido)} className="h-7 w-7 p-0" title="Anexos">
+                          <Paperclip className="w-3.5 h-3.5 text-green-600" />
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => abrirModalPedidos(pedido)}
-                          className="h-8 px-2 hover:bg-purple-50 hover:border-purple-300"
-                          title="Pedidos Médicos"
-                        >
-                          <Building2 className="w-4 h-4 text-purple-600" />
+                        <Button size="sm" variant="outline" onClick={() => abrirModalPedidos(pedido)} className="h-7 w-7 p-0" title="Pedidos">
+                          <Building2 className="w-3.5 h-3.5 text-purple-600" />
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => {
                             const numeroLimpo = (pedido.pacienteWhatsapp || '').replace(/\D/g, '');
-                            if (!numeroLimpo) return;
-                            const whatsappUrl = `https://api.whatsapp.com/send/?phone=${numeroLimpo}`;
-                            window.open(whatsappUrl, '_blank');
+                            if (numeroLimpo) window.open(`https://api.whatsapp.com/send/?phone=${numeroLimpo}`, '_blank');
                           }}
-                          className="h-8 px-2 hover:bg-green-50 hover:border-green-300"
-                          title="Abrir WhatsApp"
+                          className="h-7 w-7 p-0"
+                          title="WhatsApp"
                         >
-                          <MessageCircle className="w-4 h-4 text-green-600" />
+                          <MessageCircle className="w-3.5 h-3.5 text-green-600" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+
+            {/* Tablet: Colunas essenciais */}
+            <tbody className="hidden md:table-row-group lg:hidden bg-white divide-y divide-gray-200">
+              {currentItems.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <FileText className="w-12 h-12 text-gray-400" />
+                      <p className="text-sm text-gray-500">Nenhum pedido encontrado</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                currentItems.map((pedido) => (
+                  <tr key={pedido.id} className="hover:bg-blue-50">
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-6 h-6 bg-gradient-to-r ${getAvatarGradient(pedido.pacienteNome)} rounded-full flex items-center justify-center text-white text-xs font-bold`}>
+                          {pedido.pacienteNome.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-xs font-medium">{pedido.pacienteNome}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <span className="text-xs font-mono bg-green-100 px-1.5 py-0.5 rounded text-green-700">
+                        {pedido.pacienteWhatsapp ? formatWhatsApp(pedido.pacienteWhatsapp) : '-'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-center text-xs">{formatarData(pedido.dataVencimento)}</td>
+                    <td className="px-3 py-2 text-center">
+                      <Badge className={`text-xs ${getStatusBadge(pedido)}`}>{getStatusText(pedido)}</Badge>
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Button size="sm" variant="outline" onClick={() => abrirModalPedidos(pedido)} className="h-7 w-7 p-0">
+                          <Building2 className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const numeroLimpo = (pedido.pacienteWhatsapp || '').replace(/\D/g, '');
+                            if (numeroLimpo) window.open(`https://api.whatsapp.com/send/?phone=${numeroLimpo}`, '_blank');
+                          }}
+                          className="h-7 w-7 p-0"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
                         </Button>
                       </div>
                     </td>
@@ -632,6 +768,80 @@ export const PedidosMedicosPage: React.FC = () => {
               )}
             </tbody>
           </table>
+          </div>
+        </div>
+
+        {/* Mobile: Cards inline */}
+        <div className="block md:hidden space-y-3 p-4">
+          {currentItems.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-12">
+              <FileText className="w-12 h-12 text-gray-400" />
+              <p className="text-sm text-gray-500">Nenhum pedido encontrado</p>
+            </div>
+          ) : (
+            currentItems.map((pedido) => (
+              <Card key={pedido.id} className="p-3">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-8 h-8 bg-gradient-to-r ${getAvatarGradient(pedido.pacienteNome)} rounded-full flex items-center justify-center text-white text-xs font-bold`}>
+                        {pedido.pacienteNome.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900">{pedido.pacienteNome}</span>
+                    </div>
+                    <Badge className={`text-xs ${getStatusBadge(pedido)}`}>
+                      {pedido.status === 'vencido' ? '🚨' : pedido.status === 'vencendo' ? '⏰' : '✅'}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-gray-500">WhatsApp:</span>
+                      <p className="font-mono text-green-700">{pedido.pacienteWhatsapp ? formatWhatsApp(pedido.pacienteWhatsapp) : '-'}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Convênio:</span>
+                      <p className="font-medium">{pedido.convenioNome}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Vencimento:</span>
+                      <p className="font-medium">{formatarData(pedido.dataVencimento)}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Notificação:</span>
+                      <Badge className={`text-xs ${getNotificacaoBadge(pedido)}`}>
+                        {getNotificacaoText(pedido)}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2 border-t">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => abrirModalPedidos(pedido)}
+                      className="flex-1 h-8 text-xs"
+                    >
+                      <Building2 className="w-3.5 h-3.5 mr-1" />
+                      Pedidos
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const numeroLimpo = (pedido.pacienteWhatsapp || '').replace(/\D/g, '');
+                        if (numeroLimpo) window.open(`https://api.whatsapp.com/send/?phone=${numeroLimpo}`, '_blank');
+                      }}
+                      className="flex-1 h-8 text-xs"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 mr-1" />
+                      WhatsApp
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))
+          )}
         </div>
       </div>
     );
@@ -642,10 +852,10 @@ export const PedidosMedicosPage: React.FC = () => {
   // Loading state
   if (carregandoDados) {
     return (
-      <div className="h-full flex items-center justify-center">
+      <div className="w-full min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando pedidos médicos...</p>
+          <p className="text-sm text-gray-600">Carregando pedidos médicos...</p>
         </div>
       </div>
     );
@@ -654,11 +864,11 @@ export const PedidosMedicosPage: React.FC = () => {
   // Error state
   if (erro) {
     return (
-      <div className="h-full flex flex-col">
-        <div className="flex-shrink-0 pt-2 pl-6 pr-6 bg-white border-b border-gray-200">
-          <div className="flex justify-between items-center mb-6 px-6 py-4 rounded-lg">
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <span className="text-4xl">📋</span>
+      <div className="w-full min-h-screen flex flex-col">
+        <div className="w-full flex-shrink-0 px-4 sm:px-6 lg:px-8 bg-white border-b border-gray-200">
+          <div className="max-w-full mx-auto w-full py-3">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2">
+              <span className="text-2xl sm:text-3xl lg:text-4xl">📋</span>
               <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Pedidos Médicos
               </span>
@@ -666,21 +876,23 @@ export const PedidosMedicosPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto pt-2 pl-6 pr-6">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <div className="flex">
-              <AlertCircle className="w-6 h-6 text-red-600 mt-0.5 mr-3" />
-              <div>
-                <h3 className="text-lg font-medium text-red-800">Erro ao Carregar Dados</h3>
-                <p className="text-red-700 mt-1">{erro}</p>
-                <Button 
-                  onClick={carregarPedidosMedicos} 
-                  className="mt-4 bg-red-600 hover:bg-red-700"
-                  size="sm"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Tentar Novamente
-                </Button>
+        <div className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-6">
+          <div className="max-w-full mx-auto w-full">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-base sm:text-lg font-medium text-red-800">Erro ao Carregar Dados</h3>
+                  <p className="text-sm text-red-700 mt-1">{erro}</p>
+                  <Button
+                    onClick={carregarPedidosMedicos}
+                    className="mt-4 bg-red-600 hover:bg-red-700"
+                    size="sm"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Tentar Novamente
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -690,42 +902,42 @@ export const PedidosMedicosPage: React.FC = () => {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="w-full h-screen flex flex-col overflow-hidden">
       {/* Header fixo */}
-      <div className="flex-shrink-0 pt-2 pl-6 pr-6 bg-white border-b border-gray-200">
-        <div className="flex justify-between items-center mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <span className="text-4xl">📋</span>
+      <div className="w-full flex-shrink-0 px-4 sm:px-6 lg:px-8 bg-white border-b border-gray-200 z-10">
+        <div className="max-w-full mx-auto w-full py-3">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2">
+              <span className="text-2xl sm:text-3xl lg:text-4xl">📋</span>
               <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Pedidos Médicos
               </span>
             </h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por paciente, whatsapp, carteirinha..."
-                value={busca}
-                onChange={e => setBusca(e.target.value)}
-                className="w-full sm:w-64 md:w-80 lg:w-96 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="relative flex-1 sm:flex-none">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar..."
+                  value={busca}
+                  onChange={e => setBusca(e.target.value)}
+                  className="w-full sm:w-48 md:w-64 lg:w-80 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <FilterButton
+                showFilters={mostrarFiltros}
+                onToggleFilters={() => setMostrarFiltros(prev => !prev)}
+                activeFiltersCount={Object.values(filtrosAplicados).filter(v => v !== '' && v !== undefined && v !== null).length}
+                module="default"
               />
             </div>
-
-            <FilterButton
-              showFilters={mostrarFiltros}
-              onToggleFilters={() => setMostrarFiltros(prev => !prev)}
-              activeFiltersCount={Object.values(filtrosAplicados).filter(v => v !== '' && v !== undefined && v !== null).length}
-              module="default"
-            />
           </div>
         </div>
       </div>
 
       {/* Conteúdo com scroll independente */}
-      <div className="flex-1 overflow-y-auto pt-2 pl-6 pr-6">
+      <div className="flex-1 w-full overflow-y-auto px-4 sm:px-6 lg:px-8 pb-4">
         {/* Filtros Avançados */}
         <AdvancedFilter
           fields={filterFields}
@@ -739,14 +951,14 @@ export const PedidosMedicosPage: React.FC = () => {
           loading={carregandoDados}
         />
 
-        <div className="mt-4">
+        <div className="max-w-full mx-auto w-full mt-4">
           {renderContent()}
         </div>
       </div>
 
       {/* Footer fixo na parte de baixo */}
       {pedidosFiltrados.length > 0 && (
-        <div className="flex-shrink-0">
+        <div className="w-full flex-shrink-0 bg-white border-t border-gray-200 z-10">
           <ResponsivePagination
             currentPage={currentPage}
             totalPages={totalPages}
