@@ -139,12 +139,12 @@ export default function AnexoPacientesModal({
                 </h4>
                 
                 <div className="flex flex-col gap-3">
-                  <FileUpload 
-                    files={anexoFiles} 
-                    onFilesChange={onAnexoFilesChange} 
-                    acceptedTypes=".pdf,.jpg,.jpeg,.png" 
-                    maxFiles={1} 
-                    label="Selecione o arquivo" 
+                  <FileUpload
+                    files={anexoFiles}
+                    onFilesChange={onAnexoFilesChange}
+                    acceptedTypes=".pdf,.jpg,.jpeg,.png,.xls,.xlsx,.csv,.doc,.docx"
+                    maxFiles={1}
+                    label="Selecione o arquivo"
                     disabled={!canUpload}
                     disabledTooltip="Você não tem permissão para enviar anexos"
                   />
