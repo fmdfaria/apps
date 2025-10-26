@@ -313,6 +313,7 @@ const transformApiAgendamento = (agendamento: any): Agendamento => {
     // Extrair nomes dos objetos relacionais para compatibilidade
     pacienteNome: agendamento.paciente?.nomeCompleto || '',
     pacienteWhatsapp: agendamento.paciente?.whatsapp || '',
+    pacienteNumeroCarteirinha: agendamento.paciente?.numeroCarteirinha || undefined,
     profissionalNome: agendamento.profissional?.nome || '',
     convenioNome: agendamento.convenio?.nome || '',
     servicoNome: agendamento.servico?.nome || '',

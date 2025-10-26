@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, ArrowLeft, User, FileText, Phone, Building2, IdCard, Paperclip, UserCheck, Stethoscope, Edit, Trash2 } from 'lucide-react';
 import { getEvolucoes, deleteEvolucao, updateEvolucao } from '@/services/evolucoes';
 import { getPacientes } from '@/services/pacientes';
@@ -50,6 +51,9 @@ export const EvolucaoPacientesPage: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [evolucaoParaExcluir, setEvolucaoParaExcluir] = useState<EvolucaoPaciente | null>(null);
   const [deletingEvolucao, setDeletingEvolucao] = useState(false);
+
+  // Estado para controle da aba de profissional selecionado
+  const [profissionalSelecionado, setProfissionalSelecionado] = useState<string>('todos');
 
   useEffect(() => {
     fetchPermissions();
@@ -100,13 +104,43 @@ export const EvolucaoPacientesPage: React.FC = () => {
     carregar();
   }, [id]);
 
+  // Agrupar profissionais únicos
+  const profissionais = useMemo(() => {
+    const profMap = new Map<string, { id: string; nome: string; count: number }>();
+
+    evolucoes.forEach((ev) => {
+      if (ev.profissionalId && ev.profissionalNome) {
+        const existing = profMap.get(ev.profissionalId);
+        if (existing) {
+          existing.count++;
+        } else {
+          profMap.set(ev.profissionalId, {
+            id: ev.profissionalId,
+            nome: ev.profissionalNome,
+            count: 1
+          });
+        }
+      }
+    });
+
+    return Array.from(profMap.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [evolucoes]);
+
+  // Filtrar evoluções por profissional selecionado
+  const evolucoesFiltradas = useMemo(() => {
+    if (profissionalSelecionado === 'todos') {
+      return evolucoes;
+    }
+    return evolucoes.filter(ev => ev.profissionalId === profissionalSelecionado);
+  }, [evolucoes, profissionalSelecionado]);
+
   const evolucoesOrdenadas = useMemo(() => {
-    return [...evolucoes].sort((a, b) => {
+    return [...evolucoesFiltradas].sort((a, b) => {
       const da = new Date(a.dataEvolucao as any).getTime();
       const db = new Date(b.dataEvolucao as any).getTime();
       return db - da; // mais recente primeiro
     });
-  }, [evolucoes]);
+  }, [evolucoesFiltradas]);
 
   // Agrupar por mês/ano
   const monthGroups = useMemo(() => {
@@ -364,17 +398,42 @@ export const EvolucaoPacientesPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* Timeline alinhada à direita com linha à esquerda */}
-      <div className="relative max-w-5xl mx-auto">
-        {/* Linha vertical fixa à esquerda */}
-        <div className="absolute left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-200 to-purple-200 rounded" />
+      {/* Tabs por Profissional e Timeline */}
+      <div className="max-w-5xl mx-auto">
+        <Tabs value={profissionalSelecionado} onValueChange={setProfissionalSelecionado} className="w-full">
+          <TabsList className="w-full justify-start overflow-x-auto flex-nowrap bg-white border-b border-gray-200 rounded-none h-auto p-0">
+            <TabsTrigger
+              value="todos"
+              className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none px-4 py-3"
+            >
+              Todos os Profissionais ({evolucoes.length})
+            </TabsTrigger>
+            {profissionais.map((prof) => (
+              <TabsTrigger
+                key={prof.id}
+                value={prof.id}
+                className="data-[state=active]:bg-green-50 data-[state=active]:text-green-700 data-[state=active]:border-b-2 data-[state=active]:border-green-600 rounded-none px-4 py-3 whitespace-nowrap"
+              >
+                {prof.nome} ({prof.count})
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-        <div className="space-y-6">
-          {evolucoesOrdenadas.length === 0 ? (
-            <div className="text-center py-16">
-              <p className="text-gray-500">Nenhuma evolução registrada para este paciente.</p>
-            </div>
-          ) : (
+          <TabsContent value={profissionalSelecionado} className="mt-6">
+            <div className="relative">
+              {/* Linha vertical fixa à esquerda */}
+              <div className="absolute left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-200 to-purple-200 rounded" />
+
+              <div className="space-y-6">
+                {evolucoesOrdenadas.length === 0 ? (
+                  <div className="text-center py-16">
+                    <p className="text-gray-500">
+                      {profissionalSelecionado === 'todos'
+                        ? 'Nenhuma evolução registrada para este paciente.'
+                        : 'Nenhuma evolução registrada por este profissional para este paciente.'}
+                    </p>
+                  </div>
+                ) : (
             monthGroups.map((group) => (
               <div key={group.key} className="space-y-6">
                 {/* Cabeçalho do mês */}
@@ -480,7 +539,10 @@ export const EvolucaoPacientesPage: React.FC = () => {
               </div>
             ))
           )}
-        </div>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Modal de Anexos de Evoluções */}

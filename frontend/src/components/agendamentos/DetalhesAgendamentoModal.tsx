@@ -19,7 +19,8 @@ import {
   CalendarCheck,
   Stethoscope,
   AlertTriangle,
-  Timer
+  Timer,
+  IdCard
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { formatarDataHoraLocal, formatarApenasData } from '@/utils/dateUtils';
@@ -156,26 +157,31 @@ export const DetalhesAgendamentoModal: React.FC<DetalhesAgendamentoModalProps> =
                 <span className="font-medium">Recurso:</span>
                 <span className="text-gray-700">{agendamento.recursoNome || '-'}</span>
               </div>
-              
+
               {/* Linha 5 */}
-              {(agendamento.codLiberacao || agendamento.dataCodLiberacao) && (
-                <>
-                  <div className="flex items-center gap-2">
-                    <Key className="w-4 h-4 text-gray-500" />
-                    <span className="font-medium">Código:</span>
-                    <span className="text-gray-700 font-mono">{agendamento.codLiberacao || '-'}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CalendarCheck className="w-4 h-4 text-gray-500" />
-                    <span className="font-medium">Data Liberação:</span>
-                    <span className="text-gray-700">{agendamento.dataCodLiberacao ? formatarDataHoraCompleta(agendamento.dataCodLiberacao) : '-'}</span>
-                  </div>
-                </>
+              <div className="flex items-center gap-2">
+                <IdCard className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Num Carteirinha:</span>
+                <span className="text-gray-700 font-mono">{agendamento.pacienteNumeroCarteirinha || '-'}</span>
+              </div>
+              {agendamento.codLiberacao && (
+                <div className="flex items-center gap-2">
+                  <Key className="w-4 h-4 text-gray-500" />
+                  <span className="font-medium">Código:</span>
+                  <span className="text-gray-700 font-mono">{agendamento.codLiberacao}</span>
+                </div>
               )}
-              
+
               {/* Linha 6 */}
+              {agendamento.dataCodLiberacao && (
+                <div className="flex items-center gap-2">
+                  <CalendarCheck className="w-4 h-4 text-gray-500" />
+                  <span className="font-medium">Data Liberação:</span>
+                  <span className="text-gray-700">{formatarDataHoraCompleta(agendamento.dataCodLiberacao)}</span>
+                </div>
+              )}
               {agendamento.dataAtendimento && (
-                <div className="flex items-center gap-2 col-span-2">
+                <div className="flex items-center gap-2">
                   <Stethoscope className="w-4 h-4 text-gray-500" />
                   <span className="font-medium">Data do Atendimento:</span>
                   <span className="text-gray-700">{formatarDataHoraCompleta(agendamento.dataAtendimento)}</span>
