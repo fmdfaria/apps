@@ -12,6 +12,7 @@ export interface EvolucaoPaciente {
   // Dados relacionados vindos das JOINs
   pacienteNome?: string;
   profissionalNome?: string;
+  profissionalEspecialidades?: string[];
   agendamentoData?: string;
   agendamentoHora?: string;
 }

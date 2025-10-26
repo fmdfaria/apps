@@ -64,7 +64,16 @@ export class PrismaEvolucoesPacientesRepository implements IEvolucoesPacientesRe
         profissional: {
           select: {
             id: true,
-            nome: true
+            nome: true,
+            especialidades: {
+              include: {
+                especialidade: {
+                  select: {
+                    nome: true
+                  }
+                }
+              }
+            }
           }
         },
         agendamento: {
@@ -79,6 +88,7 @@ export class PrismaEvolucoesPacientesRepository implements IEvolucoesPacientesRe
     return evolucoes.map((evolucao: any) => ({
       ...evolucao,
       profissionalNome: evolucao.profissional?.nome,
+      profissionalEspecialidades: evolucao.profissional?.especialidades?.map((pe: any) => pe.especialidade.nome) || [],
       agendamentoData: evolucao.agendamento?.dataHoraInicio
     }));
   }
