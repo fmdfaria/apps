@@ -361,6 +361,8 @@ export const AtenderPage = () => {
           AppToast.error('Erro ao carregar dados do profissional', {
             description: 'Não foi possível carregar os agendamentos do profissional.'
           });
+          setLoading(false);
+          return;
         }
       }
 
