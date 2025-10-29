@@ -641,6 +641,12 @@ export const setStatusAgendamento = async (id: string, status: StatusAgendamento
   return response.data;
 };
 
+// Rota para alteração livre de status (qualquer → qualquer)
+export const alterarStatusAgendamento = async (id: string, status: StatusAgendamento): Promise<Agendamento> => {
+  const response = await api.put(`/agendamentos-alterar-status/${id}`, { status });
+  return response.data;
+};
+
 export const getAgendamentoFormData = async (filtros?: {
   data?: string; // Data no formato YYYY-MM-DD
   profissionalId?: string;

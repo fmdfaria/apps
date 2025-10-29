@@ -294,6 +294,21 @@ export class AgendamentosController {
     return reply.status(200).send(agendamento);
   }
 
+  async alterarStatus(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const paramsSchema = z.object({ id: z.string().uuid() });
+    const bodySchema = z.object({
+      status: z.enum(['AGENDADO','SOLICITADO','LIBERADO','ATENDIDO','FINALIZADO','CANCELADO','ARQUIVADO'])
+    });
+
+    const { id } = paramsSchema.parse(request.params);
+    const { status } = bodySchema.parse(request.body);
+
+    const useCase = container.resolve(UpdateAgendamentoUseCase);
+    const agendamento = await useCase.execute(id, { status });
+
+    return reply.status(200).send(agendamento);
+  }
+
   async updateStatus(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const paramsSchema = z.object({ id: z.string().uuid() });
     const bodySchema = z.object({

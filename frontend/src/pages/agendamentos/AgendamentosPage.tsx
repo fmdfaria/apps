@@ -30,10 +30,11 @@ import {
   Edit,
   FilePenLine,
   Trash2,
-  Loader2
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import type { Agendamento, StatusAgendamento } from '@/types/Agendamento';
-import { getAgendamentos, deleteAgendamento, updateAgendamento, IPaginatedAgendamentos, setStatusAgendamento } from '@/services/agendamentos';
+import { getAgendamentos, deleteAgendamento, updateAgendamento, IPaginatedAgendamentos, setStatusAgendamento, alterarStatusAgendamento } from '@/services/agendamentos';
 import {
   AgendamentoModal,
   DetalhesAgendamentoModal,
@@ -184,6 +185,7 @@ export const AgendamentosPage = () => {
   const [canUpdate, setCanUpdate] = useState(true);
   const [canDelete, setCanDelete] = useState(true);
   const [canCancel, setCanCancel] = useState(true);
+  const [canAlterarStatus, setCanAlterarStatus] = useState(false);
   // Estados para modais de agendamento
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
   
@@ -242,6 +244,12 @@ export const AgendamentosPage = () => {
   // Estados para alteração de status (quando já está cancelado)
   const [showAlterarStatusModal, setShowAlterarStatusModal] = useState(false);
   const [novoStatus, setNovoStatus] = useState<{id: string; nome: string} | null>(null);
+
+  // Estados para alteração livre de status
+  const [showAlterarStatusLivreModal, setShowAlterarStatusLivreModal] = useState(false);
+  const [agendamentoAlterandoStatus, setAgendamentoAlterandoStatus] = useState<Agendamento | null>(null);
+  const [statusSelecionado, setStatusSelecionado] = useState<{id: string; nome: string} | null>(null);
+  const [alterarStatusLoading, setAlterarStatusLoading] = useState(false);
 
   // Funções de controle do modal unificado
   const handleFecharAgendamentoModal = () => {
@@ -313,12 +321,17 @@ export const AgendamentosPage = () => {
       const canCancel = allowedRoutes.some((route: any) => {
         return route.path === '/agendamentos/:id/status' && route.method.toLowerCase() === 'patch';
       });
-      
+
+      const canAlterarStatus = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos-alterar-status/:id' && route.method.toLowerCase() === 'put';
+      });
+
       setCanRead(canRead);
       setCanCreate(canCreate);
       setCanUpdate(canUpdate);
       setCanDelete(canDelete);
       setCanCancel(canCancel);
+      setCanAlterarStatus(canAlterarStatus);
       
       // Se não tem nem permissão de leitura, marca como access denied
       if (!canRead) {
@@ -695,6 +708,41 @@ export const AgendamentosPage = () => {
     setNovoStatus(null);
   };
 
+  const handleAlterarStatus = (agendamento: Agendamento) => {
+    setAgendamentoAlterandoStatus(agendamento);
+    setStatusSelecionado({ id: agendamento.status, nome: agendamento.status });
+    setShowAlterarStatusLivreModal(true);
+  };
+
+  const confirmarAlteracaoStatusLivre = async () => {
+    if (!agendamentoAlterandoStatus || !statusSelecionado) return;
+
+    setAlterarStatusLoading(true);
+    try {
+      await alterarStatusAgendamento(agendamentoAlterandoStatus.id, statusSelecionado.id as StatusAgendamento);
+      AppToast.success('Status alterado', {
+        description: `Status alterado para ${statusSelecionado.nome} com sucesso.`
+      });
+      setShowAlterarStatusLivreModal(false);
+      setAgendamentoAlterandoStatus(null);
+      setStatusSelecionado(null);
+      carregarAgendamentos();
+    } catch (error: any) {
+      const mensagemErro = error?.response?.data?.message || 'Não foi possível alterar o status.';
+      AppToast.error('Erro ao alterar status', {
+        description: mensagemErro
+      });
+    } finally {
+      setAlterarStatusLoading(false);
+    }
+  };
+
+  const cancelarAlteracaoStatusLivre = () => {
+    setShowAlterarStatusLivreModal(false);
+    setAgendamentoAlterandoStatus(null);
+    setStatusSelecionado(null);
+  };
+
   // Removidos cards de estatísticas na visão de cards
 
   const renderCardView = () => (
@@ -827,6 +875,27 @@ export const AgendamentosPage = () => {
                         title="Você não tem permissão para editar campos"
                       >
                         <FilePenLine className="w-4 h-4" />
+                      </Button>
+                    )}
+                    {canAlterarStatus ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-green-500 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleAlterarStatus(agendamento)}
+                        title="Alterar Status"
+                      >
+                        <RefreshCw className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={true}
+                        className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                        title="Você não tem permissão para alterar status"
+                      >
+                        <RefreshCw className="w-4 h-4" />
                       </Button>
                     )}
                     {canCancel ? (
@@ -1067,6 +1136,27 @@ export const AgendamentosPage = () => {
                           title="Você não tem permissão para editar campos"
                         >
                           <FilePenLine className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {canAlterarStatus ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="group border-2 border-green-500 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                          onClick={() => handleAlterarStatus(agendamento)}
+                          title="Alterar Status"
+                        >
+                          <RefreshCw className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={true}
+                          className="border-2 border-gray-300 text-gray-400 cursor-not-allowed h-8 w-8 p-0"
+                          title="Você não tem permissão para alterar status"
+                        >
+                          <RefreshCw className="w-4 h-4" />
                         </Button>
                       )}
                       {canCancel ? (
@@ -1481,6 +1571,64 @@ export const AgendamentosPage = () => {
                 </>
               ) : (
                 'Confirmar'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de alteração livre de status */}
+      <Dialog open={showAlterarStatusLivreModal} onOpenChange={(isOpen) => !isOpen && !alterarStatusLoading && cancelarAlteracaoStatusLivre()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Alterar Status do Agendamento</DialogTitle>
+            <DialogDescription>
+              {agendamentoAlterandoStatus && (
+                <>
+                  Paciente: <strong>{agendamentoAlterandoStatus.pacienteNome}</strong>
+                  <br />
+                  Data: <strong>{formatarDataHoraLocal(agendamentoAlterandoStatus.dataHoraInicio).data}</strong>
+                  <br />
+                  Status Atual: <strong>{agendamentoAlterandoStatus.status}</strong>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Novo Status
+            </label>
+            <SingleSelectDropdown
+              options={statusOptions}
+              selected={statusSelecionado}
+              onChange={setStatusSelecionado}
+              placeholder="Selecione o novo status..."
+              headerText="Selecione o status"
+              disabled={alterarStatusLoading}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={cancelarAlteracaoStatusLivre}
+              disabled={alterarStatusLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmarAlteracaoStatusLivre}
+              disabled={alterarStatusLoading || !statusSelecionado}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {alterarStatusLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Alterando...
+                </>
+              ) : (
+                'Confirmar Alteração'
               )}
             </Button>
           </DialogFooter>
