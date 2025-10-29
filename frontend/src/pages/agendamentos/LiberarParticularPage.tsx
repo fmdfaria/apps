@@ -156,6 +156,10 @@ export const LiberarParticularPage = () => {
   const [agendamentoParaReenvio, setAgendamentoParaReenvio] = useState<Agendamento | null>(null);
   const [grupoParaReenvio, setGrupoParaReenvio] = useState<AgendamentoAgrupado | null>(null);
 
+  // Estados para liberação individual de agendamento do grupo
+  const [showLiberarIndividual, setShowLiberarIndividual] = useState(false);
+  const [agendamentoParaLiberarIndividual, setAgendamentoParaLiberarIndividual] = useState<Agendamento | null>(null);
+
   // Sistema de fila para webhooks
   const [webhookQueue, setWebhookQueue] = useState<WebhookQueueItem[]>([]);
   const [isProcessingWebhook, setIsProcessingWebhook] = useState(false);
@@ -865,19 +869,24 @@ export const LiberarParticularPage = () => {
   const handleWhatsApp = (agendamento: Agendamento) => {
     // Extrair apenas os números do WhatsApp
     const numeroLimpo = agendamento.pacienteWhatsapp?.replace(/\D/g, '') || '';
-    
+
     if (!numeroLimpo) {
-      AppToast.error("Erro", { 
-        description: "Número do WhatsApp não encontrado para este paciente." 
+      AppToast.error("Erro", {
+        description: "Número do WhatsApp não encontrado para este paciente."
       });
       return;
     }
 
     // Construir URL do WhatsApp Web
     const whatsappUrl = `https://api.whatsapp.com/send/?phone=${numeroLimpo}`;
-    
+
     // Abrir em nova aba
     window.open(whatsappUrl, '_blank');
+  };
+
+  const handleLiberarAtendimentoIndividual = (agendamento: Agendamento) => {
+    setAgendamentoParaLiberarIndividual(agendamento);
+    setShowLiberarIndividual(true);
   };
 
   const handleSolicitarLiberacaoClick = (agendamento: Agendamento, grupoEspecifico?: AgendamentoAgrupado) => {
@@ -2108,6 +2117,17 @@ export const LiberarParticularPage = () => {
                                 )}
                               </Button>
                             )}
+                            {precoInfo?.pagamentoAntecipado && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 w-6 p-0 border-green-500 text-green-600 hover:bg-green-100"
+                                onClick={() => handleLiberarAtendimentoIndividual(agendamento)}
+                                title="Liberar Atendimento Individual"
+                              >
+                                <CheckCircle className="w-3 h-3" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -2199,6 +2219,22 @@ export const LiberarParticularPage = () => {
         onClose={() => {
           setShowDetalhesAgendamento(false);
           setAgendamentoDetalhes(null);
+        }}
+      />
+
+      <LiberarParticularModal
+        isOpen={showLiberarIndividual}
+        agendamento={agendamentoParaLiberarIndividual}
+        pagamentoAntecipado={agendamentoParaLiberarIndividual ? encontrarPreco(agendamentoParaLiberarIndividual.pacienteId, agendamentoParaLiberarIndividual.servicoId)?.pagamentoAntecipado ?? false : false}
+        precoAvulso={agendamentoParaLiberarIndividual ? encontrarPreco(agendamentoParaLiberarIndividual.pacienteId, agendamentoParaLiberarIndividual.servicoId)?.preco : undefined}
+        onClose={() => {
+          setShowLiberarIndividual(false);
+          setAgendamentoParaLiberarIndividual(null);
+        }}
+        onSuccess={() => {
+          setShowLiberarIndividual(false);
+          setAgendamentoParaLiberarIndividual(null);
+          carregarAgendamentos();
         }}
       />
     </div>
