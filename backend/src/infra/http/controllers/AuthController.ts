@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { CreateUserUseCase } from '../../../core/application/use-cases/user/CreateUserUseCase';
 import { AuthenticateUserUseCase } from '../../../core/application/use-cases/user/AuthenticateUserUseCase';
 import { LogoutUserUseCase } from '../../../core/application/use-cases/user/LogoutUserUseCase';
-import { RefreshTokenUseCase } from '../../../core/application/use-cases/user/RefreshTokenUseCase';
 import { RequestPasswordResetUseCase } from '../../../core/application/use-cases/user/RequestPasswordResetUseCase';
 import { ResetPasswordUseCase } from '../../../core/application/use-cases/user/ResetPasswordUseCase';
 import { ChangePasswordUseCase } from '../../../core/application/use-cases/user/ChangePasswordUseCase';
@@ -39,19 +38,9 @@ export class AuthController {
   }
 
   async logout(request: FastifyRequest, reply: FastifyReply) {
-    const bodySchema = z.object({ refreshToken: z.string() });
-    const { refreshToken } = bodySchema.parse(request.body);
     const useCase = container.resolve(LogoutUserUseCase);
-    await useCase.execute({ refreshToken });
+    await useCase.execute();
     return reply.status(204).send();
-  }
-
-  async refresh(request: FastifyRequest, reply: FastifyReply) {
-    const bodySchema = z.object({ refreshToken: z.string() });
-    const { refreshToken } = bodySchema.parse(request.body);
-    const useCase = container.resolve(RefreshTokenUseCase);
-    const result = await useCase.execute({ refreshToken, ip: request.ip, userAgent: request.headers['user-agent'] });
-    return reply.send(result);
   }
 
   async requestPasswordReset(request: FastifyRequest, reply: FastifyReply) {

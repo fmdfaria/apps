@@ -1,5 +1,6 @@
 import { inject, injectable } from 'tsyringe';
 import { IUsersRepository } from '../../../domain/repositories/IUsersRepository';
+import { IUserRolesRepository } from '../../../domain/repositories/IUserRolesRepository';
 import { AppError } from '../../../../shared/errors/AppError';
 import { isPasswordSecure } from '../../../../shared/utils/passwordGenerator';
 import bcrypt from 'bcryptjs';
@@ -16,7 +17,6 @@ interface IRequest {
 interface IResponse {
   message: string;
   accessToken: string;
-  refreshToken: string;
   user: {
     id: string;
     nome: string;
@@ -32,7 +32,9 @@ interface IResponse {
 export class FirstLoginUseCase {
   constructor(
     @inject('UsersRepository')
-    private usersRepository: IUsersRepository
+    private usersRepository: IUsersRepository,
+    @inject('UserRolesRepository')
+    private userRolesRepository: IUserRolesRepository
   ) {}
 
   async execute({ email, senhaAtual, novaSenha, ip, userAgent }: IRequest): Promise<IResponse> {
@@ -70,26 +72,20 @@ export class FirstLoginUseCase {
       primeiroLogin: true,
     });
 
-    // Gera tokens JWT para autenticação
+    // Buscar roles do usuário com nomes
+    const userRoles = await this.userRolesRepository.findActiveUserRolesWithNames(user.id);
+    const roleNames = userRoles.map(ur => ur.roleName);
+
+    // Gera access token JWT para autenticação
     const accessToken = jwt.sign(
-      { sub: user.id, roles: [] }, // TODO: buscar roles do usuário
+      { sub: user.id, roles: roleNames },
       process.env.JWT_SECRET as string,
-      { expiresIn: '15m' }
+      { expiresIn: '1h' }
     );
-
-    const refreshToken = jwt.sign(
-      { sub: user.id },
-      process.env.JWT_REFRESH_SECRET as string,
-      { expiresIn: '7d' }
-    );
-
-    // Salva o refresh token no banco (se houver repositório específico)
-    // TODO: Integrar com RefreshTokensRepository se necessário
 
     return {
       message: 'Primeiro login realizado com sucesso. Senha alterada.',
       accessToken,
-      refreshToken,
       user: {
         id: user.id,
         nome: user.nome,
@@ -97,7 +93,7 @@ export class FirstLoginUseCase {
         whatsapp: user.whatsapp,
         ativo: user.ativo,
         primeiroLogin: true,
-        roles: [], // TODO: buscar roles do usuário
+        roles: roleNames,
       },
     };
   }

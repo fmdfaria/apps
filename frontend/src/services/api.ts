@@ -4,7 +4,6 @@ import { AppToast } from './toast';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001',
-  withCredentials: true, // para cookies de refresh token
 });
 
 // Função para tratar erros 403 com mensagens amigáveis
@@ -42,62 +41,23 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-// Interceptador de resposta para refresh automático
+// Interceptador de resposta para lidar com erros de autenticação
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // Não tenta renovar se já tentou ou se a rota é de autenticação
-    const isAuthRoute = originalRequest.url.endsWith('/login') || 
-                       originalRequest.url.endsWith('/refresh') ||
-                       originalRequest.url.endsWith('/register') ||
-                       originalRequest.url.endsWith('/first-login') ||
-                       originalRequest.url.includes('/password/');
-    
-    if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      !isAuthRoute
-    ) {
-      originalRequest._retry = true;
-      try {
-        const refreshResponse = await api.post('/refresh', {
-          refreshToken: localStorage.getItem('refreshToken'),
-        });
-        const { accessToken, refreshToken: newRefreshToken } = refreshResponse.data;
-        
-        // Atualiza ambos os tokens
-        localStorage.setItem('accessToken', accessToken);
-        if (newRefreshToken) {
-          localStorage.setItem('refreshToken', newRefreshToken);
-        }
-        
-        if (originalRequest.headers) {
-          (originalRequest.headers as any)['Authorization'] = `Bearer ${accessToken}`;
-        }
-        return api(originalRequest);
-      } catch (refreshError) {
-        console.error('Falha na renovação automática de token:', refreshError);
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        // Só redireciona se não estivermos já na página de login
-        if (!window.location.pathname.includes('/auth/login')) {
-          window.location.href = '/auth/login';
-        }
-        return Promise.reject(refreshError);
-      }
-    }
-
-    // Se o erro foi no /refresh, desloga direto
-    if (originalRequest.url.endsWith('/refresh')) {
-      console.error('Falha no endpoint /refresh, fazendo logout');
+    // Se receber 401 (não autorizado), redireciona para login
+    if (error.response?.status === 401) {
+      console.error('Token expirado ou inválido, fazendo logout');
       localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+
       // Só redireciona se não estivermos já na página de login
       if (!window.location.pathname.includes('/auth/login')) {
         window.location.href = '/auth/login';
       }
+      return Promise.reject(error);
     }
 
     // Trata erros 403 (Acesso Negado) com mensagem amigável
