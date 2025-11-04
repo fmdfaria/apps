@@ -27,10 +27,33 @@ export class CreateAgendamentoContaUseCase {
 
     // Verificar se já existe relacionamento para este agendamento
     const existingRelation = await this.agendamentosContasRepository.findByAgendamentoId(agendamentoId);
+
     if (existingRelation) {
-      throw new Error('Já existe um relacionamento para este agendamento');
+      // Se já existe, fazer UPDATE para adicionar a conta que está faltando
+      const updateData: Partial<AgendamentoConta> = {};
+
+      if (contaReceberId && !existingRelation.contaReceberId) {
+        updateData.contaReceberId = contaReceberId;
+      }
+
+      if (contaPagarId && !existingRelation.contaPagarId) {
+        updateData.contaPagarId = contaPagarId;
+      }
+
+      // Se não há nada para atualizar, lança erro
+      if (Object.keys(updateData).length === 0) {
+        if (contaReceberId && existingRelation.contaReceberId) {
+          throw new Error('Este agendamento já possui uma conta a receber associada');
+        }
+        if (contaPagarId && existingRelation.contaPagarId) {
+          throw new Error('Este agendamento já possui uma conta a pagar associada');
+        }
+      }
+
+      return await this.agendamentosContasRepository.update(existingRelation.id!, updateData);
     }
 
+    // Se não existe, criar novo registro
     const agendamentoConta = new AgendamentoConta({
       agendamentoId,
       contaReceberId,

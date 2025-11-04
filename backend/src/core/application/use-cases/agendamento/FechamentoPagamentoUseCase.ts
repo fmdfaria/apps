@@ -91,16 +91,29 @@ export class FechamentoPagamentoUseCase {
     const contaPagarCriada = await this.contasPagarRepository.create(contaPagar);
 
     try {
-      // 4. Criar relacionamentos agendamentos_contas
+      // 4. Criar ou atualizar relacionamentos agendamentos_contas
       const agendamentosContas: AgendamentoConta[] = [];
       for (const agendamentoId of agendamentoIds) {
-        const agendamentoConta = new AgendamentoConta({
-          agendamentoId,
-          contaPagarId: contaPagarCriada.id!,
-          contaReceberId: undefined
-        });
+        // Verificar se já existe registro para este agendamento
+        const associacaoExistente = await this.agendamentosContasRepository.findByAgendamentoId(agendamentoId);
 
-        const associacao = await this.agendamentosContasRepository.create(agendamentoConta);
+        let associacao: AgendamentoConta;
+
+        if (associacaoExistente) {
+          // Se já existe, fazer UPDATE adicionando o contaPagarId
+          associacao = await this.agendamentosContasRepository.update(associacaoExistente.id!, {
+            contaPagarId: contaPagarCriada.id!
+          });
+        } else {
+          // Se não existe, fazer CREATE
+          const agendamentoConta = new AgendamentoConta({
+            agendamentoId,
+            contaPagarId: contaPagarCriada.id!,
+            contaReceberId: undefined
+          });
+          associacao = await this.agendamentosContasRepository.create(agendamentoConta);
+        }
+
         agendamentosContas.push(associacao);
       }
 
@@ -122,27 +135,34 @@ export class FechamentoPagamentoUseCase {
 
     } catch (error) {
       console.error('Erro no fechamento de pagamento:', error);
-      
-      // Em caso de erro, reverter a criação da conta a pagar
-      // Primeiro deletar os relacionamentos agendamentos_contas criados
+
+      // Em caso de erro, reverter as alterações
       try {
         for (const agendamentoId of agendamentoIds) {
           try {
             const associacao = await this.agendamentosContasRepository.findByAgendamentoId(agendamentoId);
             if (associacao && associacao.contaPagarId === contaPagarCriada.id) {
-              await this.agendamentosContasRepository.delete(associacao.id!);
+              // Se tinha contaReceberId antes, apenas remove o contaPagarId (UPDATE)
+              if (associacao.contaReceberId) {
+                await this.agendamentosContasRepository.update(associacao.id!, {
+                  contaPagarId: null
+                });
+              } else {
+                // Se não tinha nada antes, deleta o registro completo
+                await this.agendamentosContasRepository.delete(associacao.id!);
+              }
             }
           } catch (deleteAssocError) {
-            console.error(`Erro ao deletar associação do agendamento ${agendamentoId}:`, deleteAssocError);
+            console.error(`Erro ao reverter associação do agendamento ${agendamentoId}:`, deleteAssocError);
           }
         }
-        
+
         // Depois deletar a conta a pagar
         await this.contasPagarRepository.delete(contaPagarCriada.id!);
       } catch (deleteError) {
         console.error('Erro ao reverter criação da conta a pagar:', deleteError);
       }
-      
+
       // Mostrar o erro original para debug
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       throw new AppError(`Erro ao processar fechamento: ${errorMessage}`, 500);
