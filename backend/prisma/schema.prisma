@@ -797,16 +797,18 @@ model AgendamentoConta {
   agendamentoId   String    @map("agendamento_id") @db.Uuid
   contaReceberId  String?   @map("conta_receber_id") @db.Uuid
   contaPagarId    String?   @map("conta_pagar_id") @db.Uuid
-  
+
   createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  
+
   // Relacionamentos
   agendamento   Agendamento   @relation(fields: [agendamentoId], references: [id])
   contaReceber  ContaReceber? @relation(fields: [contaReceberId], references: [id])
   contaPagar    ContaPagar?   @relation(fields: [contaPagarId], references: [id])
 
-  @@unique([agendamentoId], map: "uq_agendamento_unico")
+  // Permite múltiplos registros por agendamento, mas não duplicados do mesmo tipo
+  @@unique([agendamentoId, contaReceberId], map: "uq_agendamento_conta_receber")
+  @@unique([agendamentoId, contaPagarId], map: "uq_agendamento_conta_pagar")
   @@index([agendamentoId], map: "idx_agendamentos_contas_agendamento")
   @@index([contaReceberId], map: "idx_agendamentos_contas_receber")
   @@index([contaPagarId], map: "idx_agendamentos_contas_pagar")

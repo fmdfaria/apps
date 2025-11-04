@@ -25,35 +25,27 @@ export class CreateAgendamentoContaUseCase {
       throw new Error('Pelo menos uma conta (receber ou pagar) deve ser informada');
     }
 
-    // Verificar se já existe relacionamento para este agendamento
-    const existingRelation = await this.agendamentosContasRepository.findByAgendamentoId(agendamentoId);
-
-    if (existingRelation) {
-      // Se já existe, fazer UPDATE para adicionar a conta que está faltando
-      const updateData: Partial<AgendamentoConta> = {};
-
-      if (contaReceberId && !existingRelation.contaReceberId) {
-        updateData.contaReceberId = contaReceberId;
-      }
-
-      if (contaPagarId && !existingRelation.contaPagarId) {
-        updateData.contaPagarId = contaPagarId;
-      }
-
-      // Se não há nada para atualizar, lança erro
-      if (Object.keys(updateData).length === 0) {
-        if (contaReceberId && existingRelation.contaReceberId) {
-          throw new Error('Este agendamento já possui uma conta a receber associada');
-        }
-        if (contaPagarId && existingRelation.contaPagarId) {
-          throw new Error('Este agendamento já possui uma conta a pagar associada');
-        }
-      }
-
-      return await this.agendamentosContasRepository.update(existingRelation.id!, updateData);
+    // Validar se não permite ambas no mesmo registro (cada registro = um tipo de conta)
+    if (contaReceberId && contaPagarId) {
+      throw new Error('Não é possível criar um registro com ambos tipos de conta. Crie registros separados.');
     }
 
-    // Se não existe, criar novo registro
+    // Verificar se já existe registro do tipo específico
+    if (contaReceberId) {
+      const existeReceber = await this.agendamentosContasRepository.findByAgendamentoAndTipo(agendamentoId, 'receber');
+      if (existeReceber) {
+        throw new Error('Este agendamento já possui uma conta a receber associada');
+      }
+    }
+
+    if (contaPagarId) {
+      const existePagar = await this.agendamentosContasRepository.findByAgendamentoAndTipo(agendamentoId, 'pagar');
+      if (existePagar) {
+        throw new Error('Este agendamento já possui uma conta a pagar associada');
+      }
+    }
+
+    // Sempre criar novo registro (nunca UPDATE)
     const agendamentoConta = new AgendamentoConta({
       agendamentoId,
       contaReceberId,

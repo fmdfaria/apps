@@ -162,7 +162,7 @@ export const FechamentoPagamentoModal: React.FC<FechamentoPagamentoModalProps> =
   // Dados pré-preenchidos para o modal da conta a pagar
   const contaPagarInicial = {
     descricao: `Pagamento ${profissionalNome} - Período ${periodo.inicio} a ${periodo.fim}`,
-    valorOriginal: valorTotal.toString(),
+    valorOriginal: valorTotal.toFixed(2),
     profissionalId: profissionalId,
     tipoConta: 'SALARIO' as const,
     dataEmissao: new Date().toISOString().split('T')[0],

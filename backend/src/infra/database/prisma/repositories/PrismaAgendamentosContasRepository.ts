@@ -350,4 +350,97 @@ export class PrismaAgendamentosContasRepository implements IAgendamentosContasRe
       where: { agendamentoId }
     });
   }
+
+  async findAllByAgendamentoId(agendamentoId: string): Promise<AgendamentoConta[]> {
+    const found = await this.prisma.agendamentoConta.findMany({
+      where: { agendamentoId },
+      include: {
+        agendamento: {
+          include: {
+            paciente: true,
+            profissional: true,
+            servico: true,
+            convenio: true,
+            recurso: true
+          }
+        },
+        contaReceber: {
+          include: {
+            empresa: true,
+            contaBancaria: true,
+            convenio: true,
+            paciente: true,
+            categoria: true
+          }
+        },
+        contaPagar: {
+          include: {
+            empresa: true,
+            contaBancaria: true,
+            profissional: true,
+            categoria: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return found.map(item => new AgendamentoConta({
+      agendamentoId: item.agendamentoId,
+      contaReceberId: item.contaReceberId,
+      contaPagarId: item.contaPagarId,
+      agendamento: item.agendamento as any,
+      contaReceber: item.contaReceber as any,
+      contaPagar: item.contaPagar as any
+    }, item.id));
+  }
+
+  async findByAgendamentoAndTipo(agendamentoId: string, tipo: 'receber' | 'pagar'): Promise<AgendamentoConta | null> {
+    const where = tipo === 'receber'
+      ? { agendamentoId, contaReceberId: { not: null } }
+      : { agendamentoId, contaPagarId: { not: null } };
+
+    const found = await this.prisma.agendamentoConta.findFirst({
+      where,
+      include: {
+        agendamento: {
+          include: {
+            paciente: true,
+            profissional: true,
+            servico: true,
+            convenio: true,
+            recurso: true
+          }
+        },
+        contaReceber: {
+          include: {
+            empresa: true,
+            contaBancaria: true,
+            convenio: true,
+            paciente: true,
+            categoria: true
+          }
+        },
+        contaPagar: {
+          include: {
+            empresa: true,
+            contaBancaria: true,
+            profissional: true,
+            categoria: true
+          }
+        }
+      }
+    });
+
+    if (!found) return null;
+
+    return new AgendamentoConta({
+      agendamentoId: found.agendamentoId,
+      contaReceberId: found.contaReceberId,
+      contaPagarId: found.contaPagarId,
+      agendamento: found.agendamento as any,
+      contaReceber: found.contaReceber as any,
+      contaPagar: found.contaPagar as any
+    }, found.id);
+  }
 }

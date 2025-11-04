@@ -13,4 +13,8 @@ export interface IAgendamentosContasRepository {
   findByContaReceber(contaReceberId: string): Promise<AgendamentoConta[]>;
   findByContaPagar(contaPagarId: string): Promise<AgendamentoConta[]>;
   deleteByAgendamentoId(agendamentoId: string): Promise<void>;
+
+  // Novos métodos para suportar múltiplos registros por agendamento
+  findAllByAgendamentoId(agendamentoId: string): Promise<AgendamentoConta[]>;
+  findByAgendamentoAndTipo(agendamentoId: string, tipo: 'receber' | 'pagar'): Promise<AgendamentoConta | null>;
 }
