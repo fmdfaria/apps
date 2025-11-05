@@ -16,8 +16,8 @@ export class GetAgendamentosByContaPagarUseCase {
     // Buscar todos os relacionamentos agendamento-conta para esta conta a pagar
     const agendamentosContas = await this.agendamentosContasRepository.findByContaPagar(contaPagarId);
 
-    // Retornar os agendamentos completos com todas as relações
-    return agendamentosContas.map(ac => {
+    // Mapear para o formato de resposta
+    const agendamentos = agendamentosContas.map(ac => {
       const agendamento = ac.agendamento as any;
 
       return {
@@ -47,6 +47,13 @@ export class GetAgendamentosByContaPagarUseCase {
         convenio: agendamento.convenio,
         recurso: agendamento.recurso
       };
+    });
+
+    // Ordenar por dataHoraInicio (mais antigas primeiro)
+    return agendamentos.sort((a, b) => {
+      const dataA = new Date(a.dataHoraInicio).getTime();
+      const dataB = new Date(b.dataHoraInicio).getTime();
+      return dataA - dataB;
     });
   }
 }
