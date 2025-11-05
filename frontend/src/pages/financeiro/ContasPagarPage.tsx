@@ -48,6 +48,13 @@ import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import { ListarAgendamentosModal } from '@/components/agendamentos/ListarAgendamentosModal';
 
+interface PrecoServicoProfissional {
+  id: string;
+  profissionalId: string;
+  servicoId: string;
+  precoProfissional: number;
+}
+
 // Campos do filtro avançado
 const filterFields: FilterField[] = [
   { key: 'dataInicio', type: 'date', label: 'Data Início' },
@@ -101,6 +108,7 @@ export const ContasPagarPage = () => {
   const [showAgendamentosModal, setShowAgendamentosModal] = useState(false);
   const [agendamentosVinculados, setAgendamentosVinculados] = useState<Agendamento[]>([]);
   const [contaSelecionada, setContaSelecionada] = useState<ContaPagar | null>(null);
+  const [precosServicoProfissional, setPrecosServicoProfissional] = useState<PrecoServicoProfissional[]>([]);
 
   // Hooks responsivos
   const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'contas-pagar-view' });
@@ -296,6 +304,16 @@ export const ContasPagarPage = () => {
     }
   };
 
+  const carregarPrecosServicoProfissional = async (): Promise<PrecoServicoProfissional[]> => {
+    try {
+      const response = await api.get('/precos-servicos-profissionais');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao carregar preços por profissional:', error);
+      return [];
+    }
+  };
+
   useEffect(() => {
     checkPermissions();
     fetchData();
@@ -307,15 +325,17 @@ export const ContasPagarPage = () => {
     setContas([]);
     try {
       const backendFilters = overrideFilters ?? mapearFiltrosParaBackend(filtrosAplicados);
-      const [contasData, empresasData, profissionaisData] = await Promise.all([
+      const [contasData, empresasData, profissionaisData, precosData] = await Promise.all([
         getContasPagar(backendFilters),
         getEmpresas(),
-        getProfissionais()
+        getProfissionais(),
+        carregarPrecosServicoProfissional()
       ]);
 
       setContas(contasData);
       setEmpresas(empresasData);
       setProfissionais(profissionaisData);
+      setPrecosServicoProfissional(precosData);
     } catch (error: any) {
       console.error('Erro ao carregar dados:', error);
       if (error?.response?.status === 403) {
@@ -474,6 +494,28 @@ export const ContasPagarPage = () => {
   const cancelarReenvio = () => {
     setShowConfirmacaoReenvio(false);
     setContaParaReenvio(null);
+  };
+
+  // Função para calcular valor a pagar para o profissional
+  const calcularValorProfissional = (agendamento: Agendamento): number => {
+    // Prioridade 1: valor direto da tabela precos_servicos_profissional
+    const precoEspecifico = precosServicoProfissional.find(p =>
+      p.profissionalId === agendamento.profissionalId &&
+      p.servicoId === agendamento.servicoId
+    );
+
+    if (precoEspecifico?.precoProfissional && precoEspecifico.precoProfissional > 0) {
+      return precoEspecifico.precoProfissional; // Valor direto em R$
+    }
+
+    // Prioridade 2: valor_profissional direto do serviço
+    const valorProfissionalDireto = parseFloat((agendamento as any).servico?.valorProfissional || '0');
+    if (valorProfissionalDireto > 0) {
+      return valorProfissionalDireto;
+    }
+
+    // Fallback para valor padrão
+    return 0;
   };
 
   const handleVerAgendamentos = async (conta: ContaPagar) => {
@@ -843,6 +885,7 @@ export const ContasPagarPage = () => {
           isOpen={showAgendamentosModal}
           agendamentos={agendamentosVinculados}
           titulo={`Agendamentos Vinculados - ${contaSelecionada?.descricao || ''}`}
+          calcularValor={calcularValorProfissional}
           onClose={() => setShowAgendamentosModal(false)}
         />
       </PageContainer>
