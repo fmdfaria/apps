@@ -886,6 +886,7 @@ export const ContasPagarPage = () => {
           agendamentos={agendamentosVinculados}
           titulo={`Agendamentos Vinculados - ${contaSelecionada?.descricao || ''}`}
           calcularValor={calcularValorProfissional}
+          contaPagar={contaSelecionada || undefined}
           onClose={() => setShowAgendamentosModal(false)}
         />
       </PageContainer>

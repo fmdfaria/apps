@@ -6,6 +6,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import {
@@ -18,9 +19,12 @@ import {
   XCircle,
   AlertCircle,
   DollarSign,
-  Stethoscope
+  Stethoscope,
+  FileDown
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
+import type { ContaPagar } from '@/types/ContaPagar';
+import { gerarPDFAgendamentos } from '@/utils/pdfGenerator';
 
 interface ListarAgendamentosModalProps {
   isOpen: boolean;
@@ -28,6 +32,7 @@ interface ListarAgendamentosModalProps {
   titulo: string;
   onClose: () => void;
   calcularValor?: (agendamento: Agendamento) => number; // Função opcional para calcular valor
+  contaPagar?: ContaPagar; // Dados da conta a pagar para o PDF
 }
 
 export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = ({
@@ -35,7 +40,8 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
   agendamentos,
   titulo,
   onClose,
-  calcularValor
+  calcularValor,
+  contaPagar
 }) => {
   const formatarDataHora = (dataISO: string) => {
     if (!dataISO) return { data: '', hora: '' };
@@ -113,6 +119,14 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
     }
   };
 
+  const handleGerarPDF = () => {
+    gerarPDFAgendamentos({
+      agendamentos,
+      contaPagar,
+      titulo,
+      calcularValor
+    });
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -120,10 +134,22 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
         {/* Header fixo */}
         <div className="flex-shrink-0 p-6 pb-4 border-b border-gray-200">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              <FileText className="w-5 h-5" />
-              {titulo}
-            </DialogTitle>
+            <div className="flex items-center justify-between gap-4">
+              <DialogTitle className="flex items-center gap-2 text-xl">
+                <FileText className="w-5 h-5" />
+                {titulo}
+              </DialogTitle>
+              <Button
+                onClick={handleGerarPDF}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2 mr-8"
+                disabled={agendamentos.length === 0}
+              >
+                <FileDown className="w-4 h-4" />
+                Exportar PDF
+              </Button>
+            </div>
           </DialogHeader>
 
           {/* Resumo */}
