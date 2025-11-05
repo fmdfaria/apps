@@ -6,6 +6,7 @@ import { UpdateContaPagarUseCase } from '../../../core/application/use-cases/con
 import { DeleteContaPagarUseCase } from '../../../core/application/use-cases/conta-pagar/DeleteContaPagarUseCase';
 import { PagarContaUseCase } from '../../../core/application/use-cases/conta-pagar/PagarContaUseCase';
 import { CancelarContaPagarUseCase } from '../../../core/application/use-cases/conta-pagar/CancelarContaPagarUseCase';
+import { GetAgendamentosByContaPagarUseCase } from '../../../core/application/use-cases/conta-pagar/GetAgendamentosByContaPagarUseCase';
 
 interface CreateContaPagarBody {
   empresaId: string;
@@ -300,16 +301,36 @@ export class ContasPagarController {
   async getDadosWebhook(request: FastifyRequest<{ Params: ContaPagarParams }>, reply: FastifyReply) {
     try {
       const getDadosWebhookUseCase = container.resolve('GetDadosWebhookContaPagarUseCase');
-      
+
       const dados = await getDadosWebhookUseCase.execute(request.params.id);
-      
+
       return reply.send({
         success: true,
         data: dados
       });
     } catch (error) {
       const statusCode = error instanceof Error && error.message === 'Conta a pagar não encontrada' ? 404 : 500;
-      
+
+      return reply.status(statusCode).send({
+        success: false,
+        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+      });
+    }
+  }
+
+  async getAgendamentos(request: FastifyRequest<{ Params: ContaPagarParams }>, reply: FastifyReply) {
+    try {
+      const getAgendamentosByContaPagarUseCase = container.resolve(GetAgendamentosByContaPagarUseCase);
+
+      const agendamentos = await getAgendamentosByContaPagarUseCase.execute(request.params.id);
+
+      return reply.send({
+        success: true,
+        data: agendamentos
+      });
+    } catch (error) {
+      const statusCode = error instanceof Error && error.message.includes('obrigatório') ? 400 : 500;
+
       return reply.status(statusCode).send({
         success: false,
         message: error instanceof Error ? error.message : 'Erro interno do servidor'

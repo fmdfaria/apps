@@ -1,16 +1,17 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, DollarSign, Calendar, User, Building2, MessageCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, DollarSign, Calendar, User, Building2, MessageCircle, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AppToast } from '@/services/toast';
-import { getContasPagar, createContaPagar, updateContaPagar, deleteContaPagar, pagarConta } from '@/services/contas-pagar';
+import { getContasPagar, createContaPagar, updateContaPagar, deleteContaPagar, pagarConta, getAgendamentosByContaPagar } from '@/services/contas-pagar';
 import api from '@/services/api';
 import { getEmpresas } from '@/services/empresas';
 import { getProfissionais } from '@/services/profissionais';
 import type { ContaPagar } from '@/types/ContaPagar';
 import type { Empresa } from '@/types/Empresa';
 import type { Profissional } from '@/types/Profissional';
+import type { Agendamento } from '@/types/Agendamento';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 
@@ -45,6 +46,7 @@ import ContaPagarModal from './ContaPagarModal';
 import PagarContaModal from './PagarContaModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import ConfirmacaoModal from '@/components/ConfirmacaoModal';
+import { ListarAgendamentosModal } from '@/components/agendamentos/ListarAgendamentosModal';
 
 // Campos do filtro avançado
 const filterFields: FilterField[] = [
@@ -91,9 +93,14 @@ export const ContasPagarPage = () => {
   // Estados para modal de reenvio WhatsApp
   const [showConfirmacaoReenvio, setShowConfirmacaoReenvio] = useState(false);
   const [contaParaReenvio, setContaParaReenvio] = useState<ContaPagar | null>(null);
-  
+
   // Estado para loading do WhatsApp
   const [whatsappLoadingIds, setWhatsappLoadingIds] = useState<Set<string>>(new Set());
+
+  // Estados para modal de visualização de agendamentos
+  const [showAgendamentosModal, setShowAgendamentosModal] = useState(false);
+  const [agendamentosVinculados, setAgendamentosVinculados] = useState<Agendamento[]>([]);
+  const [contaSelecionada, setContaSelecionada] = useState<ContaPagar | null>(null);
 
   // Hooks responsivos
   const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'contas-pagar-view' });
@@ -177,6 +184,15 @@ export const ContasPagarPage = () => {
       essential: true,
       render: (item) => (
         <div className="flex gap-1.5">
+          <ActionButton
+            variant="view"
+            module="financeiro"
+            onClick={() => handleVerAgendamentos(item)}
+            title="Ver agendamentos vinculados"
+          >
+            <Eye className="w-4 h-4" />
+          </ActionButton>
+
           {item.status !== 'PAGO' && item.status !== 'CANCELADO' && (
             <ActionButton
               variant="view"
@@ -187,7 +203,7 @@ export const ContasPagarPage = () => {
               <DollarSign className="w-4 h-4" />
             </ActionButton>
           )}
-          
+
           <ActionButton
             variant="primary"
             module="financeiro"
@@ -201,7 +217,7 @@ export const ContasPagarPage = () => {
               <MessageCircle className="w-4 h-4" />
             )}
           </ActionButton>
-          
+
           <ActionButton
             variant="view"
             module="financeiro"
@@ -210,7 +226,7 @@ export const ContasPagarPage = () => {
           >
             <Edit className="w-4 h-4" />
           </ActionButton>
-          
+
           <ActionButton
             variant="delete"
             module="financeiro"
@@ -460,15 +476,29 @@ export const ContasPagarPage = () => {
     setContaParaReenvio(null);
   };
 
+  const handleVerAgendamentos = async (conta: ContaPagar) => {
+    try {
+      setContaSelecionada(conta);
+      const agendamentos = await getAgendamentosByContaPagar(conta.id);
+      setAgendamentosVinculados(agendamentos);
+      setShowAgendamentosModal(true);
+    } catch (error: any) {
+      console.error('Erro ao carregar agendamentos:', error);
+      AppToast.error('Erro ao carregar agendamentos', {
+        description: error?.response?.data?.message || 'Não foi possível carregar os agendamentos vinculados a esta conta.'
+      });
+    }
+  };
+
   const enviarWhatsApp = async (conta: ContaPagar) => {
     // Adicionar conta ao loading
     setWhatsappLoadingIds(prev => new Set(prev).add(conta.id));
-    
+
     try {
       AppToast.info('Enviando WhatsApp', {
         description: 'Preparando dados para envio via WhatsApp...'
       });
-      
+
       // Buscar dados completos para webhook usando a API interna
       const response = await api.get(`/contas-pagar/${conta.id}/webhook-data`);
       const dadosWebhook = response.data.data;
@@ -593,6 +623,14 @@ export const ContasPagarPage = () => {
       </CardContent>
       
       <ResponsiveCardFooter>
+        <ActionButton
+          variant="view"
+          module="financeiro"
+          onClick={() => handleVerAgendamentos(conta)}
+          title="Ver agendamentos vinculados"
+        >
+          <Eye className="w-4 h-4" />
+        </ActionButton>
         {conta.status !== 'PAGO' && conta.status !== 'CANCELADO' && (
           <ActionButton
             variant="view"
@@ -799,6 +837,13 @@ export const ContasPagarPage = () => {
           confirmText="Reenviar"
           cancelText="Cancelar"
           variant="warning"
+        />
+
+        <ListarAgendamentosModal
+          isOpen={showAgendamentosModal}
+          agendamentos={agendamentosVinculados}
+          titulo={`Agendamentos Vinculados - ${contaSelecionada?.descricao || ''}`}
+          onClose={() => setShowAgendamentosModal(false)}
         />
       </PageContainer>
     </TooltipProvider>

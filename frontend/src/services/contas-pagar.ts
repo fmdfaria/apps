@@ -1,5 +1,6 @@
 import api from './api';
 import type { ContaPagar, CreateContaPagarData, PagarContaData, ContaPagarFilters } from '@/types/ContaPagar';
+import type { Agendamento } from '@/types/Agendamento';
 
 export const getContasPagar = async (filters?: ContaPagarFilters): Promise<ContaPagar[]> => {
   const params = new URLSearchParams();
@@ -81,5 +82,10 @@ export const deleteContaPagar = async (id: string): Promise<void> => {
 
 export const cancelarContaPagar = async (id: string, motivo?: string): Promise<ContaPagar> => {
   const { data } = await api.patch(`/contas-pagar/${id}/cancelar`, { motivo });
+  return data.data;
+};
+
+export const getAgendamentosByContaPagar = async (contaPagarId: string): Promise<Agendamento[]> => {
+  const { data } = await api.get(`/contas-pagar/${contaPagarId}/agendamentos`);
   return data.data;
 };
