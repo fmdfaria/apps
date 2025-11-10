@@ -53,11 +53,6 @@ export class PagarContaUseCase {
       throw new Error('Conta bancária não encontrada');
     }
 
-    // Verificar se há saldo suficiente
-    if (contaBancaria.saldoAtual < data.valorPago) {
-      throw new Error('Saldo insuficiente na conta bancária');
-    }
-
     // Determinar novo status
     let novoStatus = 'PARCIAL';
     if (novoValorPago >= conta.valorLiquido) {
