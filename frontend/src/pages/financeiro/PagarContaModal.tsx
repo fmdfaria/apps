@@ -9,7 +9,7 @@ import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import type { ContaPagar } from '@/types/ContaPagar';
 import type { Empresa } from '@/types/Empresa';
 import type { ContaBancaria } from '@/types/ContaBancaria';
-import { ValorDisplay, FormaPagamentoSelect } from '@/components/financeiro';
+import { ValorDisplay } from '@/components/financeiro';
 import { getContasBancariasByEmpresa } from '@/services/contas-bancarias';
 
 interface PagarContaModalProps {
@@ -20,12 +20,24 @@ interface PagarContaModalProps {
   onSave: (data: any) => Promise<void>;
 }
 
+// Formas de pagamento disponíveis
+const formasPagamento = [
+  { id: 'DINHEIRO', nome: 'Dinheiro' },
+  { id: 'PIX', nome: 'PIX' },
+  { id: 'CARTAO_CREDITO', nome: 'Cartão de Crédito' },
+  { id: 'CARTAO_DEBITO', nome: 'Cartão de Débito' },
+  { id: 'TRANSFERENCIA', nome: 'Transferência Bancária' },
+  { id: 'BOLETO', nome: 'Boleto' },
+  { id: 'CHEQUE', nome: 'Cheque' },
+  { id: 'OUTROS', nome: 'Outros' }
+];
+
 export default function PagarContaModal({ isOpen, conta, empresas, onClose, onSave }: PagarContaModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([]);
   const [contasLoading, setContasLoading] = useState(false);
-  
+
   const [form, setForm] = useState({
     valorPago: '',
     dataPagamento: new Date().toISOString().split('T')[0],
@@ -34,15 +46,43 @@ export default function PagarContaModal({ isOpen, conta, empresas, onClose, onSa
     observacoes: ''
   });
 
-  const valorRestante = conta ? conta.valorTotal - conta.valorPago : 0;
+  // Função para formatar valor em moeda brasileira
+  const formatarMoeda = (valor: string): string => {
+    // Remove tudo que não é dígito
+    const apenasNumeros = valor.replace(/\D/g, '');
+
+    if (!apenasNumeros) return '';
+
+    // Converte para número e divide por 100 (para ter os centavos)
+    const numero = parseFloat(apenasNumeros) / 100;
+
+    // Formata para moeda brasileira
+    return numero.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
+  // Função para converter valor formatado para número
+  const converterParaNumero = (valorFormatado: string): number => {
+    const apenasNumeros = valorFormatado.replace(/\D/g, '');
+    return parseFloat(apenasNumeros) / 100;
+  };
+
+  const valorRestante = conta ? conta.valorLiquido - conta.valorPago : 0;
 
   useEffect(() => {
     if (conta) {
-      const valorRestanteCalc = conta.valorTotal - conta.valorPago;
+      const valorRestanteCalc = conta.valorLiquido - conta.valorPago;
+      // Formata o valor restante para exibição
+      const valorFormatado = valorRestanteCalc.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
       setForm({
-        valorPago: valorRestanteCalc.toString(),
+        valorPago: valorFormatado,
         dataPagamento: new Date().toISOString().split('T')[0],
-        formaPagamento: '',
+        formaPagamento: 'PIX', // PIX pré-selecionado
         contaBancariaId: conta.contaBancariaId || '',
         observacoes: ''
       });
@@ -53,7 +93,7 @@ export default function PagarContaModal({ isOpen, conta, empresas, onClose, onSa
       setForm({
         valorPago: '',
         dataPagamento: new Date().toISOString().split('T')[0],
-        formaPagamento: '',
+        formaPagamento: 'PIX', // PIX pré-selecionado
         contaBancariaId: '',
         observacoes: ''
       });
@@ -63,13 +103,16 @@ export default function PagarContaModal({ isOpen, conta, empresas, onClose, onSa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!form.valorPago || parseFloat(form.valorPago) <= 0) {
+
+    // Converte o valor formatado para número
+    const valorNumerico = converterParaNumero(form.valorPago);
+
+    if (!form.valorPago || valorNumerico <= 0) {
       setError('Valor pago deve ser maior que zero');
       return;
     }
 
-    if (parseFloat(form.valorPago) > valorRestante) {
+    if (valorNumerico > valorRestante) {
       setError('Valor pago não pode ser maior que o valor restante');
       return;
     }
@@ -94,13 +137,13 @@ export default function PagarContaModal({ isOpen, conta, empresas, onClose, onSa
 
     try {
       const payload = {
-        valorPago: parseFloat(form.valorPago),
+        valorPago: valorNumerico,
         dataPagamento: form.dataPagamento,
         formaPagamento: form.formaPagamento,
         contaBancariaId: form.contaBancariaId,
         observacoes: form.observacoes.trim() || null
       };
-      
+
       await onSave(payload);
     } catch (error: any) {
       setError(error.response?.data?.message || 'Erro ao registrar pagamento');
@@ -111,6 +154,11 @@ export default function PagarContaModal({ isOpen, conta, empresas, onClose, onSa
 
   const handleChange = (field: string, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleValorPagoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valorFormatado = formatarMoeda(e.target.value);
+    setForm(prev => ({ ...prev, valorPago: valorFormatado }));
   };
 
   const loadContasBancarias = async (empresaId: string) => {
@@ -130,7 +178,7 @@ export default function PagarContaModal({ isOpen, conta, empresas, onClose, onSa
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>Pagar Conta</DialogTitle>
           <DialogDescription>
@@ -146,39 +194,43 @@ export default function PagarContaModal({ isOpen, conta, empresas, onClose, onSa
           )}
 
           {/* Resumo da Conta */}
-          <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-            <div className="flex justify-between">
+          <div className="bg-gray-50 p-4 rounded-lg grid grid-cols-3 gap-4">
+            <div className="flex flex-col">
               <span className="text-sm text-gray-600">Valor Total:</span>
-              <ValorDisplay valor={conta.valorTotal} tipo="negativo" className="text-sm" />
+              <ValorDisplay valor={conta.valorLiquido} tipo="negativo" className="text-sm font-semibold" />
             </div>
-            <div className="flex justify-between">
+            <div className="flex flex-col">
               <span className="text-sm text-gray-600">Já Pago:</span>
-              <ValorDisplay valor={conta.valorPago} tipo="negativo" className="text-sm" />
+              <ValorDisplay valor={conta.valorPago} tipo="negativo" className="text-sm font-semibold" />
             </div>
-            <div className="flex justify-between font-medium">
-              <span className="text-sm">Valor Restante:</span>
-              <ValorDisplay valor={valorRestante} tipo="negativo" className="text-sm" />
+            <div className="flex flex-col">
+              <span className="text-sm text-gray-600">Valor Restante:</span>
+              <ValorDisplay valor={valorRestante} tipo="negativo" className="text-sm font-semibold" />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Linha 1: Valor a Pagar | Data de Pagamento | Forma de Pagamento */}
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="valorPago">
                 Valor a Pagar <span className="text-red-500">*</span>
               </Label>
-              <Input
-                id="valorPago"
-                type="number"
-                step="0.01"
-                min="0"
-                max={valorRestante}
-                value={form.valorPago}
-                onChange={(e) => handleChange('valorPago', e.target.value)}
-                placeholder="0,00"
-                required
-              />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                  R$
+                </span>
+                <Input
+                  id="valorPago"
+                  type="text"
+                  value={form.valorPago}
+                  onChange={handleValorPagoChange}
+                  placeholder="0,00"
+                  className="pl-10"
+                  required
+                />
+              </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="dataPagamento">
                 Data de Pagamento <span className="text-red-500">*</span>
@@ -191,16 +243,22 @@ export default function PagarContaModal({ isOpen, conta, empresas, onClose, onSa
                 required
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="formaPagamento">
+                Forma de Pagamento <span className="text-red-500">*</span>
+              </Label>
+              <SingleSelectDropdown
+                options={formasPagamento}
+                selected={formasPagamento.find(f => f.id === form.formaPagamento) || null}
+                onChange={(forma) => handleChange('formaPagamento', forma?.id || '')}
+                placeholder="Selecione a forma de pagamento"
+                headerText="Formas de pagamento"
+              />
+            </div>
           </div>
 
-          <FormaPagamentoSelect
-            label="Forma de Pagamento"
-            required
-            value={form.formaPagamento}
-            onValueChange={(value) => handleChange('formaPagamento', value)}
-            placeholder="Selecione a forma de pagamento"
-          />
-
+          {/* Linha 2: Conta Bancária */}
           <div className="space-y-2">
             <Label htmlFor="contaBancariaId">
               Conta Bancária <span className="text-red-500">*</span>
@@ -216,6 +274,7 @@ export default function PagarContaModal({ isOpen, conta, empresas, onClose, onSa
             />
           </div>
 
+          {/* Linha 3: Observações */}
           <div className="space-y-2">
             <Label htmlFor="observacoes">Observações</Label>
             <Textarea
@@ -223,7 +282,7 @@ export default function PagarContaModal({ isOpen, conta, empresas, onClose, onSa
               value={form.observacoes}
               onChange={(e) => handleChange('observacoes', e.target.value)}
               placeholder="Observações sobre o pagamento..."
-              rows={3}
+              rows={2}
             />
           </div>
 

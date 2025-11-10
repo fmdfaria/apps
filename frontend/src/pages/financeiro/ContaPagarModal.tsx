@@ -53,11 +53,42 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
     observacoes: ''
   });
 
+  // Função para formatar valor em moeda brasileira
+  const formatarMoeda = (valor: string): string => {
+    // Remove tudo que não é dígito
+    const apenasNumeros = valor.replace(/\D/g, '');
+
+    if (!apenasNumeros) return '';
+
+    // Converte para número e divide por 100 (para ter os centavos)
+    const numero = parseFloat(apenasNumeros) / 100;
+
+    // Formata para moeda brasileira
+    return numero.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
+  // Função para converter valor formatado para número
+  const converterParaNumero = (valorFormatado: string): number => {
+    const apenasNumeros = valorFormatado.replace(/\D/g, '');
+    return parseFloat(apenasNumeros) / 100;
+  };
+
   useEffect(() => {
     if (conta) {
+      // Formata o valor original para exibição
+      const valorFormatado = conta.valorOriginal
+        ? conta.valorOriginal.toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          })
+        : '';
+
       setForm({
         descricao: conta.descricao || '',
-        valorOriginal: conta.valorOriginal?.toString() || '',
+        valorOriginal: valorFormatado,
         dataVencimento: conta.dataVencimento ? new Date(conta.dataVencimento).toISOString().split('T')[0] : '',
         dataEmissao: conta.dataEmissao ? new Date(conta.dataEmissao).toISOString().split('T')[0] : '',
         empresaId: conta.empresaId || '',
@@ -186,13 +217,16 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!form.descricao.trim()) {
       AppToast.validation('Campo obrigatório', 'Descrição é obrigatória');
       return;
     }
 
-    if (!form.valorOriginal || parseFloat(form.valorOriginal) <= 0) {
+    // Converte o valor formatado para número
+    const valorNumerico = converterParaNumero(form.valorOriginal);
+
+    if (!form.valorOriginal || valorNumerico <= 0) {
       AppToast.validation('Campo obrigatório', 'Valor deve ser maior que zero');
       return;
     }
@@ -220,11 +254,10 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
     setLoading(true);
 
     try {
-      const valorOriginal = parseFloat(form.valorOriginal);
       const payload = {
         ...form,
-        valorOriginal,
-        valorLiquido: valorOriginal, // Inicialmente sem desconto/juros
+        valorOriginal: valorNumerico,
+        valorLiquido: valorNumerico, // Inicialmente sem desconto/juros
         empresaId: form.empresaId || null,
         contaBancariaId: form.contaBancariaId || null,
         categoriaId: form.categoriaId || null,
@@ -247,7 +280,7 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
 
   const handleChange = (field: string, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
-    
+
     // Limpar conta bancária quando empresa mudar e carregar novas contas
     if (field === 'empresaId') {
       setForm(prev => ({ ...prev, contaBancariaId: '' }));
@@ -257,12 +290,17 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
         setContasBancarias([]);
       }
     }
-    
+
     // Recarregar categorias quando tipo da conta mudar
     if (field === 'tipoConta') {
       setForm(prev => ({ ...prev, categoriaId: '' }));
       loadCategorias(value);
     }
+  };
+
+  const handleValorOriginalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valorFormatado = formatarMoeda(e.target.value);
+    setForm(prev => ({ ...prev, valorOriginal: valorFormatado }));
   };
 
   const loadContasBancarias = async (empresaId: string) => {
@@ -334,15 +372,19 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
               <Label htmlFor="valorOriginal">
                 Valor Original <span className="text-red-500">*</span>
               </Label>
-              <Input
-                id="valorOriginal"
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.valorOriginal}
-                onChange={(e) => handleChange('valorOriginal', e.target.value)}
-                placeholder="0,00"
-              />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                  R$
+                </span>
+                <Input
+                  id="valorOriginal"
+                  type="text"
+                  value={form.valorOriginal}
+                  onChange={handleValorOriginalChange}
+                  placeholder="0,00"
+                  className="pl-10"
+                />
+              </div>
             </div>
             
             <div className="space-y-2">

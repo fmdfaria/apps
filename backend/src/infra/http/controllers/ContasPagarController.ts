@@ -193,12 +193,13 @@ export class ContasPagarController {
   async pagar(request: FastifyRequest<{ Params: ContaPagarParams; Body: PagarContaBody }>, reply: FastifyReply) {
     try {
       const pagarContaUseCase = container.resolve(PagarContaUseCase);
-      
-      const conta = await pagarContaUseCase.execute(request.params.id, {
+
+      const conta = await pagarContaUseCase.execute({
+        contaId: request.params.id,
         ...request.body,
         dataPagamento: new Date(request.body.dataPagamento)
       });
-      
+
       return reply.send({
         success: true,
         data: conta,
@@ -206,7 +207,7 @@ export class ContasPagarController {
       });
     } catch (error) {
       const statusCode = error instanceof Error && error.message === 'Conta a pagar não encontrada' ? 404 : 400;
-      
+
       return reply.status(statusCode).send({
         success: false,
         message: error instanceof Error ? error.message : 'Erro interno do servidor'
