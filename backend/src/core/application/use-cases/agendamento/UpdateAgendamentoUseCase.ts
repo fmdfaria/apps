@@ -59,11 +59,13 @@ export class UpdateAgendamentoUseCase {
     // 5. Verificar se é operação de série ou individual
     const serie = await this.seriesManager.findSerieByAgendamentoId(id);
 
-    if (!serie) {
-      // AGENDAMENTO INDIVIDUAL - permite status (para liberação, cancelamento, etc)
+    if (!serie || !tipoEdicaoRecorrencia) {
+      // AGENDAMENTO INDIVIDUAL OU sem tipoEdicaoRecorrencia (liberação, cancelamento, etc)
+      // Permite status para operações como liberação, cancelamento
       return await this.processarAgendamentoIndividual(id, dadosSemTipoEdicao, agendamentoAtual);
     } else {
-      // AGENDAMENTO DE SÉRIE - remove status para não sobrescrever status individuais
+      // AGENDAMENTO DE SÉRIE COM tipoEdicaoRecorrencia (edição de série)
+      // Remove status para não sobrescrever status individuais em edições de série
       const { status, ...dadosParaBanco } = dadosSemTipoEdicao;
       return await this.processarAgendamentoSerie(id, dadosParaBanco, tipoEdicaoRecorrencia, agendamentoAtual);
     }
