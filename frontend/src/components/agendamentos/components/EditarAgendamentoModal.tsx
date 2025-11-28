@@ -379,7 +379,7 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
         convenioId: agendamento.convenioId,
         recursoId: recursoSelecionado || agendamento.recursoId,
         tipoAtendimento: agendamento.tipoAtendimento,
-        status: agendamento.status,
+        // NÃO enviar status - edição de agendamento não deve alterar status
         // Informar ao backend o tipo de edição selecionado
         tipoEdicaoRecorrencia: tipoEdicao
       });

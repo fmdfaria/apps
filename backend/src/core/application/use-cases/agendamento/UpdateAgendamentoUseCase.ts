@@ -53,8 +53,10 @@ export class UpdateAgendamentoUseCase {
     // 3. Calcular dataHoraFim se necessário
     const dadosProcessados = await this.processarDadosUpdate(data, agendamentoAtual);
 
-    // 4. Remover campo tipoEdicaoRecorrencia dos dados do banco
-    const { tipoEdicaoRecorrencia, ...dadosParaBanco } = dadosProcessados;
+    // 4. Remover campos que não devem ser alterados em edições de agendamento
+    // - tipoEdicaoRecorrencia: é apenas para controle de fluxo, não vai pro banco
+    // - status: edições de agendamento não devem alterar status (use endpoint específico)
+    const { tipoEdicaoRecorrencia, status, ...dadosParaBanco } = dadosProcessados;
 
     // 5. Verificar se é operação de série ou individual
     const serie = await this.seriesManager.findSerieByAgendamentoId(id);
