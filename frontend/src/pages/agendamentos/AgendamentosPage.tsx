@@ -659,6 +659,16 @@ export const AgendamentosPage = () => {
   const confirmarCancelamento = async () => {
     if (!agendamentoCancelando) return;
 
+    // Validar se o agendamento possui recebimento
+    if (agendamentoCancelando.recebimento) {
+      AppToast.error('Não é possível cancelar agendamento!', {
+        description: 'Este agendamento já possui recebimento registrado e não pode ser cancelado, entre em contato com o financeiro.'
+      });
+      setShowCancelarModal(false);
+      setAgendamentoCancelando(null);
+      return;
+    }
+
     setCancelLoading(true);
     try {
       await setStatusAgendamento(agendamentoCancelando.id, 'CANCELADO');
@@ -680,6 +690,17 @@ export const AgendamentosPage = () => {
 
   const confirmarAlteracaoStatus = async () => {
     if (!agendamentoCancelando || !novoStatus) return;
+
+    // Validar se está tentando alterar para CANCELADO e o agendamento possui recebimento
+    if (novoStatus.id === 'CANCELADO' && agendamentoCancelando.recebimento) {
+      AppToast.error('Não é possível cancelar agendamento!', {
+        description: 'Este agendamento já possui recebimento registrado e não pode ser cancelado, entre em contato com o financeiro.'
+      });
+      setShowAlterarStatusModal(false);
+      setAgendamentoCancelando(null);
+      setNovoStatus(null);
+      return;
+    }
 
     setCancelLoading(true);
     try {

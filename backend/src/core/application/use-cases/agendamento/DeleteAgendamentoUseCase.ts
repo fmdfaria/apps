@@ -23,10 +23,10 @@ export class DeleteAgendamentoUseCase {
       throw new AppError('Agendamento não encontrado.', 404);
     }
 
-    // 2. Validar se o status permite exclusão (apenas AGENDADO pode ser excluído)
-    if (agendamento.status !== 'AGENDADO') {
+    // 2. Validar se o status permite exclusão (apenas AGENDADO e CANCELADO podem ser excluídos)
+    if (agendamento.status !== 'AGENDADO' && agendamento.status !== 'CANCELADO') {
       throw new AppError(
-        `Não é possível excluir agendamentos com status ${agendamento.status}. Apenas agendamentos com status AGENDADO podem ser excluídos.`,
+        `Não é possível excluir agendamentos com status ${agendamento.status}. Apenas agendamentos com status AGENDADO ou CANCELADO podem ser excluídos.`,
         400
       );
     }

@@ -334,6 +334,11 @@ export class AgendamentosController {
       return reply.status(400).send({ message: 'Não é possível cancelar um agendamento FINALIZADO ou ARQUIVADO.' });
     }
 
+    // - Bloquear cancelamento se o agendamento já possui recebimento
+    if (novoStatus === 'CANCELADO' && atual.recebimento === true) {
+      return reply.status(400).send({ message: 'Não é possível cancelar agendamento com recebimento, entre em contato com o financeiro.' });
+    }
+
     // - Permitir sair de CANCELADO para AGENDADO sempre
     // Outras transições: permitir por padrão
 
