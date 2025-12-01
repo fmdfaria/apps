@@ -9,6 +9,7 @@ import { FechamentoPagamentoUseCase } from '../../../core/application/use-cases/
 import { GetAgendamentoFormDataUseCase } from '../../../core/application/use-cases/agendamento/GetAgendamentoFormDataUseCase';
 import { LiberarAgendamentoParticularUseCase } from '../../../core/application/use-cases/LiberarAgendamentoParticularUseCase';
 import { LiberarAgendamentosParticularesMensalUseCase } from '../../../core/application/use-cases/LiberarAgendamentosParticularesMensalUseCase';
+import { GetDadosWebhookPagamentoProfissionalUseCase } from '../../../core/application/use-cases/agendamento/GetDadosWebhookPagamentoProfissionalUseCase';
 
 const recorrenciaSchema = z.object({
   tipo: z.enum(['semanal', 'quinzenal', 'mensal']),
@@ -365,26 +366,62 @@ export class AgendamentosController {
         observacoes: z.string().optional().nullable(),
       })
     });
-    
+
     const data = fechamentoPagamentoBodySchema.parse(request.body);
-    
+
     // Obter userId do request (assumindo que está disponível após autenticação)
     const userId = (request as any).user?.id;
     if (!userId) {
       return reply.status(401).send({ error: 'Usuário não autenticado' });
     }
-    
+
     const useCase = container.resolve(FechamentoPagamentoUseCase);
     const resultado = await useCase.execute({
       agendamentoIds: data.agendamentoIds,
       contaPagar: data.contaPagar,
       userId
     });
-    
+
     return reply.status(201).send({
       success: true,
       data: resultado,
       message: 'Fechamento realizado com sucesso'
     });
+  }
+
+  async getPagamentoProfissionalWebhookData(
+    request: FastifyRequest<{
+      Params: { profissionalId: string };
+      Querystring: { dataInicio: string; dataFim: string };
+    }>,
+    reply: FastifyReply
+  ): Promise<FastifyReply> {
+    try {
+      const paramsSchema = z.object({
+        profissionalId: z.string().uuid()
+      });
+      const querySchema = z.object({
+        dataInicio: z.string(),
+        dataFim: z.string()
+      });
+
+      const { profissionalId } = paramsSchema.parse(request.params);
+      const { dataInicio, dataFim } = querySchema.parse(request.query);
+
+      const useCase = container.resolve(GetDadosWebhookPagamentoProfissionalUseCase);
+      const dados = await useCase.execute({
+        profissionalId,
+        dataInicio,
+        dataFim
+      });
+
+      return reply.send({ success: true, data: dados });
+    } catch (error) {
+      const statusCode = error instanceof Error && error.message === 'Profissional não encontrado' ? 404 : 500;
+      return reply.status(statusCode).send({
+        success: false,
+        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+      });
+    }
   }
 } 

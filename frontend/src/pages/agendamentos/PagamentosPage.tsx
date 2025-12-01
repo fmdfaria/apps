@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
-import { 
+import {
   DollarSign,
   Clock,
   Users,
@@ -16,11 +16,13 @@ import {
   Calculator,
   Building,
   Eye,
-  CreditCard
+  CreditCard,
+  MessageCircle
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { getAgendamentos, efetuarFechamentoPagamento, type FechamentoPagamentoData } from '@/services/agendamentos';
 import { ListarAgendamentosModal, FechamentoPagamentoModal } from '@/components/agendamentos';
+import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import api from '@/services/api';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
@@ -96,6 +98,13 @@ export const PagamentosPage = () => {
   const [fechamentoData, setFechamentoData] = useState<{
     profissional: PagamentoProfissional | null;
   }>({ profissional: null });
+
+  // Estado para loading do WhatsApp
+  const [whatsappLoadingIds, setWhatsappLoadingIds] = useState<Set<string>>(new Set());
+
+  // Modal de confirmação WhatsApp
+  const [showConfirmacaoWhatsApp, setShowConfirmacaoWhatsApp] = useState(false);
+  const [profissionalParaWhatsApp, setProfissionalParaWhatsApp] = useState<PagamentoProfissional | null>(null);
 
   // Filtros avançados (seguindo padrão do AgendamentosPage)
   const [filtros, setFiltros] = useState({
@@ -424,6 +433,85 @@ export const PagamentosPage = () => {
     }
   };
 
+  const handleEnviarWhatsAppClick = (item: PagamentoProfissional) => {
+    setProfissionalParaWhatsApp(item);
+    setShowConfirmacaoWhatsApp(true);
+  };
+
+  const cancelarEnvioWhatsApp = () => {
+    setShowConfirmacaoWhatsApp(false);
+    setProfissionalParaWhatsApp(null);
+  };
+
+  const confirmarEnvioWhatsApp = async () => {
+    if (!profissionalParaWhatsApp) return;
+
+    setShowConfirmacaoWhatsApp(false);
+    setWhatsappLoadingIds(prev => new Set(prev).add(profissionalParaWhatsApp.profissionalId));
+
+    try {
+      AppToast.info('Enviando WhatsApp', {
+        description: 'Preparando dados para envio...'
+      });
+
+      // Fetch webhook data from backend
+      const response = await api.get(
+        `/agendamentos-pagamentos/${profissionalParaWhatsApp.profissionalId}/webhook-data`,
+        {
+          params: {
+            dataInicio: profissionalParaWhatsApp.dataInicio,
+            dataFim: profissionalParaWhatsApp.dataFim
+          }
+        }
+      );
+
+      const dadosWebhook = response.data.data;
+
+      // Get webhook URL from environment
+      const webhookUrl = import.meta.env.VITE_WEBHOOK_AGENDAMENTOS_PAGAMENTOS;
+
+      if (!webhookUrl) {
+        AppToast.error('Erro de configuração', {
+          description: 'URL do webhook não configurada.'
+        });
+        return;
+      }
+
+      // Send to webhook
+      const webhookResponse = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo: 'DADOS_PAGAMENTO_PROFISSIONAL',
+          pagamento: dadosWebhook,
+          timestamp: new Date().toISOString(),
+          origem: 'sistema-clinica'
+        })
+      });
+
+      if (!webhookResponse.ok) {
+        throw new Error(`Erro ao enviar webhook: ${webhookResponse.status}`);
+      }
+
+      AppToast.success('WhatsApp Enviado', {
+        description: `Dados de pagamento de ${profissionalParaWhatsApp.profissional} enviados com sucesso.`
+      });
+
+    } catch (error: any) {
+      console.error('Erro ao enviar WhatsApp:', error);
+      AppToast.error('Erro ao enviar WhatsApp', {
+        description: error?.response?.data?.message || error?.message || 'Tente novamente.'
+      });
+    } finally {
+      setWhatsappLoadingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(profissionalParaWhatsApp.profissionalId);
+        return newSet;
+      });
+      setProfissionalParaWhatsApp(null);
+    }
+  };
+
   const renderTableView = () => (
     <Table>
       <TableHeader>
@@ -526,6 +614,20 @@ export const PagamentosPage = () => {
                   <Button
                     variant="default"
                     size="sm"
+                    className="bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                    onClick={() => handleEnviarWhatsAppClick(item)}
+                    disabled={whatsappLoadingIds.has(item.profissionalId)}
+                    title="Enviar WhatsApp"
+                  >
+                    {whatsappLoadingIds.has(item.profissionalId) ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                    ) : (
+                      <MessageCircle className="w-4 h-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
                     className="bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                     onClick={() => handleEfetuarFechamento(item)}
                     title="Efetuar Fechamento"
@@ -601,8 +703,8 @@ export const PagamentosPage = () => {
 
               {/* Botões de Ação */}
               <div className="flex justify-center gap-1.5 pt-2 border-t">
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   variant="default"
                   className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                   onClick={() => handleVerDetalhes(item)}
@@ -610,8 +712,22 @@ export const PagamentosPage = () => {
                 >
                   <Eye className="w-4 h-4" />
                 </Button>
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                  onClick={() => handleEnviarWhatsAppClick(item)}
+                  disabled={whatsappLoadingIds.has(item.profissionalId)}
+                  title="Enviar WhatsApp"
+                >
+                  {whatsappLoadingIds.has(item.profissionalId) ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  ) : (
+                    <MessageCircle className="w-4 h-4" />
+                  )}
+                </Button>
+                <Button
+                  size="sm"
                   variant="default"
                   className="bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
                   onClick={() => handleEfetuarFechamento(item)}
@@ -850,6 +966,22 @@ export const PagamentosPage = () => {
           onConfirmFechamento={handleConfirmFechamento}
         />
       )}
+
+      {/* Modal de confirmação para envio de WhatsApp */}
+      <ConfirmacaoModal
+        open={showConfirmacaoWhatsApp}
+        onClose={cancelarEnvioWhatsApp}
+        onConfirm={confirmarEnvioWhatsApp}
+        title="Enviar WhatsApp"
+        description={
+          profissionalParaWhatsApp
+            ? `Deseja realmente enviar os dados de pagamento de ${profissionalParaWhatsApp.profissional} via WhatsApp? \n\nPeríodo: ${formatarDataBrasil(profissionalParaWhatsApp.dataInicio)} a ${formatarDataBrasil(profissionalParaWhatsApp.dataFim)}\nQuantidade de atendimentos: ${profissionalParaWhatsApp.qtdAgendamentos}\nValor total: ${formatarValor(profissionalParaWhatsApp.valorPagar)}`
+            : ''
+        }
+        confirmText="Enviar"
+        cancelText="Cancelar"
+        variant="default"
+      />
     </div>
   );
 };
