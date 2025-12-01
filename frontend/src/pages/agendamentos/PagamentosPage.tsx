@@ -24,6 +24,8 @@ import { getAgendamentos, efetuarFechamentoPagamento, type FechamentoPagamentoDa
 import { ListarAgendamentosModal, FechamentoPagamentoModal } from '@/components/agendamentos';
 import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import api from '@/services/api';
+import { gerarPDFAgendamentos } from '@/utils/pdfGenerator';
+import type jsPDF from 'jspdf';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
 import { getProfissionais } from '@/services/profissionais';
@@ -349,8 +351,8 @@ export const PagamentosPage = () => {
   // Função para calcular valor a pagar para o profissional
   const calcularValorProfissional = (agendamento: Agendamento): number => {
     // Prioridade 1: valor direto da tabela precos_servicos_profissional
-    const precoEspecifico = precosServicoProfissional.find(p => 
-      p.profissionalId === agendamento.profissionalId && 
+    const precoEspecifico = precosServicoProfissional.find(p =>
+      p.profissionalId === agendamento.profissionalId &&
       p.servicoId === agendamento.servicoId
     );
 
@@ -366,6 +368,116 @@ export const PagamentosPage = () => {
 
     // Fallback para valor padrão
     return 0;
+  };
+
+  const gerarPDFBase64 = async (item: PagamentoProfissional): Promise<string> => {
+    // Prepare agendamentos data for PDF - sort by date
+    const agendamentosOrdenados = [...item.agendamentos].sort((a, b) =>
+      new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()
+    );
+
+    // Generate PDF using existing utility - but we need to modify it to return doc instead of saving
+    // Since gerarPDFAgendamentos calls doc.save(), we'll need to create the PDF ourselves
+    const jsPDF = (await import('jspdf')).default;
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+    let yPosition = margin;
+
+    // CABEÇALHO
+    doc.setFillColor(220, 38, 38);
+    doc.rect(0, 0, pageWidth, 25, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RELAÇÃO DE ATENDIMENTOS', margin, 12);
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, margin, 19);
+
+    yPosition = 35;
+
+    // INFORMAÇÕES DO PAGAMENTO
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Pagamento - ${item.profissional}`, margin, yPosition);
+    yPosition += 8;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Período: ${formatarDataBrasil(item.dataInicio)} a ${formatarDataBrasil(item.dataFim)}`, margin, yPosition);
+    yPosition += 5;
+    doc.text(`Quantidade de atendimentos: ${item.qtdAgendamentos}`, margin, yPosition);
+    yPosition += 5;
+    doc.text(`Valor total: ${formatarValor(item.valorPagar)}`, margin, yPosition);
+    yPosition += 10;
+
+    // TABELA DE AGENDAMENTOS
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    const colWidths = [30, 25, 50, 60, 30, 30];
+    let xPosition = margin;
+
+    // Cabeçalho da tabela
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, yPosition, pageWidth - 2 * margin, 8, 'F');
+
+    yPosition += 6;
+    doc.text('Data', xPosition, yPosition);
+    xPosition += colWidths[0];
+    doc.text('Hora', xPosition, yPosition);
+    xPosition += colWidths[1];
+    doc.text('Paciente', xPosition, yPosition);
+    xPosition += colWidths[2];
+    doc.text('Serviço', xPosition, yPosition);
+    xPosition += colWidths[3];
+    doc.text('Valor', xPosition, yPosition);
+    xPosition += colWidths[4];
+    doc.text('Status', xPosition, yPosition);
+
+    yPosition += 4;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+
+    // Linhas dos agendamentos
+    agendamentosOrdenados.forEach((agendamento) => {
+      const valor = calcularValorProfissional(agendamento);
+      const dataHora = agendamento.dataHoraInicio ? new Date(agendamento.dataHoraInicio) : null;
+      const dia = dataHora ? String(dataHora.getDate()).padStart(2, '0') : '';
+      const mes = dataHora ? String(dataHora.getMonth() + 1).padStart(2, '0') : '';
+      const ano = dataHora ? dataHora.getFullYear() : '';
+      const hora = dataHora ? String(dataHora.getHours()).padStart(2, '0') : '';
+      const minuto = dataHora ? String(dataHora.getMinutes()).padStart(2, '0') : '';
+
+      xPosition = margin;
+      doc.text(`${dia}/${mes}/${ano}`, xPosition, yPosition + 4);
+      xPosition += colWidths[0];
+      doc.text(`${hora}:${minuto}`, xPosition, yPosition + 4);
+      xPosition += colWidths[1];
+      const paciente = (agendamento.pacienteNome || 'Não informado').substring(0, 30);
+      doc.text(paciente, xPosition, yPosition + 4);
+      xPosition += colWidths[2];
+      const servico = (agendamento.servicoNome || 'Não informado').substring(0, 35);
+      doc.text(servico, xPosition, yPosition + 4);
+      xPosition += colWidths[3];
+      doc.text(formatarValor(valor), xPosition, yPosition + 4);
+      xPosition += colWidths[4];
+      doc.text(agendamento.status, xPosition, yPosition + 4);
+
+      yPosition += 6;
+    });
+
+    // Convert to base64
+    const pdfBase64 = doc.output('dataurlstring').split(',')[1];
+    return pdfBase64;
   };
 
   const dadosProfissionais = processarDadosProfissionais();
@@ -467,6 +579,13 @@ export const PagamentosPage = () => {
 
       const dadosWebhook = response.data.data;
 
+      // Generate PDF
+      AppToast.info('Gerando PDF', {
+        description: 'Gerando relatório de pagamentos...'
+      });
+
+      const pdfBase64 = await gerarPDFBase64(profissionalParaWhatsApp);
+
       // Get webhook URL from environment
       const webhookUrl = import.meta.env.VITE_WEBHOOK_AGENDAMENTOS_PAGAMENTOS;
 
@@ -478,12 +597,23 @@ export const PagamentosPage = () => {
       }
 
       // Send to webhook
+      AppToast.info('Enviando WhatsApp', {
+        description: 'Enviando dados via webhook...'
+      });
+
       const webhookResponse = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tipo: 'DADOS_PAGAMENTO_PROFISSIONAL',
-          pagamento: dadosWebhook,
+          pagamento: {
+            ...dadosWebhook,
+            pdf: {
+              base64: pdfBase64,
+              filename: `pagamento_${profissionalParaWhatsApp.profissional.replace(/\s+/g, '_')}_${formatarDataBrasil(profissionalParaWhatsApp.dataInicio).replace(/\//g, '-')}_${formatarDataBrasil(profissionalParaWhatsApp.dataFim).replace(/\//g, '-')}.pdf`,
+              mimeType: 'application/pdf'
+            }
+          },
           timestamp: new Date().toISOString(),
           origem: 'sistema-clinica'
         })

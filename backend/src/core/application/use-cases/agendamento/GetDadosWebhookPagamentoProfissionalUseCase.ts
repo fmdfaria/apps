@@ -36,43 +36,25 @@ export class GetDadosWebhookPagamentoProfissionalUseCase {
       throw new Error('Profissional não encontrado');
     }
 
-    // Calculate valores using precos_servicos_profissionais
+    // Calculate valorTotal using pricing table with proper priority
     let valorTotal = 0;
-    const agendamentosComValor = await Promise.all(
-      agendamentos.map(async (agendamento) => {
-        const preco = await this.precosRepository.findByProfissionalAndServico(
-          params.profissionalId,
-          agendamento.servicoId
-        );
-        const valorProfissional = preco?.precoProfissional || 0;
-        valorTotal += valorProfissional;
 
-        return {
-          id: agendamento.id,
-          dataHoraInicio: agendamento.dataHoraInicio,
-          dataHoraFim: agendamento.dataHoraFim,
-          status: agendamento.status,
-          tipoAtendimento: agendamento.tipoAtendimento,
-          valorProfissional,
-          paciente: {
-            id: agendamento.paciente.id,
-            nomeCompleto: agendamento.paciente.nomeCompleto,
-            email: agendamento.paciente.email,
-            whatsapp: agendamento.paciente.whatsapp,
-            cpf: agendamento.paciente.cpf
-          },
-          servico: agendamento.servico ? {
-            id: agendamento.servico.id,
-            nome: agendamento.servico.nome,
-            descricao: agendamento.servico.descricao
-          } : null,
-          convenio: agendamento.convenio ? {
-            id: agendamento.convenio.id,
-            nome: agendamento.convenio.nome
-          } : null
-        };
-      })
-    );
+    for (const agendamento of agendamentos) {
+      const preco = await this.precosRepository.findByProfissionalAndServico(
+        params.profissionalId,
+        agendamento.servicoId
+      );
+
+      let valorProfissional = 0;
+
+      if (preco?.precoProfissional && preco.precoProfissional > 0) {
+        valorProfissional = preco.precoProfissional;
+      } else if (agendamento.servico?.valorProfissional) {
+        valorProfissional = agendamento.servico.valorProfissional;
+      }
+
+      valorTotal += valorProfissional;
+    }
 
     return {
       profissional: {
@@ -89,8 +71,7 @@ export class GetDadosWebhookPagamentoProfissionalUseCase {
       resumo: {
         qtdAgendamentos: agendamentos.length,
         valorTotal
-      },
-      agendamentos: agendamentosComValor
+      }
     };
   }
 }
