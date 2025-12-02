@@ -20,7 +20,8 @@ import {
   AlertCircle,
   DollarSign,
   Stethoscope,
-  FileDown
+  FileDown,
+  MessageCircle
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import type { ContaPagar } from '@/types/ContaPagar';
@@ -214,12 +215,18 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
                       Status
                     </div>
                   </TableHead>
+                  <TableHead className="py-2 text-xs font-semibold text-gray-700 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <MessageCircle className="w-4 h-4" />
+                      WhatsApp
+                    </div>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {agendamentos.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-12 text-center">
+                    <TableCell colSpan={7} className="py-12 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                           <AlertCircle className="w-8 h-8 text-gray-400" />
@@ -278,13 +285,26 @@ export const ListarAgendamentosModal: React.FC<ListarAgendamentosModalProps> = (
                         </TableCell>
                         
                         <TableCell className="py-1.5">
-                          <Badge 
-                            variant="outline" 
+                          <Badge
+                            variant="outline"
                             className={`text-[10px] flex items-center gap-1 w-fit px-1.5 py-0.5 ${getStatusColor(agendamento.status)}`}
                           >
                             {getStatusIcon(agendamento.status)}
                             {agendamento.status}
                           </Badge>
+                        </TableCell>
+
+                        <TableCell className="py-1.5 text-center">
+                          {agendamento.whatsappPagamentoEnviado ? (
+                            <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-100 text-[10px] px-1.5 py-0.5">
+                              <MessageCircle className="w-3 h-3 mr-1" />
+                              Enviado
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-300 text-[10px] px-1.5 py-0.5">
+                              Pendente
+                            </Badge>
+                          )}
                         </TableCell>
                       </TableRow>
                     );

@@ -26,12 +26,14 @@ export class MarcarWhatsappPagamentoEnviadoUseCase {
     dataFim
   }: MarcarWhatsappPagamentoEnviadoRequest): Promise<MarcarWhatsappPagamentoEnviadoResponse> {
     // Buscar agendamentos FINALIZADOS no período
-    const agendamentos = await this.agendamentosRepository.findByFilters({
+    const result = await this.agendamentosRepository.findAll({
       profissionalId,
       dataInicio,
       dataFim,
       status: 'FINALIZADO'
     });
+
+    const agendamentos = result.data;
 
     if (agendamentos.length === 0) {
       throw new AppError('Nenhum agendamento encontrado no período informado', 404);

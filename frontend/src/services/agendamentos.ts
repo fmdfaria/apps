@@ -951,9 +951,13 @@ export const marcarWhatsappPagamentoEnviado = async (
 ): Promise<{ agendamentosAtualizados: number; agendamentosIds: string[] }> => {
   try {
     const response = await api.put(
-      `/agendamentos-pagamentos/${profissionalId}/marcar-whatsapp-enviado`,
-      null,
-      { params: { dataInicio, dataFim } }
+      `/agendamentos-pagamentos/${profissionalId}/marcar-whatsapp-enviado?dataInicio=${dataInicio}&dataFim=${dataFim}`,
+      {},
+      {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
     );
     return response.data.data;
   } catch (error) {
