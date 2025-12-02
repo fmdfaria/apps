@@ -146,7 +146,13 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     if (filters?.profissionalId) whereConditions.profissionalId = filters.profissionalId;
     if (filters?.pacienteId) whereConditions.pacienteId = filters.pacienteId;
     if (filters?.status) {
-      whereConditions.status = filters.status;
+      // Se o status for FINALIZADO e recebimento=false, incluir também ARQUIVADO
+      // para capturar agendamentos arquivados que ainda não tiveram recebimento
+      if (filters.status === 'FINALIZADO' && filters?.recebimento === false) {
+        whereConditions.status = { in: ['FINALIZADO', 'ARQUIVADO'] };
+      } else {
+        whereConditions.status = filters.status;
+      }
     } else {
       // Se filtrar por recebimento=false, incluir tanto FINALIZADO quanto ARQUIVADO
       // pois agendamentos arquivados podem não ter sido recebidos ainda

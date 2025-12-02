@@ -201,10 +201,11 @@ export const FechamentoPage = () => {
     setAgendamentos([]); // Limpa dados para evitar mostrar dados antigos
 
     try {
-      // Buscar agendamentos que ainda não tiveram recebimento registrado
-      // Backend automaticamente retorna FINALIZADO e ARQUIVADO quando recebimento=false
+      // Buscar agendamentos FINALIZADOS (ou ARQUIVADOS) que ainda não tiveram recebimento registrado
+      // Backend automaticamente inclui ARQUIVADO quando status=FINALIZADO e recebimento=false
       const dados = await getAgendamentos({
-        recebimento: false, // Apenas agendamentos sem recebimento registrado (inclui FINALIZADO e ARQUIVADO)
+        status: 'FINALIZADO', // Backend inclui ARQUIVADO automaticamente quando recebimento=false
+        recebimento: false, // Apenas agendamentos sem recebimento registrado
         page: 1,
         // Removido limit para usar padrão da API (dados serão agrupados)
         ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
