@@ -250,6 +250,7 @@ model Agendamento {
   dataAtendimento    DateTime?          @map("data_atendimento") @db.Date
   recebimento        Boolean?           @default(false)
   pagamento          Boolean?           @default(false)
+  whatsappPagamentoEnviado Boolean?     @default(false) @map("whatsapp_pagamento_enviado")
   urlMeet            String?            @map("url_meet") @db.VarChar(500)
   googleEventId      String?            @map("google_event_id") @db.VarChar(255)
   // Campos para agendamentos recorrentes

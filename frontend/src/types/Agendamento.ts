@@ -57,6 +57,7 @@ export interface Agendamento {
   status: StatusAgendamento;
   recebimento?: boolean;
   pagamento?: boolean;
+  whatsappPagamentoEnviado?: boolean;
   criadoEm: string;
   atualizadoEm: string;
   

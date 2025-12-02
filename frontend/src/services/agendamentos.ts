@@ -943,6 +943,25 @@ export const efetuarFechamentoPagamento = async (data: FechamentoPagamentoData):
   }
 };
 
+// Marcar agendamentos como WhatsApp enviado
+export const marcarWhatsappPagamentoEnviado = async (
+  profissionalId: string,
+  dataInicio: string,
+  dataFim: string
+): Promise<{ agendamentosAtualizados: number; agendamentosIds: string[] }> => {
+  try {
+    const response = await api.put(
+      `/agendamentos-pagamentos/${profissionalId}/marcar-whatsapp-enviado`,
+      null,
+      { params: { dataInicio, dataFim } }
+    );
+    return response.data.data;
+  } catch (error) {
+    console.error('Erro ao marcar WhatsApp como enviado:', error);
+    throw error;
+  }
+};
+
 // Interface para dados do fechamento de recebimento (convênios)
 export interface FechamentoRecebimentoData {
   agendamentoIds: string[];

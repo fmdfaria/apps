@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ import {
   MessageCircle
 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
-import { getAgendamentos, efetuarFechamentoPagamento, type FechamentoPagamentoData } from '@/services/agendamentos';
+import { getAgendamentos, efetuarFechamentoPagamento, marcarWhatsappPagamentoEnviado, type FechamentoPagamentoData } from '@/services/agendamentos';
 import { ListarAgendamentosModal, FechamentoPagamentoModal } from '@/components/agendamentos';
 import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import api from '@/services/api';
@@ -37,6 +37,7 @@ interface PagamentoProfissional {
   qtdAgendamentos: number;
   valorPagar: number;
   agendamentos: Agendamento[];
+  whatsappJaEnviado: boolean; // Indica se algum agendamento já teve WhatsApp enviado
 }
 
 interface PrecoServicoProfissional {
@@ -124,6 +125,30 @@ export const PagamentosPage = () => {
   // Estado para controle de inicialização (mesmo padrão da AgendamentosPage)
   const [initialized, setInitialized] = useState(false);
 
+  // OTIMIZAÇÃO #1: Create price lookup map for O(1) access instead of O(n) find()
+  const precosMap = useMemo(() => {
+    const map = new Map<string, PrecoServicoProfissional>();
+    precosServicoProfissional.forEach(preco => {
+      const key = `${preco.profissionalId}-${preco.servicoId}`;
+      map.set(key, preco);
+    });
+    return map;
+  }, [precosServicoProfissional]);
+
+  // OTIMIZAÇÃO #7: Load prices once on mount (they are static)
+  useEffect(() => {
+    const carregarPrecos = async () => {
+      try {
+        const precosData = await carregarPrecosServicoProfissional();
+        setPrecosServicoProfissional(precosData);
+      } catch (error) {
+        console.error('Erro ao carregar preços:', error);
+      }
+    };
+
+    carregarPrecos();
+  }, []); // Empty deps - run only on mount
+
   // Inicialização única (mesmo padrão da AgendamentosPage)
   useEffect(() => {
     checkPermissions();
@@ -167,25 +192,21 @@ export const PagamentosPage = () => {
     setLoading(true);
     setAccessDenied(false);
     setAgendamentos([]); // Limpa dados para evitar mostrar dados antigos
-    setPrecosServicoProfissional([]);
 
     try {
-      const [agendamentosData, precosData] = await Promise.all([
-        getAgendamentos({
-          status: 'FINALIZADO',
-          page: 1,
-          // Removido limit para usar padrão da API (dados serão agrupados)
-          ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
-          ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
-          ...(filtrosAplicados.profissionalId ? { profissionalId: filtrosAplicados.profissionalId } : {}),
-          ...(filtrosAplicados.servicoId ? { servicoId: filtrosAplicados.servicoId } : {}),
-        }),
-        carregarPrecosServicoProfissional()
-      ]);
+      // OTIMIZAÇÃO #7: Removed price fetching (now loaded once on mount)
+      const agendamentosData = await getAgendamentos({
+        status: 'FINALIZADO',
+        page: 1,
+        // Removido limit para usar padrão da API (dados serão agrupados)
+        ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
+        ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
+        ...(filtrosAplicados.profissionalId ? { profissionalId: filtrosAplicados.profissionalId } : {}),
+        ...(filtrosAplicados.servicoId ? { servicoId: filtrosAplicados.servicoId } : {}),
+      });
 
       // A nova API retorna { data: [], pagination: {} }
       setAgendamentos(agendamentosData.data || []);
-      setPrecosServicoProfissional(precosData);
     } catch (e: any) {
       console.error('Erro ao carregar dados:', e);
       if (e?.response?.status === 403) {
@@ -242,7 +263,13 @@ export const PagamentosPage = () => {
   };
 
   const temFiltrosAtivos = Object.values(filtrosAplicados).some(filtro => filtro !== '');
-  const temFiltrosNaoAplicados = JSON.stringify(filtros) !== JSON.stringify(filtrosAplicados);
+
+  // OTIMIZAÇÃO #6: Direct field comparison instead of JSON.stringify
+  const temFiltrosNaoAplicados =
+    filtros.profissionalId !== filtrosAplicados.profissionalId ||
+    filtros.servicoId !== filtrosAplicados.servicoId ||
+    filtros.dataInicio !== filtrosAplicados.dataInicio ||
+    filtros.dataFim !== filtrosAplicados.dataFim;
 
   // Função para converter data UTC para timezone brasileiro e extrair apenas a data
   const extrairDataBrasil = (dataISO: string) => {
@@ -270,16 +297,23 @@ export const PagamentosPage = () => {
   };
 
 
-  // Filtrar agendamentos FINALIZADOS (com proteção para array)
-  // Note: Os filtros avançados agora são aplicados via API, então aqui só filtramos por busca textual
-  const agendamentosFiltrados = (Array.isArray(agendamentos) ? agendamentos : [])
-    .filter(a => a.status === 'FINALIZADO')
-    .filter(a => 
-      !busca || 
-      a.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||
-      a.profissionalNome?.toLowerCase().includes(busca.toLowerCase()) ||
-      a.servicoNome?.toLowerCase().includes(busca.toLowerCase())
+  // OTIMIZAÇÃO #5: Memoize filter with single pass and pre-lowercased search term
+  const agendamentosFiltrados = useMemo(() => {
+    const agendamentosArray = Array.isArray(agendamentos) ? agendamentos : [];
+
+    if (!busca) {
+      return agendamentosArray.filter(a => a.status === 'FINALIZADO');
+    }
+
+    const buscaLower = busca.toLowerCase();
+    return agendamentosArray.filter(a =>
+      a.status === 'FINALIZADO' && (
+        a.pacienteNome?.toLowerCase().includes(buscaLower) ||
+        a.profissionalNome?.toLowerCase().includes(buscaLower) ||
+        a.servicoNome?.toLowerCase().includes(buscaLower)
+      )
     );
+  }, [agendamentos, busca]);
 
   // Processar dados para visualização por profissional
   const processarDadosProfissionais = (): PagamentoProfissional[] => {
@@ -319,6 +353,12 @@ export const PagamentosPage = () => {
         const hoje = new Date();
         const hojeBrasil = new Date(hoje.getTime() - (3 * 60 * 60 * 1000));
         const hojeStr = hojeBrasil.toISOString().split('T')[0];
+
+        // Verificar se algum agendamento já teve WhatsApp enviado
+        const whatsappJaEnviado = dados.agendamentos.some(
+          ag => ag.whatsappPagamentoEnviado === true
+        );
+
         return {
           profissional: profissional || 'Não informado',
           profissionalId,
@@ -326,13 +366,20 @@ export const PagamentosPage = () => {
           dataFim: hojeStr,
           qtdAgendamentos: dados.agendamentos.length,
           valorPagar: dados.valorTotal,
-          agendamentos: dados.agendamentos
+          agendamentos: dados.agendamentos,
+          whatsappJaEnviado
         };
       }
 
-      // As datas já estão no formato brasileiro, então apenas encontramos min/max
-      const dataInicio = datas.sort()[0]; // Menor data
-      const dataFim = datas.sort().reverse()[0]; // Maior data
+      // OTIMIZAÇÃO #3: Use Math.min/max instead of double sort - O(n) instead of O(2n log n)
+      // Dates are in 'YYYY-MM-DD' format, so we can compare them directly
+      const dataInicio = datas.reduce((min, data) => data < min ? data : min, datas[0]);
+      const dataFim = datas.reduce((max, data) => data > max ? data : max, datas[0]);
+
+      // Verificar se algum agendamento já teve WhatsApp enviado
+      const whatsappJaEnviado = dados.agendamentos.some(
+        ag => ag.whatsappPagamentoEnviado === true
+      );
 
       return {
         profissional: profissional || 'Não informado',
@@ -341,7 +388,8 @@ export const PagamentosPage = () => {
         dataFim,
         qtdAgendamentos: dados.agendamentos.length,
         valorPagar: dados.valorTotal,
-        agendamentos: dados.agendamentos
+        agendamentos: dados.agendamentos,
+        whatsappJaEnviado
       };
     });
   };
@@ -349,10 +397,9 @@ export const PagamentosPage = () => {
   // Função para calcular valor a pagar para o profissional
   const calcularValorProfissional = (agendamento: Agendamento): number => {
     // Prioridade 1: valor direto da tabela precos_servicos_profissional
-    const precoEspecifico = precosServicoProfissional.find(p =>
-      p.profissionalId === agendamento.profissionalId &&
-      p.servicoId === agendamento.servicoId
-    );
+    // OTIMIZAÇÃO #1: Use Map lookup O(1) instead of array.find() O(n)
+    const key = `${agendamento.profissionalId}-${agendamento.servicoId}`;
+    const precoEspecifico = precosMap.get(key);
 
     if (precoEspecifico?.precoProfissional && precoEspecifico.precoProfissional > 0) {
       return precoEspecifico.precoProfissional; // Valor direto em R$
@@ -368,11 +415,23 @@ export const PagamentosPage = () => {
     return 0;
   };
 
-  const dadosProfissionais = processarDadosProfissionais();
-  const totalPaginas = Math.ceil(dadosProfissionais.length / itensPorPagina);
-  const dadosPaginados = dadosProfissionais.slice(
-    (paginaAtual - 1) * itensPorPagina,
-    paginaAtual * itensPorPagina
+  // OTIMIZAÇÃO #2: Memoize processarDadosProfissionais to prevent recalculation on every render
+  const dadosProfissionais = useMemo(() => {
+    return processarDadosProfissionais();
+  }, [agendamentosFiltrados, precosMap]);
+
+  // OTIMIZAÇÃO #9: Memoize pagination calculations
+  const totalPaginas = useMemo(() =>
+    Math.ceil(dadosProfissionais.length / itensPorPagina),
+    [dadosProfissionais.length, itensPorPagina]
+  );
+
+  const dadosPaginados = useMemo(() =>
+    dadosProfissionais.slice(
+      (paginaAtual - 1) * itensPorPagina,
+      paginaAtual * itensPorPagina
+    ),
+    [dadosProfissionais, paginaAtual, itensPorPagina]
   );
 
   const handleVerDetalhes = (item: PagamentoProfissional) => {
@@ -497,6 +556,21 @@ export const PagamentosPage = () => {
         throw new Error(`Erro ao enviar webhook: ${webhookResponse.status}`);
       }
 
+      // Marcar agendamentos como WhatsApp enviado
+      try {
+        await marcarWhatsappPagamentoEnviado(
+          profissionalParaWhatsApp.profissionalId,
+          profissionalParaWhatsApp.dataInicio,
+          profissionalParaWhatsApp.dataFim
+        );
+
+        // Recarregar dados para atualizar o status
+        await carregarAgendamentos();
+      } catch (marcarError) {
+        console.error('Erro ao marcar WhatsApp como enviado:', marcarError);
+        // Não falha o processo principal se a marcação falhar
+      }
+
       AppToast.success('WhatsApp Enviado', {
         description: `Dados de pagamento de ${profissionalParaWhatsApp.profissional} enviados com sucesso.`
       });
@@ -574,8 +648,8 @@ export const PagamentosPage = () => {
             </TableCell>
           </TableRow>
         ) : (
-          dadosPaginados.map((item, index) => (
-            <TableRow key={index} className="hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-200">
+          dadosPaginados.map((item) => (
+            <TableRow key={item.profissionalId} className="hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-200">
               <TableCell className="py-3">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
@@ -660,8 +734,8 @@ export const PagamentosPage = () => {
           </p>
         </div>
       ) : (
-        dadosPaginados.map((item, index) => (
-          <Card key={index} className="hover:shadow-md transition-shadow">
+        dadosPaginados.map((item) => (
+          <Card key={item.profissionalId} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
@@ -976,15 +1050,15 @@ export const PagamentosPage = () => {
         open={showConfirmacaoWhatsApp}
         onClose={cancelarEnvioWhatsApp}
         onConfirm={confirmarEnvioWhatsApp}
-        title="Enviar WhatsApp"
+        title={profissionalParaWhatsApp?.whatsappJaEnviado ? 'Reenviar WhatsApp' : 'Enviar WhatsApp'}
         description={
           profissionalParaWhatsApp
-            ? `Deseja realmente enviar os dados de pagamento de ${profissionalParaWhatsApp.profissional} via WhatsApp? \n\nPeríodo: ${formatarDataBrasil(profissionalParaWhatsApp.dataInicio)} a ${formatarDataBrasil(profissionalParaWhatsApp.dataFim)}\nQuantidade de atendimentos: ${profissionalParaWhatsApp.qtdAgendamentos}\nValor total: ${formatarValor(profissionalParaWhatsApp.valorPagar)}`
+            ? `${profissionalParaWhatsApp.whatsappJaEnviado ? 'ATENÇÃO: WhatsApp já foi enviado anteriormente para este profissional.\n\n' : ''}Deseja ${profissionalParaWhatsApp.whatsappJaEnviado ? 'reenviar' : 'enviar'} os dados de pagamento de ${profissionalParaWhatsApp.profissional} via WhatsApp? \n\nPeríodo: ${formatarDataBrasil(profissionalParaWhatsApp.dataInicio)} a ${formatarDataBrasil(profissionalParaWhatsApp.dataFim)}\nQuantidade de atendimentos: ${profissionalParaWhatsApp.qtdAgendamentos}\nValor total: ${formatarValor(profissionalParaWhatsApp.valorPagar)}`
             : ''
         }
-        confirmText="Enviar"
+        confirmText={profissionalParaWhatsApp?.whatsappJaEnviado ? 'Reenviar' : 'Enviar'}
         cancelText="Cancelar"
-        variant="default"
+        variant={profissionalParaWhatsApp?.whatsappJaEnviado ? 'warning' : 'default'}
       />
     </div>
   );

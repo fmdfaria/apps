@@ -82,4 +82,12 @@ export async function agendamentosRoutes(app: FastifyInstance) {
       ensureAuthorized('/agendamentos-pagamentos/:profissionalId/webhook-data', 'GET')
     ]
   }, (request, reply) => controller.getPagamentoProfissionalWebhookData(request as any, reply as any));
+
+  // Rota para marcar agendamentos como WhatsApp enviado
+  app.put('/agendamentos-pagamentos/:profissionalId/marcar-whatsapp-enviado', {
+    preHandler: [
+      ensureAuthenticated,
+      ensureAuthorized('/agendamentos-pagamentos/:profissionalId/marcar-whatsapp-enviado', 'PUT')
+    ]
+  }, (request, reply) => controller.marcarWhatsappPagamentoEnviado(request as any, reply as any));
 } 

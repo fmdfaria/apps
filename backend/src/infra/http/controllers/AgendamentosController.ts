@@ -10,6 +10,7 @@ import { GetAgendamentoFormDataUseCase } from '../../../core/application/use-cas
 import { LiberarAgendamentoParticularUseCase } from '../../../core/application/use-cases/LiberarAgendamentoParticularUseCase';
 import { LiberarAgendamentosParticularesMensalUseCase } from '../../../core/application/use-cases/LiberarAgendamentosParticularesMensalUseCase';
 import { GetDadosWebhookPagamentoProfissionalUseCase } from '../../../core/application/use-cases/agendamento/GetDadosWebhookPagamentoProfissionalUseCase';
+import { MarcarWhatsappPagamentoEnviadoUseCase } from '../../../core/application/use-cases/agendamento/MarcarWhatsappPagamentoEnviadoUseCase';
 
 const recorrenciaSchema = z.object({
   tipo: z.enum(['semanal', 'quinzenal', 'mensal']),
@@ -418,6 +419,35 @@ export class AgendamentosController {
       return reply.send({ success: true, data: dados });
     } catch (error) {
       const statusCode = error instanceof Error && error.message === 'Profissional não encontrado' ? 404 : 500;
+      return reply.status(statusCode).send({
+        success: false,
+        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+      });
+    }
+  }
+
+  async marcarWhatsappPagamentoEnviado(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      const { profissionalId } = request.params as { profissionalId: string };
+      const { dataInicio, dataFim } = request.query as { dataInicio: string; dataFim: string };
+
+      if (!profissionalId || !dataInicio || !dataFim) {
+        return reply.status(400).send({
+          success: false,
+          message: 'profissionalId, dataInicio e dataFim são obrigatórios'
+        });
+      }
+
+      const useCase = container.resolve(MarcarWhatsappPagamentoEnviadoUseCase);
+      const resultado = await useCase.execute({
+        profissionalId,
+        dataInicio,
+        dataFim
+      });
+
+      return reply.send({ success: true, data: resultado });
+    } catch (error) {
+      const statusCode = error instanceof Error && error.message.includes('não encontrado') ? 404 : 500;
       return reply.status(statusCode).send({
         success: false,
         message: error instanceof Error ? error.message : 'Erro interno do servidor'

@@ -97,9 +97,9 @@ export const ContasPagarPage = () => {
   const [excluindo, setExcluindo] = useState<ContaPagar | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   
-  // Estados para modal de reenvio WhatsApp
-  const [showConfirmacaoReenvio, setShowConfirmacaoReenvio] = useState(false);
-  const [contaParaReenvio, setContaParaReenvio] = useState<ContaPagar | null>(null);
+  // Estados para modal de confirmação WhatsApp
+  const [showConfirmacaoWhatsApp, setShowConfirmacaoWhatsApp] = useState(false);
+  const [contaParaWhatsApp, setContaParaWhatsApp] = useState<ContaPagar | null>(null);
 
   // Estado para loading do WhatsApp
   const [whatsappLoadingIds, setWhatsappLoadingIds] = useState<Set<string>>(new Set());
@@ -201,23 +201,22 @@ export const ContasPagarPage = () => {
             <Eye className="w-4 h-4" />
           </ActionButton>
 
-          {item.status !== 'PAGO' && item.status !== 'CANCELADO' && (
-            <ActionButton
-              variant="view"
-              module="financeiro"
-              onClick={() => abrirModalPagar(item)}
-              title="Pagar conta"
-            >
-              <DollarSign className="w-4 h-4" />
-            </ActionButton>
-          )}
+          <ActionButton
+            variant="view"
+            module="financeiro"
+            onClick={() => abrirModalPagar(item)}
+            title={item.status === 'PAGO' || item.status === 'CANCELADO' ? 'Pagamento não disponível' : 'Pagar conta'}
+            disabled={item.status === 'PAGO' || item.status === 'CANCELADO'}
+          >
+            <DollarSign className="w-4 h-4" />
+          </ActionButton>
 
           <ActionButton
             variant="primary"
             module="financeiro"
             onClick={() => handleEnviarWhatsAppClick(item)}
-            title="Enviar WhatsApp"
-            disabled={whatsappLoadingIds.has(item.id)}
+            title={item.status === 'PAGO' ? 'WhatsApp não disponível para contas pagas' : 'Enviar WhatsApp'}
+            disabled={whatsappLoadingIds.has(item.id) || item.status === 'PAGO'}
           >
             {whatsappLoadingIds.has(item.id) ? (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
@@ -473,27 +472,22 @@ export const ContasPagarPage = () => {
   };
 
   const handleEnviarWhatsAppClick = (conta: ContaPagar) => {
-    if (conta.status === 'SOLICITADO') {
-      // Mostrar modal de confirmação para reenvio
-      setContaParaReenvio(conta);
-      setShowConfirmacaoReenvio(true);
-    } else {
-      // Prosseguir normalmente
-      enviarWhatsApp(conta);
-    }
+    // Sempre mostrar modal de confirmação antes de enviar
+    setContaParaWhatsApp(conta);
+    setShowConfirmacaoWhatsApp(true);
   };
 
-  const confirmarReenvio = () => {
-    if (contaParaReenvio) {
-      enviarWhatsApp(contaParaReenvio);
+  const confirmarEnvioWhatsApp = () => {
+    if (contaParaWhatsApp) {
+      enviarWhatsApp(contaParaWhatsApp);
     }
-    setShowConfirmacaoReenvio(false);
-    setContaParaReenvio(null);
+    setShowConfirmacaoWhatsApp(false);
+    setContaParaWhatsApp(null);
   };
 
-  const cancelarReenvio = () => {
-    setShowConfirmacaoReenvio(false);
-    setContaParaReenvio(null);
+  const cancelarEnvioWhatsApp = () => {
+    setShowConfirmacaoWhatsApp(false);
+    setContaParaWhatsApp(null);
   };
 
   // Função para calcular valor a pagar para o profissional
@@ -673,22 +667,21 @@ export const ContasPagarPage = () => {
         >
           <Eye className="w-4 h-4" />
         </ActionButton>
-        {conta.status !== 'PAGO' && conta.status !== 'CANCELADO' && (
-          <ActionButton
-            variant="view"
-            module="financeiro"
-            onClick={() => abrirModalPagar(conta)}
-            title="Pagar conta"
-          >
-            <DollarSign className="w-4 h-4" />
-          </ActionButton>
-        )}
+        <ActionButton
+          variant="view"
+          module="financeiro"
+          onClick={() => abrirModalPagar(conta)}
+          title={conta.status === 'PAGO' || conta.status === 'CANCELADO' ? 'Pagamento não disponível' : 'Pagar conta'}
+          disabled={conta.status === 'PAGO' || conta.status === 'CANCELADO'}
+        >
+          <DollarSign className="w-4 h-4" />
+        </ActionButton>
         <ActionButton
           variant="primary"
           module="financeiro"
           onClick={() => handleEnviarWhatsAppClick(conta)}
-          title="Enviar WhatsApp"
-          disabled={whatsappLoadingIds.has(conta.id)}
+          title={conta.status === 'PAGO' ? 'WhatsApp não disponível para contas pagas' : 'Enviar WhatsApp'}
+          disabled={whatsappLoadingIds.has(conta.id) || conta.status === 'PAGO'}
         >
           {whatsappLoadingIds.has(conta.id) ? (
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
@@ -871,14 +864,18 @@ export const ContasPagarPage = () => {
         />
         
         <ConfirmacaoModal
-          open={showConfirmacaoReenvio}
-          onClose={cancelarReenvio}
-          onConfirm={confirmarReenvio}
-          title="Reenviar WhatsApp"
-          description={`Deseja realmente reenviar os dados da conta "${contaParaReenvio?.descricao}" via WhatsApp? Esta conta já foi solicitada anteriormente.`}
-          confirmText="Reenviar"
+          open={showConfirmacaoWhatsApp}
+          onClose={cancelarEnvioWhatsApp}
+          onConfirm={confirmarEnvioWhatsApp}
+          title={contaParaWhatsApp?.status === 'SOLICITADO' ? 'Reenviar WhatsApp' : 'Enviar WhatsApp'}
+          description={
+            contaParaWhatsApp?.status === 'SOLICITADO'
+              ? `Deseja realmente reenviar os dados da conta "${contaParaWhatsApp?.descricao}" via WhatsApp? Esta conta já foi solicitada anteriormente.`
+              : `Deseja enviar os dados da conta "${contaParaWhatsApp?.descricao}" via WhatsApp?`
+          }
+          confirmText={contaParaWhatsApp?.status === 'SOLICITADO' ? 'Reenviar' : 'Enviar'}
           cancelText="Cancelar"
-          variant="warning"
+          variant={contaParaWhatsApp?.status === 'SOLICITADO' ? 'warning' : 'default'}
         />
 
         <ListarAgendamentosModal

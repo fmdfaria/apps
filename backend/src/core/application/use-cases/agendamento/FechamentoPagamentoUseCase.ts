@@ -104,12 +104,12 @@ export class FechamentoPagamentoUseCase {
         agendamentosContas.push(associacao);
       }
 
-      // 5. Atualizar status dos agendamentos para ARQUIVADO (sem alterar pagamento)
+      // 5. Atualizar status dos agendamentos para ARQUIVADO e marcar pagamento como true
       const agendamentosAtualizados = [];
       for (const agendamento of agendamentos) {
         const agendamentoAtualizado = await this.agendamentosRepository.update(agendamento.id!, {
-          status: 'ARQUIVADO'
-          // pagamento permanece false - só muda quando a conta for paga
+          status: 'ARQUIVADO',
+          pagamento: true // Marca como enviado para pagamento
         });
         agendamentosAtualizados.push(agendamentoAtualizado);
       }
