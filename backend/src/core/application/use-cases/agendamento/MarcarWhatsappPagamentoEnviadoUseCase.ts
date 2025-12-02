@@ -3,9 +3,7 @@ import { IAgendamentosRepository } from '@/core/domain/repositories/IAgendamento
 import { AppError } from '@/shared/errors/AppError';
 
 interface MarcarWhatsappPagamentoEnviadoRequest {
-  profissionalId: string;
-  dataInicio: string;
-  dataFim: string;
+  agendamentosIds: string[];
 }
 
 interface MarcarWhatsappPagamentoEnviadoResponse {
@@ -21,43 +19,31 @@ export class MarcarWhatsappPagamentoEnviadoUseCase {
   ) {}
 
   async execute({
-    profissionalId,
-    dataInicio,
-    dataFim
+    agendamentosIds
   }: MarcarWhatsappPagamentoEnviadoRequest): Promise<MarcarWhatsappPagamentoEnviadoResponse> {
-    // Buscar agendamentos FINALIZADOS no período
-    const result = await this.agendamentosRepository.findAll({
-      profissionalId,
-      dataInicio,
-      dataFim,
-      status: 'FINALIZADO'
-    });
-
-    const agendamentos = result.data;
-
-    if (agendamentos.length === 0) {
-      throw new AppError('Nenhum agendamento encontrado no período informado', 404);
+    if (!agendamentosIds || agendamentosIds.length === 0) {
+      throw new AppError('Nenhum agendamento informado para marcar', 400);
     }
 
     // Marcar todos os agendamentos como whatsapp_pagamento_enviado = true
-    const agendamentosIds: string[] = [];
+    const agendamentosAtualizadosIds: string[] = [];
     let agendamentosAtualizados = 0;
 
-    for (const agendamento of agendamentos) {
+    for (const agendamentoId of agendamentosIds) {
       try {
-        await this.agendamentosRepository.update(agendamento.id!, {
+        await this.agendamentosRepository.update(agendamentoId, {
           whatsappPagamentoEnviado: true
         });
-        agendamentosIds.push(agendamento.id!);
+        agendamentosAtualizadosIds.push(agendamentoId);
         agendamentosAtualizados++;
       } catch (error) {
-        console.error(`Erro ao atualizar agendamento ${agendamento.id}:`, error);
+        console.error(`Erro ao atualizar agendamento ${agendamentoId}:`, error);
       }
     }
 
     return {
       agendamentosAtualizados,
-      agendamentosIds
+      agendamentosIds: agendamentosAtualizadosIds
     };
   }
 }

@@ -163,7 +163,10 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     if (filters?.dataInicio || filters?.dataFim) {
       whereConditions.dataHoraInicio = {};
       if (filters.dataInicio) {
-        whereConditions.dataHoraInicio.gte = filters.dataInicio;
+        // Para dataInicio, começar do início do dia (00:00:00)
+        const startOfDay = new Date(filters.dataInicio);
+        startOfDay.setHours(0, 0, 0, 0);
+        whereConditions.dataHoraInicio.gte = startOfDay;
       }
       if (filters.dataFim) {
         // Para dataFim, incluir todo o dia (até 23:59:59)

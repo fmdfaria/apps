@@ -558,11 +558,10 @@ export const PagamentosPage = () => {
 
       // Marcar agendamentos como WhatsApp enviado
       try {
-        await marcarWhatsappPagamentoEnviado(
-          profissionalParaWhatsApp.profissionalId,
-          profissionalParaWhatsApp.dataInicio,
-          profissionalParaWhatsApp.dataFim
-        );
+        // Extrair IDs dos agendamentos
+        const agendamentosIds = profissionalParaWhatsApp.agendamentos.map(ag => ag.id);
+
+        await marcarWhatsappPagamentoEnviado(agendamentosIds);
 
         // Recarregar dados para atualizar o status
         await carregarAgendamentos();

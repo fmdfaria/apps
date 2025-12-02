@@ -428,21 +428,18 @@ export class AgendamentosController {
 
   async marcarWhatsappPagamentoEnviado(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     try {
-      const { profissionalId } = request.params as { profissionalId: string };
-      const { dataInicio, dataFim } = request.query as { dataInicio: string; dataFim: string };
+      const { agendamentosIds } = request.body as { agendamentosIds: string[] };
 
-      if (!profissionalId || !dataInicio || !dataFim) {
+      if (!agendamentosIds || !Array.isArray(agendamentosIds) || agendamentosIds.length === 0) {
         return reply.status(400).send({
           success: false,
-          message: 'profissionalId, dataInicio e dataFim são obrigatórios'
+          message: 'agendamentosIds é obrigatório e deve ser um array não vazio'
         });
       }
 
       const useCase = container.resolve(MarcarWhatsappPagamentoEnviadoUseCase);
       const resultado = await useCase.execute({
-        profissionalId,
-        dataInicio,
-        dataFim
+        agendamentosIds
       });
 
       return reply.send({ success: true, data: resultado });

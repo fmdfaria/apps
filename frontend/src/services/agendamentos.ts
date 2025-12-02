@@ -945,19 +945,12 @@ export const efetuarFechamentoPagamento = async (data: FechamentoPagamentoData):
 
 // Marcar agendamentos como WhatsApp enviado
 export const marcarWhatsappPagamentoEnviado = async (
-  profissionalId: string,
-  dataInicio: string,
-  dataFim: string
+  agendamentosIds: string[]
 ): Promise<{ agendamentosAtualizados: number; agendamentosIds: string[] }> => {
   try {
     const response = await api.put(
-      `/agendamentos-pagamentos/${profissionalId}/marcar-whatsapp-enviado?dataInicio=${dataInicio}&dataFim=${dataFim}`,
-      {},
-      {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
+      '/agendamentos-pagamentos/marcar-whatsapp-enviado',
+      { agendamentosIds }
     );
     return response.data.data;
   } catch (error) {
