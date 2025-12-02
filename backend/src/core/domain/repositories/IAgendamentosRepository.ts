@@ -56,6 +56,8 @@ export interface IAgendamentoFilters {
   dataFim?: Date;
   tipoAtendimento?: string;
   primeiraSessao?: string; // 'true', 'false' ou vazio
+  recebimento?: boolean;
+  pagamento?: boolean;
 
   // Busca textual
   search?: string;

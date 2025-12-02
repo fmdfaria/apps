@@ -12,11 +12,6 @@
 - Utilize sempre o AppToast para manter o padrão de notificação.
 - Não defina nada no frontend que afete o backend, veja sempre a estrutura do backend no arquivo @apps/backend/prisma/schema.prisma .. lá contém toda estrutura do meu banco de dados.
 
-/financeiro/contas-pagar
-Enviar confirmação ao clicar em enviar whatsapp.. está indo direto
 
-
-Atualmente na pagina /financeiro/contas-pagar eu tenho um botão 'Enviar Whatsapp' que envio um webhook.
-
-Eu preciso replicar um novo botão com a mesma funcionalidade na pagina /agendamentos/pagamentos, adicionar o novo botão na coluna ação, depois do botão 'Ver Agendamentos'
+Editar paciente com convênio 'fixo' no campo.. mais faz alteração, é problema visual somente.
 

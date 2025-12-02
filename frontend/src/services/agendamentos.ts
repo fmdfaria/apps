@@ -346,7 +346,7 @@ export interface IAgendamentoFilters {
   limit?: number;
   orderBy?: string;
   orderDirection?: 'asc' | 'desc';
-  
+
   // Filtros
   status?: StatusAgendamento;
   profissionalId?: string;
@@ -359,6 +359,8 @@ export interface IAgendamentoFilters {
   dataFim?: string;
   tipoAtendimento?: string;
   primeiraSessao?: string;
+  recebimento?: boolean;
+  pagamento?: boolean;
 
   // Busca textual
   search?: string;
@@ -390,6 +392,8 @@ export const getAgendamentos = async (filtros?: IAgendamentoFilters): Promise<IP
       if (filtros.dataFim) params.append('dataFim', filtros.dataFim);
       if (filtros.tipoAtendimento) params.append('tipoAtendimento', filtros.tipoAtendimento);
       if (filtros.primeiraSessao) params.append('primeiraSessao', filtros.primeiraSessao);
+      if (filtros.recebimento !== undefined) params.append('recebimento', filtros.recebimento.toString());
+      if (filtros.pagamento !== undefined) params.append('pagamento', filtros.pagamento.toString());
 
       // Busca textual
       if (filtros.search) params.append('search', filtros.search);

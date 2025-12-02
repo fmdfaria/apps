@@ -75,6 +75,11 @@ export async function agendamentosRoutes(app: FastifyInstance) {
     preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos/fechamento-pagamento', 'POST')]
   }, controller.fechamentoPagamento);
 
+  // Rota específica para fechamento de recebimento
+  app.post('/agendamentos/fechamento-recebimento', {
+    preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos/fechamento-recebimento', 'POST')]
+  }, controller.fechamentoRecebimento);
+
   // Rota para buscar dados de webhook de pagamento profissional
   app.get('/agendamentos-pagamentos/:profissionalId/webhook-data', {
     preHandler: [

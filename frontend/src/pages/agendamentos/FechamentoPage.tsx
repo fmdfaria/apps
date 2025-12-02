@@ -201,9 +201,10 @@ export const FechamentoPage = () => {
     setAgendamentos([]); // Limpa dados para evitar mostrar dados antigos
 
     try {
-      // Usar status FINALIZADO para fechamentos
+      // Buscar agendamentos que ainda não tiveram recebimento registrado
+      // Backend automaticamente retorna FINALIZADO e ARQUIVADO quando recebimento=false
       const dados = await getAgendamentos({
-        status: 'FINALIZADO',
+        recebimento: false, // Apenas agendamentos sem recebimento registrado (inclui FINALIZADO e ARQUIVADO)
         page: 1,
         // Removido limit para usar padrão da API (dados serão agrupados)
         ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
@@ -703,34 +704,32 @@ export const FechamentoPage = () => {
     setShowContaReceberModal(true);
   };
 
-  // Função para executar o fechamento de pagamento (muda status FINALIZADO → ARQUIVADO)  
+  // Função para executar o fechamento de recebimento (marca recebimento = true, mantém status FINALIZADO)
   const executarFechamentoPagamento = async () => {
     if (!agendamentoSelecionado) return;
-    
+
     try {
       if (grupoMensalSelecionado) {
         // Para grupo mensal: atualizar todos os agendamentos do grupo
         console.log('Atualizando grupo mensal:', grupoMensalSelecionado.agendamentos.length, 'agendamentos');
-        
-        const updatePromises = grupoMensalSelecionado.agendamentos.map((agendamento: Agendamento) => 
+
+        const updatePromises = grupoMensalSelecionado.agendamentos.map((agendamento: Agendamento) =>
           api.put(`/agendamentos/${agendamento.id}`, {
-            status: 'ARQUIVADO',
-            recebimento: true  // Marca como recebido do paciente, não pagamento
+            recebimento: true  // Marca como recebido do paciente, NÃO muda o status
           })
         );
-        
+
         await Promise.all(updatePromises);
         console.log('Todos os agendamentos do grupo foram atualizados');
       } else {
         // Para agendamento individual
         console.log('Atualizando agendamento individual:', agendamentoSelecionado.id);
         await api.put(`/agendamentos/${agendamentoSelecionado.id}`, {
-          status: 'ARQUIVADO',
-          recebimento: true  // Marca como recebido do paciente, não pagamento
+          recebimento: true  // Marca como recebido do paciente, NÃO muda o status
         });
       }
     } catch (error) {
-      console.error('Erro no fechamento de pagamento:', error);
+      console.error('Erro no fechamento de recebimento:', error);
       throw error; // Re-throw para ser tratado na função chamadora
     }
   };
@@ -803,23 +802,23 @@ export const FechamentoPage = () => {
         }
       }
       
-      // 4. Executar fechamento (muda status FINALIZADO → ARQUIVADO)
-      console.log('Passo 4: Executando fechamento de pagamento...');
+      // 4. Executar fechamento (marca recebimento = true, mantém status FINALIZADO)
+      console.log('Passo 4: Executando fechamento de recebimento...');
       await executarFechamentoPagamento();
       console.log('Fechamento executado com sucesso');
-      
+
       // 5. Sucesso: fechar modal e recarregar dados
       setShowContaReceberModal(false);
       setContaReceberData(null);
       setAgendamentoSelecionado(null);
       setGrupoMensalSelecionado(null);
       carregarAgendamentos();
-      
-      const mensagemSucesso = grupoMensalSelecionado 
-        ? `Pagamento registrado e ${grupoMensalSelecionado.agendamentos.length} agendamentos arquivados com sucesso!`
-        : 'Pagamento registrado e agendamento arquivado com sucesso!';
-      
-      AppToast.success('Pagamento registrado', mensagemSucesso);
+
+      const mensagemSucesso = grupoMensalSelecionado
+        ? `Recebimento registrado para ${grupoMensalSelecionado.agendamentos.length} agendamentos com sucesso!`
+        : 'Recebimento registrado com sucesso!';
+
+      AppToast.success('Recebimento registrado', mensagemSucesso);
       
     } catch (error: any) {
       console.error('Erro completo ao registrar pagamento:', error);
@@ -897,9 +896,9 @@ export const FechamentoPage = () => {
       };
 
       await efetuarFechamentoRecebimento(fechamentoData);
-      
+
       AppToast.success('Fechamento realizado com sucesso', {
-        description: 'A conta a receber foi criada e os agendamentos foram arquivados.'
+        description: 'A conta a receber foi criada e os agendamentos foram marcados como recebidos.'
       });
 
       // Recarregar dados para refletir as mudanças

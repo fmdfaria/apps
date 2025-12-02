@@ -148,8 +148,14 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     if (filters?.status) {
       whereConditions.status = filters.status;
     } else {
-      // Por padrão, não retornar agendamentos arquivados na listagem geral
-      whereConditions.status = { not: 'ARQUIVADO' };
+      // Se filtrar por recebimento=false, incluir tanto FINALIZADO quanto ARQUIVADO
+      // pois agendamentos arquivados podem não ter sido recebidos ainda
+      if (filters?.recebimento === false) {
+        whereConditions.status = { in: ['FINALIZADO', 'ARQUIVADO'] };
+      } else {
+        // Por padrão, não retornar agendamentos arquivados na listagem geral
+        whereConditions.status = { not: 'ARQUIVADO' };
+      }
     }
     if (filters?.recursoId) whereConditions.recursoId = filters.recursoId;
     if (filters?.convenioId) whereConditions.convenioId = filters.convenioId;
@@ -158,7 +164,15 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     }
     if (filters?.servicoId) whereConditions.servicoId = filters.servicoId;
     if (filters?.tipoAtendimento) whereConditions.tipoAtendimento = filters.tipoAtendimento;
-    
+
+    // Filtros de recebimento e pagamento
+    if (filters?.recebimento !== undefined) {
+      whereConditions.recebimento = filters.recebimento;
+    }
+    if (filters?.pagamento !== undefined) {
+      whereConditions.pagamento = filters.pagamento;
+    }
+
     // Filtros de data - range
     if (filters?.dataInicio || filters?.dataFim) {
       whereConditions.dataHoraInicio = {};

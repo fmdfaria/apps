@@ -205,7 +205,7 @@ export const FechamentoRecebimentoModal: React.FC<FechamentoRecebimentoModalProp
                 </div>
               </div>
               <div className="mt-2 text-xs text-green-700">
-                ⚠️ Esta ação criará uma conta a receber e alterará o status dos agendamentos para ARQUIVADO
+                ⚠️ Esta ação criará uma conta a receber e marcará os agendamentos como recebidos (mantém status FINALIZADO)
               </div>
             </div>
           </div>
