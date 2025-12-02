@@ -371,111 +371,77 @@ export const PagamentosPage = () => {
   };
 
   const gerarPDFBase64 = async (item: PagamentoProfissional): Promise<string> => {
-    // Prepare agendamentos data for PDF - sort by date
-    const agendamentosOrdenados = [...item.agendamentos].sort((a, b) =>
-      new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()
-    );
-
-    // Generate PDF using existing utility - but we need to modify it to return doc instead of saving
-    // Since gerarPDFAgendamentos calls doc.save(), we'll need to create the PDF ourselves
+    // Create compact PDF with summary only (no detailed table to reduce size)
     const jsPDF = (await import('jspdf')).default;
     const doc = new jsPDF({
-      orientation: 'landscape',
+      orientation: 'portrait',
       unit: 'mm',
-      format: 'a4'
+      format: 'a4',
+      compress: true // Enable compression
     });
 
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 15;
     let yPosition = margin;
 
-    // CABEÇALHO
+    // CABEÇALHO COMPACTO
     doc.setFillColor(220, 38, 38);
-    doc.rect(0, 0, pageWidth, 25, 'F');
+    doc.rect(0, 0, pageWidth, 20, 'F');
 
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(18);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('RELAÇÃO DE ATENDIMENTOS', margin, 12);
+    doc.text('COMPROVANTE DE PAGAMENTO', margin, 12);
 
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, margin, 19);
-
-    yPosition = 35;
+    yPosition = 30;
 
     // INFORMAÇÕES DO PAGAMENTO
     doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Pagamento - ${item.profissional}`, margin, yPosition);
-    yPosition += 8;
+    doc.text('DADOS DO PROFISSIONAL', margin, yPosition);
+    yPosition += 7;
 
-    doc.setFontSize(9);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Período: ${formatarDataBrasil(item.dataInicio)} a ${formatarDataBrasil(item.dataFim)}`, margin, yPosition);
-    yPosition += 5;
-    doc.text(`Quantidade de atendimentos: ${item.qtdAgendamentos}`, margin, yPosition);
-    yPosition += 5;
-    doc.text(`Valor total: ${formatarValor(item.valorPagar)}`, margin, yPosition);
+    doc.text(`Nome: ${item.profissional}`, margin, yPosition);
     yPosition += 10;
 
-    // TABELA DE AGENDAMENTOS
-    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    const colWidths = [30, 25, 50, 60, 30, 30];
-    let xPosition = margin;
+    doc.text('PERÍODO DE REFERÊNCIA', margin, yPosition);
+    yPosition += 7;
 
-    // Cabeçalho da tabela
-    doc.setFillColor(240, 240, 240);
-    doc.rect(margin, yPosition, pageWidth - 2 * margin, 8, 'F');
-
-    yPosition += 6;
-    doc.text('Data', xPosition, yPosition);
-    xPosition += colWidths[0];
-    doc.text('Hora', xPosition, yPosition);
-    xPosition += colWidths[1];
-    doc.text('Paciente', xPosition, yPosition);
-    xPosition += colWidths[2];
-    doc.text('Serviço', xPosition, yPosition);
-    xPosition += colWidths[3];
-    doc.text('Valor', xPosition, yPosition);
-    xPosition += colWidths[4];
-    doc.text('Status', xPosition, yPosition);
-
-    yPosition += 4;
     doc.setFont('helvetica', 'normal');
+    doc.text(`De: ${formatarDataBrasil(item.dataInicio)}`, margin, yPosition);
+    yPosition += 5;
+    doc.text(`Até: ${formatarDataBrasil(item.dataFim)}`, margin, yPosition);
+    yPosition += 10;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('RESUMO', margin, yPosition);
+    yPosition += 7;
+
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Quantidade de atendimentos: ${item.qtdAgendamentos}`, margin, yPosition);
+    yPosition += 10;
+
+    // VALOR TOTAL EM DESTAQUE
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, yPosition - 2, pageWidth - 2 * margin, 12, 'F');
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`VALOR TOTAL: ${formatarValor(item.valorPagar)}`, margin + 5, yPosition + 6);
+
+    yPosition += 20;
+
+    // RODAPÉ
     doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Documento emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, margin, yPosition);
 
-    // Linhas dos agendamentos
-    agendamentosOrdenados.forEach((agendamento) => {
-      const valor = calcularValorProfissional(agendamento);
-      const dataHora = agendamento.dataHoraInicio ? new Date(agendamento.dataHoraInicio) : null;
-      const dia = dataHora ? String(dataHora.getDate()).padStart(2, '0') : '';
-      const mes = dataHora ? String(dataHora.getMonth() + 1).padStart(2, '0') : '';
-      const ano = dataHora ? dataHora.getFullYear() : '';
-      const hora = dataHora ? String(dataHora.getHours()).padStart(2, '0') : '';
-      const minuto = dataHora ? String(dataHora.getMinutes()).padStart(2, '0') : '';
-
-      xPosition = margin;
-      doc.text(`${dia}/${mes}/${ano}`, xPosition, yPosition + 4);
-      xPosition += colWidths[0];
-      doc.text(`${hora}:${minuto}`, xPosition, yPosition + 4);
-      xPosition += colWidths[1];
-      const paciente = (agendamento.pacienteNome || 'Não informado').substring(0, 30);
-      doc.text(paciente, xPosition, yPosition + 4);
-      xPosition += colWidths[2];
-      const servico = (agendamento.servicoNome || 'Não informado').substring(0, 35);
-      doc.text(servico, xPosition, yPosition + 4);
-      xPosition += colWidths[3];
-      doc.text(formatarValor(valor), xPosition, yPosition + 4);
-      xPosition += colWidths[4];
-      doc.text(agendamento.status, xPosition, yPosition + 4);
-
-      yPosition += 6;
-    });
-
-    // Convert to base64
+    // Convert to base64 with compression
     const pdfBase64 = doc.output('dataurlstring').split(',')[1];
     return pdfBase64;
   };
@@ -601,22 +567,25 @@ export const PagamentosPage = () => {
         description: 'Enviando dados via webhook...'
       });
 
+      // Convert base64 to Blob
+      const pdfBlob = await fetch(`data:application/pdf;base64,${pdfBase64}`).then(res => res.blob());
+
+      // Create FormData with file and JSON data
+      const formData = new FormData();
+      const filename = `pagamento_${profissionalParaWhatsApp.profissional.replace(/\s+/g, '_')}_${formatarDataBrasil(profissionalParaWhatsApp.dataInicio).replace(/\//g, '-')}_${formatarDataBrasil(profissionalParaWhatsApp.dataFim).replace(/\//g, '-')}.pdf`;
+
+      formData.append('file', pdfBlob, filename);
+      formData.append('data', JSON.stringify({
+        tipo: 'DADOS_PAGAMENTO_PROFISSIONAL',
+        pagamento: dadosWebhook,
+        timestamp: new Date().toISOString(),
+        origem: 'sistema-clinica'
+      }));
+
       const webhookResponse = await fetch(webhookUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tipo: 'DADOS_PAGAMENTO_PROFISSIONAL',
-          pagamento: {
-            ...dadosWebhook,
-            pdf: {
-              base64: pdfBase64,
-              filename: `pagamento_${profissionalParaWhatsApp.profissional.replace(/\s+/g, '_')}_${formatarDataBrasil(profissionalParaWhatsApp.dataInicio).replace(/\//g, '-')}_${formatarDataBrasil(profissionalParaWhatsApp.dataFim).replace(/\//g, '-')}.pdf`,
-              mimeType: 'application/pdf'
-            }
-          },
-          timestamp: new Date().toISOString(),
-          origem: 'sistema-clinica'
-        })
+        body: formData
+        // Don't set Content-Type header - browser will set it automatically with boundary for FormData
       });
 
       if (!webhookResponse.ok) {

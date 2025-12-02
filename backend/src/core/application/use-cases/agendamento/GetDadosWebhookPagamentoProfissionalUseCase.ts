@@ -48,9 +48,13 @@ export class GetDadosWebhookPagamentoProfissionalUseCase {
       let valorProfissional = 0;
 
       if (preco?.precoProfissional && preco.precoProfissional > 0) {
-        valorProfissional = preco.precoProfissional;
+        valorProfissional = Number(preco.precoProfissional);
       } else if (agendamento.servico?.valorProfissional) {
-        valorProfissional = agendamento.servico.valorProfissional;
+        // Convert Prisma Decimal to number
+        const valorServicoDecimal = agendamento.servico.valorProfissional;
+        valorProfissional = typeof valorServicoDecimal === 'object' && 'toNumber' in valorServicoDecimal
+          ? (valorServicoDecimal as any).toNumber()
+          : Number(valorServicoDecimal);
       }
 
       valorTotal += valorProfissional;
