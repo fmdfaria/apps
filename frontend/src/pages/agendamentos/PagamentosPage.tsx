@@ -561,9 +561,20 @@ export const PagamentosPage = () => {
         // Extrair IDs dos agendamentos
         const agendamentosIds = profissionalParaWhatsApp.agendamentos.map(ag => ag.id);
 
-        await marcarWhatsappPagamentoEnviado(agendamentosIds);
+        const resultado = await marcarWhatsappPagamentoEnviado(agendamentosIds);
+        console.log('Agendamentos marcados com sucesso:', resultado);
 
-        // Recarregar dados para atualizar o status
+        // Atualizar estado local imediatamente para feedback visual rápido
+        setAgendamentos(prevAgendamentos =>
+          prevAgendamentos.map(ag =>
+            agendamentosIds.includes(ag.id)
+              ? { ...ag, whatsappPagamentoEnviado: true }
+              : ag
+          )
+        );
+
+        // Também recarregar do servidor para garantir consistência
+        await new Promise(resolve => setTimeout(resolve, 500));
         await carregarAgendamentos();
       } catch (marcarError) {
         console.error('Erro ao marcar WhatsApp como enviado:', marcarError);
