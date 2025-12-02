@@ -236,9 +236,23 @@ export const gerarPDFAgendamentos = ({
   }
 
   // Gerar nome do arquivo
-  const dataAtual = new Date().toISOString().split('T')[0];
-  const contaId = contaPagar?.id ? `_${contaPagar.id.substring(0, 8)}` : '';
-  const nomeArquivo = `agendamentos_conta_pagar${contaId}_${dataAtual}.pdf`;
+  // Extrair nome do profissional do título (formato: "Atendimentos de Nome do Profissional")
+  let nomeProfissional = 'profissional';
+  if (titulo && titulo.includes(' de ')) {
+    const partes = titulo.split(' de ');
+    if (partes.length > 1) {
+      nomeProfissional = partes[1].trim().replace(/\s+/g, '_').toLowerCase();
+    }
+  }
+
+  // Formatar data como dd_mm_aaaa
+  const hoje = new Date();
+  const dia = String(hoje.getDate()).padStart(2, '0');
+  const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+  const ano = hoje.getFullYear();
+  const dataFormatada = `${dia}_${mes}_${ano}`;
+
+  const nomeArquivo = `${nomeProfissional}_${dataFormatada}.pdf`;
 
   // Fazer download
   doc.save(nomeArquivo);
