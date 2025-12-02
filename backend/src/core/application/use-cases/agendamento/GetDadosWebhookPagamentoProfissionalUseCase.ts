@@ -74,7 +74,7 @@ export class GetDadosWebhookPagamentoProfissionalUseCase {
       },
       resumo: {
         qtdAgendamentos: agendamentos.length,
-        valorTotal
+        valorTotal: Math.round(valorTotal * 100) / 100 // Format to 2 decimal places
       }
     };
   }

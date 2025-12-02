@@ -24,8 +24,6 @@ import { getAgendamentos, efetuarFechamentoPagamento, type FechamentoPagamentoDa
 import { ListarAgendamentosModal, FechamentoPagamentoModal } from '@/components/agendamentos';
 import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import api from '@/services/api';
-import { gerarPDFAgendamentos } from '@/utils/pdfGenerator';
-import type jsPDF from 'jspdf';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
 import { AppToast } from '@/services/toast';
 import { getProfissionais } from '@/services/profissionais';
@@ -370,82 +368,6 @@ export const PagamentosPage = () => {
     return 0;
   };
 
-  const gerarPDFBase64 = async (item: PagamentoProfissional): Promise<string> => {
-    // Create compact PDF with summary only (no detailed table to reduce size)
-    const jsPDF = (await import('jspdf')).default;
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4',
-      compress: true // Enable compression
-    });
-
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 15;
-    let yPosition = margin;
-
-    // CABEÇALHO COMPACTO
-    doc.setFillColor(220, 38, 38);
-    doc.rect(0, 0, pageWidth, 20, 'F');
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('COMPROVANTE DE PAGAMENTO', margin, 12);
-
-    yPosition = 30;
-
-    // INFORMAÇÕES DO PAGAMENTO
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DADOS DO PROFISSIONAL', margin, yPosition);
-    yPosition += 7;
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Nome: ${item.profissional}`, margin, yPosition);
-    yPosition += 10;
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('PERÍODO DE REFERÊNCIA', margin, yPosition);
-    yPosition += 7;
-
-    doc.setFont('helvetica', 'normal');
-    doc.text(`De: ${formatarDataBrasil(item.dataInicio)}`, margin, yPosition);
-    yPosition += 5;
-    doc.text(`Até: ${formatarDataBrasil(item.dataFim)}`, margin, yPosition);
-    yPosition += 10;
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('RESUMO', margin, yPosition);
-    yPosition += 7;
-
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Quantidade de atendimentos: ${item.qtdAgendamentos}`, margin, yPosition);
-    yPosition += 10;
-
-    // VALOR TOTAL EM DESTAQUE
-    doc.setFillColor(240, 240, 240);
-    doc.rect(margin, yPosition - 2, pageWidth - 2 * margin, 12, 'F');
-
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`VALOR TOTAL: ${formatarValor(item.valorPagar)}`, margin + 5, yPosition + 6);
-
-    yPosition += 20;
-
-    // RODAPÉ
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Documento emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, margin, yPosition);
-
-    // Convert to base64 with compression
-    const pdfBase64 = doc.output('dataurlstring').split(',')[1];
-    return pdfBase64;
-  };
-
   const dadosProfissionais = processarDadosProfissionais();
   const totalPaginas = Math.ceil(dadosProfissionais.length / itensPorPagina);
   const dadosPaginados = dadosProfissionais.slice(
@@ -545,13 +467,6 @@ export const PagamentosPage = () => {
 
       const dadosWebhook = response.data.data;
 
-      // Generate PDF
-      AppToast.info('Gerando PDF', {
-        description: 'Gerando relatório de pagamentos...'
-      });
-
-      const pdfBase64 = await gerarPDFBase64(profissionalParaWhatsApp);
-
       // Get webhook URL from environment
       const webhookUrl = import.meta.env.VITE_WEBHOOK_AGENDAMENTOS_PAGAMENTOS;
 
@@ -567,25 +482,15 @@ export const PagamentosPage = () => {
         description: 'Enviando dados via webhook...'
       });
 
-      // Convert base64 to Blob
-      const pdfBlob = await fetch(`data:application/pdf;base64,${pdfBase64}`).then(res => res.blob());
-
-      // Create FormData with file and JSON data
-      const formData = new FormData();
-      const filename = `pagamento_${profissionalParaWhatsApp.profissional.replace(/\s+/g, '_')}_${formatarDataBrasil(profissionalParaWhatsApp.dataInicio).replace(/\//g, '-')}_${formatarDataBrasil(profissionalParaWhatsApp.dataFim).replace(/\//g, '-')}.pdf`;
-
-      formData.append('file', pdfBlob, filename);
-      formData.append('data', JSON.stringify({
-        tipo: 'DADOS_PAGAMENTO_PROFISSIONAL',
-        pagamento: dadosWebhook,
-        timestamp: new Date().toISOString(),
-        origem: 'sistema-clinica'
-      }));
-
       const webhookResponse = await fetch(webhookUrl, {
         method: 'POST',
-        body: formData
-        // Don't set Content-Type header - browser will set it automatically with boundary for FormData
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo: 'DADOS_PAGAMENTO_PROFISSIONAL',
+          pagamento: dadosWebhook,
+          timestamp: new Date().toISOString(),
+          origem: 'sistema-clinica'
+        })
       });
 
       if (!webhookResponse.ok) {
