@@ -61,12 +61,14 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
   
   // Controla se deve mostrar o campo forma recebimento
   const [showFormaRecebimento, setShowFormaRecebimento] = useState(false);
+  // Controla se o campo status deve estar desabilitado
+  const [disableStatus, setDisableStatus] = useState(false);
 
   useEffect(() => {
     if (conta) {
       // Verificar se tem dados especiais de controle
       const contaComControle = conta as any;
-      
+
       setForm({
         descricao: conta.descricao || '',
         valorOriginal: conta.valorOriginal?.toString() || '',
@@ -82,10 +84,12 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
         formaRecebimento: contaComControle._formaRecebimento || conta.formaRecebimento || 'PIX',
         status: contaComControle?._leaveStatusEmpty ? '' : (conta.status || 'PENDENTE')
       });
-      
+
       // Verificar se deve mostrar o campo forma recebimento
       // Mostra se: 1) tem flag especial OU 2) está editando uma conta existente (que tem ID)
       setShowFormaRecebimento(!!contaComControle._showFormaRecebimento || !!conta.id);
+      // Verificar se deve desabilitar o campo status
+      setDisableStatus(!!contaComControle._disableStatus);
       // Se vier flag para deixar vencimento em branco, não pré-preencher
       if (contaComControle?._leaveDataVencimentoEmpty) {
         setForm(prev => ({ ...prev, dataVencimento: '' }));
@@ -107,6 +111,7 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
         status: ''
       });
       setShowFormaRecebimento(true);
+      setDisableStatus(false);
     }
     setError('');
   }, [conta, isOpen]);
@@ -392,6 +397,9 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
             <div className="space-y-2">
               <Label htmlFor="status">
                 Status <span className="text-red-500">*</span>
+                {disableStatus && (
+                  <span className="text-xs text-gray-500 ml-2">(Definido automaticamente)</span>
+                )}
               </Label>
               <SingleSelectDropdown
                 options={[
@@ -412,7 +420,7 @@ export default function ContaReceberModal({ isOpen, conta, onClose, onSave }: Co
                 placeholder="Selecione o status"
                 formatOption={(option) => option.nome}
                 headerText="Status da conta"
-                disabled={false}
+                disabled={disableStatus}
               />
             </div>
           </div>

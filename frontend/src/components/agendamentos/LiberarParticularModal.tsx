@@ -87,7 +87,7 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
 
     // Determinar se é grupo mensal ou avulso
     const isGrupoMensal = !!grupo;
-    
+
     // Calcular descrição baseado no tipo
     let descricao = '';
     let valorOriginal = 0;
@@ -105,8 +105,12 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
       observacoes = 'Gerado automaticamente pela liberação do agendamento particular';
     }
 
+    // Determinar status baseado no pagamento antecipado
+    // Se Antecipado = SIM → status = 'RECEBIDO'
+    // Se Antecipado = NÃO → status = 'PENDENTE'
+    const statusInicial = isPagamentoAntecipado ? 'RECEBIDO' : 'PENDENTE';
+
     // Preparar dados pré-preenchidos para a conta a receber
-    // Vamos criar como PENDENTE primeiro, depois marcar como RECEBIDO
     const dadosPreenchidos = {
       descricao,
       pacienteId: agendamento.pacienteId,
@@ -115,14 +119,15 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
       valorOriginal: valorOriginal.toString(),
       dataEmissao: new Date().toISOString().split('T')[0],
       observacoes,
+      status: statusInicial, // Pré-preencher status baseado no tipo de pagamento
       // Dados extras para controlar o fluxo de recebimento
       _autoReceived: true, // Flag para indicar que deve ser marcado como recebido automaticamente
       _dataRecebimento: formData.dataLiberacao,
       _formaRecebimento: 'PIX', // Padrão, mas será editável
       _valorRecebido: valorOriginal,
       _showFormaRecebimento: true, // Flag para mostrar o campo de forma de recebimento
+      _disableStatus: true, // Flag para desabilitar edição do status (mantém a regra Antecipado)
       // Flags para deixar campos sem pré-seleção no modal
-      _leaveStatusEmpty: true,
       _leaveDataVencimentoEmpty: true,
       // Pré-preenchimentos dos novos campos
       _empresaNome: 'CELEBRAMENTE', // Nome da empresa para buscar
@@ -252,18 +257,24 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
   };
 
   const handleCloseContaReceberModal = () => {
+    // Se o usuário fechou o modal sem salvar, desmarcar o checkbox
+    // Isso força ele a marcar novamente e abrir o modal novamente
+    setFormData(prev => ({
+      ...prev,
+      recebimento: false
+    }));
     setShowContaReceberModal(false);
     setContaReceberData(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!agendamento) return;
-    
-    // Validações baseadas no tipo de pagamento
-    if (isPagamentoAntecipado && !formData.recebimento) {
-      AppToast.validation('Campos obrigatórios', 'Para pagamento antecipado é obrigatório marcar o recebimento do pagamento para continuar.');
+
+    // Validação obrigatória para TODOS os casos
+    if (!formData.recebimento) {
+      AppToast.validation('Campos obrigatórios', 'É obrigatório marcar o recebimento do pagamento para liberar o agendamento.');
       return;
     }
 
@@ -456,33 +467,24 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
                 {/* Recebimento */}
                 <div className="space-y-2">
                   <Label className="text-base font-medium">
-                    Recebimento {isPagamentoAntecipado ? '*' : '(Opcional)'}
+                    Recebimento *
                   </Label>
-                  <div className={`flex items-center space-x-3 p-3 border rounded-md ${
-                    isPagamentoAntecipado ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                  }`}>
+                  <div className="flex items-center space-x-3 p-3 border rounded-md border-red-300 bg-red-50">
                     <Checkbox
                       id="recebimento"
                       checked={formData.recebimento}
                       onCheckedChange={handleRecebimentoChange}
                     />
                     <div className="flex flex-col">
-                      <label 
+                      <label
                         htmlFor="recebimento"
                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                       >
                         Recebido do paciente
                       </label>
-                      {isPagamentoAntecipado && (
-                        <span className="text-xs text-red-600 mt-1">
-                          ⚠️ Obrigatório para pagamento antecipado
-                        </span>
-                      )}
-                      {!isPagamentoAntecipado && (
-                        <span className="text-xs text-gray-500 mt-1">
-                          ℹ️ Opcional para pagamento não antecipado
-                        </span>
-                      )}
+                      <span className="text-xs text-red-600 mt-1">
+                        ⚠️ Obrigatório - Abrirá modal de conta a receber
+                      </span>
                     </div>
                   </div>
                 </div>

@@ -116,7 +116,6 @@ export const FechamentoPage = () => {
   const [accessDenied, setAccessDenied] = useState(false);
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [busca, setBusca] = useState('');
-  const [tipoVisualizacao, setTipoVisualizacao] = useState<'convenios' | 'particular'>('convenios');
   const [visualizacao, setVisualizacao] = useState<'cards' | 'tabela'>('tabela');
   
   const [itensPorPagina, setItensPorPagina] = useState(10);
@@ -170,7 +169,7 @@ export const FechamentoPage = () => {
       setPaginaAtual(1);
       carregarAgendamentos(); // Recarregar quando filtros mudarem
     }
-  }, [busca, itensPorPagina, filtrosAplicados, tipoVisualizacao, visualizacao]);
+  }, [busca, itensPorPagina, filtrosAplicados, visualizacao]);
 
   const checkPermissions = async () => {
     try {
@@ -1166,7 +1165,7 @@ export const FechamentoPage = () => {
     return status !== true; // Remove registros com status "Completo" (true)
   });
 
-  const dadosAtivos = tipoVisualizacao === 'convenios' ? dadosConvenios : dadosParticulares;
+  const dadosAtivos = dadosConvenios; // Apenas convênios agora
   
   const totalPaginas = Math.ceil(dadosAtivos.length / itensPorPagina);
   const dadosPaginados = dadosAtivos.slice(
@@ -1813,50 +1812,10 @@ export const FechamentoPage = () => {
       <div className="flex-1 overflow-y-auto">
         {/* Toggle grande para separar Convênios | Particular */}
         <div className="mb-6">
-          <Tabs 
-            value={tipoVisualizacao} 
-            onValueChange={(value) => setTipoVisualizacao(value as 'convenios' | 'particular')}
-            className="w-full"
-          >
-            <TabsList className="grid w-full grid-cols-2 h-12">
-              <TabsTrigger 
-                value="convenios" 
-                className="flex items-center gap-2 transition-colors duration-200 text-base font-medium data-[state=active]:bg-green-100 data-[state=active]:text-green-700 data-[state=active]:border-green-300"
-              >
-                <Building className="w-5 h-5" />
-                Convênios
-                {dadosConvenios.length > 0 && (
-                  <Badge variant="secondary" className="ml-1">
-                    {dadosConvenios.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger 
-                value="particular" 
-                className="flex items-center gap-2 transition-colors duration-200 text-base font-medium data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700 data-[state=active]:border-blue-300"
-              >
-                <Users className="w-5 h-5" />
-                Particular
-                {dadosParticulares.length > 0 && (
-                  <Badge variant="secondary" className="ml-1">
-                    {dadosParticulares.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="convenios" className="mt-6">
-              <div className="rounded-lg bg-white shadow-sm border border-gray-100">
-                {visualizacao === 'tabela' ? renderConveniosView() : renderConveniosCardView()}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="particular" className="mt-6">
-              <div className="rounded-lg bg-white shadow-sm border border-gray-100">
-                {visualizacao === 'tabela' ? renderParticularView() : renderParticularCardView()}
-              </div>
-            </TabsContent>
-          </Tabs>
+          {/* Removido tabs - mostra apenas Convênios */}
+          <div className="rounded-lg bg-white shadow-sm border border-gray-100">
+            {visualizacao === 'tabela' ? renderConveniosView() : renderConveniosCardView()}
+          </div>
         </div>
       </div>
 
