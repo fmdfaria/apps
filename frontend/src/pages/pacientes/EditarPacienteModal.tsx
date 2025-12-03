@@ -181,8 +181,7 @@ export default function EditarPacienteModal({
                     options={convenios.map(convenio => ({ id: convenio.id, nome: convenio.nome }))}
                     selected={form.convenioId ? {
                       id: form.convenioId,
-                      nome: editando?.convenio?.nome || 
-                            convenios.find(c => c.id === form.convenioId)?.nome || ''
+                      nome: convenios.find(c => c.id === form.convenioId)?.nome || ''
                     } : null}
                     onChange={(selected) => {
                       onFormChange({ convenioId: selected?.id || '' });
