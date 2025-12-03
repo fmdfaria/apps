@@ -107,13 +107,13 @@ export class GetPacientesComFaltasConsecutivasUseCase {
           faltas: faltasOrdenadas.map(f => ({
             agendamentoId: f.id!,
             dataHoraInicio: new Date(f.dataHoraInicio),
-            servicoNome: f.servicoNome || 'N/A',
-            profissionalNome: f.profissionalNome || 'N/A',
-            convenioNome: f.convenioNome || 'Particular'
+            servicoNome: f.servico?.nome || 'N/A',
+            profissionalNome: f.profissional?.nome || 'N/A',
+            convenioNome: f.convenio?.nome || 'Particular'
           })),
-          profissionalNome: ultimaFalta.profissionalNome || 'N/A',
-          convenioNome: ultimaFalta.convenioNome || 'Particular',
-          servicoNome: ultimaFalta.servicoNome || 'N/A'
+          profissionalNome: ultimaFalta.profissional?.nome || 'N/A',
+          convenioNome: ultimaFalta.convenio?.nome || 'Particular',
+          servicoNome: ultimaFalta.servico?.nome || 'N/A'
         });
       }
     }

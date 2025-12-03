@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Eye, Phone } from 'lucide-react';
+import { AlertTriangle, Eye, Phone, MessageCircle, Calendar, Clock, User, Users, FileText } from 'lucide-react';
 import { getPacientesComFaltasConsecutivas, PacienteComFaltas, FaltaData } from '../../services/faltas-consecutivas';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
+import { useNavigate } from 'react-router-dom';
 
 export default function FaltasConsecutivasPage() {
+  const navigate = useNavigate();
   const [pacientes, setPacientes] = useState<PacienteComFaltas[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPaciente, setSelectedPaciente] = useState<PacienteComFaltas | null>(null);
@@ -31,13 +31,39 @@ export default function FaltasConsecutivasPage() {
     }
   };
 
-  const handleVerAgendamentos = (paciente: PacienteComFaltas) => {
+  const handleVerAgendamentos = (pacienteId: string) => {
+    navigate(`/agendamentos?pacienteId=${pacienteId}`);
+  };
+
+  const handleVerHistoricoFaltas = (paciente: PacienteComFaltas) => {
     setSelectedPaciente(paciente);
     setModalOpen(true);
   };
 
-  const formatarData = (data: string) => {
-    return format(new Date(data), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+  const handleWhatsApp = (whatsapp: string) => {
+    if (!whatsapp) return;
+
+    // Remove caracteres não numéricos
+    const numeroLimpo = whatsapp.replace(/\D/g, '');
+
+    // Abre WhatsApp
+    window.open(`https://wa.me/${numeroLimpo}`, '_blank');
+  };
+
+  const formatarDataHora = (dataISO: string) => {
+    if (!dataISO) return { data: '', hora: '' };
+
+    const date = new Date(dataISO);
+    const dia = date.getDate().toString().padStart(2, '0');
+    const mes = (date.getMonth() + 1).toString().padStart(2, '0');
+    const ano = date.getFullYear().toString();
+    const hora = date.getHours().toString().padStart(2, '0');
+    const minuto = date.getMinutes().toString().padStart(2, '0');
+
+    return {
+      data: `${dia}/${mes}/${ano}`,
+      hora: `${hora}:${minuto}`
+    };
   };
 
   if (loading) {
@@ -61,21 +87,6 @@ export default function FaltasConsecutivasPage() {
         </div>
       </div>
 
-      {/* Banner de Alerta */}
-      {pacientes.length > 0 && (
-        <Card className="border-l-4 border-l-red-500 bg-gradient-to-r from-red-50 to-orange-50">
-          <CardHeader>
-            <CardTitle className="text-red-700 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              Alerta de Faltas Consecutivas
-            </CardTitle>
-            <CardDescription>
-              {pacientes.length} {pacientes.length === 1 ? 'paciente apresenta' : 'pacientes apresentam'} padrão de faltas consecutivas
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      )}
-
       {/* Tabela */}
       {pacientes.length === 0 ? (
         <Card>
@@ -98,9 +109,7 @@ export default function FaltasConsecutivasPage() {
                   <TableRow>
                     <TableHead>Paciente</TableHead>
                     <TableHead>WhatsApp</TableHead>
-                    <TableHead>Profissional</TableHead>
                     <TableHead>Convênio</TableHead>
-                    <TableHead>Serviço</TableHead>
                     <TableHead className="text-center">Faltas Consecutivas</TableHead>
                     <TableHead className="text-center">Total Faltas</TableHead>
                     <TableHead className="text-center">Ações</TableHead>
@@ -120,9 +129,7 @@ export default function FaltasConsecutivasPage() {
                           <span className="text-muted-foreground text-sm">-</span>
                         )}
                       </TableCell>
-                      <TableCell>{paciente.profissionalNome}</TableCell>
                       <TableCell>{paciente.convenioNome}</TableCell>
-                      <TableCell>{paciente.servicoNome}</TableCell>
                       <TableCell className="text-center">
                         <Badge
                           variant="destructive"
@@ -140,15 +147,26 @@ export default function FaltasConsecutivasPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleVerAgendamentos(paciente)}
-                          className="gap-2"
-                        >
-                          <Eye className="h-4 w-4" />
-                          Ver Agendamentos
-                        </Button>
+                        <div className="flex items-center justify-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleVerHistoricoFaltas(paciente)}
+                            className="gap-1 bg-red-50 hover:bg-red-100 text-red-600 border-red-200"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {paciente.pacienteWhatsapp && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleWhatsApp(paciente.pacienteWhatsapp)}
+                              className="gap-1 bg-green-50 hover:bg-green-100 text-green-600 border-green-200"
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -161,66 +179,110 @@ export default function FaltasConsecutivasPage() {
 
       {/* Modal de Histórico de Faltas */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-              Histórico de Faltas - {selectedPaciente?.pacienteNome}
-            </DialogTitle>
-            <DialogDescription>
-              Lista completa de agendamentos não comparecidos
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col p-0">
+          {/* Header fixo */}
+          <div className="flex-shrink-0 p-6 pb-4 border-b border-gray-200">
+            <DialogHeader>
+              <div className="flex items-center justify-between gap-4">
+                <DialogTitle className="flex items-center gap-2 text-xl">
+                  <AlertTriangle className="w-5 h-5 text-red-500" />
+                  Histórico de Faltas - {selectedPaciente?.pacienteNome}
+                </DialogTitle>
+              </div>
+            </DialogHeader>
 
-          <div className="space-y-4 mt-4">
-            {selectedPaciente?.faltas.map((falta: FaltaData, index: number) => (
-              <Card key={falta.agendamentoId} className="border-l-4 border-l-red-400">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center justify-between">
-                    <span>Falta #{index + 1}</span>
-                    <Badge variant="destructive" className="bg-red-500">
-                      {formatarData(falta.dataHoraInicio)}
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-muted-foreground">Profissional:</span>
-                      <p className="font-medium">{falta.profissionalNome}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Serviço:</span>
-                      <p className="font-medium">{falta.servicoNome}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">Convênio:</span>
-                      <p className="font-medium">{falta.convenioNome}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {selectedPaciente && (
-            <div className="mt-6 pt-4 border-t">
-              <div className="flex gap-4 justify-center">
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">Faltas Consecutivas</p>
-                  <Badge variant="destructive" className="mt-1 bg-red-500 text-lg px-4 py-1">
-                    {selectedPaciente.faltasConsecutivas}
-                  </Badge>
+            {/* Resumo */}
+            <div className="mt-4 bg-gradient-to-r from-red-50 to-orange-50 p-4 rounded-lg border border-red-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-red-600" />
+                  <span className="text-sm font-medium text-red-900">
+                    Total de faltas: {selectedPaciente?.totalFaltas}
+                  </span>
                 </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">Total de Faltas</p>
-                  <Badge variant="secondary" className="mt-1 bg-orange-100 text-orange-800 text-lg px-4 py-1">
-                    {selectedPaciente.totalFaltas}
-                  </Badge>
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-orange-600" />
+                  <span className="text-sm font-medium text-orange-900">
+                    Faltas consecutivas: {selectedPaciente?.faltasConsecutivas}
+                  </span>
                 </div>
               </div>
             </div>
-          )}
+          </div>
+
+          {/* Conteúdo scrollável */}
+          <div className="flex-1 overflow-y-auto px-6">
+            {/* Lista de Faltas em formato de tabela */}
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader className="sticky top-0 bg-white z-10">
+                  <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100">
+                    <TableHead className="py-2 text-xs font-semibold text-gray-700">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        Data
+                      </div>
+                    </TableHead>
+                    <TableHead className="py-2 text-xs font-semibold text-gray-700">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        Hora
+                      </div>
+                    </TableHead>
+                    <TableHead className="py-2 text-xs font-semibold text-gray-700">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        Profissional
+                      </div>
+                    </TableHead>
+                    <TableHead className="py-2 text-xs font-semibold text-gray-700">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        Serviço
+                      </div>
+                    </TableHead>
+                    <TableHead className="py-2 text-xs font-semibold text-gray-700">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4" />
+                        Convênio
+                      </div>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedPaciente?.faltas.map((falta: FaltaData) => {
+                    const { data, hora } = formatarDataHora(falta.dataHoraInicio);
+
+                    return (
+                      <TableRow
+                        key={falta.agendamentoId}
+                        className="hover:bg-gradient-to-r hover:from-red-50 hover:to-orange-50 transition-all duration-200"
+                      >
+                        <TableCell className="py-1.5">
+                          <span className="text-xs font-medium">{data}</span>
+                        </TableCell>
+                        <TableCell className="py-1.5">
+                          <span className="text-xs text-gray-600">{hora}</span>
+                        </TableCell>
+                        <TableCell className="py-1.5">
+                          <span className="text-xs">{falta.profissionalNome}</span>
+                        </TableCell>
+                        <TableCell className="py-1.5">
+                          <span className="text-xs">{falta.servicoNome}</span>
+                        </TableCell>
+                        <TableCell className="py-1.5">
+                          <span className="text-xs">{falta.convenioNome}</span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          {/* Footer com padding */}
+          <div className="p-4"></div>
         </DialogContent>
       </Dialog>
     </div>
