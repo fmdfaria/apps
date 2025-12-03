@@ -17,6 +17,7 @@ import { getServicosAtivos } from '@/services/servicos';
 import { getAgendamentos } from '@/services/agendamentos';
 import { getProfissionais } from '@/services/profissionais';
 import { getRouteInfo, type RouteInfo } from '@/services/routes-info';
+import { getPacientesComFaltasConsecutivas, type PacienteComFaltas } from '@/services/faltas-consecutivas';
 import api from '@/services/api';
 import type { Paciente } from '@/types/Paciente';
 import type { Servico } from '@/types/Servico';
@@ -121,6 +122,9 @@ export const Dashboard = () => {
   const [loadingServicos, setLoadingServicos] = useState(true);
   const [errorServicos, setErrorServicos] = useState<string | null>(null);
 
+  // Estado para pacientes com faltas consecutivas
+  const [pacientesFaltasConsecutivas, setPacientesFaltasConsecutivas] = useState<PacienteComFaltas[]>([]);
+
   // Função para verificar permissões RBAC
   const checkPermissions = async () => {
     try {
@@ -218,6 +222,15 @@ export const Dashboard = () => {
       setAgendamentos(agendamentosResult.data);
       setAgendamentosProximos7(agendamentosOcupResult.data);
       setProfissionais(profissionaisData);
+
+      // Carregar pacientes com faltas consecutivas
+      try {
+        const faltasData = await getPacientesComFaltasConsecutivas();
+        setPacientesFaltasConsecutivas(faltasData);
+      } catch (error) {
+        console.error('Erro ao carregar pacientes com faltas consecutivas:', error);
+        setPacientesFaltasConsecutivas([]);
+      }
 
     } catch (error: any) {
       console.error('Erro ao carregar dados:', error);
@@ -661,6 +674,65 @@ export const Dashboard = () => {
           hasCurrency={true}
         />
       </div>
+
+      {/* Widget de Alerta - Faltas Consecutivas */}
+      {pacientesFaltasConsecutivas.length > 0 && (
+        <Card
+          className="border-l-4 border-l-red-500 bg-gradient-to-r from-red-50 to-orange-50 shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
+          onClick={() => navigate('/pacientes/faltas-consecutivas')}
+        >
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3 text-red-700">
+              <AlertTriangle className="w-6 h-6" />
+              <div className="flex-1">
+                Alerta: Pacientes com Faltas Consecutivas
+              </div>
+              <Badge variant="destructive" className="bg-red-500 text-lg px-3 py-1">
+                {pacientesFaltasConsecutivas.length}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {pacientesFaltasConsecutivas.length} {pacientesFaltasConsecutivas.length === 1 ? 'paciente apresenta' : 'pacientes apresentam'} 2 ou mais faltas seguidas
+              </p>
+
+              {/* Preview dos top 3 */}
+              <div className="space-y-2">
+                {pacientesFaltasConsecutivas.slice(0, 3).map((paciente) => (
+                  <div
+                    key={paciente.pacienteId}
+                    className="flex items-center justify-between p-2 bg-white/60 rounded-md"
+                  >
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{paciente.pacienteNome}</p>
+                      <p className="text-xs text-muted-foreground">{paciente.servicoNome}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Badge variant="destructive" className="bg-red-500">
+                        {paciente.faltasConsecutivas} consecutivas
+                      </Badge>
+                      <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+                        {paciente.totalFaltas} total
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {pacientesFaltasConsecutivas.length > 3 && (
+                <div className="text-center pt-2">
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Eye className="h-4 w-4" />
+                    Ver todos os {pacientesFaltasConsecutivas.length} pacientes
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Dashboard Principal */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

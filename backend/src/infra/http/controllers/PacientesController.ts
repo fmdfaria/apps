@@ -7,6 +7,7 @@ import { UpdatePacienteUseCase } from '../../../core/application/use-cases/pacie
 import { IPacientesRepository } from '../../../core/domain/repositories/IPacientesRepository';
 import { DeletePacienteUseCase } from '../../../core/application/use-cases/paciente/DeletePacienteUseCase';
 import { UpdatePacienteStatusUseCase } from '../../../core/application/use-cases/paciente/UpdatePacienteStatusUseCase';
+import { GetPacientesComFaltasConsecutivasUseCase } from '../../../core/application/use-cases/paciente/GetPacientesComFaltasConsecutivasUseCase';
 
 const bodySchema = z.object({
   nomeCompleto: z.string().min(3),
@@ -114,5 +115,11 @@ export class PacientesController {
       return reply.status(404).send({ message: 'Paciente não encontrado.' });
     }
     return reply.status(200).send(paciente);
+  }
+
+  async getFaltasConsecutivas(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const useCase = container.resolve(GetPacientesComFaltasConsecutivasUseCase);
+    const pacientes = await useCase.execute();
+    return reply.status(200).send(pacientes);
   }
 } 
