@@ -628,7 +628,7 @@ export const Dashboard = () => {
       </div>
 
       {/* KPIs Principais */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
         <MetricCard
           title="Pacientes Ativos"
           value={loadingPacientes ? '-' : pacientesMetrics.pacientesAtivos.toLocaleString()}
@@ -673,66 +673,18 @@ export const Dashboard = () => {
           onClick={() => navigate('/agendamentos/fechamento')}
           hasCurrency={true}
         />
-      </div>
 
-      {/* Widget de Alerta - Faltas Consecutivas */}
-      {pacientesFaltasConsecutivas.length > 0 && (
-        <Card
-          className="border-l-4 border-l-red-500 bg-gradient-to-r from-red-50 to-orange-50 shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
+        <MetricCard
+          title="Faltas Consecutivas"
+          value={loadingServicos ? '-' : pacientesFaltasConsecutivas.length.toLocaleString()}
+          change={loadingServicos ? 'Carregando...' : pacientesFaltasConsecutivas.length === 0 ? 'Nenhum paciente' : `${pacientesFaltasConsecutivas.length} ${pacientesFaltasConsecutivas.length === 1 ? 'paciente' : 'pacientes'} com 2+ faltas`}
+          trend={pacientesFaltasConsecutivas.length > 0 ? "down" : "up"}
+          icon={AlertTriangle}
+          color="border-l-red-500 text-red-600"
+          bgColor="bg-red-50"
           onClick={() => navigate('/pacientes/faltas-consecutivas')}
-        >
-          <CardHeader>
-            <CardTitle className="flex items-center gap-3 text-red-700">
-              <AlertTriangle className="w-6 h-6" />
-              <div className="flex-1">
-                Alerta: Pacientes com Faltas Consecutivas
-              </div>
-              <Badge variant="destructive" className="bg-red-500 text-lg px-3 py-1">
-                {pacientesFaltasConsecutivas.length}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                {pacientesFaltasConsecutivas.length} {pacientesFaltasConsecutivas.length === 1 ? 'paciente apresenta' : 'pacientes apresentam'} 2 ou mais faltas seguidas
-              </p>
-
-              {/* Preview dos top 3 */}
-              <div className="space-y-2">
-                {pacientesFaltasConsecutivas.slice(0, 3).map((paciente) => (
-                  <div
-                    key={paciente.pacienteId}
-                    className="flex items-center justify-between p-2 bg-white/60 rounded-md"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{paciente.pacienteNome}</p>
-                      <p className="text-xs text-muted-foreground">{paciente.servicoNome}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Badge variant="destructive" className="bg-red-500">
-                        {paciente.faltasConsecutivas} consecutivas
-                      </Badge>
-                      <Badge variant="secondary" className="bg-orange-100 text-orange-800">
-                        {paciente.totalFaltas} total
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {pacientesFaltasConsecutivas.length > 3 && (
-                <div className="text-center pt-2">
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Eye className="h-4 w-4" />
-                    Ver todos os {pacientesFaltasConsecutivas.length} pacientes
-                  </Button>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        />
+      </div>
 
       {/* Dashboard Principal */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
