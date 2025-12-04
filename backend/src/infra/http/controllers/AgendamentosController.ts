@@ -76,8 +76,8 @@ export class AgendamentosController {
       dataFim: z.coerce.date().optional(),
       tipoAtendimento: z.string().optional(),
       primeiraSessao: z.string().optional(), // 'true', 'false' ou vazio
-      recebimento: z.coerce.boolean().optional(),
-      pagamento: z.coerce.boolean().optional(),
+      recebimento: z.string().optional().transform(val => val === 'true' ? true : val === 'false' ? false : undefined),
+      pagamento: z.string().optional().transform(val => val === 'true' ? true : val === 'false' ? false : undefined),
 
       // Busca textual
       search: z.string().optional(),
