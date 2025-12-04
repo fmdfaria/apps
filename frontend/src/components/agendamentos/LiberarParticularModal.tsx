@@ -139,9 +139,9 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
     setShowContaReceberModal(true);
   };
 
-  const executarLiberacaoAutomatica = async () => {
+  const executarLiberacaoAutomatica = async (contaReceberId?: string) => {
     if (!agendamento) return;
-    
+
     try {
       if (grupo) {
         // Liberação em grupo (mensal)
@@ -154,7 +154,22 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
           dataLiberacao: formData.dataLiberacao,
           pagamentoAntecipado: grupo.pagamentoAntecipado
         });
-        
+
+        // Se forneceu contaReceberId, criar vínculos para TODOS os agendamentos liberados
+        if (contaReceberId && resultado.agendamentosAtualizados) {
+          for (const agendamentoAtualizado of resultado.agendamentosAtualizados) {
+            try {
+              await createAgendamentoConta({
+                agendamentoId: agendamentoAtualizado.id,
+                contaReceberId: contaReceberId
+              });
+            } catch (relationError) {
+              console.warn(`Erro ao criar relacionamento agendamento-conta para agendamento ${agendamentoAtualizado.id}:`, relationError);
+              // Não interrompe o fluxo se falhar ao criar o relacionamento
+            }
+          }
+        }
+
         AppToast.updated('Grupo Liberado', `${resultado.totalLiberados} agendamentos particulares foram liberados com sucesso para ${grupo.mesAnoDisplay}!`);
       } else {
         // Liberação individual
@@ -165,14 +180,14 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
         });
         AppToast.updated('Agendamento', 'O agendamento particular foi liberado com sucesso!');
       }
-      
+
       // Fechar modal principal e atualizar lista
       resetForm();
       onSuccess();
       onClose();
     } catch (error) {
       console.error('Erro ao liberar agendamento particular automaticamente:', error);
-      
+
       // Para erros 403 (acesso negado), o interceptador da API já trata
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response?: { status?: number; data?: { message?: string } } };
@@ -180,7 +195,7 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
           // Interceptador da API já mostrou o toast de acesso negado, não duplicar
           return;
         }
-        
+
         // Para outros erros, extrair mensagem do backend se disponível
         const errorMessage = axiosError.response?.data?.message || 'Conta criada com sucesso, mas não foi possível liberar o agendamento automaticamente. Libere manualmente.';
         AppToast.warning('Liberação pendente', errorMessage);
@@ -198,8 +213,9 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
       // Criar a conta a receber com o status selecionado no modal
       const contaCriada = await createContaReceber(contaData);
 
-      // Criar relacionamento agendamento-conta
-      if (contaCriada?.id && agendamento?.id) {
+      // Para agendamento INDIVIDUAL: criar relacionamento agendamento-conta
+      // Para GRUPO: os relacionamentos serão criados dentro de executarLiberacaoAutomatica
+      if (!grupo && contaCriada?.id && agendamento?.id) {
         try {
           await createAgendamentoConta({
             agendamentoId: agendamento.id,
@@ -227,7 +243,8 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
           });
 
           // Após criar conta a receber com sucesso, executar liberação do agendamento
-          await executarLiberacaoAutomatica();
+          // Passar contaReceberId para criar vínculos de TODOS os agendamentos (no caso de grupo)
+          await executarLiberacaoAutomatica(contaCriada.id);
 
           AppToast.created('Conta a Receber', 'Conta a receber criada e marcada como recebida com sucesso!');
         } catch (receiveError: any) {
@@ -238,7 +255,8 @@ export const LiberarParticularModal: React.FC<LiberarParticularModalProps> = ({
       } else {
         // Status diferente de RECEBIDO ou não deve auto-receber
         // Executar liberação do agendamento mesmo sem marcar como recebido
-        await executarLiberacaoAutomatica();
+        // Passar contaReceberId para criar vínculos de TODOS os agendamentos (no caso de grupo)
+        await executarLiberacaoAutomatica(contaCriada.id);
 
         const mensagem = contaData.status === 'RECEBIDO'
           ? 'Conta a receber criada com sucesso!'

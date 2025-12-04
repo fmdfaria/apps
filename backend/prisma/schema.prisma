@@ -54,6 +54,7 @@ model Profissional {
   contaDigito         String?                       @map("conta_digito") @db.VarChar(2)
   pix                 String?                       @db.VarChar(100)
   tipo_pix            String?                       @db.VarChar(30)
+  diaPagamento        Int?                          @map("dia_pagamento")
   comprovanteBancario String?                       @map("comprovante_bancario")
   userId              String?                       @map("user_id") @db.Uuid
   ativo               Boolean?                      @default(true)

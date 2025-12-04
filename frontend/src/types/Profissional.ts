@@ -26,6 +26,7 @@ export interface Profissional {
   contaDigito?: string | null;
   pix?: string | null;
   tipo_pix?: string | null;
+  diaPagamento?: number | null;
   comprovanteBancario?: string | null;
   userId?: string | null;
   ativo?: boolean;

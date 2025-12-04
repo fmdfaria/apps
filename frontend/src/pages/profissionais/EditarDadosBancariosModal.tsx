@@ -45,6 +45,7 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
     contaDigito: '',
     tipo_pix: '',
     pix: '',
+    diaPagamento: '',
   });
   const [comprovanteFile, setComprovanteFile] = useState<File | null>(null);
   const [comprovanteAnexo, setComprovanteAnexo] = useState<Anexo | null>(null);
@@ -71,6 +72,7 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
         contaDigito: profissional.contaDigito || '',
         tipo_pix: profissional.tipo_pix || '',
         pix: profissional.pix || '',
+        diaPagamento: profissional.diaPagamento?.toString() || '',
       });
       setComprovanteFile(null);
       setComprovanteAnexo(null);
@@ -147,6 +149,7 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
         conta_digito: form.contaDigito,
         tipo_pix: form.tipo_pix,
         pix: form.pix,
+        dia_pagamento: form.diaPagamento,
         file: comprovanteFile,
       };
 
@@ -285,7 +288,7 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
               <div>
                 <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
                   <span className="text-lg">🔑</span>
@@ -310,6 +313,22 @@ export default function EditarDadosBancariosModal({ open, onClose, profissional,
                   className="hover:border-green-300 focus:border-green-500 focus:ring-green-100"
                   disabled={loading}
                   placeholder="Digite sua chave PIX"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="flex text-sm font-medium text-gray-800 mb-1 items-center gap-2">
+                  <span className="text-lg">📅</span>
+                  <span className="bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent font-semibold">Dia de Pagamento</span>
+                </label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={form.diaPagamento}
+                  onChange={e => setForm(f => ({ ...f, diaPagamento: e.target.value }))}
+                  className="hover:border-red-300 focus:border-red-500 focus:ring-red-100"
+                  disabled={loading}
+                  placeholder="Ex: 5"
                 />
               </div>
             </div>

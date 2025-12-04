@@ -489,6 +489,7 @@ export class ProfissionaisController {
         contaDigito: body.conta_digito,
         tipo_pix: body.tipo_pix,
         pix: body.pix,
+        diaPagamento: body.dia_pagamento ? parseInt(body.dia_pagamento) : undefined,
       };
     } else {
       // Se não é multipart, pegar dados do body JSON
@@ -500,6 +501,7 @@ export class ProfissionaisController {
         contaDigito: z.string().optional(),
         tipo_pix: z.string().optional(),
         pix: z.string().optional(),
+        diaPagamento: z.number().int().min(1).max(31).optional(),
       });
       
       dadosBancarios = bodySchema.parse(request.body);
