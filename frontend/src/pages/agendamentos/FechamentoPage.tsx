@@ -202,14 +202,16 @@ export const FechamentoPage = () => {
     try {
       // Buscar agendamentos que ainda não tiveram recebimento registrado
       // Backend filtra automaticamente: exclui status CANCELADO e AGENDADO
-      // Agendamentos futuros são sempre AGENDADO, então não precisam de filtro dataFim
+      // dataFim=hoje para otimização: usa índice dataHoraInicio do banco (crítico com agendamentos até 2027)
+      const hoje = new Date().toISOString().split('T')[0];
+
       const dados = await getAgendamentos({
         recebimento: false, // Apenas agendamentos sem recebimento registrado
         convenioIdExcluir: 'f4af6586-8b56-4cf3-8b87-d18605cea381', // Excluir convênio "Particular"
         page: 1,
         // Removido limit para usar padrão da API (dados serão agrupados)
         ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
-        ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
+        ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : { dataFim: hoje }),
         ...(filtrosAplicados.convenioId ? { convenioId: filtrosAplicados.convenioId } : {}),
         ...(filtrosAplicados.servicoId ? { servicoId: filtrosAplicados.servicoId } : {}),
         ...(filtrosAplicados.pacienteId ? { pacienteId: filtrosAplicados.pacienteId } : {}),

@@ -156,9 +156,13 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     } else {
       // Para recebimento=false (Fechamento), excluir apenas CANCELADO e AGENDADO
       // Mantém: FINALIZADO, ARQUIVADO, LIBERADO, ATENDIDO, PENDENTE, SOLICITADO
+      console.log('[DEBUG] filters?.recebimento:', filters?.recebimento);
+      console.log('[DEBUG] filters?.recebimento === false:', filters?.recebimento === false);
       if (filters?.recebimento === false) {
+        console.log('[DEBUG] ✅ Aplicando filtro notIn CANCELADO e AGENDADO');
         whereConditions.status = { notIn: ['CANCELADO', 'AGENDADO'] };
       } else {
+        console.log('[DEBUG] ❌ NÃO aplicando filtro, usando default');
         // Por padrão, não retornar agendamentos arquivados na listagem geral
         whereConditions.status = { not: 'ARQUIVADO' };
       }
@@ -285,6 +289,8 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
       queryOptions.skip = skip;
       queryOptions.take = limit;
     }
+
+    console.log('[DEBUG] whereConditions.status FINAL:', JSON.stringify(whereConditions.status));
 
     // Executar consultas em paralelo
     const [agendamentos, total] = await Promise.all([
