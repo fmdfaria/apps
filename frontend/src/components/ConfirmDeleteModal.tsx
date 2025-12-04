@@ -12,6 +12,7 @@ interface ConfirmDeleteModalProps {
   isLoading?: boolean;
   loadingText?: string;
   confirmText?: string;
+  additionalMessage?: string;
 }
 
 export default function ConfirmDeleteModal({
@@ -23,7 +24,8 @@ export default function ConfirmDeleteModal({
   entityType = "item",
   isLoading = false,
   loadingText = "Excluindo...",
-  confirmText = "Excluir"
+  confirmText = "Excluir",
+  additionalMessage
 }: ConfirmDeleteModalProps) {
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && !isLoading && onClose()}>
@@ -45,6 +47,14 @@ export default function ConfirmDeleteModal({
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
             <span className="font-bold text-red-800 text-lg">{entityName}</span>
           </div>
+          {additionalMessage && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3 text-left">
+              <div className="flex items-start gap-2">
+                <span className="text-lg">ℹ️</span>
+                <span className="text-sm text-blue-800">{additionalMessage}</span>
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-center gap-2 text-sm text-red-600 bg-red-50 rounded-lg p-3">
             <span className="text-lg">🚨</span>
             <span className="font-medium">Esta ação não pode ser desfeita</span>

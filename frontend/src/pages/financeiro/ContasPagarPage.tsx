@@ -861,6 +861,7 @@ export const ContasPagarPage = () => {
           isLoading={deleteLoading}
           loadingText="Excluindo conta..."
           confirmText="Excluir Conta"
+          additionalMessage="Ao excluir esta conta, os agendamentos vinculados terão o status alterado de ARQUIVADO para FINALIZADO e o campo pagamento será desmarcado, permitindo que sejam incluídos em um novo fechamento."
         />
         
         <ConfirmacaoModal

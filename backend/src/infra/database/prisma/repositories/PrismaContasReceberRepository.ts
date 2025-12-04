@@ -124,17 +124,39 @@ export class PrismaContasReceberRepository implements IContasReceberRepository {
 
   async delete(id: string): Promise<void> {
     await prisma.$transaction(async (tx) => {
-      // Remover relacionamentos em agendamentos_contas
+      // 1. Buscar os IDs dos agendamentos vinculados à conta a receber
+      const agendamentosConta = await tx.agendamentoConta.findMany({
+        where: { contaReceberId: id },
+        select: { agendamentoId: true }
+      });
+
+      const agendamentoIds = agendamentosConta.map(ac => ac.agendamentoId);
+
+      // 2. Atualizar os agendamentos vinculados: recebimento = false
+      //    OBS: Não alterar o status, somente o campo recebimento
+      if (agendamentoIds.length > 0) {
+        await tx.agendamento.updateMany({
+          where: {
+            id: { in: agendamentoIds }
+          },
+          data: {
+            recebimento: false,
+            updatedAt: new Date()
+          }
+        });
+      }
+
+      // 3. Remover relacionamentos em agendamentos_contas
       await tx.agendamentoConta.deleteMany({
         where: { contaReceberId: id }
       });
 
-      // Remover lançamentos de fluxo de caixa vinculados a esta conta a receber
+      // 4. Remover lançamentos de fluxo de caixa vinculados a esta conta a receber
       await tx.fluxoCaixa.deleteMany({
         where: { contaReceberId: id }
       });
 
-      // Finalmente remover a conta a receber
+      // 5. Finalmente remover a conta a receber
       await tx.contaReceber.delete({
         where: { id }
       });
