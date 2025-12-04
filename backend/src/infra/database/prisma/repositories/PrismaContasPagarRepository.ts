@@ -170,17 +170,42 @@ export class PrismaContasPagarRepository implements IContasPagarRepository {
 
   async delete(id: string): Promise<void> {
     await prisma.$transaction(async (tx) => {
-      // Remover relacionamentos em agendamentos_contas
+      // 1. Buscar os IDs dos agendamentos vinculados à conta a pagar
+      const agendamentosConta = await tx.agendamentoConta.findMany({
+        where: { contaPagarId: id },
+        select: { agendamentoId: true }
+      });
+
+      const agendamentoIds = agendamentosConta.map(ac => ac.agendamentoId);
+
+      // 2. Atualizar os agendamentos vinculados:
+      //    - Status: ARQUIVADO -> FINALIZADO
+      //    - pagamento: false
+      if (agendamentoIds.length > 0) {
+        await tx.agendamento.updateMany({
+          where: {
+            id: { in: agendamentoIds },
+            status: 'ARQUIVADO' // Apenas se estiver ARQUIVADO
+          },
+          data: {
+            status: 'FINALIZADO',
+            pagamento: false,
+            updatedAt: new Date()
+          }
+        });
+      }
+
+      // 3. Remover relacionamentos em agendamentos_contas
       await tx.agendamentoConta.deleteMany({
         where: { contaPagarId: id }
       });
 
-      // Remover lançamentos de fluxo de caixa vinculados a esta conta a pagar
+      // 4. Remover lançamentos de fluxo de caixa vinculados a esta conta a pagar
       await tx.fluxoCaixa.deleteMany({
         where: { contaPagarId: id }
       });
 
-      // Finalmente remover a conta a pagar
+      // 5. Finalmente remover a conta a pagar
       await tx.contaPagar.delete({
         where: { id }
       });

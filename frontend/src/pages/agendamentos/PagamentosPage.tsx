@@ -634,12 +634,7 @@ export const PagamentosPage = () => {
               Valor a Pagar
             </div>
           </TableHead>
-          <TableHead className="py-3 text-sm font-semibold text-gray-700 text-center">
-            <div className="flex items-center justify-center gap-2">
-              <MessageCircle className="w-4 h-4" />
-              Status
-            </div>
-          </TableHead>
+          {/* Coluna "Status" removida */}
           <TableHead className="py-3 text-sm font-semibold text-gray-700">
             <div className="flex items-center gap-2">
               <span className="text-lg">⚙️</span>
@@ -651,7 +646,7 @@ export const PagamentosPage = () => {
       <TableBody>
         {dadosPaginados.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={7} className="py-12 text-center">
+            <TableCell colSpan={6} className="py-12 text-center">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                   <DollarSign className="w-8 h-8 text-gray-400" />
@@ -694,18 +689,7 @@ export const PagamentosPage = () => {
                   {formatarValor(item.valorPagar)}
                 </span>
               </TableCell>
-              <TableCell className="py-3 text-center">
-                {item.whatsappJaEnviado ? (
-                  <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-100">
-                    <MessageCircle className="w-3 h-3 mr-1" />
-                    Enviado
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-300">
-                    Pendente
-                  </Badge>
-                )}
-              </TableCell>
+              {/* Coluna "Status" removida */}
               <TableCell className="text-left py-3">
                 <div className="flex justify-start gap-1.5">
                   <Button
@@ -717,7 +701,8 @@ export const PagamentosPage = () => {
                   >
                     <Eye className="w-4 h-4" />
                   </Button>
-                  <Button
+                  {/* Botão "Enviar WhatsApp" oculto */}
+                  {/* <Button
                     variant="default"
                     size="sm"
                     className="bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
@@ -730,7 +715,7 @@ export const PagamentosPage = () => {
                     ) : (
                       <MessageCircle className="w-4 h-4" />
                     )}
-                  </Button>
+                  </Button> */}
                   <Button
                     variant="default"
                     size="sm"
@@ -805,19 +790,7 @@ export const PagamentosPage = () => {
                     {formatarValor(item.valorPagar)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Status:</span>
-                  {item.whatsappJaEnviado ? (
-                    <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-100">
-                      <MessageCircle className="w-3 h-3 mr-1" />
-                      Enviado
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-300">
-                      Pendente
-                    </Badge>
-                  )}
-                </div>
+                {/* Seção "Status" removida */}
               </div>
 
               {/* Botões de Ação */}
@@ -831,7 +804,8 @@ export const PagamentosPage = () => {
                 >
                   <Eye className="w-4 h-4" />
                 </Button>
-                <Button
+                {/* Botão "Enviar WhatsApp" oculto */}
+                {/* <Button
                   size="sm"
                   variant="default"
                   className="bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
@@ -844,7 +818,7 @@ export const PagamentosPage = () => {
                   ) : (
                     <MessageCircle className="w-4 h-4" />
                   )}
-                </Button>
+                </Button> */}
                 <Button
                   size="sm"
                   variant="default"

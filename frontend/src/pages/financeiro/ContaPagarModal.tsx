@@ -39,6 +39,7 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
   const [form, setForm] = useState({
+    status: 'PENDENTE' as 'PENDENTE' | 'SOLICITADO' | 'PARCIAL' | 'PAGO' | 'VENCIDO' | 'CANCELADO',
     descricao: '',
     valorOriginal: '',
     dataVencimento: '',
@@ -87,6 +88,7 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
         : '';
 
       setForm({
+        status: conta.status || 'PENDENTE',
         descricao: conta.descricao || '',
         valorOriginal: valorFormatado,
         dataVencimento: conta.dataVencimento ? new Date(conta.dataVencimento).toISOString().split('T')[0] : '',
@@ -102,6 +104,7 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
       });
     } else {
       setForm({
+        status: 'PENDENTE',
         descricao: '',
         valorOriginal: '',
         dataVencimento: '',
@@ -354,20 +357,8 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
 
         <form onSubmit={handleSubmit} className="space-y-4">
 
-          {/* Linha 1: Descrição (mesmo tamanho da Empresa) | Valor Original | Data de Vencimento | Data Emissão */}
-          <div className="grid grid-cols-5 gap-4">
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="descricao">
-                Descrição <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="descricao"
-                value={form.descricao}
-                onChange={(e) => handleChange('descricao', e.target.value)}
-                placeholder="Descrição da conta a pagar"
-              />
-            </div>
-            
+          {/* Linha 1: Valor Original | Data de Vencimento | Data Emissão | Status */}
+          <div className="grid grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="valorOriginal">
                 Valor Original <span className="text-red-500">*</span>
@@ -386,7 +377,7 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="dataVencimento">
                 Data de Vencimento <span className="text-red-500">*</span>
@@ -398,7 +389,7 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
                 onChange={(e) => handleChange('dataVencimento', e.target.value)}
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="dataEmissao">
                 Data Emissão <span className="text-red-500">*</span>
@@ -410,9 +401,50 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
                 onChange={(e) => handleChange('dataEmissao', e.target.value)}
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="status">
+                Status <span className="text-red-500">*</span>
+              </Label>
+              <SingleSelectDropdown
+                options={[
+                  { id: 'PENDENTE', label: 'Pendente' },
+                  { id: 'SOLICITADO', label: 'Solicitado' },
+                  { id: 'PARCIAL', label: 'Parcial' },
+                  { id: 'PAGO', label: 'Pago' },
+                  { id: 'VENCIDO', label: 'Vencido' },
+                  { id: 'CANCELADO', label: 'Cancelado' }
+                ]}
+                selected={[
+                  { id: 'PENDENTE', label: 'Pendente' },
+                  { id: 'SOLICITADO', label: 'Solicitado' },
+                  { id: 'PARCIAL', label: 'Parcial' },
+                  { id: 'PAGO', label: 'Pago' },
+                  { id: 'VENCIDO', label: 'Vencido' },
+                  { id: 'CANCELADO', label: 'Cancelado' }
+                ].find(s => s.id === form.status) || null}
+                onChange={(status) => handleChange('status', status?.id || 'PENDENTE')}
+                placeholder="Selecione o status"
+                formatOption={(status) => status.label}
+                headerText="Status da conta"
+              />
+            </div>
           </div>
 
-          {/* Linha 2: Empresa | Conta Bancária | Categoria */}
+          {/* Linha 2: Descrição */}
+          <div className="space-y-2">
+            <Label htmlFor="descricao">
+              Descrição <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="descricao"
+              value={form.descricao}
+              onChange={(e) => handleChange('descricao', e.target.value)}
+              placeholder="Descrição da conta a pagar"
+            />
+          </div>
+
+          {/* Linha 3: Empresa | Conta Bancária | Categoria */}
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="empresaId">
@@ -461,7 +493,7 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
             </div>
           </div>
 
-          {/* Linha 3: Profissional | Número Documento | Tipo da Conta */}
+          {/* Linha 4: Profissional | Número Documento | Tipo da Conta */}
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="profissionalId">Profissional</Label>
