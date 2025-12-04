@@ -54,6 +54,9 @@ export class AgendamentosController {
   }
 
   async list(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    console.log('[DEBUG Controller] request.query RAW:', request.query);
+    console.log('[DEBUG Controller] recebimento RAW:', (request.query as any).recebimento);
+
     const querySchema = z.object({
       // Paginação
       page: z.coerce.number().int().min(1).optional().default(1),
