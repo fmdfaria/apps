@@ -141,7 +141,7 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
     const orderDirection = filters?.orderDirection || 'asc';
 
     const whereConditions: any = {};
-    
+
     // Filtros básicos
     if (filters?.profissionalId) whereConditions.profissionalId = filters.profissionalId;
     if (filters?.pacienteId) whereConditions.pacienteId = filters.pacienteId;
@@ -154,10 +154,10 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
         whereConditions.status = filters.status;
       }
     } else {
-      // Se filtrar por recebimento=false, incluir tanto FINALIZADO quanto ARQUIVADO
-      // pois agendamentos arquivados podem não ter sido recebidos ainda
+      // Para recebimento=false (Fechamento), excluir apenas CANCELADO e AGENDADO
+      // Mantém: FINALIZADO, ARQUIVADO, LIBERADO, ATENDIDO, PENDENTE, SOLICITADO
       if (filters?.recebimento === false) {
-        whereConditions.status = { in: ['FINALIZADO', 'ARQUIVADO'] };
+        whereConditions.status = { notIn: ['CANCELADO', 'AGENDADO'] };
       } else {
         // Por padrão, não retornar agendamentos arquivados na listagem geral
         whereConditions.status = { not: 'ARQUIVADO' };

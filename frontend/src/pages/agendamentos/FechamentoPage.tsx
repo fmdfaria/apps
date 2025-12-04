@@ -200,11 +200,12 @@ export const FechamentoPage = () => {
     setAgendamentos([]); // Limpa dados para evitar mostrar dados antigos
 
     try {
-      // Buscar agendamentos FINALIZADOS (ou ARQUIVADOS) que ainda não tiveram recebimento registrado
-      // Backend automaticamente inclui ARQUIVADO quando status=FINALIZADO e recebimento=false
+      // Buscar agendamentos que ainda não tiveram recebimento registrado
+      // Backend filtra automaticamente: exclui status CANCELADO e AGENDADO
+      // Agendamentos futuros são sempre AGENDADO, então não precisam de filtro dataFim
       const dados = await getAgendamentos({
-        status: 'FINALIZADO', // Backend inclui ARQUIVADO automaticamente quando recebimento=false
         recebimento: false, // Apenas agendamentos sem recebimento registrado
+        convenioIdExcluir: 'f4af6586-8b56-4cf3-8b87-d18605cea381', // Excluir convênio "Particular"
         page: 1,
         // Removido limit para usar padrão da API (dados serão agrupados)
         ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
@@ -936,12 +937,11 @@ export const FechamentoPage = () => {
     return precoServico;
   };
 
-  // Filtrar agendamentos FINALIZADOS (com proteção para array)
-  // Note: Os filtros avançados agora são aplicados via API, então aqui só filtramos por busca textual
+  // Filtrar agendamentos apenas por busca textual
+  // Note: Todos os filtros (status, convênio, data, etc.) já são aplicados pela API/backend
   const agendamentosFiltrados = (Array.isArray(agendamentos) ? agendamentos : [])
-    .filter(a => a.status === 'FINALIZADO')
-    .filter(a => 
-      !busca || 
+    .filter(a =>
+      !busca ||
       a.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||
       a.profissionalNome?.toLowerCase().includes(busca.toLowerCase()) ||
       a.servicoNome?.toLowerCase().includes(busca.toLowerCase()) ||
@@ -955,12 +955,8 @@ export const FechamentoPage = () => {
       valorTotal: number
     }>();
 
-    // Filtrar apenas convênios que não sejam particulares
-    const agendamentosConvenios = agendamentosFiltrados.filter(a => 
-      !a.convenioNome?.toLowerCase().includes('particular') && 
-      !a.convenioNome?.toLowerCase().includes('privado') &&
-      a.convenioNome !== 'Particular'
-    );
+    // Backend já filtra Particular via convenioIdExcluir, não precisa filtrar novamente
+    const agendamentosConvenios = agendamentosFiltrados;
 
     agendamentosConvenios.forEach(agendamento => {
       const convenio = agendamento.convenioNome || 'Não informado';

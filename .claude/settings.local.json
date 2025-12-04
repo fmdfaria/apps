@@ -6,7 +6,10 @@
       "Bash(find:*)",
       "Bash(mkdir:*)",
       "Bash(git push:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(curl:*)"
     ],
     "deny": []
   }

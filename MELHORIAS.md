@@ -12,6 +12,4 @@
 - Utilize sempre o AppToast para manter o padrão de notificação.
 - Não defina nada no frontend que afete o backend, veja sempre a estrutura do backend no arquivo @apps/backend/prisma/schema.prisma .. lá contém toda estrutura do meu banco de dados.
 
-
 Editar paciente com convênio 'fixo' no campo.. mais faz alteração, é problema visual somente.
-
