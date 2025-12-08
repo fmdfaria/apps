@@ -78,3 +78,8 @@ export const deleteContaReceber = async (id: string): Promise<void> => {
 export const cancelarContaReceber = async (id: string, dados: CancelarContaData): Promise<void> => {
   await api.patch(`/contas-receber/${id}/cancelar`, dados);
 };
+
+export const getAgendamentosByContaReceber = async (contaReceberId: string): Promise<any[]> => {
+  const { data } = await api.get(`/contas-receber/${contaReceberId}/agendamentos`);
+  return data.data;
+};

@@ -8,6 +8,7 @@ import { ReceberContaUseCase } from '../../../core/application/use-cases/conta-r
 import { CancelarContaReceberUseCase } from '../../../core/application/use-cases/conta-receber/CancelarContaReceberUseCase';
 import { ListContasPendentesUseCase } from '../../../core/application/use-cases/conta-receber/ListContasPendentesUseCase';
 import { ListContasVencidasUseCase } from '../../../core/application/use-cases/conta-receber/ListContasVencidasUseCase';
+import { GetAgendamentosByContaReceberUseCase } from '../../../core/application/use-cases/conta-receber/GetAgendamentosByContaReceberUseCase';
 
 interface CreateContaReceberBody {
   empresaId: string;
@@ -263,10 +264,29 @@ export class ContasReceberController {
       const listContasVencidasUseCase = container.resolve(ListContasVencidasUseCase);
       
       const contas = await listContasVencidasUseCase.execute();
-      
+
       return reply.send({
         success: true,
         data: contas
+      });
+    } catch (error) {
+      return reply.status(500).send({
+        success: false,
+        message: error instanceof Error ? error.message : 'Erro interno do servidor'
+      });
+    }
+  }
+
+  async getAgendamentosByConta(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { id } = request.params as { id: string };
+
+      const getAgendamentosByContaReceberUseCase = container.resolve(GetAgendamentosByContaReceberUseCase);
+      const agendamentos = await getAgendamentosByContaReceberUseCase.execute(id);
+
+      return reply.send({
+        success: true,
+        data: agendamentos
       });
     } catch (error) {
       return reply.status(500).send({

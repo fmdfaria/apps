@@ -12,13 +12,18 @@ export async function contasReceberRoutes(app: FastifyInstance) {
   }, (request, reply) => controller.list(request as any, reply as any));
   
   // Criar conta a receber
-  app.post('/contas-receber', { 
-    preHandler: [ensureAuthenticated, ensureAuthorized('/contas-receber', 'POST')] 
+  app.post('/contas-receber', {
+    preHandler: [ensureAuthenticated, ensureAuthorized('/contas-receber', 'POST')]
   }, (request, reply) => controller.create(request as any, reply as any));
 
+  // Buscar agendamentos vinculados à conta (deve vir ANTES de /:id para não conflitar)
+  app.get('/contas-receber/:id/agendamentos', {
+    preHandler: [ensureAuthenticated, ensureAuthorized('/contas-receber/:id/agendamentos', 'GET')]
+  }, (request, reply) => controller.getAgendamentosByConta(request as any, reply as any));
+
   // Buscar conta por ID
-  app.get('/contas-receber/:id', { 
-    preHandler: [ensureAuthenticated, ensureAuthorized('/contas-receber/:id', 'GET')] 
+  app.get('/contas-receber/:id', {
+    preHandler: [ensureAuthenticated, ensureAuthorized('/contas-receber/:id', 'GET')]
   }, (request, reply) => controller.findById(request as any, reply as any));
   
   // Atualizar conta a receber

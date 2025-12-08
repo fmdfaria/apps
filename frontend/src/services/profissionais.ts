@@ -120,7 +120,7 @@ export async function updateProfissionalDadosBancarios(id: string, payload: any)
   const formData = new FormData();
   
   // Campos bancários - usando snake_case para compatibilidade com backend
-  const bancarioFields = ['banco', 'tipo_conta', 'agencia', 'conta_numero', 'conta_digito', 'tipo_pix', 'pix'];
+  const bancarioFields = ['banco', 'tipo_conta', 'agencia', 'conta_numero', 'conta_digito', 'tipo_pix', 'pix', 'dia_pagamento'];
   
   bancarioFields.forEach(field => {
     if (payload[field] !== undefined && payload[field] !== null && payload[field] !== '') {

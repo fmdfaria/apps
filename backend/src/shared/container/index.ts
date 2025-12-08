@@ -183,6 +183,7 @@ import { DeleteContaBancariaUseCase } from '../../core/application/use-cases/con
 import { AtualizarSaldoContaBancariaUseCase } from '../../core/application/use-cases/conta-bancaria/AtualizarSaldoContaBancariaUseCase';
 import { CreateContaReceberUseCase } from '../../core/application/use-cases/conta-receber/CreateContaReceberUseCase';
 import { ReceberContaUseCase } from '../../core/application/use-cases/conta-receber/ReceberContaUseCase';
+import { GetAgendamentosByContaReceberUseCase } from '../../core/application/use-cases/conta-receber/GetAgendamentosByContaReceberUseCase';
 import { CreateContaPagarUseCase } from '../../core/application/use-cases/conta-pagar/CreateContaPagarUseCase';
 import { ListContasPagarUseCase } from '../../core/application/use-cases/conta-pagar/ListContasPagarUseCase';
 import { UpdateContaPagarUseCase } from '../../core/application/use-cases/conta-pagar/UpdateContaPagarUseCase';
@@ -515,3 +516,4 @@ container.register('GetAgendamentoContaByAgendamentoUseCase', GetAgendamentoCont
 container.register('GetAgendamentosContasByContaReceberUseCase', GetAgendamentosContasByContaReceberUseCase);
 container.register('GetAgendamentosContasByContaPagarUseCase', GetAgendamentosContasByContaPagarUseCase);
 container.register('DeleteAgendamentoContaUseCase', DeleteAgendamentoContaUseCase);
+container.register('GetAgendamentosByContaReceberUseCase', GetAgendamentosByContaReceberUseCase);

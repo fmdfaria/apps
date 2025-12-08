@@ -16,6 +16,7 @@ interface UpdateContaReceberRequest {
   valorMulta?: number;
   dataEmissao?: Date;
   dataVencimento?: Date;
+  status?: string; // PENDENTE, PARCIAL, RECEBIDO, VENCIDO, CANCELADO, SOLICITADO
   observacoes?: string;
 }
 

@@ -4,7 +4,7 @@ import type { CategoriaFinanceira } from './CategoriaFinanceira';
 import type { Convenio } from './Convenio';
 import type { Paciente } from './Paciente';
 
-export type StatusContaReceber = 'PENDENTE' | 'PARCIAL' | 'RECEBIDO' | 'VENCIDO' | 'CANCELADO';
+export type StatusContaReceber = 'PENDENTE' | 'PARCIAL' | 'RECEBIDO' | 'VENCIDO' | 'CANCELADO' | 'SOLICITADO';
 export type FormaRecebimento = 'DINHEIRO' | 'PIX' | 'CARTAO_CREDITO' | 'CARTAO_DEBITO' | 'TRANSFERENCIA' | 'CHEQUE' | 'BOLETO';
 
 export interface ContaReceber {

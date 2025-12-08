@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, DollarSign, Calendar, User, Building2 } from 'lucide-react';
+import { Plus, Edit, Trash2, DollarSign, Calendar, User, Building2, Send } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AppToast } from '@/services/toast';
@@ -35,6 +35,7 @@ import { getModuleTheme } from '@/types/theme';
 import { getConvenios } from '@/services/convenios';
 import { getPacientes } from '@/services/pacientes';
 import { getContasBancarias } from '@/services/contas-bancarias';
+import { getAgendamentosByContaReceber } from '@/services/contas-receber';
 
 // Financial components
 import { StatusBadge, ValorDisplay } from '@/components/financeiro';
@@ -77,6 +78,15 @@ export const ContasReceberPage = () => {
   const [recebendo, setRecebendo] = useState<ContaReceber | null>(null);
   const [excluindo, setExcluindo] = useState<ContaReceber | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Estados para webhook de solicitar pagamento
+  const [webhookQueue, setWebhookQueue] = useState<Array<{
+    conta: ContaReceber;
+    timestamp: number;
+  }>>([]);
+  const [isProcessingWebhook, setIsProcessingWebhook] = useState(false);
+  const webhookTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [contasEmProcessamento, setContasEmProcessamento] = useState<Set<string>>(new Set());
 
   // Hooks responsivos
   const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'contas-receber-view' });
@@ -177,18 +187,32 @@ export const ContasReceberPage = () => {
           >
             <Edit className="w-4 h-4" />
           </ActionButton>
-          
-          {item.status !== 'RECEBIDO' && item.status !== 'CANCELADO' && (
-            <ActionButton
-              variant="view"
-              module="financeiro"
-              onClick={() => abrirModalReceber(item)}
-              title="Receber conta"
-            >
-              <DollarSign className="w-4 h-4" />
-            </ActionButton>
-          )}
-          
+
+          <ActionButton
+            variant="view"
+            module="financeiro"
+            onClick={() => abrirModalReceber(item)}
+            disabled={item.status === 'RECEBIDO' || item.status === 'CANCELADO'}
+            title={item.status === 'RECEBIDO' || item.status === 'CANCELADO' ? 'Conta já recebida ou cancelada' : 'Receber conta'}
+          >
+            <DollarSign className="w-4 h-4" />
+          </ActionButton>
+
+          <ActionButton
+            variant="view"
+            module="financeiro"
+            onClick={() => handleSolicitarPagamento(item)}
+            disabled={item.status !== 'PENDENTE' || !item.paciente || contasEmProcessamento.has(item.id)}
+            title={
+              item.status !== 'PENDENTE' ? 'Apenas para contas pendentes' :
+              !item.paciente ? 'Paciente não vinculado' :
+              contasEmProcessamento.has(item.id) ? 'Processando...' :
+              'Solicitar pagamento via WhatsApp'
+            }
+          >
+            <Send className="w-4 h-4" />
+          </ActionButton>
+
           <ActionButton
             variant="delete"
             module="financeiro"
@@ -414,6 +438,173 @@ export const ContasReceberPage = () => {
     }
   };
 
+  // ===========================================
+  // FUNÇÕES PARA WEBHOOK DE SOLICITAR PAGAMENTO
+  // ===========================================
+
+  // Função para construir payload do webhook
+  const construirPayloadWebhookContaReceber = async (conta: ContaReceber) => {
+    try {
+      console.log('🔍 Construindo payload para conta:', conta.id);
+
+      // 1. Buscar agendamentos vinculados usando o novo endpoint
+      const agendamentos = await getAgendamentosByContaReceber(conta.id);
+      console.log('📋 Agendamentos vinculados encontrados:', agendamentos.length);
+      console.log('📋 Agendamentos:', agendamentos);
+
+      // 2. Construir payload
+      const payload = {
+        tipo: 'CONTA_RECEBER',
+        acao: 'SOLICITAR_PAGAMENTO',
+        conta: {
+          id: conta.id,
+          descricao: conta.descricao,
+          valorOriginal: conta.valorOriginal,
+          valorLiquido: conta.valorLiquido,
+          dataVencimento: conta.dataVencimento
+        },
+        paciente: {
+          id: conta.paciente?.id || '',
+          nome: conta.paciente?.nomeCompleto || '',
+          whatsapp: conta.paciente?.whatsapp || ''
+        },
+        empresa: {
+          id: conta.empresa?.id || '',
+          razaoSocial: conta.empresa?.razaoSocial || ''
+        },
+        agendamentos: agendamentos,
+        quantidadeAgendamentos: agendamentos.length
+      };
+
+      console.log('📦 Payload construído:', {
+        contaId: payload.conta.id,
+        paciente: payload.paciente.nome,
+        quantidadeAgendamentos: payload.quantidadeAgendamentos
+      });
+
+      return payload;
+    } catch (error) {
+      console.error('❌ Erro ao construir payload:', error);
+      throw error;
+    }
+  };
+
+  // Função para executar o webhook
+  const executarWebhookContaReceber = async (conta: ContaReceber) => {
+    const webhookUrl = import.meta.env.VITE_WEBHOOK_SOLICITAR_PAGAMENTO_PARTICULAR;
+
+    if (!webhookUrl) {
+      AppToast.error("Erro de configuração", {
+        description: "URL do webhook não configurada no .env"
+      });
+      throw new Error("URL do webhook não configurada");
+    }
+
+    try {
+      const payload = await construirPayloadWebhookContaReceber(conta);
+
+      console.log('📤 Enviando webhook para conta:', conta.id, payload);
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+
+      const responseData = await response.json().catch(() => ({}));
+      console.log('✅ Resposta do webhook:', responseData);
+
+      // Atualizar status para SOLICITADO
+      await updateContaReceber(conta.id, { status: 'SOLICITADO' } as any);
+
+      // Atualizar localmente
+      setContas(prev =>
+        prev.map(c => c.id === conta.id ? { ...c, status: 'SOLICITADO' as any } : c)
+      );
+
+      AppToast.success("Sucesso", {
+        description: `Solicitação de pagamento enviada para ${conta.paciente?.nomeCompleto}!`
+      });
+
+    } catch (error) {
+      console.error('❌ Erro ao executar webhook:', error);
+      throw error;
+    }
+  };
+
+  // Função para adicionar conta à fila de webhook
+  const handleSolicitarPagamento = (conta: ContaReceber) => {
+    // Adicionar à fila
+    setWebhookQueue(prev => [...prev, {
+      conta,
+      timestamp: Date.now()
+    }]);
+
+    // Marcar como em processamento na UI
+    setContasEmProcessamento(prev => new Set(prev).add(conta.id));
+
+    console.log('📋 Conta adicionada à fila:', conta.id);
+  };
+
+  // Função para processar o próximo webhook na fila
+  const processarProximoWebhook = async () => {
+    if (isProcessingWebhook || webhookQueue.length === 0) {
+      return;
+    }
+
+    setIsProcessingWebhook(true);
+    const proximoItem = webhookQueue[0];
+
+    try {
+      // Delay de 2 segundos
+      const tempoEspera = Math.max(0, 2000 - (Date.now() - proximoItem.timestamp));
+      if (tempoEspera > 0) {
+        console.log(`⏳ Aguardando ${tempoEspera}ms antes de enviar webhook...`);
+        await new Promise(resolve => {
+          webhookTimeoutRef.current = setTimeout(resolve, tempoEspera);
+        });
+      }
+
+      await executarWebhookContaReceber(proximoItem.conta);
+
+      // Remover da fila
+      setWebhookQueue(prev => prev.slice(1));
+      setContasEmProcessamento(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(proximoItem.conta.id);
+        return newSet;
+      });
+
+    } catch (error) {
+      console.error('Erro ao processar webhook:', error);
+
+      // Remover da fila mesmo com erro
+      setWebhookQueue(prev => prev.slice(1));
+      setContasEmProcessamento(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(proximoItem.conta.id);
+        return newSet;
+      });
+
+      AppToast.error("Erro", {
+        description: `Erro ao enviar solicitação para ${proximoItem.conta.paciente?.nomeCompleto}`
+      });
+    } finally {
+      setIsProcessingWebhook(false);
+    }
+  };
+
+  // useEffect para processar fila de webhooks
+  useEffect(() => {
+    if (!isProcessingWebhook && webhookQueue.length > 0) {
+      processarProximoWebhook();
+    }
+  }, [webhookQueue, isProcessingWebhook]);
+
   // Renderização do card
   const renderCard = (conta: ContaReceber) => (
     <Card className="h-full hover:shadow-md transition-shadow">
@@ -476,16 +667,32 @@ export const ContasReceberPage = () => {
         >
           <Edit className="w-4 h-4" />
         </ActionButton>
-        {conta.status !== 'RECEBIDO' && conta.status !== 'CANCELADO' && (
-          <ActionButton
-            variant="view"
-            module="financeiro"
-            onClick={() => abrirModalReceber(conta)}
-            title="Receber conta"
-          >
-            <DollarSign className="w-4 h-4" />
-          </ActionButton>
-        )}
+
+        <ActionButton
+          variant="view"
+          module="financeiro"
+          onClick={() => abrirModalReceber(conta)}
+          disabled={conta.status === 'RECEBIDO' || conta.status === 'CANCELADO'}
+          title={conta.status === 'RECEBIDO' || conta.status === 'CANCELADO' ? 'Conta já recebida ou cancelada' : 'Receber conta'}
+        >
+          <DollarSign className="w-4 h-4" />
+        </ActionButton>
+
+        <ActionButton
+          variant="view"
+          module="financeiro"
+          onClick={() => handleSolicitarPagamento(conta)}
+          disabled={conta.status !== 'PENDENTE' || !conta.paciente || contasEmProcessamento.has(conta.id)}
+          title={
+            conta.status !== 'PENDENTE' ? 'Apenas para contas pendentes' :
+            !conta.paciente ? 'Paciente não vinculado' :
+            contasEmProcessamento.has(conta.id) ? 'Processando...' :
+            'Solicitar pagamento via WhatsApp'
+          }
+        >
+          <Send className="w-4 h-4" />
+        </ActionButton>
+
         <ActionButton
           variant="delete"
           module="financeiro"
