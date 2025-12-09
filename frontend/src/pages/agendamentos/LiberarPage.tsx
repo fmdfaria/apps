@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
 import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import {
@@ -24,10 +25,11 @@ import {
   Unlock,
   CheckSquare,
   MessageCircle,
-  Paperclip
+  Paperclip,
+  RefreshCw
 } from 'lucide-react';
-import type { Agendamento } from '@/types/Agendamento';
-import { getAgendamentos, updateAgendamento } from '@/services/agendamentos';
+import type { Agendamento, StatusAgendamento } from '@/types/Agendamento';
+import { getAgendamentos, updateAgendamento, alterarStatusAgendamento } from '@/services/agendamentos';
 
 import { LiberarAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
 import ConfirmacaoModal from '@/components/ConfirmacaoModal';
@@ -164,6 +166,12 @@ export const LiberarPage = () => {
   // Estados para confirmação de reenvio
   const [showConfirmacaoReenvio, setShowConfirmacaoReenvio] = useState(false);
   const [agendamentoParaReenvio, setAgendamentoParaReenvio] = useState<Agendamento | null>(null);
+
+  // Estados para alteração de status
+  const [showAlterarStatusModal, setShowAlterarStatusModal] = useState(false);
+  const [agendamentoAlterandoStatus, setAgendamentoAlterandoStatus] = useState<Agendamento | null>(null);
+  const [statusSelecionado, setStatusSelecionado] = useState<{id: string; nome?: string} | null>(null);
+  const [alterarStatusLoading, setAlterarStatusLoading] = useState(false);
 
   // Sistema de fila para webhooks
   const [webhookQueue, setWebhookQueue] = useState<WebhookQueueItem[]>([]);
@@ -698,6 +706,36 @@ export const LiberarPage = () => {
     setAnexos([]);
   };
 
+  // Alterar Status - handlers
+  const handleAlterarStatus = (agendamento: Agendamento) => {
+    setAgendamentoAlterandoStatus(agendamento);
+    setStatusSelecionado({ id: agendamento.status, nome: agendamento.status });
+    setShowAlterarStatusModal(true);
+  };
+
+  const confirmarAlteracaoStatus = async () => {
+    if (!agendamentoAlterandoStatus || !statusSelecionado) return;
+
+    setAlterarStatusLoading(true);
+    try {
+      await alterarStatusAgendamento(agendamentoAlterandoStatus.id, statusSelecionado.id as StatusAgendamento);
+      AppToast.success('Status alterado', {
+        description: `Status alterado para ${statusSelecionado.nome} com sucesso.`
+      });
+      setShowAlterarStatusModal(false);
+      setAgendamentoAlterandoStatus(null);
+      setStatusSelecionado(null);
+      carregarAgendamentos();
+    } catch (error: any) {
+      const mensagemErro = error.response?.data?.message || error.message || 'Erro desconhecido';
+      AppToast.error('Erro ao alterar status', {
+        description: mensagemErro
+      });
+    } finally {
+      setAlterarStatusLoading(false);
+    }
+  };
+
   const renderCardView = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {agendamentosPaginados.length === 0 ? (
@@ -810,6 +848,15 @@ export const LiberarPage = () => {
                     title="Anexos"
                   >
                     <Paperclip className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="group border-2 border-green-500 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                    onClick={() => handleAlterarStatus(agendamento)}
+                    title="Alterar Status"
+                  >
+                    <RefreshCw className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
                   </Button>
                   {canLiberar ? (
                     <Button
@@ -1016,6 +1063,15 @@ export const LiberarPage = () => {
                         title="Anexos"
                       >
                         <Paperclip className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="group border-2 border-green-500 text-green-600 hover:bg-green-600 hover:text-white hover:border-green-600 focus:ring-4 focus:ring-green-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform"
+                        onClick={() => handleAlterarStatus(agendamento)}
+                        title="Alterar Status"
+                      >
+                        <RefreshCw className="w-4 h-4 text-green-600 group-hover:text-white transition-colors" />
                       </Button>
                       {canLiberar ? (
                         <Button
@@ -1320,6 +1376,47 @@ export const LiberarPage = () => {
         onSavingChange={setSaving}
         onAnexoToDeleteChange={setAnexoToDelete}
         onDeletingAnexoChange={setDeletingAnexo}
+      />
+
+      {/* Modal de Alterar Status - Apenas AGENDADO e SOLICITADO */}
+      <ConfirmacaoModal
+        open={showAlterarStatusModal}
+        onClose={() => {
+          setShowAlterarStatusModal(false);
+          setAgendamentoAlterandoStatus(null);
+          setStatusSelecionado(null);
+        }}
+        onConfirm={confirmarAlteracaoStatus}
+        title="Alterar Status"
+        description={
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Selecione o novo status para o agendamento de{' '}
+              <strong>{agendamentoAlterandoStatus?.pacienteNome}</strong>
+            </p>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Novo Status
+              </label>
+              <SingleSelectDropdown
+                options={[
+                  { id: 'AGENDADO', nome: 'Agendado' },
+                  { id: 'SOLICITADO', nome: 'Solicitado' }
+                ]}
+                selected={statusSelecionado}
+                onChange={setStatusSelecionado}
+                placeholder="Selecione o novo status..."
+                headerText="Selecione o status"
+                disabled={alterarStatusLoading}
+              />
+            </div>
+          </div>
+        }
+        confirmText="Alterar Status"
+        cancelText="Cancelar"
+        variant="default"
+        isLoading={alterarStatusLoading}
+        loadingText="Alterando..."
       />
     </div>
   );

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, DollarSign, Calendar, User, Building2, Send } from 'lucide-react';
+import { Plus, Edit, Trash2, DollarSign, Calendar, User, Building2, Send, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AppToast } from '@/services/toast';
@@ -210,7 +210,11 @@ export const ContasReceberPage = () => {
               'Solicitar pagamento via WhatsApp'
             }
           >
-            <Send className="w-4 h-4" />
+            {contasEmProcessamento.has(item.id) ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
           </ActionButton>
 
           <ActionButton
@@ -690,7 +694,11 @@ export const ContasReceberPage = () => {
             'Solicitar pagamento via WhatsApp'
           }
         >
-          <Send className="w-4 h-4" />
+          {contasEmProcessamento.has(conta.id) ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Send className="w-4 h-4" />
+          )}
         </ActionButton>
 
         <ActionButton
