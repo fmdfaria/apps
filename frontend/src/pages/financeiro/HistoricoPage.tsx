@@ -123,7 +123,7 @@ export const HistoricoPage = () => {
         valorProfissional: ag.servicoValorProfissional || 0
       } as any,
       // Campos obrigatórios do tipo Agendamento (IDs reais)
-      pacienteId: '',
+      pacienteId: ag.pacienteId,
       profissionalId: ag.profissionalId,
       recursoId: '',
       convenioId: '',

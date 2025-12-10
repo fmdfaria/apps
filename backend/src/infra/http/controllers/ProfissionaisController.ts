@@ -686,24 +686,36 @@ export class ProfissionaisController {
           const agendamentos = agendamentosContas
             .map(ac => ac.agendamento)
             .filter(agendamento => agendamento != null)
-            .map(agendamento => ({
-              id: agendamento!.id,
-              dataHoraInicio: agendamento!.dataHoraInicio,
-              dataHoraFim: agendamento!.dataHoraFim,
-              status: agendamento!.status,
-              tipoAtendimento: agendamento!.tipoAtendimento,
-              numeroSessao: agendamento!.numeroSessao,
-              profissionalId: agendamento!.profissionalId,
-              servicoId: agendamento!.servicoId,
-              pacienteNome: agendamento!.paciente?.nome || null,
-              pacienteCpf: agendamento!.paciente?.cpf || null,
-              servicoNome: agendamento!.servico?.nome || null,
-              servicoPreco: agendamento!.servico?.preco || null,
-              servicoValorProfissional: agendamento!.servico?.valorProfissional || null,
-              convenioNome: agendamento!.convenio?.nome || null,
-              recursoNome: agendamento!.recurso?.nome || null,
-              observacoes: agendamento!.observacoes || null
-            }));
+            .map(agendamento => {
+              // Debug temporário
+              console.log('[HISTORICO DEBUG]', {
+                agendamentoId: agendamento!.id,
+                pacienteId: agendamento!.pacienteId,
+                hasPacienteRelation: !!agendamento!.paciente,
+                pacienteNome: agendamento!.paciente?.nome,
+                pacienteNomeCompleto: agendamento!.paciente?.nomeCompleto
+              });
+
+              return {
+                id: agendamento!.id,
+                dataHoraInicio: agendamento!.dataHoraInicio,
+                dataHoraFim: agendamento!.dataHoraFim,
+                status: agendamento!.status,
+                tipoAtendimento: agendamento!.tipoAtendimento,
+                numeroSessao: agendamento!.numeroSessao,
+                profissionalId: agendamento!.profissionalId,
+                servicoId: agendamento!.servicoId,
+                pacienteId: agendamento!.pacienteId, // Adicionar para debug
+                pacienteNome: agendamento!.paciente?.nomeCompleto || agendamento!.paciente?.nome || null,
+                pacienteCpf: agendamento!.paciente?.cpf || null,
+                servicoNome: agendamento!.servico?.nome || null,
+                servicoPreco: agendamento!.servico?.preco || null,
+                servicoValorProfissional: agendamento!.servico?.valorProfissional || null,
+                convenioNome: agendamento!.convenio?.nome || null,
+                recursoNome: agendamento!.recurso?.nome || null,
+                observacoes: agendamento!.observacoes || null
+              };
+            });
 
           return {
             id: conta.id,

@@ -9,6 +9,7 @@ export interface AgendamentoHistorico {
   numeroSessao: number | null;
   profissionalId: string;
   servicoId: string;
+  pacienteId: string;
   pacienteNome: string | null;
   pacienteCpf: string | null;
   servicoNome: string | null;

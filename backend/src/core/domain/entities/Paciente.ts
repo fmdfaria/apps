@@ -25,7 +25,9 @@ export class Paciente {
   updatedAt!: Date;
 
   constructor(
-    props: Omit<Paciente, 'id' | 'createdAt' | 'updatedAt' | 'convenio'>,
+    props: Omit<Paciente, 'id' | 'createdAt' | 'updatedAt'> & {
+      convenio?: Convenio | null;
+    },
     id?: string
   ) {
     Object.assign(this, props);
