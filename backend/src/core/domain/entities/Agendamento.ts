@@ -53,7 +53,13 @@ export class Agendamento {
   convenio?: Convenio;
 
   constructor(
-    props: Omit<Agendamento, 'id' | 'createdAt' | 'updatedAt' | 'paciente' | 'profissional' | 'servico' | 'recurso' | 'convenio'>,
+    props: Omit<Agendamento, 'id' | 'createdAt' | 'updatedAt'> & {
+      paciente?: Paciente;
+      profissional?: Profissional;
+      servico?: Servico;
+      recurso?: Recurso;
+      convenio?: Convenio;
+    },
     id?: string
   ) {
     Object.assign(this, props);
