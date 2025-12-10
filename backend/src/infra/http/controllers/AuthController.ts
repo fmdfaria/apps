@@ -77,6 +77,42 @@ export class AuthController {
     return reply.status(204).send();
   }
 
+  async validatePassword(request: FastifyRequest, reply: FastifyReply) {
+    const bodySchema = z.object({ senha: z.string().min(6) });
+    const { senha } = bodySchema.parse(request.body);
+
+    // userId deve vir do token (middleware de autenticação)
+    // @ts-ignore
+    const userId = request.user?.id;
+
+    if (!userId) {
+      return reply.status(401).send({ message: 'Usuário não autenticado.', valid: false });
+    }
+
+    try {
+      const { IUsersRepository } = await import('../../../core/domain/repositories/IUsersRepository');
+      const usersRepository = container.resolve<IUsersRepository>('UsersRepository');
+      const user = await usersRepository.findById(userId);
+
+      if (!user) {
+        return reply.status(401).send({ message: 'Usuário não encontrado.', valid: false });
+      }
+
+      // Comparar senha usando bcrypt
+      const bcrypt = await import('bcryptjs');
+      const passwordMatch = await bcrypt.compare(senha, user.senha);
+
+      if (!passwordMatch) {
+        return reply.status(401).send({ message: 'Senha incorreta.', valid: false });
+      }
+
+      return reply.send({ message: 'Senha validada com sucesso.', valid: true });
+    } catch (error) {
+      console.error('Erro ao validar senha:', error);
+      return reply.status(500).send({ message: 'Erro ao validar senha.' });
+    }
+  }
+
   async requestEmailConfirmation(request: FastifyRequest, reply: FastifyReply) {
     // userId deve vir do token (middleware de autenticação)
     // @ts-ignore

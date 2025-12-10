@@ -32,6 +32,7 @@ export interface Agendamento {
   dataHoraFim?: string; // Calculado automaticamente
   urlMeet?: string | null; // Google Meet link para agendamentos online
   recorrencia?: RecorrenciaAgendamento;
+  serieMaster?: boolean; // Indica se este é o agendamento mestre da série
   
   // Etapa 2 - Liberar
   codLiberacao?: string;

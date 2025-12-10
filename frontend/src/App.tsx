@@ -54,6 +54,7 @@ import { TestPDFOrientation } from '@/components/TestPDFOrientation';
 import { TestDigitalizarGuias } from '@/components/TestDigitalizarGuias';
 import ScannerS3Page from '@/pages/test/ScannerS3Page';
 import { EmpresasPage, ContasBancariasPage, ContasReceberPage, ContasPagarPage, CategoriasFinanceirasPage, FluxoCaixaPage, RelatoriosFinanceirosPage } from '@/pages/financeiro';
+import { HistoricoPage } from '@/pages/financeiro/HistoricoPage';
 import Privacy from '@/pages/legal/Privacy';
 import Terms from '@/pages/legal/Terms';
 import Cookies from '@/pages/legal/Cookies';
@@ -130,6 +131,7 @@ export default function App() {
             <Route path="financeiro/categorias-financeiras" element={<CategoriasFinanceirasPage />} />
             <Route path="financeiro/fluxo-caixa" element={<FluxoCaixaPage />} />
             <Route path="financeiro/relatorios" element={<RelatoriosFinanceirosPage />} />
+            <Route path="financeiro/historico" element={<HistoricoPage />} />
             <Route path="test/scanner" element={<TestDocumentScanner />} />
             <Route path="test/simple-camera" element={<SimpleDocumentScanner />} />
             <Route path="test/pdf-orientation" element={<TestPDFOrientation />} />

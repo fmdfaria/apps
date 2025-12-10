@@ -93,6 +93,20 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
     }
   }, [isOpen, agendamento]);
 
+  // Forçar "apenas_esta" quando status não for AGENDADO ou quando tentar usar "toda_serie" sem ser master
+  useEffect(() => {
+    if (agendamento) {
+      // Se status não for AGENDADO, só permite "apenas_esta"
+      if (agendamento.status !== 'AGENDADO' && tipoEdicao !== 'apenas_esta') {
+        setTipoEdicao('apenas_esta');
+      }
+      // Se não for serie_master e tentar usar "toda_serie", volta para "apenas_esta"
+      if (!agendamento.serieMaster && tipoEdicao === 'toda_serie') {
+        setTipoEdicao('apenas_esta');
+      }
+    }
+  }, [agendamento, tipoEdicao]);
+
   // Função para buscar informações da série usando o backend
   const buscarInformacoesSerie = async (agendamentoId: string) => {
     setLoadingSerieInfo(true);
@@ -571,24 +585,49 @@ export const EditarAgendamentoModal: React.FC<EditarAgendamentoModalProps> = ({
                         Apenas este agendamento
                       </Label>
                     </div>
-                    
-                    {/* Mostrar opções baseadas na posição na série */}
+
+                    {/* Mostrar opções baseadas na posição na série e status */}
                     {!serieInfo.posicaoNaSerie?.isAnterior && (
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="esta_e_futuras" id="esta_e_futuras" />
-                        <Label htmlFor="esta_e_futuras" className="text-sm">
+                        <RadioGroupItem
+                          value="esta_e_futuras"
+                          id="esta_e_futuras"
+                          disabled={agendamento.status !== 'AGENDADO'}
+                        />
+                        <Label
+                          htmlFor="esta_e_futuras"
+                          className={`text-sm ${agendamento.status !== 'AGENDADO' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
                           Esta e futuras
-                          <div className="text-xs text-gray-500 mt-1">
-                            Editar este e próximos agendamentos da série
+                          <div className={`text-xs mt-1 ${agendamento.status !== 'AGENDADO' ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {agendamento.status !== 'AGENDADO'
+                              ? 'Disponível apenas para agendamentos com status AGENDADO'
+                              : 'Editar este e próximos agendamentos da série'
+                            }
                           </div>
                         </Label>
                       </div>
                     )}
 
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="toda_serie" id="toda_serie" />
-                      <Label htmlFor="toda_serie" className="text-sm">
+                      <RadioGroupItem
+                        value="toda_serie"
+                        id="toda_serie"
+                        disabled={agendamento.status !== 'AGENDADO' || !agendamento.serieMaster}
+                      />
+                      <Label
+                        htmlFor="toda_serie"
+                        className={`text-sm ${(agendamento.status !== 'AGENDADO' || !agendamento.serieMaster) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
                         Toda a série ({serieInfo.totalAgendamentos} agendamentos)
+                        {(agendamento.status !== 'AGENDADO' || !agendamento.serieMaster) && (
+                          <div className="text-xs text-gray-400 mt-1">
+                            {!agendamento.serieMaster
+                              ? 'Disponível apenas para o agendamento mestre da série'
+                              : 'Disponível apenas para agendamentos com status AGENDADO'
+                            }
+                          </div>
+                        )}
                       </Label>
                     </div>
                   </RadioGroup>

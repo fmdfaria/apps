@@ -9,6 +9,7 @@ export async function profissionaisRoutes(app: FastifyInstance) {
   app.post('/profissionais', { preHandler: [ensureAuthenticated, ensureAuthorized('/profissionais', 'POST')] }, profissionaisController.create.bind(profissionaisController));
   app.get('/profissionais', { preHandler: [ensureAuthenticated, ensureAuthorized('/profissionais', 'GET')] }, profissionaisController.list.bind(profissionaisController));
   app.get('/profissionais/me', { preHandler: [ensureAuthenticated] }, profissionaisController.getMe.bind(profissionaisController));
+  app.get('/profissionais/historico-financeiro/me', { preHandler: [ensureAuthenticated, ensureAuthorized('/profissionais/historico-financeiro/me', 'GET')] }, profissionaisController.getHistoricoFinanceiroMe.bind(profissionaisController));
   app.put('/profissionais/:id', { preHandler: [ensureAuthenticated, ensureAuthorized('/profissionais/:id', 'PUT')] }, profissionaisController.update.bind(profissionaisController));
   app.delete('/profissionais/:id', { preHandler: [ensureAuthenticated, ensureAuthorized('/profissionais/:id', 'DELETE')] }, profissionaisController.delete.bind(profissionaisController));
   app.get('/profissionais/:id', { preHandler: [ensureAuthenticated, ensureAuthorized('/profissionais/:id', 'GET')] }, profissionaisController.show.bind(profissionaisController));

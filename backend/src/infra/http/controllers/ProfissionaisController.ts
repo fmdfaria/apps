@@ -646,4 +646,99 @@ export class ProfissionaisController {
       return reply.status(500).send({ message: 'Erro ao deletar comprovante bancário', error });
     }
   }
+
+  async getHistoricoFinanceiroMe(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    try {
+      // @ts-ignore
+      const userId = request.user?.id;
+
+      if (!userId) {
+        return reply.status(401).send({ message: 'Usuário não autenticado.' });
+      }
+
+      // 1. Buscar profissional vinculado ao usuário
+      const profissionaisRepository = container.resolve('ProfissionaisRepository') as IProfissionaisRepository;
+      const profissional = await profissionaisRepository.findByUserId(userId);
+
+      if (!profissional) {
+        return reply.status(403).send({
+          message: 'Acesso negado. Usuário não é um profissional.'
+        });
+      }
+
+      // 2. Buscar contas_pagar do profissional
+      const { IContasPagarRepository } = await import('../../../core/domain/repositories/IContasPagarRepository');
+      const contasPagarRepository = container.resolve<IContasPagarRepository>('ContasPagarRepository');
+      const contas = await contasPagarRepository.findAll({
+        profissionalId: profissional.id
+      });
+
+      // 3. Para cada conta_pagar, buscar agendamentos vinculados
+      const { IAgendamentosContasRepository } = await import('../../../core/domain/repositories/IAgendamentosContasRepository');
+      const agendamentosContasRepository = container.resolve<IAgendamentosContasRepository>('AgendamentosContasRepository');
+
+      const contasComAgendamentos = await Promise.all(
+        contas.map(async (conta) => {
+          // Buscar relacionamentos agendamento_conta
+          const agendamentosContas = await agendamentosContasRepository.findByContaPagar(conta.id);
+
+          // Extrair agendamentos completos
+          const agendamentos = agendamentosContas
+            .map(ac => ac.agendamento)
+            .filter(agendamento => agendamento != null)
+            .map(agendamento => ({
+              id: agendamento!.id,
+              dataHoraInicio: agendamento!.dataHoraInicio,
+              dataHoraFim: agendamento!.dataHoraFim,
+              status: agendamento!.status,
+              tipoAtendimento: agendamento!.tipoAtendimento,
+              numeroSessao: agendamento!.numeroSessao,
+              pacienteNome: agendamento!.paciente?.nome || null,
+              pacienteCpf: agendamento!.paciente?.cpf || null,
+              servicoNome: agendamento!.servico?.nome || null,
+              convenioNome: agendamento!.convenio?.nome || null,
+              recursoNome: agendamento!.recurso?.nome || null,
+              observacoes: agendamento!.observacoes || null
+            }));
+
+          return {
+            id: conta.id,
+            descricao: conta.descricao,
+            valorOriginal: conta.valorOriginal,
+            valorLiquido: conta.valorLiquido,
+            valorPago: conta.valorPago,
+            dataEmissao: conta.dataEmissao,
+            dataVencimento: conta.dataVencimento,
+            dataPagamento: conta.dataPagamento,
+            status: conta.status,
+            formaPagamento: conta.formaPagamento,
+            tipoConta: conta.tipoConta,
+            empresaNome: conta.empresa?.nomeFantasia || conta.empresa?.razaoSocial || null,
+            categoriaNome: conta.categoria?.nome || null,
+            observacoes: conta.observacoes,
+            agendamentos: agendamentos
+          };
+        })
+      );
+
+      // 4. Retornar dados estruturados (sem cache headers)
+      reply.header('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+      reply.header('Pragma', 'no-cache');
+      reply.header('Expires', '0');
+
+      return reply.send({
+        profissional: {
+          id: profissional.id,
+          nome: profissional.nome,
+          cpf: profissional.cpf
+        },
+        contas: contasComAgendamentos
+      });
+    } catch (error) {
+      console.error('Erro ao buscar histórico financeiro:', error);
+      return reply.status(500).send({
+        message: 'Erro ao buscar histórico financeiro.'
+      });
+    }
+  }
 } 

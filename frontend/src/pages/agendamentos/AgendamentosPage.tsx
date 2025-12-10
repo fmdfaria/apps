@@ -388,6 +388,20 @@ export const AgendamentosPage = () => {
       if (filtrosAplicados.dataInicio) filtrosAPI.dataInicio = filtrosAplicados.dataInicio;
       if (filtrosAplicados.dataFim) filtrosAPI.dataFim = filtrosAplicados.dataFim;
 
+      // Calcular data inicial: 30 dias antes da data atual (apenas se não houver filtro de dataInicio aplicado)
+      if (!filtrosAplicados.dataInicio) {
+        const hoje = new Date();
+        const dataInicio = new Date(hoje);
+        dataInicio.setDate(hoje.getDate() - 30);
+
+        // Formatar como YYYY-MM-DD
+        const ano = dataInicio.getFullYear();
+        const mes = String(dataInicio.getMonth() + 1).padStart(2, '0');
+        const dia = String(dataInicio.getDate()).padStart(2, '0');
+
+        filtrosAPI.dataInicio = `${ano}-${mes}-${dia}`;
+      }
+
       // Calcular data final: dia 01 do sexto mês à frente (apenas se não houver filtro de dataFim aplicado)
       if (!filtrosAplicados.dataFim) {
         const hoje = new Date();

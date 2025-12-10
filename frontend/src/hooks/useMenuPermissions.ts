@@ -44,6 +44,7 @@ const routePermissionMap: Record<string, { path: string; method: string }> = {
   'financeiro/categorias-financeiras': { path: '/categorias-financeiras', method: 'GET' },
   'financeiro/fluxo-caixa': { path: '/fluxo-caixa', method: 'GET' },
   'financeiro/relatorios': { path: '/relatorios-financeiros', method: 'GET' },
+  'financeiro/historico': { path: '/profissionais/historico-financeiro/me', method: 'GET' },
 };
 
 interface UserPermissions {

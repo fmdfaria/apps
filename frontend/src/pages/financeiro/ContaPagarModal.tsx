@@ -189,25 +189,25 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
       const tipoCategoria = ['SALARIO', 'ENCARGO', 'IMPOSTO', 'INVESTIMENTO'].includes(tipoConta) ? 'DESPESA' : tipoConta;
       const data = await getCategoriasByTipo(tipoCategoria as 'RECEITA' | 'DESPESA');
       setCategorias(data);
-      
-      // Pré-selecionar categoria baseada no tipo da conta
-      if (!form.categoriaId && data.length > 0) {
+
+      // Pré-selecionar categoria APENAS se não houver conta sendo editada E se não houver categoriaId já definido
+      if (!conta && !form.categoriaId && data.length > 0) {
         let categoriaParaSelecionar = data[0]; // Padrão: primeira categoria
-        
+
         if (tipoConta === 'SALARIO') {
           // Para SALARIO, procurar categoria específica
-          const categoriaSalario = data.find(cat => 
-            cat.nome.toLowerCase().includes('salario') || 
+          const categoriaSalario = data.find(cat =>
+            cat.nome.toLowerCase().includes('salario') ||
             cat.nome.toLowerCase().includes('salário') ||
             cat.nome.toLowerCase().includes('pagamento') ||
             cat.nome.toLowerCase().includes('profissional')
           );
-          
+
           if (categoriaSalario) {
             categoriaParaSelecionar = categoriaSalario;
           }
         }
-        
+
         setForm(prev => ({ ...prev, categoriaId: categoriaParaSelecionar.id }));
       }
     } catch (error) {
