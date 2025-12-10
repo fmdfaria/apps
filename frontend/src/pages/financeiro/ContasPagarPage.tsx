@@ -423,7 +423,10 @@ export const ContasPagarPage = () => {
       fecharModal();
     } catch (error: any) {
       console.error('Erro ao salvar conta:', error);
-      AppToast.error('Erro ao salvar conta');
+      const mensagemErro = error?.response?.data?.message || error?.message || 'Erro desconhecido ao salvar conta';
+      AppToast.error('Erro ao salvar conta', {
+        description: mensagemErro
+      });
       throw error;
     }
   };

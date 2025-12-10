@@ -272,10 +272,11 @@ export default function ContaPagarModal({ isOpen, conta, onClose, onSave }: Cont
       };
       
       await onSave(payload);
-      AppToast.success('Conta salva com sucesso!');
+      // Toast de sucesso é mostrado pela página principal
       onClose();
     } catch (error: any) {
-      AppToast.error('Erro ao salvar', error.response?.data?.message || 'Erro ao salvar conta');
+      // Erro é tratado pela página principal (ContasPagarPage)
+      // Não mostrar toast aqui para evitar duplicação
     } finally {
       setLoading(false);
     }

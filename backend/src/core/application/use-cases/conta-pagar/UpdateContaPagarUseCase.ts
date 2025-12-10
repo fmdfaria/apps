@@ -37,11 +37,6 @@ export class UpdateContaPagarUseCase {
       throw new Error('Conta a pagar não encontrada');
     }
 
-    // Não permitir alteração de contas já pagas
-    if (contaExistente.status === 'PAGO') {
-      throw new Error('Não é possível alterar conta já paga');
-    }
-
     // Recalcular valor líquido se necessário
     if (data.valorOriginal || data.valorDesconto || data.valorJuros || data.valorMulta) {
       const valorOriginal = data.valorOriginal ?? contaExistente.valorOriginal;
