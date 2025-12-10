@@ -673,7 +673,12 @@ export class ProfissionaisController {
         profissionalId: profissional.id
       });
 
-      // 3. Para cada conta_pagar, buscar agendamentos vinculados
+      // 3. Buscar preços específicos de serviços por profissional
+      const { IPrecosServicosProfissionaisRepository } = await import('../../../core/domain/repositories/IPrecosServicosProfissionaisRepository');
+      const precosRepository = container.resolve<IPrecosServicosProfissionaisRepository>('PrecosServicosProfissionaisRepository');
+      const precosEspecificos = await precosRepository.findAll({ profissionalId: profissional.id });
+
+      // 4. Para cada conta_pagar, buscar agendamentos vinculados
       const { IAgendamentosContasRepository } = await import('../../../core/domain/repositories/IAgendamentosContasRepository');
       const agendamentosContasRepository = container.resolve<IAgendamentosContasRepository>('AgendamentosContasRepository');
 
@@ -687,14 +692,10 @@ export class ProfissionaisController {
             .map(ac => ac.agendamento)
             .filter(agendamento => agendamento != null)
             .map(agendamento => {
-              // Debug temporário
-              console.log('[HISTORICO DEBUG]', {
-                agendamentoId: agendamento!.id,
-                pacienteId: agendamento!.pacienteId,
-                hasPacienteRelation: !!agendamento!.paciente,
-                pacienteNome: agendamento!.paciente?.nome,
-                pacienteNomeCompleto: agendamento!.paciente?.nomeCompleto
-              });
+              // Buscar preço específico para este profissional/serviço
+              const precoEspecifico = precosEspecificos.find(
+                p => p.profissionalId === agendamento!.profissionalId && p.servicoId === agendamento!.servicoId
+              );
 
               return {
                 id: agendamento!.id,
@@ -705,12 +706,14 @@ export class ProfissionaisController {
                 numeroSessao: agendamento!.numeroSessao,
                 profissionalId: agendamento!.profissionalId,
                 servicoId: agendamento!.servicoId,
-                pacienteId: agendamento!.pacienteId, // Adicionar para debug
-                pacienteNome: agendamento!.paciente?.nomeCompleto || agendamento!.paciente?.nome || null,
+                pacienteId: agendamento!.pacienteId,
+                pacienteNome: agendamento!.paciente?.nomeCompleto || null,
                 pacienteCpf: agendamento!.paciente?.cpf || null,
                 servicoNome: agendamento!.servico?.nome || null,
                 servicoPreco: agendamento!.servico?.preco || null,
                 servicoValorProfissional: agendamento!.servico?.valorProfissional || null,
+                // Preço específico do profissional (prioridade máxima)
+                precoProfissionalEspecifico: precoEspecifico?.precoProfissional || null,
                 convenioNome: agendamento!.convenio?.nome || null,
                 recursoNome: agendamento!.recurso?.nome || null,
                 observacoes: agendamento!.observacoes || null

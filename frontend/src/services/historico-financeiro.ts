@@ -15,6 +15,7 @@ export interface AgendamentoHistorico {
   servicoNome: string | null;
   servicoPreco: number | null;
   servicoValorProfissional: number | null;
+  precoProfissionalEspecifico: number | null;
   convenioNome: string | null;
   recursoNome: string | null;
   observacoes: string | null;

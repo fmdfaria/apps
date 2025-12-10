@@ -86,9 +86,15 @@ export const HistoricoPage = () => {
     navigate('/home');
   };
 
-  // Função para calcular valor do profissional (igual à PagamentosPage)
+  // Função para calcular valor do profissional com prioridade correta
   const calcularValorProfissional = (agendamento: Agendamento): number => {
-    // Prioridade: valor_profissional direto do serviço
+    // Prioridade 1: preço específico da tabela precos_servicos_profissionais
+    const precoEspecifico = parseFloat((agendamento as any).precoProfissionalEspecifico || '0');
+    if (precoEspecifico > 0) {
+      return precoEspecifico;
+    }
+
+    // Prioridade 2: valor_profissional direto do serviço
     const valorProfissionalDireto = parseFloat((agendamento as any).servico?.valorProfissional || '0');
     if (valorProfissionalDireto > 0) {
       return valorProfissionalDireto;
@@ -122,6 +128,8 @@ export const HistoricoPage = () => {
         preco: ag.servicoPreco || 0,
         valorProfissional: ag.servicoValorProfissional || 0
       } as any,
+      // Campo de preço específico do profissional (prioridade 1)
+      precoProfissionalEspecifico: ag.precoProfissionalEspecifico || undefined,
       // Campos obrigatórios do tipo Agendamento (IDs reais)
       pacienteId: ag.pacienteId,
       profissionalId: ag.profissionalId,
@@ -130,7 +138,7 @@ export const HistoricoPage = () => {
       servicoId: ag.servicoId,
       criadoEm: ag.dataHoraInicio,
       atualizadoEm: ag.dataHoraInicio,
-    }));
+    } as any));
 
     setContaSelecionada(conta);
     setAgendamentosVinculados(agendamentosConvertidos);
