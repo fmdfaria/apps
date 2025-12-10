@@ -18,7 +18,11 @@ export class AgendamentoConta {
   contaPagar?: ContaPagar;
 
   constructor(
-    props: Omit<AgendamentoConta, 'id' | 'createdAt' | 'updatedAt' | 'agendamento' | 'contaReceber' | 'contaPagar'>,
+    props: Omit<AgendamentoConta, 'id' | 'createdAt' | 'updatedAt'> & {
+      agendamento?: Agendamento;
+      contaReceber?: ContaReceber;
+      contaPagar?: ContaPagar;
+    },
     id?: string
   ) {
     Object.assign(this, props);

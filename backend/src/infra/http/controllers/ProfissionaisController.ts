@@ -693,9 +693,13 @@ export class ProfissionaisController {
               status: agendamento!.status,
               tipoAtendimento: agendamento!.tipoAtendimento,
               numeroSessao: agendamento!.numeroSessao,
+              profissionalId: agendamento!.profissionalId,
+              servicoId: agendamento!.servicoId,
               pacienteNome: agendamento!.paciente?.nome || null,
               pacienteCpf: agendamento!.paciente?.cpf || null,
               servicoNome: agendamento!.servico?.nome || null,
+              servicoPreco: agendamento!.servico?.preco || null,
+              servicoValorProfissional: agendamento!.servico?.valorProfissional || null,
               convenioNome: agendamento!.convenio?.nome || null,
               recursoNome: agendamento!.recurso?.nome || null,
               observacoes: agendamento!.observacoes || null
@@ -704,6 +708,7 @@ export class ProfissionaisController {
           return {
             id: conta.id,
             descricao: conta.descricao,
+            numeroDocumento: conta.numeroDocumento,
             valorOriginal: conta.valorOriginal,
             valorLiquido: conta.valorLiquido,
             valorPago: conta.valorPago,

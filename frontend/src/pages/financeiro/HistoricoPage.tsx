@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Eye, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { Eye, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   PageContainer,
@@ -16,10 +16,12 @@ import {
 } from '@/components/layout';
 import { useViewMode } from '@/hooks/useViewMode';
 import { ValorDisplay } from '@/components/financeiro';
-import { formatarApenasData, formatarDataHoraLocal } from '@/utils/dateUtils';
+import { formatarApenasData } from '@/utils/dateUtils';
 import { ConfirmPasswordModal } from '@/components/ConfirmPasswordModal';
-import { getHistoricoFinanceiroProfissional, HistoricoFinanceiroProfissional, ContaPagarHistorico } from '@/services/historico-financeiro';
+import { getHistoricoFinanceiroProfissional, HistoricoFinanceiroProfissional, ContaPagarHistorico, AgendamentoHistorico } from '@/services/historico-financeiro';
 import { toast } from 'sonner';
+import { ListarAgendamentosModal } from '@/components/agendamentos/ListarAgendamentosModal';
+import type { Agendamento } from '@/types/agendamento';
 
 export const HistoricoPage = () => {
   const navigate = useNavigate();
@@ -30,7 +32,11 @@ export const HistoricoPage = () => {
   const [loading, setLoading] = useState(false);
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [itensPorPagina, setItensPorPagina] = useState(10);
-  const [expandedContas, setExpandedContas] = useState<Set<string>>(new Set());
+
+  // Estados para modal de agendamentos
+  const [showAgendamentosModal, setShowAgendamentosModal] = useState(false);
+  const [agendamentosVinculados, setAgendamentosVinculados] = useState<Agendamento[]>([]);
+  const [contaSelecionada, setContaSelecionada] = useState<ContaPagarHistorico | null>(null);
 
   // Hooks responsivos
   const { viewMode, setViewMode } = useViewMode({
@@ -80,17 +86,55 @@ export const HistoricoPage = () => {
     navigate('/home');
   };
 
-  // Toggle expansão de agendamentos
-  const toggleExpanded = (contaId: string) => {
-    setExpandedContas(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(contaId)) {
-        newSet.delete(contaId);
-      } else {
-        newSet.add(contaId);
-      }
-      return newSet;
-    });
+  // Função para calcular valor do profissional (igual à PagamentosPage)
+  const calcularValorProfissional = (agendamento: Agendamento): number => {
+    // Prioridade: valor_profissional direto do serviço
+    const valorProfissionalDireto = parseFloat((agendamento as any).servico?.valorProfissional || '0');
+    if (valorProfissionalDireto > 0) {
+      return valorProfissionalDireto;
+    }
+
+    // Fallback para valor padrão
+    return 0;
+  };
+
+  // Função para abrir modal de agendamentos
+  const handleVerAgendamentos = (conta: ContaPagarHistorico) => {
+    // Converter AgendamentoHistorico para Agendamento
+    const agendamentosConvertidos: Agendamento[] = conta.agendamentos.map(ag => ({
+      id: ag.id,
+      dataHoraInicio: ag.dataHoraInicio,
+      dataHoraFim: ag.dataHoraFim || undefined,
+      status: ag.status as any,
+      tipoAtendimento: ag.tipoAtendimento as any,
+      numeroSessao: ag.numeroSessao || undefined,
+      observacoes: ag.observacoes || undefined,
+      // Campos diretos que o modal espera
+      pacienteNome: ag.pacienteNome || undefined,
+      profissionalNome: historicoData?.profissional.nome || undefined,
+      servicoNome: ag.servicoNome || undefined,
+      convenioNome: ag.convenioNome || undefined,
+      recursoNome: ag.recursoNome || undefined,
+      // Objeto servico com preco e valorProfissional (para o modal calcular o valor correto)
+      servico: {
+        id: ag.servicoId,
+        nome: ag.servicoNome || '',
+        preco: ag.servicoPreco || 0,
+        valorProfissional: ag.servicoValorProfissional || 0
+      } as any,
+      // Campos obrigatórios do tipo Agendamento (IDs reais)
+      pacienteId: '',
+      profissionalId: ag.profissionalId,
+      recursoId: '',
+      convenioId: '',
+      servicoId: ag.servicoId,
+      criadoEm: ag.dataHoraInicio,
+      atualizadoEm: ag.dataHoraInicio,
+    }));
+
+    setContaSelecionada(conta);
+    setAgendamentosVinculados(agendamentosConvertidos);
+    setShowAgendamentosModal(true);
   };
 
   // Filtrar histórico pela busca
@@ -124,49 +168,41 @@ export const HistoricoPage = () => {
       header: '📄 Descrição',
       essential: true,
       render: (item) => (
-        <div className="flex flex-col">
-          <span className="text-sm font-medium">{item.descricao}</span>
-          {item.empresaNome && (
-            <span className="text-xs text-gray-500">{item.empresaNome}</span>
-          )}
-          {item.categoriaNome && (
-            <span className="text-xs text-gray-500">{item.categoriaNome}</span>
-          )}
-        </div>
+        <span className="text-sm font-medium">{item.descricao}</span>
       )
     },
     {
-      key: 'valores',
-      header: '💰 Valores',
-      essential: true,
+      key: 'numeroDocumento',
+      header: '📋 Núm. Doc',
+      essential: false,
       render: (item) => (
-        <div className="flex flex-col gap-1">
-          <div className="text-xs text-gray-500">
-            Original: <ValorDisplay valor={item.valorOriginal} tipo="negativo" className="text-xs" />
-          </div>
-          <div className="text-xs text-gray-500">
-            Líquido: <ValorDisplay valor={item.valorLiquido} tipo="negativo" className="text-xs font-semibold" />
-          </div>
-          {item.valorPago > 0 && (
-            <div className="text-xs text-green-600">
-              Pago: <ValorDisplay valor={item.valorPago} tipo="negativo" className="text-xs" />
-            </div>
-          )}
-        </div>
+        <span className="text-sm">{item.numeroDocumento || '-'}</span>
       )
     },
     {
-      key: 'datas',
-      header: '📅 Datas',
+      key: 'valorOriginal',
+      header: '💰 Valor',
       essential: true,
       render: (item) => (
-        <div className="flex flex-col gap-1 text-xs">
-          <div>Emissão: {formatarApenasData(item.dataEmissao)}</div>
-          <div>Vencimento: {formatarApenasData(item.dataVencimento)}</div>
-          {item.dataPagamento && (
-            <div className="text-green-600">Pagamento: {formatarApenasData(item.dataPagamento)}</div>
-          )}
-        </div>
+        <ValorDisplay valor={item.valorOriginal} tipo="negativo" className="text-sm font-semibold" />
+      )
+    },
+    {
+      key: 'dataEmissao',
+      header: '📅 Dt. Emissão',
+      essential: true,
+      render: (item) => (
+        <span className="text-sm">{formatarApenasData(item.dataEmissao)}</span>
+      )
+    },
+    {
+      key: 'dataPagamento',
+      header: '📅 Dt. Pagamento',
+      essential: true,
+      render: (item) => (
+        <span className={`text-sm ${item.dataPagamento ? 'text-green-600' : 'text-gray-400'}`}>
+          {item.dataPagamento ? formatarApenasData(item.dataPagamento) : '-'}
+        </span>
       )
     },
     {
@@ -192,73 +228,20 @@ export const HistoricoPage = () => {
       header: '📋 Agendamentos',
       essential: true,
       render: (item) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => toggleExpanded(item.id)}
-          className="flex items-center gap-1 text-xs"
+        <ActionButton
+          variant="view"
+          module="financeiro"
+          onClick={() => handleVerAgendamentos(item)}
+          title="Ver agendamentos vinculados"
+          disabled={item.agendamentos.length === 0}
+          className="min-w-[80px]"
         >
-          {item.agendamentos.length} {item.agendamentos.length === 1 ? 'agendamento' : 'agendamentos'}
-          {expandedContas.has(item.id) ? (
-            <ChevronUp className="w-3 h-3" />
-          ) : (
-            <ChevronDown className="w-3 h-3" />
-          )}
-        </Button>
+          <Eye className="w-4 h-4" />
+          <span className="ml-1">{item.agendamentos.length}</span>
+        </ActionButton>
       )
     }
   ];
-
-  // Renderizar lista de agendamentos expandida
-  const renderAgendamentos = (conta: ContaPagarHistorico) => {
-    if (!expandedContas.has(conta.id) || conta.agendamentos.length === 0) {
-      return null;
-    }
-
-    return (
-      <div className="mt-2 p-3 bg-gray-50 rounded-md border border-gray-200">
-        <h4 className="text-xs font-semibold text-gray-700 mb-2">
-          Agendamentos Vinculados ({conta.agendamentos.length})
-        </h4>
-        <div className="space-y-2">
-          {conta.agendamentos.map((ag) => (
-            <div key={ag.id} className="p-2 bg-white rounded border border-gray-200 text-xs">
-              <div className="flex items-start justify-between mb-1">
-                <div className="flex-1">
-                  <div className="font-medium text-gray-900">{ag.pacienteNome || 'Paciente não informado'}</div>
-                  <div className="text-gray-500">{ag.pacienteCpf || 'CPF não informado'}</div>
-                </div>
-                <Badge className={`text-xs ${
-                  ag.status === 'FINALIZADO' ? 'bg-green-100 text-green-800' :
-                  ag.status === 'AGENDADO' ? 'bg-blue-100 text-blue-800' :
-                  ag.status === 'CANCELADO' ? 'bg-red-100 text-red-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {ag.status}
-                </Badge>
-              </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-600">
-                <div>📅 {(() => {
-                  const { data, hora } = formatarDataHoraLocal(ag.dataHoraInicio);
-                  return `${data} ${hora}`;
-                })()}</div>
-                <div>🏥 {ag.servicoNome || 'Serviço não informado'}</div>
-                <div>🏢 {ag.convenioNome || 'Convênio não informado'}</div>
-                <div>📍 {ag.recursoNome || 'Recurso não informado'}</div>
-                {ag.numeroSessao && <div>🔢 Sessão: {ag.numeroSessao}</div>}
-                {ag.tipoAtendimento && <div>📝 Tipo: {ag.tipoAtendimento}</div>}
-              </div>
-              {ag.observacoes && (
-                <div className="mt-1 pt-1 border-t border-gray-100 text-gray-500">
-                  💬 {ag.observacoes}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
 
   // Renderizar card individual
   const renderCard = (item: ContaPagarHistorico) => {
@@ -317,18 +300,13 @@ export const HistoricoPage = () => {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => toggleExpanded(item.id)}
+          onClick={() => handleVerAgendamentos(item)}
           className="w-full flex items-center justify-center gap-2 text-xs"
+          disabled={item.agendamentos.length === 0}
         >
-          📋 {item.agendamentos.length} {item.agendamentos.length === 1 ? 'agendamento' : 'agendamentos'}
-          {expandedContas.has(item.id) ? (
-            <ChevronUp className="w-3 h-3" />
-          ) : (
-            <ChevronDown className="w-3 h-3" />
-          )}
+          <Eye className="w-4 h-4" />
+          Ver Agendamentos ({item.agendamentos.length})
         </Button>
-
-        {renderAgendamentos(item)}
 
         {item.observacoes && (
           <div className="mt-3 pt-2 border-t text-xs text-gray-500">
@@ -395,44 +373,49 @@ export const HistoricoPage = () => {
       </PageHeader>
 
       <PageContent>
-        {viewMode === 'table' ? (
-          <div className="space-y-2">
+        <div className="flex-1 overflow-auto">
+          {viewMode === 'table' ? (
             <ResponsiveTable
               data={contasPaginadas}
               columns={columns}
               emptyMessage="Nenhum registro encontrado no histórico"
               module="financeiro"
             />
-            {contasPaginadas.map((conta) => (
-              <div key={`expanded-${conta.id}`}>
-                {renderAgendamentos(conta)}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <ResponsiveCards
-            data={contasPaginadas}
-            renderCard={renderCard}
-            emptyMessage="Nenhum registro encontrado no histórico"
-            gridCols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-          />
-        )}
+          ) : (
+            <ResponsiveCards
+              data={contasPaginadas}
+              renderCard={renderCard}
+              emptyMessage="Nenhum registro encontrado no histórico"
+              gridCols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            />
+          )}
+        </div>
 
         {contasFiltradas.length > 0 && (
-          <ResponsivePagination
-            currentPage={paginaAtual}
-            totalPages={totalPaginas}
-            onPageChange={setPaginaAtual}
-            itemsPerPage={itensPorPagina}
-            onItemsPerPageChange={(value) => {
-              setItensPorPagina(value);
-              setPaginaAtual(1);
-            }}
-            totalItems={contasFiltradas.length}
-            module="financeiro"
-          />
+          <div className="mt-4 pt-4 border-t">
+            <ResponsivePagination
+              currentPage={paginaAtual}
+              totalPages={totalPaginas}
+              onPageChange={setPaginaAtual}
+              itemsPerPage={itensPorPagina}
+              onItemsPerPageChange={(value) => {
+                setItensPorPagina(value);
+                setPaginaAtual(1);
+              }}
+              totalItems={contasFiltradas.length}
+              module="financeiro"
+            />
+          </div>
         )}
       </PageContent>
+
+      <ListarAgendamentosModal
+        isOpen={showAgendamentosModal}
+        agendamentos={agendamentosVinculados}
+        titulo={`Agendamentos Vinculados - ${contaSelecionada?.descricao || ''}`}
+        onClose={() => setShowAgendamentosModal(false)}
+        calcularValor={calcularValorProfissional}
+      />
     </PageContainer>
   );
 };

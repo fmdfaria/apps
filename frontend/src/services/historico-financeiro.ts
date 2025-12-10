@@ -7,9 +7,13 @@ export interface AgendamentoHistorico {
   status: string;
   tipoAtendimento: string;
   numeroSessao: number | null;
+  profissionalId: string;
+  servicoId: string;
   pacienteNome: string | null;
   pacienteCpf: string | null;
   servicoNome: string | null;
+  servicoPreco: number | null;
+  servicoValorProfissional: number | null;
   convenioNome: string | null;
   recursoNome: string | null;
   observacoes: string | null;
@@ -18,6 +22,7 @@ export interface AgendamentoHistorico {
 export interface ContaPagarHistorico {
   id: string;
   descricao: string;
+  numeroDocumento: string | null;
   valorOriginal: number;
   valorLiquido: number;
   valorPago: number;
@@ -55,7 +60,7 @@ export const getHistoricoFinanceiroProfissional = async (): Promise<HistoricoFin
 
 export const validatePassword = async (senha: string): Promise<boolean> => {
   try {
-    const response = await api.post('/auth/password/validate', { senha });
+    const response = await api.post('/password/validate', { senha });
     return response.data.valid;
   } catch (error: any) {
     if (error.response?.status === 401) {
