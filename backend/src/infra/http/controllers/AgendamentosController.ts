@@ -75,6 +75,12 @@ export class AgendamentosController {
       primeiraSessao: z.string().optional(), // 'true', 'false' ou vazio
       recebimento: z.string().optional().transform(val => val === 'true' ? true : val === 'false' ? false : undefined),
       pagamento: z.string().optional().transform(val => val === 'true' ? true : val === 'false' ? false : undefined),
+      includeArquivados: z.coerce.boolean().optional().default(false),
+      statusNotIn: z.string().optional().transform(val =>
+        val
+          ? val.split(',').map(item => item.trim()).filter(item => item.length > 0)
+          : undefined
+      ),
 
       // Busca textual
       search: z.string().optional(),

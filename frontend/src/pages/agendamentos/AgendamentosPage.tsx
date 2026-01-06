@@ -385,37 +385,42 @@ export const AgendamentosPage = () => {
       if (filtrosAplicados.convenioId) filtrosAPI.convenioId = filtrosAplicados.convenioId;
       if (filtrosAplicados.tipoAtendimento) filtrosAPI.tipoAtendimento = filtrosAplicados.tipoAtendimento;
       if (filtrosAplicados.status && filtrosAplicados.status !== filtroStatus) filtrosAPI.status = filtrosAplicados.status;
-      if (filtrosAplicados.dataInicio) filtrosAPI.dataInicio = filtrosAplicados.dataInicio;
-      if (filtrosAplicados.dataFim) filtrosAPI.dataFim = filtrosAplicados.dataFim;
 
-      // Calcular data inicial: 30 dias antes da data atual (apenas se não houver filtro de dataInicio aplicado)
-      if (!filtrosAplicados.dataInicio) {
-        const hoje = new Date();
-        const dataInicio = new Date(hoje);
-        dataInicio.setDate(hoje.getDate() - 30);
+      const estaBuscando = Boolean(buscaDebounced);
+      const possuiStatusExplicito = Boolean(filtrosAPI.status);
 
-        // Formatar como YYYY-MM-DD
-        const ano = dataInicio.getFullYear();
-        const mes = String(dataInicio.getMonth() + 1).padStart(2, '0');
-        const dia = String(dataInicio.getDate()).padStart(2, '0');
+      if (estaBuscando) {
+        filtrosAPI.includeArquivados = true;
 
-        filtrosAPI.dataInicio = `${ano}-${mes}-${dia}`;
-      }
+        if (filtrosAplicados.dataInicio) {
+          filtrosAPI.dataInicio = filtrosAplicados.dataInicio;
+        }
+        if (filtrosAplicados.dataFim) {
+          filtrosAPI.dataFim = filtrosAplicados.dataFim;
+        }
+      } else {
+        if (!possuiStatusExplicito) {
+          filtrosAPI.statusNotIn = ['ARQUIVADO', 'CANCELADO'];
+        }
 
-      // Calcular data final: dia 01 do sexto mês à frente (apenas se não houver filtro de dataFim aplicado)
-      if (!filtrosAplicados.dataFim) {
-        const hoje = new Date();
-        const mesAtual = hoje.getMonth(); // 0-11
-        const anoAtual = hoje.getFullYear();
+        if (filtrosAplicados.dataInicio) {
+          filtrosAPI.dataInicio = filtrosAplicados.dataInicio;
+        }
 
-        // Adicionar 6 meses
-        const mesFinal = (mesAtual + 6) % 12;
-        const anoFinal = anoAtual + Math.floor((mesAtual + 6) / 12);
+        if (filtrosAplicados.dataFim) {
+          filtrosAPI.dataFim = filtrosAplicados.dataFim;
+        } else {
+          // Período padrão: próximos 90 dias
+          const hoje = new Date();
+          const dataFim = new Date(hoje);
+          dataFim.setDate(dataFim.getDate() + 90);
 
-        // Formatar como YYYY-MM-DD (sempre dia 01)
-        const mes = String(mesFinal + 1).padStart(2, '0');
+          const ano = dataFim.getFullYear();
+          const mes = String(dataFim.getMonth() + 1).padStart(2, '0');
+          const dia = String(dataFim.getDate()).padStart(2, '0');
 
-        filtrosAPI.dataFim = `${anoFinal}-${mes}-01`;
+          filtrosAPI.dataFim = `${ano}-${mes}-${dia}`;
+        }
       }
 
       // Se o usuário for PROFISSIONAL, filtrar apenas os agendamentos dele

@@ -354,10 +354,8 @@ export const HistoricoPage = () => {
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
           {historicoData && (
-            <div className="text-sm text-gray-600">
-              <span className="font-semibold">{historicoData.profissional.nome}</span>
-              <span className="mx-2">•</span>
-              <span>{historicoData.profissional.cpf}</span>
+            <div className="text-sm text-gray-600 font-semibold">
+              {historicoData.profissional.nome}
             </div>
           )}
           <div className="flex items-center gap-2 w-full sm:w-auto">

@@ -361,6 +361,8 @@ export interface IAgendamentoFilters {
   primeiraSessao?: string;
   recebimento?: boolean;
   pagamento?: boolean;
+  includeArquivados?: boolean;
+  statusNotIn?: string[];
 
   // Busca textual
   search?: string;
@@ -394,6 +396,8 @@ export const getAgendamentos = async (filtros?: IAgendamentoFilters): Promise<IP
       if (filtros.primeiraSessao) params.append('primeiraSessao', filtros.primeiraSessao);
       if (filtros.recebimento !== undefined) params.append('recebimento', filtros.recebimento.toString());
       if (filtros.pagamento !== undefined) params.append('pagamento', filtros.pagamento.toString());
+      if (filtros.includeArquivados !== undefined) params.append('includeArquivados', filtros.includeArquivados.toString());
+      if (filtros.statusNotIn?.length) params.append('statusNotIn', filtros.statusNotIn.join(','));
 
       // Busca textual
       if (filtros.search) params.append('search', filtros.search);

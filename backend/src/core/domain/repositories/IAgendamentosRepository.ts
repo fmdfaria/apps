@@ -58,6 +58,8 @@ export interface IAgendamentoFilters {
   primeiraSessao?: string; // 'true', 'false' ou vazio
   recebimento?: boolean;
   pagamento?: boolean;
+  includeArquivados?: boolean;
+  statusNotIn?: string[];
 
   // Busca textual
   search?: string;
