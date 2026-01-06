@@ -469,14 +469,15 @@ export const AgendamentosPage = () => {
 
   const getStatusColor = (status: StatusAgendamento) => {
     const cores = {
-      'AGENDADO': 'bg-blue-100 text-blue-700',
-      'SOLICITADO': 'bg-orange-100 text-orange-700',
-      'LIBERADO': 'bg-green-100 text-green-700',
-      'ATENDIDO': 'bg-yellow-100 text-yellow-700',
-      'FINALIZADO': 'bg-emerald-100 text-emerald-700',
-      'CANCELADO': 'bg-red-100 text-red-700',
-      'ARQUIVADO': 'bg-gray-100 text-gray-700'
-    };
+      AGENDADO: 'bg-blue-100 text-blue-700',
+      SOLICITADO: 'bg-cyan-100 text-cyan-700',
+      LIBERADO: 'bg-orange-100 text-orange-700',
+      ATENDIDO: 'bg-lime-100 text-lime-700',
+      FINALIZADO: 'bg-emerald-100 text-emerald-800',
+      CANCELADO: 'bg-red-100 text-red-700',
+      ARQUIVADO: 'bg-slate-200 text-slate-800',
+      PENDENTE: 'bg-purple-100 text-purple-700'
+    } as const;
     return cores[status] || 'bg-gray-100 text-gray-700';
   };
 
@@ -488,7 +489,8 @@ export const AgendamentosPage = () => {
       'ATENDIDO': Stethoscope,
       'FINALIZADO': ClipboardCheck,
       'CANCELADO': XCircle,
-      'ARQUIVADO': Archive
+      'ARQUIVADO': Archive,
+      'PENDENTE': Activity
     };
     return icons[status] || Calendar;
   };
