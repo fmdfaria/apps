@@ -4,6 +4,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Stethoscope,
   Clock,
@@ -25,12 +28,14 @@ import {
   PenTool,
   UserCheck2,
   AlertCircle,
+  AlertTriangle,
   Check,
-  Video
+  Video,
+  XOctagon
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Agendamento } from '@/types/Agendamento';
-import { getAgendamentos, updateCompareceu, updateAssinaturaPaciente, updateAssinaturaProfissional } from '@/services/agendamentos';
+import { getAgendamentos, updateCompareceu, updateAssinaturaPaciente, updateAssinaturaProfissional, updateMotivoReprovacao } from '@/services/agendamentos';
 import { AtenderAgendamentoModal, DetalhesAgendamentoModal } from '@/components/agendamentos';
 import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import EvolucaoPacientesModal from '@/pages/pacientes/EvolucaoPacientesModal';
@@ -155,6 +160,11 @@ export const AtenderPage = () => {
   const [canCreateEvolucoes, setCanCreateEvolucoes] = useState(true);
   const [canUpdateEvolucoes, setCanUpdateEvolucoes] = useState(true);
   const [canDeleteEvolucoes, setCanDeleteEvolucoes] = useState(true);
+  const [canEvolucaoAction, setCanEvolucaoAction] = useState(false);
+  const [canComparecimentoAction, setCanComparecimentoAction] = useState(false);
+  const [canAssinaturaPacienteAction, setCanAssinaturaPacienteAction] = useState(false);
+  const [canAssinaturaProfissionalAction, setCanAssinaturaProfissionalAction] = useState(false);
+  const [canMotivoReprovacaoAction, setCanMotivoReprovacaoAction] = useState(false);
   const [busca, setBusca] = useState('');
   const [buscaDebounced, setBuscaDebounced] = useState('');
   const [showAtenderAgendamento, setShowAtenderAgendamento] = useState(false);
@@ -179,6 +189,10 @@ export const AtenderPage = () => {
   const [showAssinaturaProfissionalModal, setShowAssinaturaProfissionalModal] = useState(false);
   const [agendamentoParaAtualizar, setAgendamentoParaAtualizar] = useState<Agendamento | null>(null);
   const [isLoadingUpdate, setIsLoadingUpdate] = useState(false);
+  const [showMotivoReprovacaoModal, setShowMotivoReprovacaoModal] = useState(false);
+  const [motivoReprovacaoTexto, setMotivoReprovacaoTexto] = useState('');
+  const [agendamentoParaMotivo, setAgendamentoParaMotivo] = useState<Agendamento | null>(null);
+  const [isSavingMotivoReprovacao, setIsSavingMotivoReprovacao] = useState(false);
   
   // Estados para modal de validação de finalização
   const [showValidacaoFinalizacaoModal, setShowValidacaoFinalizacaoModal] = useState(false);
@@ -230,6 +244,18 @@ export const AtenderPage = () => {
     
     // Para false ou undefined, não mostra indicador
     return null;
+  };
+
+  const renderMotivoReprovacaoIndicator = (possuiMotivo: boolean | null | undefined) => {
+    if (!possuiMotivo) {
+      return null;
+    }
+
+    return (
+      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
+        <AlertTriangle className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+      </div>
+    );
   };
 
   // Estado para controle de inicialização (mesmo padrão da AgendamentosPage)
@@ -297,9 +323,35 @@ export const AtenderPage = () => {
       const response = await api.get('/users/me/permissions');
       const allowedRoutes = response.data;
       
-      // Verificar apenas a permissão específica desta página
-      const canAtender = allowedRoutes.some((route: any) => {
+      // Verificar acesso à página
+      const canAccessAtenderPage = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos-atender-page' && route.method.toLowerCase() === 'get';
+      });
+
+      // Verificar permissão específica para finalizar atendimento (botão)
+      const canFinalizeAtendimento = allowedRoutes.some((route: any) => {
         return route.path === '/agendamentos-atender/:id' && route.method.toLowerCase() === 'put';
+      });
+      
+      // Verificar permissões específicas dos botões da página
+      const canEvolucaoButton = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos-atender-page-evolucao' && route.method.toLowerCase() === 'get';
+      });
+
+      const canComparecimentoButton = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos-atender-page-comparecimento' && route.method.toLowerCase() === 'get';
+      });
+
+      const canAssinaturaPacienteButton = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos-atender-page-paciente' && route.method.toLowerCase() === 'get';
+      });
+
+      const canAssinaturaProfissionalButton = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos-atender-page-profissional' && route.method.toLowerCase() === 'get';
+      });
+
+      const canMotivoReprovacaoButton = allowedRoutes.some((route: any) => {
+        return route.path === '/agendamentos-atender-page-reprovacao' && route.method.toLowerCase() === 'get';
       });
       
       // Verificar permissões de evolução
@@ -319,16 +371,19 @@ export const AtenderPage = () => {
         return route.path === '/evolucoes/:id' && route.method.toLowerCase() === 'delete';
       });
       
-      setCanAtender(canAtender);
+      setCanAtender(canFinalizeAtendimento);
       setCanViewEvolucoes(canViewEvolucoes);
       setCanCreateEvolucoes(canCreateEvolucoes);
       setCanUpdateEvolucoes(canUpdateEvolucoes);
       setCanDeleteEvolucoes(canDeleteEvolucoes);
+      setCanEvolucaoAction(canEvolucaoButton);
+      setCanComparecimentoAction(canComparecimentoButton);
+      setCanAssinaturaPacienteAction(canAssinaturaPacienteButton);
+      setCanAssinaturaProfissionalAction(canAssinaturaProfissionalButton);
+      setCanMotivoReprovacaoAction(canMotivoReprovacaoButton);
       
-      // Se não tem permissão de atendimento, marca como access denied
-      if (!canAtender) {
-        setAccessDenied(true);
-      }
+      // Se não tem permissão de acesso à página, marca como access denied
+      setAccessDenied(!canAccessAtenderPage);
       
     } catch (error: any) {
       // Em caso de erro, desabilita tudo por segurança
@@ -337,6 +392,11 @@ export const AtenderPage = () => {
       setCanCreateEvolucoes(false);
       setCanUpdateEvolucoes(false);
       setCanDeleteEvolucoes(false);
+      setCanEvolucaoAction(false);
+      setCanComparecimentoAction(false);
+      setCanAssinaturaPacienteAction(false);
+      setCanAssinaturaProfissionalAction(false);
+      setCanMotivoReprovacaoAction(false);
       
       // Se retornar 401/403 no endpoint de permissões, considera acesso negado
       if (error?.response?.status === 401 || error?.response?.status === 403) {
@@ -466,6 +526,9 @@ export const AtenderPage = () => {
   }, [agendamentos, buscaDebounced, filtros, paginaAtual, itensPorPagina]);
 
   const formatarDataHora = formatarDataHoraLocal;
+  const motivoReprovacaoDataHora = agendamentoParaMotivo
+    ? formatarDataHora(agendamentoParaMotivo.dataHoraInicio)
+    : null;
 
   const handleVerDetalhes = (agendamento: Agendamento) => {
     setAgendamentoDetalhes(agendamento);
@@ -473,6 +536,11 @@ export const AtenderPage = () => {
   };
 
   const handleAbrirProntuario = async (agendamento: Agendamento) => {
+    if (!canEvolucaoAction || !canViewEvolucoes) {
+      AppToast.error('Você não tem permissão para acessar o prontuário.');
+      return;
+    }
+
     setAgendamentoParaEvolucao(agendamento);
     
     // Carregar pacientes apenas quando necessário
@@ -537,18 +605,81 @@ export const AtenderPage = () => {
 
   // Handlers para os novos campos
   const handleCompareceu = (agendamento: Agendamento) => {
+    if (!canComparecimentoAction) {
+      AppToast.error('Você não tem permissão para registrar comparecimento.');
+      return;
+    }
+
     setAgendamentoParaAtualizar(agendamento);
     setShowCompareceuModal(true);
   };
 
   const handleAssinaturaPaciente = (agendamento: Agendamento) => {
+    if (!canAssinaturaPacienteAction) {
+      AppToast.error('Você não tem permissão para registrar a assinatura do paciente.');
+      return;
+    }
+
     setAgendamentoParaAtualizar(agendamento);
     setShowAssinaturaPacienteModal(true);
   };
 
   const handleAssinaturaProfissional = (agendamento: Agendamento) => {
+    if (!canAssinaturaProfissionalAction) {
+      AppToast.error('Você não tem permissão para registrar sua assinatura.');
+      return;
+    }
+
     setAgendamentoParaAtualizar(agendamento);
     setShowAssinaturaProfissionalModal(true);
+  };
+
+  const handleMotivoReprovacao = (agendamento: Agendamento) => {
+    if (!canMotivoReprovacaoAction) {
+      AppToast.error('Você não tem permissão para registrar o motivo da reprovação.');
+      return;
+    }
+
+    setAgendamentoParaMotivo(agendamento);
+    setMotivoReprovacaoTexto(agendamento.motivoReprovacao || '');
+    setShowMotivoReprovacaoModal(true);
+  };
+
+  const handleCloseMotivoReprovacaoModal = () => {
+    if (isSavingMotivoReprovacao) return;
+    setShowMotivoReprovacaoModal(false);
+    setAgendamentoParaMotivo(null);
+    setMotivoReprovacaoTexto('');
+  };
+
+  const handleSalvarMotivoReprovacao = async () => {
+    if (!agendamentoParaMotivo) return;
+
+    setIsSavingMotivoReprovacao(true);
+    try {
+      const motivoNormalizado = motivoReprovacaoTexto.trim();
+      const novoValor = motivoNormalizado === '' ? null : motivoNormalizado;
+
+      await updateMotivoReprovacao(agendamentoParaMotivo.id, novoValor);
+
+      AppToast.success(
+        novoValor ? 'Motivo de reprovação salvo!' : 'Motivo de reprovação removido!',
+        {
+          description: novoValor
+            ? 'As informações foram registradas com sucesso.'
+            : 'O motivo foi limpo e não aparecerá mais na AprovarPage.'
+        }
+      );
+      handleCloseMotivoReprovacaoModal();
+      carregarAgendamentos();
+    } catch (error) {
+      console.error('Erro ao salvar motivo de reprovação:', error);
+      AppToast.error('Erro ao salvar motivo da reprovação', {
+        description: 'Tente novamente em instantes.'
+      });
+    } finally {
+      setIsSavingMotivoReprovacao(false);
+    }
   };
 
   // Handlers para cancelar (apenas fechar modal sem salvar)
@@ -700,6 +831,47 @@ export const AtenderPage = () => {
       ) : (
         agendamentosPaginados.map(agendamento => {
           const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
+          const configuracoes = getConfiguracoesPorAgendamento(agendamento);
+
+          const evolucaoDisponivel = configuracoes.evolucao;
+          const evolucaoDisabledReason = !evolucaoDisponivel
+            ? 'Prontuário desabilitado para este convênio'
+            : !canViewEvolucoes
+              ? 'Você não tem permissão para visualizar evoluções'
+              : !canEvolucaoAction
+                ? 'Você não tem permissão para acessar o prontuário nesta página'
+                : '';
+          const evolucaoButtonEnabled = evolucaoDisabledReason === '';
+
+          const comparecimentoDisponivel = configuracoes.compareceu;
+          const comparecimentoDisabledReason = !comparecimentoDisponivel
+            ? 'Comparecimento desabilitado para este convênio'
+            : !canComparecimentoAction
+              ? 'Você não tem permissão para registrar comparecimento'
+              : '';
+          const comparecimentoButtonEnabled = comparecimentoDisabledReason === '';
+
+          const assinaturaPacienteDisponivel = configuracoes.assinatura_paciente;
+          const assinaturaPacienteDisabledReason = !assinaturaPacienteDisponivel
+            ? 'Assinatura do paciente desabilitada para este convênio'
+            : !canAssinaturaPacienteAction
+              ? 'Você não tem permissão para registrar a assinatura do paciente'
+              : '';
+          const assinaturaPacienteButtonEnabled = assinaturaPacienteDisabledReason === '';
+
+          const assinaturaProfissionalDisponivel = configuracoes.assinatura_profissional;
+          const assinaturaProfissionalDisabledReason = !assinaturaProfissionalDisponivel
+            ? 'Assinatura do profissional desabilitada para este convênio'
+            : !canAssinaturaProfissionalAction
+              ? 'Você não tem permissão para registrar a assinatura do profissional'
+              : '';
+          const assinaturaProfissionalButtonEnabled = assinaturaProfissionalDisabledReason === '';
+
+          const motivoReprovacaoDisabledReason = canMotivoReprovacaoAction
+            ? ''
+            : 'Você não tem permissão para registrar o motivo da reprovação';
+          const motivoReprovacaoButtonEnabled = motivoReprovacaoDisabledReason === '';
+          const motivoReprovacaoStatus = Boolean(agendamento.motivoReprovacao?.trim());
           
           return (
             <Card key={agendamento.id} className="hover:shadow-md transition-shadow">
@@ -786,73 +958,63 @@ export const AtenderPage = () => {
                   >
                     <Eye className="w-4 h-4" />
                   </Button>
-                    {canViewEvolucoes ? (
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        disabled={!getConfiguracoesPorAgendamento(agendamento).evolucao}
-                        className={`group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!getConfiguracoesPorAgendamento(agendamento).evolucao ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        onClick={getConfiguracoesPorAgendamento(agendamento).evolucao ? () => handleAbrirProntuario(agendamento) : undefined}
-                        title={getConfiguracoesPorAgendamento(agendamento).evolucao ? "Prontuário" : "Prontuário desabilitado para este convênio"}
-                      >
-                        <ClipboardList className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
-                        {renderEvolucaoIndicator(evolucoesMap.get(agendamento.id), getConfiguracoesPorAgendamento(agendamento).evolucao)}
-                      </Button>
-                    ) : (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="inline-block">
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                className="h-8 w-8 p-0 border-gray-300 text-gray-400 opacity-50 cursor-not-allowed"
-                                disabled={true}
-                                title="Sem permissão para visualizar evoluções"
-                              >
-                                <ClipboardList className="w-4 h-4" />
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Você não tem permissão para visualizar evoluções de pacientes</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      disabled={!getConfiguracoesPorAgendamento(agendamento).compareceu}
-                      className={`group border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!getConfiguracoesPorAgendamento(agendamento).compareceu ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      onClick={getConfiguracoesPorAgendamento(agendamento).compareceu ? () => handleCompareceu(agendamento) : undefined}
-                      title={getConfiguracoesPorAgendamento(agendamento).compareceu ? "Marcar comparecimento" : "Comparecimento desabilitado para este convênio"}
-                    >
-                      <UserCheck className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
-                      {renderStatusIndicator(agendamento.compareceu, getConfiguracoesPorAgendamento(agendamento).compareceu)}
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      disabled={!getConfiguracoesPorAgendamento(agendamento).assinatura_paciente}
-                      className={`group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!getConfiguracoesPorAgendamento(agendamento).assinatura_paciente ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      onClick={getConfiguracoesPorAgendamento(agendamento).assinatura_paciente ? () => handleAssinaturaPaciente(agendamento) : undefined}
-                      title={getConfiguracoesPorAgendamento(agendamento).assinatura_paciente ? "Assinatura do paciente" : "Assinatura do paciente desabilitada para este convênio"}
-                    >
-                      <PenTool className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
-                      {renderStatusIndicator(agendamento.assinaturaPaciente, getConfiguracoesPorAgendamento(agendamento).assinatura_paciente)}
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      disabled={!getConfiguracoesPorAgendamento(agendamento).assinatura_profissional}
-                      className={`group border-2 border-indigo-300 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 focus:ring-4 focus:ring-indigo-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!getConfiguracoesPorAgendamento(agendamento).assinatura_profissional ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      onClick={getConfiguracoesPorAgendamento(agendamento).assinatura_profissional ? () => handleAssinaturaProfissional(agendamento) : undefined}
-                      title={getConfiguracoesPorAgendamento(agendamento).assinatura_profissional ? "Sua assinatura" : "Sua assinatura desabilitada para este convênio"}
-                    >
-                      <UserCheck2 className="w-4 h-4 text-indigo-600 group-hover:text-white transition-colors" />
-                      {renderStatusIndicator(agendamento.assinaturaProfissional, getConfiguracoesPorAgendamento(agendamento).assinatura_profissional)}
-                    </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    disabled={!evolucaoButtonEnabled}
+                    className={`group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!evolucaoButtonEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    onClick={evolucaoButtonEnabled ? () => handleAbrirProntuario(agendamento) : undefined}
+                    title={evolucaoButtonEnabled ? "Prontu?rio" : evolucaoDisabledReason}
+                  >
+                    <ClipboardList className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
+                    {renderEvolucaoIndicator(evolucoesMap.get(agendamento.id), evolucaoDisponivel)}
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    disabled={!comparecimentoButtonEnabled}
+                    className={`group border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!comparecimentoButtonEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    onClick={comparecimentoButtonEnabled ? () => handleCompareceu(agendamento) : undefined}
+                    title={comparecimentoButtonEnabled ? "Marcar comparecimento" : comparecimentoDisabledReason}
+                  >
+                    <UserCheck className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
+                    {renderStatusIndicator(agendamento.compareceu, comparecimentoDisponivel)}
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    disabled={!assinaturaPacienteButtonEnabled}
+                    className={`group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!assinaturaPacienteButtonEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    onClick={assinaturaPacienteButtonEnabled ? () => handleAssinaturaPaciente(agendamento) : undefined}
+                    title={assinaturaPacienteButtonEnabled ? "Assinatura do paciente" : assinaturaPacienteDisabledReason}
+                  >
+                    <PenTool className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
+                    {renderStatusIndicator(agendamento.assinaturaPaciente, assinaturaPacienteDisponivel)}
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    disabled={!assinaturaProfissionalButtonEnabled}
+                    className={`group border-2 border-indigo-300 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 focus:ring-4 focus:ring-indigo-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!assinaturaProfissionalButtonEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    onClick={assinaturaProfissionalButtonEnabled ? () => handleAssinaturaProfissional(agendamento) : undefined}
+                    title={assinaturaProfissionalButtonEnabled ? "Assinatura do Profissional" : assinaturaProfissionalDisabledReason}
+                  >
+                    <UserCheck2 className="w-4 h-4 text-indigo-600 group-hover:text-white transition-colors" />
+                    {renderStatusIndicator(agendamento.assinaturaProfissional, assinaturaProfissionalDisponivel)}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!motivoReprovacaoButtonEnabled}
+                    className={`group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!motivoReprovacaoButtonEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    onClick={motivoReprovacaoButtonEnabled ? () => handleMotivoReprovacao(agendamento) : undefined}
+                    title={motivoReprovacaoButtonEnabled
+                      ? (agendamento.motivoReprovacao ? 'Editar motivo da reprovação' : 'Registrar motivo da reprovação')
+                      : motivoReprovacaoDisabledReason}
+                  >
+                    <XOctagon className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
+                    {renderMotivoReprovacaoIndicator(motivoReprovacaoStatus)}
+                  </Button>
                     {canAtender ? (
                       <Button 
                         size="sm" 
@@ -942,6 +1104,47 @@ export const AtenderPage = () => {
           ) : (
             agendamentosPaginados.map((agendamento) => {
               const { data, hora } = formatarDataHora(agendamento.dataHoraInicio);
+              const configuracoes = getConfiguracoesPorAgendamento(agendamento);
+
+              const evolucaoDisponivel = configuracoes.evolucao;
+              const evolucaoDisabledReason = !evolucaoDisponivel
+                ? 'Evolução desabilitada para este convênio'
+                : !canViewEvolucoes
+                  ? 'Você não tem permissão para visualizar evoluções de pacientes'
+                  : !canEvolucaoAction
+                    ? 'Você não tem permissão para acessar o prontuário nesta página'
+                    : '';
+              const evolucaoButtonEnabled = evolucaoDisabledReason === '';
+
+              const comparecimentoDisponivel = configuracoes.compareceu;
+              const comparecimentoDisabledReason = !comparecimentoDisponivel
+                ? 'Comparecimento desabilitado para este convênio'
+                : !canComparecimentoAction
+                  ? 'Você não tem permissão para registrar comparecimento'
+                  : '';
+              const comparecimentoButtonEnabled = comparecimentoDisabledReason === '';
+
+              const assinaturaPacienteDisponivel = configuracoes.assinatura_paciente;
+              const assinaturaPacienteDisabledReason = !assinaturaPacienteDisponivel
+                ? 'Assinatura do paciente desabilitada para este convênio'
+                : !canAssinaturaPacienteAction
+                  ? 'Você não tem permissão para registrar a assinatura do paciente'
+                  : '';
+              const assinaturaPacienteButtonEnabled = assinaturaPacienteDisabledReason === '';
+
+              const assinaturaProfissionalDisponivel = configuracoes.assinatura_profissional;
+              const assinaturaProfissionalDisabledReason = !assinaturaProfissionalDisponivel
+                ? 'Assinatura do profissional desabilitada para este convênio'
+                : !canAssinaturaProfissionalAction
+                  ? 'Você não tem permissão para registrar a assinatura do profissional'
+                  : '';
+              const assinaturaProfissionalButtonEnabled = assinaturaProfissionalDisabledReason === '';
+
+              const motivoReprovacaoDisabledReason = canMotivoReprovacaoAction
+                ? ''
+                : 'Você não tem permissão para registrar o motivo da reprovação';
+              const motivoReprovacaoButtonEnabled = motivoReprovacaoDisabledReason === '';
+              const motivoReprovacaoStatus = Boolean(agendamento.motivoReprovacao?.trim());
               
               return (
                 <TableRow key={agendamento.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200 h-12">
@@ -999,72 +1202,62 @@ export const AtenderPage = () => {
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
-                      {canViewEvolucoes ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={!getConfiguracoesPorAgendamento(agendamento).evolucao}
-                          className={`group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!getConfiguracoesPorAgendamento(agendamento).evolucao ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          onClick={getConfiguracoesPorAgendamento(agendamento).evolucao ? () => handleAbrirProntuario(agendamento) : undefined}
-                          title={getConfiguracoesPorAgendamento(agendamento).evolucao ? "Evolução" : "Evolução desabilitada para este convênio"}
-                        >
-                          <ClipboardList className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
-                          {renderEvolucaoIndicator(evolucoesMap.get(agendamento.id), getConfiguracoesPorAgendamento(agendamento).evolucao)}
-                        </Button>
-                      ) : (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="inline-block">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 border-gray-300 text-gray-400 opacity-50 cursor-not-allowed"
-                                  disabled={true}
-                                  title="Sem permissão para visualizar evoluções"
-                                >
-                                  <ClipboardList className="w-4 h-4" />
-                                </Button>
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Você não tem permissão para visualizar evoluções de pacientes</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={!getConfiguracoesPorAgendamento(agendamento).compareceu}
-                        className={`group border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!getConfiguracoesPorAgendamento(agendamento).compareceu ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        onClick={getConfiguracoesPorAgendamento(agendamento).compareceu ? () => handleCompareceu(agendamento) : undefined}
-                        title={getConfiguracoesPorAgendamento(agendamento).compareceu ? "Marcar comparecimento" : "Comparecimento desabilitado para este convênio"}
+                        disabled={!evolucaoButtonEnabled}
+                        className={`group border-2 border-purple-300 text-purple-600 hover:bg-purple-600 hover:text-white hover:border-purple-600 focus:ring-4 focus:ring-purple-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!evolucaoButtonEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={evolucaoButtonEnabled ? () => handleAbrirProntuario(agendamento) : undefined}
+                        title={evolucaoButtonEnabled ? "Evolução" : evolucaoDisabledReason}
+                      >
+                        <ClipboardList className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" />
+                        {renderEvolucaoIndicator(evolucoesMap.get(agendamento.id), evolucaoDisponivel)}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!comparecimentoButtonEnabled}
+                        className={`group border-2 border-blue-300 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 focus:ring-4 focus:ring-blue-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!comparecimentoButtonEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={comparecimentoButtonEnabled ? () => handleCompareceu(agendamento) : undefined}
+                        title={comparecimentoButtonEnabled ? "Marcar comparecimento" : comparecimentoDisabledReason}
                       >
                         <UserCheck className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" />
-                        {renderStatusIndicator(agendamento.compareceu, getConfiguracoesPorAgendamento(agendamento).compareceu)}
+                        {renderStatusIndicator(agendamento.compareceu, comparecimentoDisponivel)}
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={!getConfiguracoesPorAgendamento(agendamento).assinatura_paciente}
-                        className={`group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!getConfiguracoesPorAgendamento(agendamento).assinatura_paciente ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        onClick={getConfiguracoesPorAgendamento(agendamento).assinatura_paciente ? () => handleAssinaturaPaciente(agendamento) : undefined}
-                        title={getConfiguracoesPorAgendamento(agendamento).assinatura_paciente ? "Assinatura do paciente" : "Assinatura do paciente desabilitada para este convênio"}
+                        disabled={!assinaturaPacienteButtonEnabled}
+                        className={`group border-2 border-orange-300 text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 focus:ring-4 focus:ring-orange-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!assinaturaPacienteButtonEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={assinaturaPacienteButtonEnabled ? () => handleAssinaturaPaciente(agendamento) : undefined}
+                        title={assinaturaPacienteButtonEnabled ? "Assinatura do paciente" : assinaturaPacienteDisabledReason}
                       >
                         <PenTool className="w-4 h-4 text-orange-600 group-hover:text-white transition-colors" />
-                        {renderStatusIndicator(agendamento.assinaturaPaciente, getConfiguracoesPorAgendamento(agendamento).assinatura_paciente)}
+                        {renderStatusIndicator(agendamento.assinaturaPaciente, assinaturaPacienteDisponivel)}
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={!getConfiguracoesPorAgendamento(agendamento).assinatura_profissional}
-                        className={`group border-2 border-indigo-300 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 focus:ring-4 focus:ring-indigo-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!getConfiguracoesPorAgendamento(agendamento).assinatura_profissional ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        onClick={getConfiguracoesPorAgendamento(agendamento).assinatura_profissional ? () => handleAssinaturaProfissional(agendamento) : undefined}
-                        title={getConfiguracoesPorAgendamento(agendamento).assinatura_profissional ? "Sua assinatura" : "Sua assinatura desabilitada para este convênio"}
+                        disabled={!assinaturaProfissionalButtonEnabled}
+                        className={`group border-2 border-indigo-300 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 focus:ring-4 focus:ring-indigo-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!assinaturaProfissionalButtonEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={assinaturaProfissionalButtonEnabled ? () => handleAssinaturaProfissional(agendamento) : undefined}
+                        title={assinaturaProfissionalButtonEnabled ? "Assinatura do Profissional" : assinaturaProfissionalDisabledReason}
                       >
                         <UserCheck2 className="w-4 h-4 text-indigo-600 group-hover:text-white transition-colors" />
-                        {renderStatusIndicator(agendamento.assinaturaProfissional, getConfiguracoesPorAgendamento(agendamento).assinatura_profissional)}
+                        {renderStatusIndicator(agendamento.assinaturaProfissional, assinaturaProfissionalDisponivel)}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!motivoReprovacaoButtonEnabled}
+                        className={`group border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 focus:ring-4 focus:ring-red-300 h-8 w-8 p-0 shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200 transform relative ${!motivoReprovacaoButtonEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={motivoReprovacaoButtonEnabled ? () => handleMotivoReprovacao(agendamento) : undefined}
+                        title={motivoReprovacaoButtonEnabled
+                          ? (agendamento.motivoReprovacao ? 'Editar motivo da reprovação' : 'Registrar motivo da reprovação')
+                          : motivoReprovacaoDisabledReason}
+                      >
+                        <XOctagon className="w-4 h-4 text-red-600 group-hover:text-white transition-colors" />
+                        {renderMotivoReprovacaoIndicator(motivoReprovacaoStatus)}
                       </Button>
                       {canAtender ? (
                         <Button
@@ -1412,6 +1605,504 @@ export const AtenderPage = () => {
         icon={<UserCheck2 className="w-6 h-6" />}
       />
 
+      <Dialog
+        open={showMotivoReprovacaoModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCloseMotivoReprovacaoModal();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
+              <XOctagon className="w-5 h-5 text-red-500" />
+              Motivo da Reprovação
+            </DialogTitle>
+            {agendamentoParaMotivo && (
+              <div className="text-sm text-gray-500 space-y-1">
+                <p>
+                  Paciente:{' '}
+                  <span className="font-semibold text-gray-700">
+                    {agendamentoParaMotivo.pacienteNome}
+                  </span>
+                </p>
+                <p className="text-xs text-gray-500">
+                  Profissional: {agendamentoParaMotivo.profissionalNome}
+                  {motivoReprovacaoDataHora && (
+                    <>
+                      {' '}
+                      • {motivoReprovacaoDataHora.data} às {motivoReprovacaoDataHora.hora}
+                    </>
+                  )}
+                </p>
+              </div>
+            )}
+          </DialogHeader>
+
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleSalvarMotivoReprovacao();
+            }}
+            className="space-y-4"
+          >
+            <div className="space-y-2">
+              <Label htmlFor="motivoReprovacao">Descrição do motivo</Label>
+              <Textarea
+                id="motivoReprovacao"
+                placeholder="Descreva o motivo da reprovação..."
+                value={motivoReprovacaoTexto}
+                onChange={(event) => setMotivoReprovacaoTexto(event.target.value)}
+                rows={4}
+                disabled={isSavingMotivoReprovacao}
+              />
+              <p className="text-xs text-gray-500">
+                Esse registro serve para comunicação entre os profissionais e a equipe administrativa. Deixe em branco e salve para remover o motivo.
+              </p>
+            </div>
+
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseMotivoReprovacaoModal}
+                disabled={isSavingMotivoReprovacao}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="bg-red-600 hover:bg-red-700"
+                disabled={isSavingMotivoReprovacao}
+              >
+                {isSavingMotivoReprovacao ? 'Salvando...' : 'Salvar motivo'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showMotivoReprovacaoModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCloseMotivoReprovacaoModal();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
+              <XOctagon className="w-5 h-5 text-red-500" />
+              Motivo da Reprovação
+            </DialogTitle>
+            {agendamentoParaMotivo && (
+              <div className="text-sm text-gray-500 space-y-1">
+                <p>
+                  Paciente:{' '}
+                  <span className="font-semibold text-gray-700">
+                    {agendamentoParaMotivo.pacienteNome}
+                  </span>
+                </p>
+                <p className="text-xs text-gray-500">
+                  Profissional: {agendamentoParaMotivo.profissionalNome}
+                  {motivoReprovacaoDataHora && (
+                    <>
+                      {' '}
+                      • {motivoReprovacaoDataHora.data} às {motivoReprovacaoDataHora.hora}
+                    </>
+                  )}
+                </p>
+              </div>
+            )}
+          </DialogHeader>
+
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleSalvarMotivoReprovacao();
+            }}
+            className="space-y-4"
+          >
+            <div className="space-y-2">
+              <Label htmlFor="motivoReprovacao">Descrição do motivo</Label>
+              <Textarea
+                id="motivoReprovacao"
+                placeholder="Descreva o motivo da reprovação..."
+                value={motivoReprovacaoTexto}
+                onChange={(event) => setMotivoReprovacaoTexto(event.target.value)}
+                rows={4}
+                disabled={isSavingMotivoReprovacao}
+              />
+              <p className="text-xs text-gray-500">
+                Esse registro serve para comunicação entre os profissionais e a equipe administrativa. Deixe em branco e salve para remover o motivo.
+              </p>
+            </div>
+
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseMotivoReprovacaoModal}
+                disabled={isSavingMotivoReprovacao}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="bg-red-600 hover:bg-red-700"
+                disabled={isSavingMotivoReprovacao}
+              >
+                {isSavingMotivoReprovacao ? 'Salvando...' : 'Salvar motivo'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de validação para finalização de atendimento */}
+      <ConfirmacaoModal
+        open={showValidacaoFinalizacaoModal}
+        onClose={() => setShowValidacaoFinalizacaoModal(false)}
+        onConfirm={() => setShowValidacaoFinalizacaoModal(false)}
+        title="Não é possível finalizar o atendimento"
+        description={
+          <>
+            <p className="mb-3">Para finalizar o atendimento, você precisa resolver os seguintes problemas:</p>
+            <div className="bg-orange-50 border-l-4 border-orange-400 p-3 mb-3">
+              {problemasFinalizacao.map((problema, index) => (
+                <p key={index} className="text-sm text-orange-800 mb-1 last:mb-0">
+                  {problema}
+                </p>
+              ))}
+            </div>
+            <p className="text-sm">Após resolver estes itens, você poderá finalizar o atendimento.</p>
+          </>
+        }
+        confirmText="Entendi"
+        cancelText=""
+        variant="warning"
+        icon={<AlertCircle className="w-6 h-6" />}
+      />
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div className="pt-2 pl-6 pr-6 h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <p className="text-gray-500">Carregando agendamentos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Tela de acesso negado
+  if (accessDenied) {
+    return (
+      <div className="pt-2 pl-6 pr-6 h-full flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">🚫</span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Acesso Negado</h2>
+          <p className="text-gray-600 mb-4">
+            Você não tem permissão para acessar esta funcionalidade.
+          </p>
+          
+          
+          <p className="text-sm text-gray-500">
+            Entre em contato com o administrador do sistema para solicitar as devidas permissões.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pt-2 pl-6 pr-6 h-full flex flex-col">
+      {/* Indicador de loading das configurações */}
+      {loadingConfiguracoes && (
+        <div className="sticky top-0 z-50 bg-blue-50 border-b border-blue-200 px-4 py-2">
+          <div className="flex items-center justify-center gap-2 text-blue-700 text-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            Carregando configurações por convênio...
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-white backdrop-blur border-b border-gray-200 mb-6 px-6 py-4 rounded-lg gap-4 transition-shadow">
+        {/* Layout responsivo: 3 linhas < 640px, 2 linhas 640-1023px, 1 linha >= 1024px */}
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+          {/* Primeira linha: Título (mobile < 640) | Título + Busca (>= 640) */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-1">
+            <div className="flex-shrink-0">
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2 lg:gap-3">
+                <span className="text-3xl lg:text-4xl">🩺</span>
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Atendimentos
+                </span>
+              </h1>
+            </div>
+
+            {/* Busca - segunda linha em mobile (< 640), primeira linha em sm+ */}
+            <div className="relative w-full sm:flex-1 sm:max-w-md">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar agendamentos..."
+                value={busca}
+                onChange={e => setBusca(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Segunda linha: Controles */}
+          <div className="flex items-center justify-center lg:justify-end gap-1.5 lg:gap-4 flex-wrap">
+
+            {/* Toggle de visualização */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className={`h-7 lg:h-8 px-2 lg:px-3 ${viewMode === 'table' ? 'bg-white shadow-sm' : ''}`}
+                title="Visualização em Tabela"
+              >
+                <List className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span className="ml-1 2xl:inline hidden">Tabela</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('cards')}
+                className={`h-7 lg:h-8 px-2 lg:px-3 ${viewMode === 'cards' ? 'bg-white shadow-sm' : ''}`}
+                title="Visualização em Cards"
+              >
+                <LayoutGrid className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span className="ml-1 2xl:inline hidden">Cards</span>
+              </Button>
+            </div>
+
+            {/* Botão Filtros Avançados */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMostrarFiltros(!mostrarFiltros)}
+              className={`h-7 lg:h-8 px-2 lg:px-3 text-xs lg:text-sm ${mostrarFiltros ? 'bg-blue-50 border-blue-300' : ''} ${temFiltrosAtivos ? 'border-blue-500 bg-blue-50' : ''}`}
+              title="Filtros Avançados"
+            >
+              <Filter className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+              <span className="ml-1.5 lg:ml-2 2xl:inline hidden">Filtros</span>
+              {temFiltrosAtivos && (
+                <Badge variant="secondary" className="ml-1.5 lg:ml-2 h-3.5 lg:h-4 px-1 text-xs">
+                  {Object.values(filtrosAplicados).filter(f => f !== '').length}
+                </Badge>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <AdvancedFilter
+        fields={filterFields}
+        filters={filtros}
+        appliedFilters={filtrosAplicados}
+        onFilterChange={handleFilterChange}
+        onApplyFilters={aplicarFiltros}
+        onClearFilters={limparFiltros}
+        isVisible={mostrarFiltros}
+        onClose={() => setMostrarFiltros(false)}
+        loading={loading}
+      />
+
+      {/* Conteúdo */}
+      <div className="flex-1 overflow-y-auto rounded-lg bg-white shadow-sm border border-gray-100">
+        {viewMode === 'cards' ? renderCardView() : renderTableView()}
+      </div>
+
+      {/* Paginação */}
+      {agendamentosFiltrados.length > 0 && (
+        <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6 z-10 shadow-lg">
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-600 flex items-center gap-2">
+            <span className="text-lg">📊</span>
+            Exibir
+          </span>
+          <select
+            className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 hover:border-blue-300"
+            value={itensPorPagina}
+            onChange={e => {
+              setItensPorPagina(Number(e.target.value));
+              setPaginaAtual(1); // Resetar para primeira página
+            }}
+          >
+            {[10, 25, 50, 100].map(qtd => (
+              <option key={qtd} value={qtd}>{qtd}</option>
+            ))}
+          </select>
+          <span className="text-sm text-gray-600">itens por página</span>
+        </div>
+        
+        <div className="text-sm text-gray-600 flex items-center gap-2">
+          <span className="text-lg">📈</span>
+          Mostrando {((paginaAtual - 1) * itensPorPagina) + 1} a {Math.min(paginaAtual * itensPorPagina, totalResultados)} de {totalResultados} resultados
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
+            disabled={paginaAtual === 1 || totalPaginas === 1}
+            className={(paginaAtual === 1 || totalPaginas === 1)
+              ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50" 
+              : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+            }
+          >
+            <span className="mr-1 text-gray-600 group-hover:text-blue-600 transition-colors">⬅️</span>
+            Anterior
+          </Button>
+          {(() => {
+            const startPage = Math.max(1, Math.min(paginaAtual - 2, totalPaginas - 4));
+            const endPage = Math.min(totalPaginas, startPage + 4);
+            return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(page => (
+              <Button
+                key={page}
+                variant={page === paginaAtual ? "default" : "outline"}
+                size="sm"
+                onClick={() => totalPaginas > 1 ? setPaginaAtual(page) : undefined}
+                disabled={totalPaginas === 1}
+                className={page === paginaAtual 
+                  ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg font-semibold" 
+                  : totalPaginas === 1
+                  ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
+                  : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+                }
+              >
+                {page}
+              </Button>
+            ));
+          })()}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
+            disabled={paginaAtual === totalPaginas || totalPaginas === 1}
+            className={(paginaAtual === totalPaginas || totalPaginas === 1)
+              ? "border-2 border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed font-medium shadow-none hover:bg-gray-50"
+              : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-700 hover:shadow-lg hover:scale-110 transition-all duration-300 transform font-medium"
+            }
+          >
+            Próximo
+            <span className="ml-1 text-gray-600 group-hover:text-blue-600 transition-colors">➡️</span>
+          </Button>
+        </div>
+        </div>
+      )}
+
+      {/* Modais */}
+      <AtenderAgendamentoModal
+        isOpen={showAtenderAgendamento}
+        agendamento={agendamentoSelecionado}
+        onClose={() => {
+          setShowAtenderAgendamento(false);
+          setAgendamentoSelecionado(null);
+        }}
+        onSuccess={carregarAgendamentos}
+      />
+
+      <DetalhesAgendamentoModal
+        isOpen={showDetalhesAgendamento}
+        agendamento={agendamentoDetalhes}
+        onClose={() => {
+          setShowDetalhesAgendamento(false);
+          setAgendamentoDetalhes(null);
+        }}
+      />
+
+      <EvolucaoPacientesModal
+        open={showEvolucaoModal}
+        onClose={() => {
+          setShowEvolucaoModal(false);
+          setAgendamentoParaEvolucao(null);
+          setEvolucaoExistente(null);
+        }}
+        onSuccess={() => {
+          // Atualizar o mapa de evoluções para refletir a mudança
+          if (agendamentoParaEvolucao) {
+            setEvolucoesMap(prev => {
+              const novoMap = new Map(prev);
+              novoMap.set(agendamentoParaEvolucao.id, true);
+              return novoMap;
+            });
+          }
+        }}
+        onDeleted={(agendamentoId) => {
+          setEvolucoesMap(prev => {
+            const novoMap = new Map(prev);
+            novoMap.set(agendamentoId, false);
+            return novoMap;
+          });
+        }}
+        pacientes={pacientes}
+        evolucaoParaEditar={evolucaoExistente}
+        agendamentoInicial={agendamentoParaEvolucao}
+        canCreate={canCreateEvolucoes}
+        canUpdate={canUpdateEvolucoes}
+        canDelete={canDeleteEvolucoes}
+      />
+
+      {/* Modais de confirmação para os novos campos */}
+      <ConfirmacaoModal
+        open={showCompareceuModal}
+        onClose={handleCancelCompareceu}
+        onCancel={() => handleConfirmCompareceu(false)}
+        onConfirm={() => handleConfirmCompareceu(true)}
+        title="Confirmação de Comparecimento"
+        description="O paciente compareceu?"
+        confirmText="SIM"
+        cancelText="NÃO"
+        isLoading={isLoadingUpdate}
+        loadingText="Salvando..."
+        variant="default"
+        icon={<UserCheck className="w-6 h-6" />}
+      />
+
+      <ConfirmacaoModal
+        open={showAssinaturaPacienteModal}
+        onClose={handleCancelAssinaturaPaciente}
+        onCancel={() => handleConfirmAssinaturaPaciente(false)}
+        onConfirm={() => handleConfirmAssinaturaPaciente(true)}
+        title="Assinatura do Paciente"
+        description="O paciente assinou a guia referente ao atendimento?"
+        confirmText="SIM"
+        cancelText="NÃO"
+        isLoading={isLoadingUpdate}
+        loadingText="Salvando..."
+        variant="default"
+        icon={<PenTool className="w-6 h-6" />}
+      />
+
+      <ConfirmacaoModal
+        open={showAssinaturaProfissionalModal}
+        onClose={handleCancelAssinaturaProfissional}
+        onCancel={() => handleConfirmAssinaturaProfissional(false)}
+        onConfirm={() => handleConfirmAssinaturaProfissional(true)}
+        title="Assinatura do Profissional"
+        description="Você (profissional) assinou a guia referente ao atendimento?"
+        confirmText="SIM"
+        cancelText="NÃO"
+        isLoading={isLoadingUpdate}
+        loadingText="Salvando..."
+        variant="default"
+        icon={<UserCheck2 className="w-6 h-6" />}
+      />
+
       {/* Modal de validação para finalização de atendimento */}
       <ConfirmacaoModal
         open={showValidacaoFinalizacaoModal}
@@ -1439,3 +2130,4 @@ export const AtenderPage = () => {
     </div>
   );
 }; 
+

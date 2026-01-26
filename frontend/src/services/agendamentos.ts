@@ -285,7 +285,7 @@ export interface UpdateAgendamentoData {
   aprovadoPor?: string;
   // Novos campos
   avaliadoPorId?: string;
-  motivoReprovacao?: string;
+  motivoReprovacao?: string | null;
   
   // Gestão de pagamentos
   recebimento?: boolean;
@@ -581,30 +581,13 @@ export const atenderAgendamento = async (id: string, dadosAtendimento: {
   observacoes?: string;
   convenioId: string;
 }): Promise<Agendamento> => {
-  // Importar dinamicamente para evitar dependência circular
-  const { verificarLiberadoParaFinalizado } = await import('./configuracoes');
+  const response = await api.put(`/agendamentos-concluir/${id}`, {
+    dataAtendimento: dadosAtendimento.dataAtendimento,
+    observacoes: dadosAtendimento.observacoes,
+    status: 'FINALIZADO'
+  });
 
-  // 1️⃣ Verificar configuração ANTES de chamar API
-  const deveFinalizar = await verificarLiberadoParaFinalizado(dadosAtendimento.convenioId);
-
-  // 2️⃣ Fazer UMA ÚNICA chamada de API com o status correto
-  if (deveFinalizar) {
-    // Vai DIRETO para FINALIZADO (pula etapa de aprovação)
-    const response = await api.put(`/agendamentos-concluir/${id}`, {
-      dataAtendimento: dadosAtendimento.dataAtendimento,
-      observacoes: dadosAtendimento.observacoes,
-      status: 'FINALIZADO'
-    });
-    return response.data;
-  } else {
-    // Vai para ATENDIDO (fluxo normal - precisa de aprovação)
-    const response = await api.put(`/agendamentos-atender/${id}`, {
-      dataAtendimento: dadosAtendimento.dataAtendimento,
-      observacoes: dadosAtendimento.observacoes,
-      status: 'ATENDIDO'
-    });
-    return response.data;
-  }
+  return response.data;
 };
 
 export const aprovarAgendamento = async (id: string, dadosAprovacao: {
@@ -707,6 +690,10 @@ export const updateAssinaturaPaciente = async (id: string, assinaturaPaciente: b
 
 export const updateAssinaturaProfissional = async (id: string, assinaturaProfissional: boolean | null): Promise<Agendamento> => {
   return updateAgendamento(id, { assinaturaProfissional });
+};
+
+export const updateMotivoReprovacao = async (id: string, motivoReprovacao: string | null): Promise<Agendamento> => {
+  return updateAgendamento(id, { motivoReprovacao });
 };
 
 export const updateRecebimento = async (id: string, recebimento: boolean): Promise<Agendamento> => {
@@ -1002,3 +989,4 @@ export const efetuarFechamentoRecebimento = async (data: FechamentoRecebimentoDa
     throw error;
   }
 }; 
+

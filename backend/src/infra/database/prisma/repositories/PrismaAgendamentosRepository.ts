@@ -89,7 +89,7 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
         dataHoraInicio: data.dataHoraInicio,
         dataHoraFim: data.dataHoraFim,
         avaliadoPorId: data.avaliadoPorId || undefined,
-        motivoReprovacao: data.motivoReprovacao || undefined,
+        motivoReprovacao: data.motivoReprovacao === undefined ? undefined : data.motivoReprovacao,
       },
       include: { 
         servico: true, 

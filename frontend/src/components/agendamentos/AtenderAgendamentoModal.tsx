@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Stethoscope, User, Calendar, Clock, FileText, CreditCard, UserCheck, Monitor, MapPin, CheckCircle2 } from 'lucide-react';
 import type { Agendamento } from '@/types/Agendamento';
 import { atenderAgendamento } from '@/services/agendamentos';
-import { verificarLiberadoParaFinalizado } from '@/services/configuracoes';
 import { AppToast } from '@/services/toast';
 import { formatarDataHoraLocal, formatarApenasData } from '@/utils/dateUtils';
 
@@ -48,20 +47,12 @@ export const AtenderAgendamentoModal: React.FC<AtenderAgendamentoModalProps> = (
 
     setLoading(true);
     try {
-      // Verificar se o convênio tem configuração para finalizar automaticamente
-      const deveFinalizar = await verificarLiberadoParaFinalizado(agendamento.convenioId);
-
       await atenderAgendamento(agendamento.id, {
         ...formData,
         convenioId: agendamento.convenioId
       });
 
-      // Mensagem diferente baseada na configuração do convênio
-      const mensagem = deveFinalizar
-        ? 'O atendimento foi registrado e finalizado com sucesso!'
-        : 'O atendimento foi registrado com sucesso!';
-
-      AppToast.updated('Agendamento', mensagem);
+      AppToast.updated('Agendamento', 'O atendimento foi registrado e finalizado com sucesso!');
       resetForm();
       onSuccess();
       onClose();
