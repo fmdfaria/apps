@@ -667,7 +667,7 @@ export const AtenderPage = () => {
         {
           description: novoValor
             ? 'As informações foram registradas com sucesso.'
-            : 'O motivo foi limpo e não aparecerá mais na AprovarPage.'
+            : 'O motivo foi limpo com sucesso.'
         }
       );
       handleCloseMotivoReprovacaoModal();
