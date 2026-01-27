@@ -109,7 +109,7 @@ export default function DisponibilidadeProfissionaisPage() {
   const [profissionalSelecionado, setProfissionalSelecionado] = useState<Profissional | null>(null);
   const [profissionalBloqueado, setProfissionalBloqueado] = useState(false);
   const [recursoSelecionado, setRecursoSelecionado] = useState<Recurso | null>(null);
-  const [tipoEdicao, setTipoEdicao] = useState<'presencial' | 'online' | 'bloqueio'>('presencial');
+  const [tipoEdicao, setTipoEdicao] = useState<'presencial' | 'online' | 'folga'>('presencial');
   const [abaSelecionada, setAbaSelecionada] = useState<'semanal' | 'data-especifica'>('semanal');
   const [horariosSemana, setHorariosSemana] = useState<HorarioSemana[]>(criarHorarioSemanaPadrao());
   const [horariosOriginais, setHorariosOriginais] = useState<HorarioSemana[]>(criarHorarioSemanaPadrao());
@@ -630,11 +630,11 @@ export default function DisponibilidadeProfissionaisPage() {
     const intervalosOnline = horariosSemana.reduce((acc, h) => 
       acc + h.intervalos.filter(i => i.tipo === 'online').length, 0
     );
-    const intervalosBloqueio = horariosSemana.reduce((acc, h) => 
-      acc + h.intervalos.filter(i => i.tipo === 'bloqueio').length, 0
+    const intervalosFolga = horariosSemana.reduce((acc, h) => 
+      acc + h.intervalos.filter(i => i.tipo === 'folga').length, 0
     );
 
-    return { diasAtivos, totalIntervalos, intervalosPresencial, intervalosOnline, intervalosBloqueio };
+    return { diasAtivos, totalIntervalos, intervalosPresencial, intervalosOnline, intervalosFolga };
   };
 
   const resumo = getResumoHorarios();
@@ -726,7 +726,7 @@ export default function DisponibilidadeProfissionaisPage() {
                   💻 Online
                 </TabsTrigger>
                 <TabsTrigger 
-                  value="bloqueio" 
+                  value="folga" 
                   className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700 data-[state=active]:border-red-300 text-xs px-1 transition-all duration-200"
                 >
                   🚫 Bloqueio
@@ -759,7 +759,7 @@ export default function DisponibilidadeProfissionaisPage() {
                       {resumo.intervalosOnline} online
                     </Badge>
                     <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs px-1 py-0.5 whitespace-nowrap">
-                      {resumo.intervalosBloqueio} bloqueios
+                      {resumo.intervalosFolga} bloqueios
                     </Badge>
                   </div>
                 </div>

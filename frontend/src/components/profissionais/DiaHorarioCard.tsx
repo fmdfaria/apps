@@ -14,7 +14,7 @@ import { validarIntervalo, verificarSobreposicao, marcarComoNovo } from '@/lib/h
 import { AppToast } from '@/services/toast';
 
 // Função para obter cores baseada no tipo
-const obterCoresPorTipo = (tipo: 'presencial' | 'online' | 'bloqueio') => {
+const obterCoresPorTipo = (tipo: 'presencial' | 'online' | 'folga') => {
   switch (tipo) {
     case 'presencial':
       return {
@@ -28,7 +28,7 @@ const obterCoresPorTipo = (tipo: 'presencial' | 'online' | 'bloqueio') => {
         card: 'border-blue-200 bg-blue-50',
         button: 'text-blue-600 hover:text-blue-700'
       };
-    case 'bloqueio':
+    case 'folga':
       return {
         badge: 'bg-red-100 text-red-800 border-red-200',
         card: 'border-red-200 bg-red-50',
@@ -44,13 +44,13 @@ const obterCoresPorTipo = (tipo: 'presencial' | 'online' | 'bloqueio') => {
 };
 
 // Função para obter ícone baseado no tipo
-const obterIconePorTipo = (tipo: 'presencial' | 'online' | 'bloqueio') => {
+const obterIconePorTipo = (tipo: 'presencial' | 'online' | 'folga') => {
   switch (tipo) {
     case 'presencial':
       return <Users className="w-3 h-3" />;
     case 'online':
       return <Monitor className="w-3 h-3" />;
-    case 'bloqueio':
+    case 'folga':
       return <Home className="w-3 h-3" />;
     default:
       return <Clock className="w-3 h-3" />;
@@ -58,13 +58,13 @@ const obterIconePorTipo = (tipo: 'presencial' | 'online' | 'bloqueio') => {
 };
 
 // Função para obter texto do tipo
-const obterTextoTipo = (tipo: 'presencial' | 'online' | 'bloqueio') => {
+const obterTextoTipo = (tipo: 'presencial' | 'online' | 'folga') => {
   switch (tipo) {
     case 'presencial':
       return 'Presencial';
     case 'online':
       return 'Online';
-    case 'bloqueio':
+    case 'folga':
       return 'Bloqueio';
     default:
       return 'Desconhecido';
@@ -154,7 +154,7 @@ const ordenarIntervalos = (intervalos: IntervaloHorario[]): IntervaloHorario[] =
 
 interface Props {
   horario: HorarioSemana;
-  tipoEdicao: 'presencial' | 'online' | 'bloqueio';
+  tipoEdicao: 'presencial' | 'online' | 'folga';
   onChange: (horario: HorarioSemana) => void;
   canModify?: boolean;
   recursos?: Recurso[];
@@ -295,7 +295,7 @@ export default function DiaHorarioCard({ horario, tipoEdicao, onChange, canModif
     setIntervaloParaExcluir(null);
   };
 
-  const getTipoColor = (tipo: 'presencial' | 'online' | 'bloqueio') => {
+  const getTipoColor = (tipo: 'presencial' | 'online' | 'folga') => {
     const cores = obterCoresPorTipo(tipo);
     return cores.card;
   };
