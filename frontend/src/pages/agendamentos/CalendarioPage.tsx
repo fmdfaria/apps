@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { CalendarHeader } from '@/components/calendar/CalendarHeader';
 import { SchedulerGrid } from '@/components/calendar/SchedulerGrid';
 import { 
@@ -21,9 +23,10 @@ import {
   X,
   Building2,
   Monitor,
-  Search
+  Search,
+  Loader2
 } from 'lucide-react';
-import { getAgendamentos } from '@/services/agendamentos';
+import { getAgendamentos, setStatusAgendamento } from '@/services/agendamentos';
 import { getProfissionais } from '@/services/profissionais';
 import { getConvenios } from '@/services/convenios';
 import { getRecursos } from '@/services/recursos';
@@ -33,6 +36,7 @@ import type { Profissional } from '@/types/Profissional';
 import type { Convenio } from '@/types/Convenio';
 import type { Recurso } from '@/types/Recurso';
 import type { DisponibilidadeProfissional } from '@/types/DisponibilidadeProfissional';
+import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import { AppToast } from '@/services/toast';
 import api from '@/services/api';
 import { getModuleTheme } from '@/types/theme';
@@ -99,6 +103,11 @@ export const CalendarioPage = () => {
   // Estados para edição de agendamento
   const [showEditarAgendamento, setShowEditarAgendamento] = useState(false);
   const [agendamentoEdicao, setAgendamentoEdicao] = useState<Agendamento | null>(null);
+  const [showCancelarModal, setShowCancelarModal] = useState(false);
+  const [showAlterarStatusModal, setShowAlterarStatusModal] = useState(false);
+  const [agendamentoCancelando, setAgendamentoCancelando] = useState<Agendamento | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [novoStatus, setNovoStatus] = useState<{id: string; nome: string} | null>(null);
   
   // Filtro lateral colapsível
   const [filtroLateralAberto, setFiltroLateralAberto] = useState(false);
@@ -194,6 +203,92 @@ export const CalendarioPage = () => {
   const handleFecharEdicao = () => {
     setShowEditarAgendamento(false);
     setAgendamentoEdicao(null);
+  };
+
+  const handleCancelarAgendamento = (agendamentoId: string) => {
+    const agendamento = agendamentos.find(ag => ag.id === agendamentoId);
+    if (!agendamento) return;
+
+    setAgendamentoCancelando(agendamento);
+
+    if (agendamento.status === 'CANCELADO') {
+      setNovoStatus({ id: 'AGENDADO', nome: 'Agendado' });
+      setShowAlterarStatusModal(true);
+    } else {
+      setShowCancelarModal(true);
+    }
+  };
+
+  const confirmarCancelamento = async () => {
+    if (!agendamentoCancelando) return;
+
+    if (agendamentoCancelando.recebimento) {
+      AppToast.error('Não é possível cancelar agendamento!', {
+        description: 'Este agendamento já possui recebimento registrado e não pode ser cancelado, entre em contato com o financeiro.'
+      });
+      setShowCancelarModal(false);
+      setAgendamentoCancelando(null);
+      return;
+    }
+
+    setCancelLoading(true);
+    try {
+      await setStatusAgendamento(agendamentoCancelando.id, 'CANCELADO');
+      AppToast.success('Agendamento cancelado', {
+        description: 'O agendamento foi cancelado com sucesso.'
+      });
+      setShowCancelarModal(false);
+      setAgendamentoCancelando(null);
+      carregarDados();
+    } catch (error: any) {
+      const mensagemErro = error?.response?.data?.message || 'Não foi possível cancelar o agendamento.';
+      AppToast.error('Erro ao cancelar', {
+        description: mensagemErro
+      });
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  const confirmarAlteracaoStatus = async () => {
+    if (!agendamentoCancelando || !novoStatus) return;
+
+    if (novoStatus.id === 'CANCELADO' && agendamentoCancelando.recebimento) {
+      AppToast.error('Não é possível cancelar agendamento!', {
+        description: 'Este agendamento já possui recebimento registrado e não pode ser cancelado, entre em contato com o financeiro.'
+      });
+      setShowAlterarStatusModal(false);
+      setAgendamentoCancelando(null);
+      setNovoStatus(null);
+      return;
+    }
+
+    setCancelLoading(true);
+    try {
+      await setStatusAgendamento(agendamentoCancelando.id, novoStatus.id as StatusAgendamento);
+      AppToast.success('Status alterado', {
+        description: `O status foi alterado para ${novoStatus.nome} com sucesso.`
+      });
+      setShowAlterarStatusModal(false);
+      setAgendamentoCancelando(null);
+      setNovoStatus(null);
+      carregarDados();
+    } catch (error: any) {
+      const mensagemErro = error?.response?.data?.message || 'Não foi possível alterar o status.';
+      AppToast.error('Erro ao alterar status', {
+        description: mensagemErro
+      });
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  const cancelarOperacao = () => {
+    if (cancelLoading) return;
+    setShowCancelarModal(false);
+    setShowAlterarStatusModal(false);
+    setAgendamentoCancelando(null);
+    setNovoStatus(null);
   };
 
 
@@ -1112,6 +1207,7 @@ export const CalendarioPage = () => {
                   }
                 }}
                 onEditClick={handleEditarAgendamento}
+                onCancelClick={handleCancelarAgendamento}
                 onDoubleClick={handleDoubleClick}
               />
             </CardContent>
@@ -1148,6 +1244,73 @@ export const CalendarioPage = () => {
         onClose={handleFecharEdicao}
         onSuccess={handleSuccessEdicao}
       />
+
+      <ConfirmacaoModal
+        open={showCancelarModal}
+        onClose={cancelarOperacao}
+        onCancel={cancelarOperacao}
+        onConfirm={confirmarCancelamento}
+        title="Cancelar Agendamento"
+        description={
+          agendamentoCancelando
+            ? `Tem certeza que deseja cancelar o agendamento de ${agendamentoCancelando.pacienteNome} em ${formatarDataHoraLocal(agendamentoCancelando.dataHoraInicio).data}?`
+            : ''
+        }
+        confirmText="Sim, Cancelar"
+        cancelText="Não"
+        isLoading={cancelLoading}
+        loadingText="Cancelando..."
+        variant="warning"
+      />
+
+      <Dialog open={showAlterarStatusModal} onOpenChange={(isOpen) => !isOpen && !cancelLoading && cancelarOperacao()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Alterar Status do Agendamento</DialogTitle>
+            <DialogDescription>
+              Este agendamento já está cancelado. Selecione o novo status desejado.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Novo Status
+            </label>
+            <SingleSelectDropdown
+              options={[{ id: 'AGENDADO', nome: 'Agendado' }]}
+              selected={novoStatus}
+              onChange={setNovoStatus}
+              placeholder="Selecione o novo status..."
+              headerText="Selecione o status"
+              disabled={cancelLoading}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={cancelarOperacao}
+              disabled={cancelLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmarAlteracaoStatus}
+              disabled={cancelLoading || !novoStatus}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {cancelLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Alterando...
+                </>
+              ) : (
+                'Confirmar'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Monitor, MapPin, Clock, User, Stethoscope, FileText } from 'lucide-react';
+import { Edit, Monitor, MapPin, Clock, User, Stethoscope, FileText, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AppointmentCardProps {
@@ -29,6 +29,7 @@ interface AppointmentCardProps {
   isDragging?: boolean;
   onDetailsClick?: (appointmentId: string) => void;
   onEditClick?: (appointmentId: string) => void;
+  onCancelClick?: (appointmentId: string) => void;
 }
 
 export const AppointmentCard = ({
@@ -41,7 +42,8 @@ export const AppointmentCard = ({
   onDragEnd,
   isDragging,
   onDetailsClick,
-  onEditClick
+  onEditClick,
+  onCancelClick
 }: AppointmentCardProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -96,6 +98,13 @@ export const AppointmentCard = ({
   const handleEditClick = () => {
     if (onEditClick) {
       onEditClick(appointment.id);
+      setIsOpen(false);
+    }
+  };
+
+  const handleCancelClick = () => {
+    if (onCancelClick) {
+      onCancelClick(appointment.id);
       setIsOpen(false);
     }
   };
@@ -215,23 +224,36 @@ export const AppointmentCard = ({
             </div>
           </div>
           
-          <div className="flex gap-2 pt-2 border-t">
+          <div className="flex flex-col gap-2 pt-2 border-t">
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex-1"
+                onClick={handleEditClick}
+                disabled={!onEditClick}
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Editar
+              </Button>
+              {onCancelClick && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleCancelClick}
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Cancelar
+                </Button>
+              )}
+            </div>
             {onDetailsClick && (
-              <Button size="sm" className="flex-1" onClick={handleDetailsClick}>
+              <Button size="sm" className="w-full" onClick={handleDetailsClick}>
                 <FileText className="w-4 h-4 mr-2" />
                 Ver Detalhes
               </Button>
             )}
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="flex-1"
-              onClick={handleEditClick}
-              disabled={!onEditClick}
-            >
-              <Edit className="w-4 h-4 mr-2" />
-              Editar
-            </Button>
           </div>
         </div>
       </PopoverContent>

@@ -36,6 +36,7 @@ interface SchedulerGridProps {
   };
   onAppointmentClick?: (appointmentId: string) => void;
   onEditClick?: (appointmentId: string) => void;
+  onCancelClick?: (appointmentId: string) => void;
   onDoubleClick?: (entityId: string, horario: string) => void;
   verificarDisponibilidade?: (profissionalId: string, data: Date, horario: string) => boolean;
   verificarStatusDisponibilidade?: (profissionalId: string, data: Date, horario: string) => 'presencial' | 'online' | 'folga' | 'nao_configurado';
@@ -59,6 +60,7 @@ export const SchedulerGrid = ({
   filters,
   onAppointmentClick,
   onEditClick,
+  onCancelClick,
   onDoubleClick,
   verificarDisponibilidade,
   verificarStatusDisponibilidade,
@@ -469,6 +471,7 @@ export const SchedulerGrid = ({
                         isDragging={draggedAppointment === appointment.id}
                         onDetailsClick={onAppointmentClick}
                         onEditClick={onEditClick}
+                        onCancelClick={onCancelClick}
                       />
                     </div>
                   );

@@ -109,7 +109,7 @@ export default function DisponibilidadeProfissionaisPage() {
   const [profissionalSelecionado, setProfissionalSelecionado] = useState<Profissional | null>(null);
   const [profissionalBloqueado, setProfissionalBloqueado] = useState(false);
   const [recursoSelecionado, setRecursoSelecionado] = useState<Recurso | null>(null);
-  const [tipoEdicao, setTipoEdicao] = useState<'presencial' | 'online' | 'folga'>('presencial');
+  const [tipoEdicao, setTipoEdicao] = useState<'presencial' | 'online' | 'bloqueio'>('presencial');
   const [abaSelecionada, setAbaSelecionada] = useState<'semanal' | 'data-especifica'>('semanal');
   const [horariosSemana, setHorariosSemana] = useState<HorarioSemana[]>(criarHorarioSemanaPadrao());
   const [horariosOriginais, setHorariosOriginais] = useState<HorarioSemana[]>(criarHorarioSemanaPadrao());
@@ -630,11 +630,11 @@ export default function DisponibilidadeProfissionaisPage() {
     const intervalosOnline = horariosSemana.reduce((acc, h) => 
       acc + h.intervalos.filter(i => i.tipo === 'online').length, 0
     );
-    const intervalosFolga = horariosSemana.reduce((acc, h) => 
-      acc + h.intervalos.filter(i => i.tipo === 'folga').length, 0
+    const intervalosBloqueio = horariosSemana.reduce((acc, h) => 
+      acc + h.intervalos.filter(i => i.tipo === 'bloqueio').length, 0
     );
 
-    return { diasAtivos, totalIntervalos, intervalosPresencial, intervalosOnline, intervalosFolga };
+    return { diasAtivos, totalIntervalos, intervalosPresencial, intervalosOnline, intervalosBloqueio };
   };
 
   const resumo = getResumoHorarios();
@@ -726,10 +726,10 @@ export default function DisponibilidadeProfissionaisPage() {
                   💻 Online
                 </TabsTrigger>
                 <TabsTrigger 
-                  value="folga" 
+                  value="bloqueio" 
                   className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700 data-[state=active]:border-red-300 text-xs px-1 transition-all duration-200"
                 >
-                  🚫 Folga
+                  🚫 Bloqueio
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -759,7 +759,7 @@ export default function DisponibilidadeProfissionaisPage() {
                       {resumo.intervalosOnline} online
                     </Badge>
                     <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs px-1 py-0.5 whitespace-nowrap">
-                      {resumo.intervalosFolga} folgas
+                      {resumo.intervalosBloqueio} bloqueios
                     </Badge>
                   </div>
                 </div>
@@ -857,7 +857,7 @@ export default function DisponibilidadeProfissionaisPage() {
                             <div>
                               <h4 className="font-medium text-blue-900 mb-1">Configurar Data Específica</h4>
                               <p className="text-sm text-blue-700">
-                                Use esta aba para configurar disponibilidades ou folgas em datas específicas (feriados, férias, plantões especiais, etc.).
+                                Use esta aba para configurar disponibilidades ou bloqueios em datas específicas (feriados, férias, plantões especiais, etc.).
                               </p>
                             </div>
                           </div>
@@ -995,7 +995,7 @@ export default function DisponibilidadeProfissionaisPage() {
                                                       : 'border-red-300 text-red-700 bg-red-100'
                                                   }`}
                                                 >
-                                                  {disp.tipo === 'presencial' ? '👥 Presencial' : disp.tipo === 'online' ? '💻 Online' : '🚫 Folga'}
+                                                  {disp.tipo === 'presencial' ? '👥 Presencial' : disp.tipo === 'online' ? '💻 Online' : '🚫 Bloqueio'}
                                                 </Badge>
                                               </div>
                                               <div className="text-sm text-gray-600 flex items-center gap-1">
@@ -1149,7 +1149,7 @@ export default function DisponibilidadeProfissionaisPage() {
             <AlertDialogDescription>
               Tem certeza que deseja remover esta configuração de{' '}
               <strong>
-                {disponibilidadeParaExcluir?.tipo === 'disponivel' ? 'disponibilidade' : 'folga'}
+                {disponibilidadeParaExcluir?.tipo === 'disponivel' ? 'disponibilidade' : 'bloqueio'}
               </strong>
               {disponibilidadeParaExcluir?.dataEspecifica && (
                 <>
