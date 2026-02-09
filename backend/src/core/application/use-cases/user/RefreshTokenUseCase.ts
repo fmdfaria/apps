@@ -1,6 +1,7 @@
 import { inject, injectable } from 'tsyringe';
 import { IRefreshTokensRepository } from '../../../domain/repositories/IRefreshTokensRepository';
 import { IUsersRepository } from '../../../domain/repositories/IUsersRepository';
+import { IUserRolesRepository } from '../../../domain/repositories/IUserRolesRepository';
 import { AppError } from '../../../../shared/errors/AppError';
 import jwt from 'jsonwebtoken';
 import { User } from '../../../domain/entities/User';
@@ -12,7 +13,7 @@ interface IRequest {
 }
 
 interface IResponse {
-  user: Omit<User, 'senha'>;
+  user: Omit<User, 'senha'> & { roles?: string[] };
   accessToken: string;
   refreshToken: string;
 }
@@ -23,31 +24,40 @@ export class RefreshTokenUseCase {
     @inject('RefreshTokensRepository')
     private refreshTokensRepository: IRefreshTokensRepository,
     @inject('UsersRepository')
-    private usersRepository: IUsersRepository
+    private usersRepository: IUsersRepository,
+    @inject('UserRolesRepository')
+    private userRolesRepository: IUserRolesRepository
   ) {}
 
   async execute({ refreshToken, ip, userAgent }: IRequest): Promise<IResponse> {
     const token = await this.refreshTokensRepository.findByToken(refreshToken);
     if (!token || token.expiresAt < new Date()) {
-      throw new AppError('Refresh token inv√°lido ou expirado.', 401);
+      throw new AppError('Refresh token inv·lido ou expirado.', 401);
     }
+
     const user = await this.usersRepository.findById(token.userId);
     if (!user || !user.ativo) {
-      throw new AppError('Usu√°rio n√£o encontrado ou inativo.', 401);
+      throw new AppError('Usu·rio n„o encontrado ou inativo.', 401);
     }
-    // Gera novos tokens  
+
+    const userRoles = await this.userRolesRepository.findActiveUserRolesWithNames(user.id);
+    const roleNames = userRoles.map((ur) => ur.roleName);
+
     const accessToken = jwt.sign(
-      { sub: user.id, roles: [] }, // TODO: buscar roles do usu√°rio
+      { sub: user.id, roles: roleNames },
       process.env.JWT_SECRET as string,
       { expiresIn: '1h' }
     );
+
+    const refreshTokenSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
     const newRefreshToken = jwt.sign(
       { sub: user.id },
-      process.env.JWT_REFRESH_SECRET as string,
+      refreshTokenSecret as string,
       { expiresIn: '30d' }
     );
+
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    // Remove o antigo e salva o novo
+
     await this.refreshTokensRepository.delete(token.id);
     await this.refreshTokensRepository.create({
       userId: user.id,
@@ -56,11 +66,12 @@ export class RefreshTokenUseCase {
       ip: ip ?? null,
       userAgent: userAgent ?? null,
     });
+
     const { senha: _, ...userSafe } = user;
     return {
-      user: userSafe,
+      user: { ...userSafe, roles: roleNames },
       accessToken,
       refreshToken: newRefreshToken,
     };
   }
-} 
+}

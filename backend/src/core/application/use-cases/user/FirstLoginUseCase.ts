@@ -1,6 +1,7 @@
 import { inject, injectable } from 'tsyringe';
 import { IUsersRepository } from '../../../domain/repositories/IUsersRepository';
 import { IUserRolesRepository } from '../../../domain/repositories/IUserRolesRepository';
+import { IRefreshTokensRepository } from '../../../domain/repositories/IRefreshTokensRepository';
 import { AppError } from '../../../../shared/errors/AppError';
 import { isPasswordSecure } from '../../../../shared/utils/passwordGenerator';
 import bcrypt from 'bcryptjs';
@@ -17,6 +18,7 @@ interface IRequest {
 interface IResponse {
   message: string;
   accessToken: string;
+  refreshToken: string;
   user: {
     id: string;
     nome: string;
@@ -34,7 +36,9 @@ export class FirstLoginUseCase {
     @inject('UsersRepository')
     private usersRepository: IUsersRepository,
     @inject('UserRolesRepository')
-    private userRolesRepository: IUserRolesRepository
+    private userRolesRepository: IUserRolesRepository,
+    @inject('RefreshTokensRepository')
+    private refreshTokensRepository: IRefreshTokensRepository
   ) {}
 
   async execute({ email, senhaAtual, novaSenha, ip, userAgent }: IRequest): Promise<IResponse> {
@@ -82,10 +86,26 @@ export class FirstLoginUseCase {
       process.env.JWT_SECRET as string,
       { expiresIn: '1h' }
     );
+    const refreshTokenSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+    const refreshToken = jwt.sign(
+      { sub: user.id },
+      refreshTokenSecret as string,
+      { expiresIn: '30d' }
+    );
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    await this.refreshTokensRepository.create({
+      userId: user.id,
+      token: refreshToken,
+      expiresAt,
+      ip: ip ?? null,
+      userAgent: userAgent ?? null,
+    });
 
     return {
       message: 'Primeiro login realizado com sucesso. Senha alterada.',
       accessToken,
+      refreshToken,
       user: {
         id: user.id,
         nome: user.nome,

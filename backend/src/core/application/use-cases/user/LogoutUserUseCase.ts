@@ -1,12 +1,24 @@
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
+import { IRefreshTokensRepository } from '../../../domain/repositories/IRefreshTokensRepository';
 
 @injectable()
 export class LogoutUserUseCase {
-  constructor() {}
+  constructor(
+    @inject('RefreshTokensRepository')
+    private refreshTokensRepository: IRefreshTokensRepository
+  ) {}
 
-  async execute(): Promise<void> {
-    // Logout is now handled entirely on the frontend by clearing localStorage
-    // No server-side cleanup needed since we removed refresh tokens
+  async execute(refreshToken?: string): Promise<void> {
+    if (!refreshToken) {
+      return;
+    }
+
+    const token = await this.refreshTokensRepository.findByToken(refreshToken);
+    if (!token) {
+      return;
+    }
+
+    await this.refreshTokensRepository.delete(token.id);
     return;
   }
-} 
+}

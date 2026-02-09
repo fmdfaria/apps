@@ -1,6 +1,7 @@
 import { inject, injectable } from 'tsyringe';
 import { IUsersRepository } from '../../../domain/repositories/IUsersRepository';
 import { IUserRolesRepository } from '../../../domain/repositories/IUserRolesRepository';
+import { IRefreshTokensRepository } from '../../../domain/repositories/IRefreshTokensRepository';
 import { AppError } from '../../../../shared/errors/AppError';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -16,6 +17,7 @@ interface IRequest {
 interface IResponse {
   user: Omit<User, 'senha'> & { roles?: string[] };
   accessToken: string;
+  refreshToken: string;
   requiresPasswordChange: boolean;
 }
 
@@ -25,7 +27,9 @@ export class AuthenticateUserUseCase {
     @inject('UsersRepository')
     private usersRepository: IUsersRepository,
     @inject('UserRolesRepository')
-    private userRolesRepository: IUserRolesRepository
+    private userRolesRepository: IUserRolesRepository,
+    @inject('RefreshTokensRepository')
+    private refreshTokensRepository: IRefreshTokensRepository
   ) {}
 
   async execute({ email, senha, ip, userAgent }: IRequest): Promise<IResponse> {
@@ -52,13 +56,29 @@ export class AuthenticateUserUseCase {
       process.env.JWT_SECRET as string,
       { expiresIn: '1h' }
     );
+    const refreshTokenSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+    const refreshToken = jwt.sign(
+      { sub: user.id },
+      refreshTokenSecret as string,
+      { expiresIn: '30d' }
+    );
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    await this.refreshTokensRepository.create({
+      userId: user.id,
+      token: refreshToken,
+      expiresAt,
+      ip: ip ?? null,
+      userAgent: userAgent ?? null,
+    });
 
     // Não retornar a senha
     const { senha: _, ...userSafe } = user;
     return {
       user: { ...userSafe, roles: roleNames },
       accessToken,
+      refreshToken,
       requiresPasswordChange: !user.primeiroLogin, // Indica se precisa trocar senha (false = precisa trocar)
     };
   }
-} 
+}

@@ -7,7 +7,8 @@ export async function login(email: string, senha: string): Promise<AuthResponse>
 }
 
 export async function logout(): Promise<void> {
-  await api.post('/logout');
+  const refreshToken = localStorage.getItem('refreshToken');
+  await api.post('/logout', { refreshToken });
 }
 
 export async function firstLogin(data: FirstLoginRequest): Promise<FirstLoginResponse> {

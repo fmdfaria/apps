@@ -10,6 +10,7 @@ import { ChangePasswordUseCase } from '../../../core/application/use-cases/user/
 import { RequestEmailConfirmationUseCase } from '../../../core/application/use-cases/user/RequestEmailConfirmationUseCase';
 import { ConfirmEmailUseCase } from '../../../core/application/use-cases/user/ConfirmEmailUseCase';
 import { FirstLoginUseCase } from '../../../core/application/use-cases/user/FirstLoginUseCase';
+import { RefreshTokenUseCase } from '../../../core/application/use-cases/user/RefreshTokenUseCase';
 
 export class AuthController {
   async register(request: FastifyRequest, reply: FastifyReply) {
@@ -38,9 +39,19 @@ export class AuthController {
   }
 
   async logout(request: FastifyRequest, reply: FastifyReply) {
+    const bodySchema = z.object({ refreshToken: z.string().optional() }).optional();
+    const body = bodySchema.parse(request.body);
     const useCase = container.resolve(LogoutUserUseCase);
-    await useCase.execute();
+    await useCase.execute(body?.refreshToken);
     return reply.status(204).send();
+  }
+
+  async refresh(request: FastifyRequest, reply: FastifyReply) {
+    const bodySchema = z.object({ refreshToken: z.string().min(1) });
+    const { refreshToken } = bodySchema.parse(request.body);
+    const useCase = container.resolve(RefreshTokenUseCase);
+    const result = await useCase.execute({ refreshToken, ip: request.ip, userAgent: request.headers['user-agent'] });
+    return reply.send(result);
   }
 
   async requestPasswordReset(request: FastifyRequest, reply: FastifyReply) {
