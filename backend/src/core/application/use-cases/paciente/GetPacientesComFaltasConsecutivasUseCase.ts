@@ -94,7 +94,7 @@ export class GetPacientesComFaltasConsecutivasUseCase {
       if (faltasConsecutivas >= 2) {
         const paciente = await this.pacientesRepository.findById(pacienteId);
 
-        if (!paciente) continue;
+        if (!paciente || paciente.ativo === false) continue;
 
         // Get data from the most recent absence
         const ultimaFalta = faltasOrdenadas[faltasOrdenadas.length - 1];
