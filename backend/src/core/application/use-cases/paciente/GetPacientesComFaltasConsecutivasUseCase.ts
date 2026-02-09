@@ -32,10 +32,12 @@ export class GetPacientesComFaltasConsecutivasUseCase {
     private pacientesRepository: IPacientesRepository
   ) {}
 
-  async execute(): Promise<PacienteComFaltas[]> {
+  async execute(filters?: { dataInicio?: Date; dataFim?: Date }): Promise<PacienteComFaltas[]> {
     // Step 1: Get ALL agendamentos (no pagination limit) including archived
     const result = await this.agendamentosRepository.findAll({
       includeArquivados: true,
+      dataInicio: filters?.dataInicio,
+      dataFim: filters?.dataFim,
       orderBy: 'dataHoraInicio',
       orderDirection: 'asc'
     });

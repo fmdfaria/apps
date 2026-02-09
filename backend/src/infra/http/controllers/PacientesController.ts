@@ -118,8 +118,24 @@ export class PacientesController {
   }
 
   async getFaltasConsecutivas(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const querySchema = z.object({
+      dataInicio: z.coerce.date().optional(),
+      dataFim: z.coerce.date().optional(),
+    });
+
+    const { dataInicio, dataFim } = querySchema.parse(request.query);
+
+    const dataFimFinal = dataFim ?? new Date();
+    const dataInicioFinal = dataInicio ?? new Date(dataFimFinal);
+    if (!dataInicio) {
+      dataInicioFinal.setDate(dataInicioFinal.getDate() - 30);
+    }
+
     const useCase = container.resolve(GetPacientesComFaltasConsecutivasUseCase);
-    const pacientes = await useCase.execute();
+    const pacientes = await useCase.execute({
+      dataInicio: dataInicioFinal,
+      dataFim: dataFimFinal,
+    });
     return reply.status(200).send(pacientes);
   }
-} 
+}

@@ -21,7 +21,23 @@ export interface PacienteComFaltas {
   servicoNome: string;
 }
 
-export const getPacientesComFaltasConsecutivas = async (): Promise<PacienteComFaltas[]> => {
-  const response = await api.get('/pacientes/faltas-consecutivas');
+interface GetPacientesComFaltasConsecutivasParams {
+  dataInicio?: string;
+  dataFim?: string;
+}
+
+export const getPacientesComFaltasConsecutivas = async (
+  params?: GetPacientesComFaltasConsecutivasParams
+): Promise<PacienteComFaltas[]> => {
+  const dataFim = params?.dataFim ?? new Date().toISOString();
+  const dataInicio = params?.dataInicio ?? (() => {
+    const inicio = new Date();
+    inicio.setDate(inicio.getDate() - 30);
+    return inicio.toISOString();
+  })();
+
+  const response = await api.get('/pacientes/faltas-consecutivas', {
+    params: { dataInicio, dataFim }
+  });
   return response.data;
 };
