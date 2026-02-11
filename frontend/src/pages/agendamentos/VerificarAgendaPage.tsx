@@ -175,8 +175,8 @@ export const VerificarAgendaPage: React.FC = () => {
   }, [servicoSelecionado, diaSelecionado, periodoSelecionado, tipoAgendamentoSelecionado, initialized]);
 
   const verificarAgenda = async () => {
-    if (!servicoSelecionado || !diaSelecionado || !periodoSelecionado || !tipoAgendamentoSelecionado) {
-      setErro('Por favor, preencha todos os filtros antes de verificar a agenda.');
+    if (!servicoSelecionado || !tipoAgendamentoSelecionado) {
+      setErro('Por favor, selecione serviço e tipo de agendamento antes de verificar a agenda.');
       return;
     }
 
@@ -217,7 +217,7 @@ export const VerificarAgendaPage: React.FC = () => {
       
       // 4. Gerar slots disponíveis
       const slots: SlotDisponivel[] = [];
-      const diaSemanaAPI = parseInt(diaSelecionado.id); // 1-6 (API: Segunda=1, Terça=2, etc.)
+      const diaSemanaAPISelecionado = diaSelecionado ? parseInt(diaSelecionado.id) : null; // 1-6 (API: Segunda=1, Terça=2, etc.)
       const tipoAtendimento = tipoAgendamentoSelecionado.id as 'presencial' | 'online';
       
       
@@ -232,8 +232,8 @@ export const VerificarAgendaPage: React.FC = () => {
         // API:        x    , 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sab
         const diaSemanaAPICorrespondente = diaSemanaJS === 0 ? 7 : diaSemanaJS; // Domingo=7 (se necessário), outros iguais
         
-        // Verifica se é o dia da semana selecionado
-        if (diaSemanaAPICorrespondente !== diaSemanaAPI) continue;
+        // Quando houver filtro de dia da semana, aplica o filtro. Sem filtro, considera todos os dias.
+        if (diaSemanaAPISelecionado !== null && diaSemanaAPICorrespondente !== diaSemanaAPISelecionado) continue;
         
         // Gerar string da data no formato local (sem UTC)
         const ano = dataAtual.getFullYear();
@@ -248,9 +248,10 @@ export const VerificarAgendaPage: React.FC = () => {
           const disponibilidadesDoProfissional = disponibilidades.filter(disp => {
             const mesmoProf = disp.profissionalId === profServico.profissionalId;
             const mesmoTipo = disp.tipo === tipoAtendimento;
+            const diaSemanaParaComparar = diaSemanaAPISelecionado ?? diaSemanaAPICorrespondente;
             
             // Verificar se é disponibilidade semanal para este dia OU data específica
-            const temDisponibilidadeSemanal = disp.diaSemana === diaSemanaAPI;
+            const temDisponibilidadeSemanal = disp.diaSemana === diaSemanaParaComparar;
             const temDataEspecifica = disp.dataEspecifica && 
               disp.dataEspecifica.toISOString().split('T')[0] === dataStr;
             
@@ -274,18 +275,22 @@ export const VerificarAgendaPage: React.FC = () => {
             
             // Filtrar por período
             const horaInicioNum = inicio.getHours();
-            let incluirHorario = false;
-            
-            switch (periodoSelecionado.id) {
-              case 'manha':
-                incluirHorario = horaInicioNum >= 6 && horaInicioNum < 12;
-                break;
-              case 'tarde':
-                incluirHorario = horaInicioNum >= 12 && horaInicioNum < 17;
-                break;
-              case 'noite':
-                incluirHorario = horaInicioNum >= 17 && horaInicioNum <= 22;
-                break;
+            let incluirHorario = true;
+
+            if (periodoSelecionado?.id) {
+              incluirHorario = false;
+
+              switch (periodoSelecionado.id) {
+                case 'manha':
+                  incluirHorario = horaInicioNum >= 6 && horaInicioNum < 12;
+                  break;
+                case 'tarde':
+                  incluirHorario = horaInicioNum >= 12 && horaInicioNum < 17;
+                  break;
+                case 'noite':
+                  incluirHorario = horaInicioNum >= 17 && horaInicioNum <= 22;
+                  break;
+              }
             }
             
             if (!incluirHorario) continue;
@@ -547,7 +552,7 @@ export const VerificarAgendaPage: React.FC = () => {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <Label htmlFor="servico">Serviço</Label>
+                <Label htmlFor="servico">Serviço *</Label>
                 <SingleSelectDropdown
                   options={servicos.map(s => ({ id: s.id, nome: s.nome }))}
                   selected={servicoSelecionado}
@@ -556,6 +561,18 @@ export const VerificarAgendaPage: React.FC = () => {
                   headerText="Serviços disponíveis"
                   dotColor="emerald"
                   disabled={carregandoServicos}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="tipoAgendamento">Tipo Agendamento *</Label>
+                <SingleSelectDropdown
+                  options={TIPOS_AGENDAMENTO}
+                  selected={tipoAgendamentoSelecionado}
+                  onChange={setTipoAgendamentoSelecionado}
+                  placeholder="Selecione o tipo"
+                  headerText="Tipos de agendamento"
+                  dotColor="orange"
                 />
               </div>
               
@@ -583,17 +600,6 @@ export const VerificarAgendaPage: React.FC = () => {
                 />
               </div>
               
-              <div>
-                <Label htmlFor="tipoAgendamento">Tipo Agendamento</Label>
-                <SingleSelectDropdown
-                  options={TIPOS_AGENDAMENTO}
-                  selected={tipoAgendamentoSelecionado}
-                  onChange={setTipoAgendamentoSelecionado}
-                  placeholder="Selecione o tipo"
-                  headerText="Tipos de agendamento"
-                  dotColor="orange"
-                />
-              </div>
             </div>
             
             <div className="flex justify-end gap-3 mt-4">
@@ -610,7 +616,7 @@ export const VerificarAgendaPage: React.FC = () => {
               </Button>
               <Button 
                 onClick={verificarAgenda}
-                disabled={carregandoVerificacao || !servicoSelecionado || !diaSelecionado || !periodoSelecionado || !tipoAgendamentoSelecionado}
+                disabled={carregandoVerificacao || !servicoSelecionado || !tipoAgendamentoSelecionado}
                 className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300"
               >
                 {carregandoVerificacao ? (
@@ -664,7 +670,7 @@ export const VerificarAgendaPage: React.FC = () => {
       return (
         <div className="text-center py-12">
           <CalendarCheck className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">Preencha os filtros e clique em "Verificar Agenda" para ver os horários disponíveis</p>
+          <p className="text-gray-600">Selecione serviço e tipo de agendamento (dia e período são opcionais) e clique em "Verificar Agenda"</p>
         </div>
       );
     }
