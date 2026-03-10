@@ -35,11 +35,12 @@ export class CreateAgendamentoUseCase {
     private recursosRepository: IRecursosRepository
   ) {}
 
-  async execute(data: Omit<ICreateAgendamentoDTO, 'dataHoraFim'>): Promise<Agendamento | Agendamento[]> {
+  async execute(data: Omit<ICreateAgendamentoDTO, 'dataHoraFim'> & { permitirConflitoPaciente?: boolean }): Promise<Agendamento | Agendamento[]> {
+    const { permitirConflitoPaciente = false, ...dadosAgendamento } = data;
     // Define status default como 'AGENDADO' se não for fornecido
     const agendamentoData = {
-      ...data,
-      status: data.status || 'AGENDADO'
+      ...dadosAgendamento,
+      status: dadosAgendamento.status || 'AGENDADO'
     };
 
     // Se não for recorrente, segue fluxo normal
@@ -103,7 +104,7 @@ export class CreateAgendamentoUseCase {
         throw new AppError(mensagem, 400);
       }
       
-      if (existentePacienteMesmoProfissional) {
+      if (existentePacienteMesmoProfissional && !permitirConflitoPaciente) {
         // Buscar dados para mensagem detalhada
         const [paciente, profissionalExistente, servicoExistente] = await Promise.all([
           this.pacientesRepository.findById(agendamentoData.pacienteId),
@@ -264,7 +265,7 @@ export class CreateAgendamentoUseCase {
         throw new AppError(mensagem);
       }
       
-        if (existePacienteMesmoProfissional) {
+        if (existePacienteMesmoProfissional && !permitirConflitoPaciente) {
           // Buscar dados para mensagem detalhada
           const [paciente, profissionalExistente, servicoExistente] = await Promise.all([
             this.pacientesRepository.findById(baseData.pacienteId),
@@ -357,3 +358,4 @@ export class CreateAgendamentoUseCase {
     return agendamentosCriados;
   }
 } 
+

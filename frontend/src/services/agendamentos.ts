@@ -264,6 +264,7 @@ export interface CreateAgendamentoData {
   servicoId: string;
   dataHoraInicio: string;
   recorrencia?: RecorrenciaAgendamento;
+  permitirConflitoPaciente?: boolean;
 }
 
 export interface UpdateAgendamentoData {

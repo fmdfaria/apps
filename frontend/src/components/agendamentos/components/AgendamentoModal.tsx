@@ -2,6 +2,7 @@ import React from 'react';
 import { FluxoSelecao } from './FluxoSelecao';
 import { useAgendamentoForm } from '../hooks/useAgendamentoForm';
 import ConfirmationDialog from '@/components/ui/confirmation-dialog';
+import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import type { TipoFluxo } from '../types/agendamento-form';
 
 interface AgendamentoModalProps {
@@ -164,6 +165,25 @@ export const AgendamentoModal: React.FC<AgendamentoModalProps> = ({
         defaultActions={false}
         showCloseButton={true}
         maxWidth="4xl"  
+      />
+
+      <ConfirmacaoModal
+        open={agendamentoContext.showPacienteConflictConfirmation}
+        onClose={agendamentoContext.handlePacienteConflictCancel}
+        onCancel={agendamentoContext.handlePacienteConflictCancel}
+        onConfirm={agendamentoContext.handlePacienteConflictConfirm}
+        title="Conflito de paciente detectado"
+        description={
+          <>
+            <p>{agendamentoContext.pacienteConflictMessage}</p>
+            <p className="mt-2 font-medium">Deseja continuar e criar o agendamento mesmo assim?</p>
+          </>
+        }
+        confirmText="Sim"
+        cancelText="Não"
+        isLoading={agendamentoContext.loadingState.loading}
+        loadingText="Criando agendamento..."
+        variant="warning"
       />
     </>
   );

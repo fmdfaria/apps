@@ -95,6 +95,11 @@ export const useAgendamentoForm = ({
   // Estados para modal de conflitos de recorrência
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [conflitosRecorrencia, setConflitosRecorrencia] = useState<ConflitosRecorrencia | null>(null);
+  
+  // Estados para confirmação de conflito de paciente no novo agendamento
+  const [showPacienteConflictConfirmation, setShowPacienteConflictConfirmation] = useState(false);
+  const [pacienteConflictMessage, setPacienteConflictMessage] = useState('');
+  const [pacienteConflictDadosParaEnvio, setPacienteConflictDadosParaEnvio] = useState<CreateAgendamentoData | null>(null);
 
   // Estado para controlar se o usuário selecionou manualmente um recurso
   const [userSelectedResource, setUserSelectedResource] = useState(false);
@@ -226,6 +231,11 @@ export const useAgendamentoForm = ({
     setShowConflictModal(false);
     setConflitosRecorrencia(null);
     
+    // Limpar estados do modal de conflito de paciente
+    setShowPacienteConflictConfirmation(false);
+    setPacienteConflictMessage('');
+    setPacienteConflictDadosParaEnvio(null);
+    
     // Resetar flag de seleção manual
     setUserSelectedResource(false);
   }, []);
@@ -308,6 +318,32 @@ export const useAgendamentoForm = ({
 
     return !!disponibilidadeComRecurso; // Retorna true se encontrou a disponibilidade, false se não encontrou
   }, [disponibilidades]);
+
+  const criarAgendamentoComTratamentoConflitoPaciente = useCallback(async (
+    dadosParaEnvio: CreateAgendamentoData,
+    aoDetectarConflito?: () => void
+  ): Promise<boolean> => {
+    try {
+      await createAgendamento(dadosParaEnvio);
+      return true;
+    } catch (error: any) {
+      const backendMsg = error?.response?.data?.message;
+      const isConflitoPaciente = typeof backendMsg === 'string' && backendMsg.startsWith('Conflito de paciente:');
+
+      if (isConflitoPaciente) {
+        setPacienteConflictMessage(formatarDatasEmMensagem(backendMsg));
+        setPacienteConflictDadosParaEnvio(dadosParaEnvio);
+        setShowPacienteConflictConfirmation(true);
+        aoDetectarConflito?.();
+        return false;
+      }
+
+      AppToast.error('Erro ao criar agendamento', {
+        description: formatarDatasEmMensagem(backendMsg || 'Não foi possível criar o agendamento. Tente novamente.')
+      });
+      return false;
+    }
+  }, []);
 
   // Função para submeter o formulário
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -397,21 +433,17 @@ export const useAgendamentoForm = ({
     // Se não há conflitos, prosseguir com criação
     try {
       if (!loading) setLoading(true);
-      await createAgendamento(dadosParaEnvio);
+      const criado = await criarAgendamentoComTratamentoConflitoPaciente(dadosParaEnvio);
+      if (!criado) return;
+
       AppToast.created('Agendamento', 'O agendamento foi criado com sucesso!');
       resetForm();
       onSuccess();
       onClose();
-    } catch (error: any) {
-      const backendMsg = error?.response?.data?.message;
-      
-      AppToast.error('Erro ao criar agendamento', {
-        description: formatarDatasEmMensagem(backendMsg || 'Não foi possível criar o agendamento. Tente novamente.')
-      });
     } finally {
       setLoading(false);
     }
-  }, [formData, dataAgendamento, horaAgendamento, temRecorrencia, recorrencia, resetForm, onSuccess, onClose]);
+  }, [formData, dataAgendamento, horaAgendamento, temRecorrencia, recorrencia, resetForm, onSuccess, onClose, loading, criarAgendamentoComTratamentoConflitoPaciente]);
 
   // Função para confirmar criação com recurso inconsistente
   const handleResourceConfirmation = useCallback(async () => {
@@ -421,8 +453,36 @@ export const useAgendamentoForm = ({
     setLoading(true);
 
     try {
-      await createAgendamento(resourceConfirmationData.dadosParaEnvio);
+      const criado = await criarAgendamentoComTratamentoConflitoPaciente(
+        resourceConfirmationData.dadosParaEnvio,
+        () => setShowResourceConfirmation(false)
+      );
+      if (!criado) return;
+
       AppToast.created('Agendamento', 'O agendamento foi criado com sucesso!');
+      resetForm();
+      onSuccess();
+      onClose();
+    } finally {
+      setLoading(false);
+      setResourceConfirmationData(null);
+    }
+  }, [resourceConfirmationData, resetForm, onSuccess, onClose, criarAgendamentoComTratamentoConflitoPaciente]);
+
+  const handlePacienteConflictConfirm = useCallback(async () => {
+    if (!pacienteConflictDadosParaEnvio) return;
+
+    setLoading(true);
+    try {
+      await createAgendamento({
+        ...pacienteConflictDadosParaEnvio,
+        permitirConflitoPaciente: true
+      });
+
+      AppToast.created('Agendamento', 'O agendamento foi criado com sucesso!');
+      setShowPacienteConflictConfirmation(false);
+      setPacienteConflictMessage('');
+      setPacienteConflictDadosParaEnvio(null);
       resetForm();
       onSuccess();
       onClose();
@@ -433,9 +493,14 @@ export const useAgendamentoForm = ({
       });
     } finally {
       setLoading(false);
-      setResourceConfirmationData(null);
     }
-  }, [resourceConfirmationData, resetForm, onSuccess, onClose]);
+  }, [pacienteConflictDadosParaEnvio, resetForm, onSuccess, onClose]);
+
+  const handlePacienteConflictCancel = useCallback(() => {
+    setShowPacienteConflictConfirmation(false);
+    setPacienteConflictMessage('');
+    setPacienteConflictDadosParaEnvio(null);
+  }, []);
 
   // Função para cancelar e escolher outro recurso
   const handleResourceCancel = useCallback(() => {
@@ -931,6 +996,9 @@ export const useAgendamentoForm = ({
       setDataAgendamento('');
       setHoraAgendamento('');
       setTipoFluxo(null);
+      setShowPacienteConflictConfirmation(false);
+      setPacienteConflictMessage('');
+      setPacienteConflictDadosParaEnvio(null);
       // Resetar flag de seleção manual
       setUserSelectedResource(false);
     }
@@ -988,6 +1056,11 @@ export const useAgendamentoForm = ({
     // Estados e funções do modal de conflitos
     showConflictModal,
     conflitosRecorrencia,
-    handleConflictModalClose
+    handleConflictModalClose,
+    showPacienteConflictConfirmation,
+    pacienteConflictMessage,
+    handlePacienteConflictConfirm,
+    handlePacienteConflictCancel
   };
-}; 
+};
+

@@ -45,9 +45,13 @@ const agendamentoBodySchema = z.object({
   tipoEdicaoRecorrencia: z.enum(['apenas_esta', 'esta_e_futuras', 'toda_serie']).optional(),
 });
 
+const createAgendamentoBodySchema = agendamentoBodySchema.extend({
+  permitirConflitoPaciente: z.boolean().optional(),
+});
+
 export class AgendamentosController {
   async create(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-    const data = agendamentoBodySchema.parse(request.body);
+    const data = createAgendamentoBodySchema.parse(request.body);
     const useCase = container.resolve(CreateAgendamentoUseCase);
     const agendamento = await useCase.execute(data);
     return reply.status(201).send(agendamento);

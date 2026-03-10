@@ -73,4 +73,9 @@ export interface AgendamentoFormContext {
   showConflictModal: boolean;
   conflitosRecorrencia: ConflitosRecorrencia | null;
   handleConflictModalClose: () => void;
-} 
+  // Estado e ações para conflito de paciente no novo agendamento
+  showPacienteConflictConfirmation: boolean;
+  pacienteConflictMessage: string;
+  handlePacienteConflictConfirm: () => Promise<void>;
+  handlePacienteConflictCancel: () => void;
+}
