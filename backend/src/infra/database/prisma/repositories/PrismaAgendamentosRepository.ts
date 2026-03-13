@@ -166,8 +166,16 @@ export class PrismaAgendamentosRepository implements IAgendamentosRepository {
       }
     }
     if (filters?.recursoId) whereConditions.recursoId = filters.recursoId;
-    if (filters?.convenioId) whereConditions.convenioId = filters.convenioId;
-    if (filters?.convenioIdExcluir) {
+    if (filters?.convenioId && filters?.convenioIdExcluir) {
+      // Combina os filtros quando ambos são informados:
+      // mantém apenas o convênio específico, desde que não seja o excluído.
+      whereConditions.convenioId = {
+        equals: filters.convenioId,
+        not: filters.convenioIdExcluir
+      };
+    } else if (filters?.convenioId) {
+      whereConditions.convenioId = filters.convenioId;
+    } else if (filters?.convenioIdExcluir) {
       whereConditions.convenioId = { not: filters.convenioIdExcluir };
     }
     if (filters?.servicoId) whereConditions.servicoId = filters.servicoId;

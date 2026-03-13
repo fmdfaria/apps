@@ -3,12 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { SingleSelectDropdown } from '@/components/ui/single-select-dropdown';
+import { MultiSelectDropdown } from '@/components/ui/multiselect-dropdown';
 import { Filter, FilterX, X } from 'lucide-react';
 
 // Interfaces TypeScript
 export interface FilterField {
   key: string;
-  type: 'text' | 'date' | 'select' | 'static-select' | 'api-select';
+  type: 'text' | 'date' | 'select' | 'static-select' | 'api-select' | 'multiselect-dropdown';
   label: string;
   placeholder?: string;
   options?: Array<{ id: string; nome: string }>; // Para static-select
@@ -181,6 +182,24 @@ export const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
           />
         );
 
+      case 'multiselect-dropdown':
+        const multiOptions = field.options || [];
+        const selectedIds = currentValue
+          .split(',')
+          .map(v => v.trim())
+          .filter(Boolean);
+        const selectedOptions = multiOptions.filter(option => selectedIds.includes(option.id));
+
+        return (
+          <MultiSelectDropdown
+            options={multiOptions}
+            selected={selectedOptions}
+            onChange={(selected) => onFilterChange(field.key, selected.map(item => item.id).join(','))}
+            placeholder={field.placeholder || `Selecione ${field.label.toLowerCase()}...`}
+            headerText={field.label}
+          />
+        );
+
       default:
         return null;
     }
@@ -207,6 +226,16 @@ export const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
           return (apiOption as any)[displayField] || apiOption.nome || value;
         }
         return value;
+
+      case 'multiselect-dropdown':
+        const selectedIds = value
+          .split(',')
+          .map(v => v.trim())
+          .filter(Boolean);
+        const selectedNames = (field.options || [])
+          .filter(opt => selectedIds.includes(opt.id))
+          .map(opt => opt.nome);
+        return selectedNames.length > 0 ? selectedNames.join(', ') : value;
       
       default:
         return value;

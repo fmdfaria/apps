@@ -49,17 +49,11 @@ export class FechamentoRecebimentoUseCase {
     contaReceber: contaReceberData,
     userId
   }: FechamentoRecebimentoRequest): Promise<FechamentoRecebimentoResponse> {
-    // 1. Validar se todos os agendamentos existem e estão FINALIZADOS
+    // 1. Validar se todos os agendamentos existem
     const agendamentos = await this.agendamentosRepository.findByIds(agendamentoIds);
 
     if (agendamentos.length !== agendamentoIds.length) {
       throw new AppError('Alguns agendamentos não foram encontrados', 400);
-    }
-
-    // Verificar se todos estão FINALIZADOS
-    const agendamentosNaoFinalizados = agendamentos.filter(a => a.status !== 'FINALIZADO');
-    if (agendamentosNaoFinalizados.length > 0) {
-      throw new AppError('Apenas agendamentos FINALIZADOS podem ter fechamento de recebimento', 400);
     }
 
     // 2. Verificar se algum agendamento já possui conta_receber associada
@@ -103,11 +97,11 @@ export class FechamentoRecebimentoUseCase {
         agendamentosContas.push(associacao);
       }
 
-      // 5. Atualizar agendamentos: marcar recebimento como true, MAS NÃO ALTERAR O STATUS
+      // 5. Atualizar agendamentos: marcar recebimento como true, sem alterar status atual
       const agendamentosAtualizados = [];
       for (const agendamento of agendamentos) {
         const agendamentoAtualizado = await this.agendamentosRepository.update(agendamento.id!, {
-          recebimento: true // Marca como recebimento registrado, MAS mantém status como FINALIZADO
+          recebimento: true // Marca como recebimento registrado, mantendo o status atual
         });
         agendamentosAtualizados.push(agendamentoAtualizado);
       }
@@ -146,3 +140,4 @@ export class FechamentoRecebimentoUseCase {
     }
   }
 }
+

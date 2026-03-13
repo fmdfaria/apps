@@ -41,6 +41,17 @@ import ContaReceberModal from '@/pages/financeiro/ContaReceberModal';
 import { createContaReceber, receberConta } from '@/services/contas-receber';
 import { createAgendamentoConta } from '@/services/agendamentos-contas';
 
+const statusOptions = [
+  { id: 'AGENDADO', nome: 'Agendado' },
+  { id: 'SOLICITADO', nome: 'Solicitado' },
+  { id: 'LIBERADO', nome: 'Liberado' },
+  { id: 'ATENDIDO', nome: 'Atendido' },
+  { id: 'FINALIZADO', nome: 'Finalizado' },
+  { id: 'CANCELADO', nome: 'Cancelado' },
+  { id: 'ARQUIVADO', nome: 'Arquivado' },
+  { id: 'PENDENTE', nome: 'Pendente' }
+];
+
 // Configuração dos campos de filtro para o AdvancedFilter
 const filterFields: FilterField[] = [
   { 
@@ -84,6 +95,13 @@ const filterFields: FilterField[] = [
     apiService: getProfissionais,
     placeholder: 'Selecione um profissional...',
     searchFields: ['nome']
+  },
+  {
+    key: 'status',
+    type: 'multiselect-dropdown',
+    label: 'Status',
+    options: statusOptions,
+    placeholder: 'Selecione os status...'
   }
 ];
 
@@ -201,9 +219,15 @@ export const FechamentoPage = () => {
 
     try {
       // Buscar agendamentos que ainda não tiveram recebimento registrado
-      // Backend filtra automaticamente: exclui status CANCELADO e AGENDADO
-      // dataFim=hoje para otimização: usa índice dataHoraInicio do banco (crítico com agendamentos até 2027)
-      const hoje = new Date().toISOString().split('T')[0];
+      // Quando status não é informado, backend exclui automaticamente CANCELADO e AGENDADO
+      const statusSelecionados = (filtrosAplicados.status || '')
+        .split(',')
+        .map(status => status.trim())
+        .filter(Boolean);
+      const todosStatus = statusOptions.map(option => option.id);
+      const statusNotIn = statusSelecionados.length > 0
+        ? todosStatus.filter(status => !statusSelecionados.includes(status))
+        : undefined;
 
       const dados = await getAgendamentos({
         recebimento: false, // Apenas agendamentos sem recebimento registrado
@@ -211,11 +235,12 @@ export const FechamentoPage = () => {
         page: 1,
         // Removido limit para usar padrão da API (dados serão agrupados)
         ...(filtrosAplicados.dataInicio ? { dataInicio: filtrosAplicados.dataInicio } : {}),
-        ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : { dataFim: hoje }),
+        ...(filtrosAplicados.dataFim ? { dataFim: filtrosAplicados.dataFim } : {}),
         ...(filtrosAplicados.convenioId ? { convenioId: filtrosAplicados.convenioId } : {}),
         ...(filtrosAplicados.servicoId ? { servicoId: filtrosAplicados.servicoId } : {}),
         ...(filtrosAplicados.pacienteId ? { pacienteId: filtrosAplicados.pacienteId } : {}),
         ...(filtrosAplicados.profissionalId ? { profissionalId: filtrosAplicados.profissionalId } : {}),
+        ...(statusNotIn && statusNotIn.length > 0 ? { statusNotIn } : {}),
       });
 
       // A nova API retorna { data: [], pagination: {} }
@@ -941,6 +966,11 @@ export const FechamentoPage = () => {
 
   // Filtrar agendamentos apenas por busca textual
   // Note: Todos os filtros (status, convênio, data, etc.) já são aplicados pela API/backend
+  const statusSelecionados = (filtrosAplicados.status || '')
+    .split(',')
+    .map(status => status.trim())
+    .filter(Boolean);
+
   const agendamentosFiltrados = (Array.isArray(agendamentos) ? agendamentos : [])
     .filter(a =>
       !busca ||
@@ -948,7 +978,8 @@ export const FechamentoPage = () => {
       a.profissionalNome?.toLowerCase().includes(busca.toLowerCase()) ||
       a.servicoNome?.toLowerCase().includes(busca.toLowerCase()) ||
       a.convenioNome?.toLowerCase().includes(busca.toLowerCase())
-    );
+    )
+    .filter(a => statusSelecionados.length === 0 || statusSelecionados.includes(a.status));
 
   // Processar dados para visualização de convênios
   const processarDadosConvenios = (): FechamentoConvenio[] => {
@@ -1023,7 +1054,7 @@ export const FechamentoPage = () => {
     // Para fechamentos particulares, aplicar filtros diferentes baseado no pagamento antecipado
     const agendamentosParticulares = agendamentos
       .filter(a => 
-        // Aplicar os mesmos filtros da interface (busca e filtros avançados), exceto status
+        // Aplicar os mesmos filtros da interface (busca e filtros avançados)
         (!busca || 
          a.pacienteNome?.toLowerCase().includes(busca.toLowerCase()) ||
          a.profissionalNome?.toLowerCase().includes(busca.toLowerCase()) ||
@@ -1035,6 +1066,7 @@ export const FechamentoPage = () => {
       .filter(a => !filtrosAplicados.profissional || a.profissionalNome?.toLowerCase().includes(filtrosAplicados.profissional.toLowerCase()))
       .filter(a => !filtrosAplicados.servico || a.servicoNome?.toLowerCase().includes(filtrosAplicados.servico.toLowerCase()))
       .filter(a => !filtrosAplicados.convenio || a.convenioNome?.toLowerCase().includes(filtrosAplicados.convenio.toLowerCase()))
+      .filter(a => statusSelecionados.length === 0 || statusSelecionados.includes(a.status))
       .filter(a => {
         if (!filtrosAplicados.dataInicio && !filtrosAplicados.dataFim) return true;
         
