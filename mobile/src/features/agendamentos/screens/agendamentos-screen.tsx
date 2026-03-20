@@ -1,11 +1,12 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, ScrollView, View } from 'react-native';
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, ScrollView, View } from 'react-native';
 import { ErrorState } from '@/components/feedback/error-state';
 import { SkeletonBlock } from '@/components/feedback/skeleton';
 import { SearchBar } from '@/components/ui/search-bar';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
+import { BackToTopButton } from '@/components/ui/back-to-top-button';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { useAuth } from '@/features/auth/context/auth-context';
@@ -114,8 +115,11 @@ export function AgendamentosScreen() {
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusLoadingId, setStatusLoadingId] = useState<string | null>(null);
+  const listRef = useRef<FlatList<Agendamento> | null>(null);
 
   const canCancel = useMemo(() => {
     return hasRoutePermission(permissions, {
@@ -144,11 +148,15 @@ export function AgendamentosScreen() {
     async (isRefresh = false) => {
       if (isRefresh) {
         setRefreshing(true);
+      } else if (page > 1) {
+        setLoadingMore(true);
       } else {
         setLoading(true);
       }
 
-      setError(null);
+      if (page === 1 || isRefresh) {
+        setError(null);
+      }
 
       try {
         const normalizedRoles = (user?.roles || []).map((role) => String(role).toUpperCase());
@@ -157,8 +165,6 @@ export function AgendamentosScreen() {
         const filtros: {
           page: number;
           limit: number;
-          orderBy: string;
-          orderDirection: 'asc' | 'desc';
           status?: StatusAgendamento;
           search?: string;
           includeArquivados?: boolean;
@@ -168,8 +174,6 @@ export function AgendamentosScreen() {
         } = {
           page,
           limit,
-          orderBy: 'dataHoraInicio',
-          orderDirection: 'asc',
         };
 
         if (statusFilter !== 'TODOS') {
@@ -184,27 +188,46 @@ export function AgendamentosScreen() {
           filtros.dataFim = calcularDataFimPadrao();
         }
 
-        const profissionalIdUsuario = user?.profissionalId || null;
-        if (isProfissional || profissionalIdUsuario) {
-          const profissionalId = profissionalIdUsuario || (await getMeuProfissional()).id;
-          filtros.profissionalId = profissionalId;
+        if (isProfissional) {
+          const profissional = await getMeuProfissional();
+          filtros.profissionalId = profissional.id;
         }
 
         const response = await getAgendamentos(filtros);
-        setAgendamentos(response.data);
+        setAgendamentos((current) => {
+          if (page === 1 || isRefresh) {
+            return response.data;
+          }
+
+          const merged = [...current];
+          const existingIds = new Set(current.map((item) => item.id));
+          for (const item of response.data) {
+            if (!existingIds.has(item.id)) {
+              merged.push(item);
+            }
+          }
+          return merged;
+        });
         setTotal(response.pagination.total);
         setTotalPages(response.pagination.totalPages);
       } catch (err) {
-        setError(parseApiError(err, 'Não foi possível carregar os agendamentos.'));
+        if (page === 1 || isRefresh) {
+          setError(parseApiError(err, 'Não foi possível carregar os agendamentos.'));
+        } else {
+          showToast({ message: parseApiError(err, 'Não foi possível carregar mais agendamentos.') });
+          setPage((prev) => Math.max(1, prev - 1));
+        }
       } finally {
         if (isRefresh) {
           setRefreshing(false);
+        } else if (page > 1) {
+          setLoadingMore(false);
         } else {
           setLoading(false);
         }
       }
     },
-    [limit, page, queryDebounced, statusFilter, user?.profissionalId, user?.roles],
+    [limit, page, queryDebounced, showToast, statusFilter, user?.roles],
   );
 
   useEffect(() => {
@@ -217,6 +240,12 @@ export function AgendamentosScreen() {
       return acc;
     }, {});
   }, [agendamentos]);
+
+  const handleEndReached = useCallback(() => {
+    if (loading || refreshing || loadingMore) return;
+    if (page >= totalPages) return;
+    setPage((prev) => prev + 1);
+  }, [loading, loadingMore, page, refreshing, totalPages]);
 
   const handleToggleCancelamento = useCallback(
     async (agendamento: Agendamento) => {
@@ -345,6 +374,7 @@ export function AgendamentosScreen() {
   return (
     <AppScreen>
       <FlatList
+        ref={listRef}
         data={agendamentos}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderHeader}
@@ -358,35 +388,24 @@ export function AgendamentosScreen() {
           </View>
         }
         ListFooterComponent={
-          totalPages > 1 ? (
-            <View className="mb-6 mt-2 rounded-2xl border border-surface-border bg-surface-card p-3">
-              <AppText className="mb-3 text-center text-xs font-semibold text-content-muted">
-                Página {page} de {totalPages}
-              </AppText>
-              <View className="flex-row gap-2">
-                <Button
-                  label="Anterior"
-                  variant="secondary"
-                  className="flex-1"
-                  disabled={page <= 1}
-                  onPress={() => setPage((prev) => Math.max(1, prev - 1))}
-                />
-                <Button
-                  label="Próxima"
-                  className="flex-1"
-                  disabled={page >= totalPages}
-                  onPress={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-                />
-              </View>
-            </View>
-          ) : (
-            <View className="h-6" />
-          )
+          <View className="mb-6 mt-2 items-center">
+            {loadingMore ? (
+              <ActivityIndicator />
+            ) : page < totalPages ? (
+              <AppText className="text-xs text-content-muted">Role para carregar mais...</AppText>
+            ) : (
+              <View className="h-2" />
+            )}
+          </View>
         }
         contentContainerStyle={{ gap: 12, paddingBottom: 16 }}
         showsVerticalScrollIndicator={false}
         onRefresh={() => void carregarAgendamentos(true)}
         refreshing={refreshing}
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.35}
+        onScroll={(event) => setShowBackToTop(event.nativeEvent.contentOffset.y > 280)}
+        scrollEventThrottle={16}
         renderItem={({ item }) => {
           const status = getStatusInfo(item.status);
           const proximoStatus = PROXIMO_STATUS[item.status];
@@ -452,6 +471,10 @@ export function AgendamentosScreen() {
           );
         }}
       />
+      <BackToTopButton visible={showBackToTop} onPress={() => listRef.current?.scrollToOffset({ offset: 0, animated: true })} />
     </AppScreen>
   );
 }
+
+
+

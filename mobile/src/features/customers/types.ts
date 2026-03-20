@@ -17,6 +17,18 @@ export type Patient = {
   } | null;
 };
 
+export type PatientsPagination = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
+export type PaginatedPatientsResponse = {
+  data: Patient[];
+  pagination: PatientsPagination;
+};
+
 export type Convenio = {
   id: string;
   nome: string;

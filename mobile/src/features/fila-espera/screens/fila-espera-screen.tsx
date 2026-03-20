@@ -327,7 +327,8 @@ export function FilaEsperaScreen() {
   );
 
   return (
-    <AppScreen contentClassName="pt-1 pb-2" edges={['left', 'right', 'bottom']}>
+    <AppScreen contentClassName="pt-1 pb-2">
+      <PageHeader title="Fila de Espera" subtitle="Gerencie os pacientes em espera" className="mb-2" />
 
       <View className="mb-3 gap-3">
         <SearchBar placeholder="Buscar por paciente, serviço ou profissional..." value={query} onChangeText={setQuery} />

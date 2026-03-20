@@ -5,6 +5,7 @@ import type {
   Convenio,
   CreatePatientPayload,
   EvolucaoPaciente,
+  PaginatedPatientsResponse,
   PacientePedido,
   Patient,
   ProfissionalOption,
@@ -14,6 +15,20 @@ import type {
 
 export async function getPatients() {
   const response = await api.get<Patient[]>('/pacientes');
+  return response.data;
+}
+
+type GetPatientsPaginatedParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+};
+
+export async function getPatientsPaginated(params: GetPatientsPaginatedParams) {
+  const response = await api.get<PaginatedPatientsResponse>('/pacientes', {
+    params,
+  });
+
   return response.data;
 }
 

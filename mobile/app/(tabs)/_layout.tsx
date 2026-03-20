@@ -3,14 +3,16 @@ import { Redirect, Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FullScreenLoader } from '@/components/feedback/full-screen-loader';
 import { useAuth } from '@/features/auth/context/auth-context';
+import { useFooterMenus } from '@/features/navigation/context/footer-menu-context';
 import { routes } from '@/navigation/routes';
 import { tokens } from '@/theme';
 
 export default function TabsLayout() {
-  const { isInitializing, isAuthenticated, canAccessFeature } = useAuth();
+  const { isInitializing, isAuthenticated } = useAuth();
+  const { isReady, isSelected } = useFooterMenus();
   const insets = useSafeAreaInsets();
 
-  if (isInitializing) {
+  if (isInitializing || !isReady) {
     return <FullScreenLoader />;
   }
 
@@ -35,9 +37,12 @@ export default function TabsLayout() {
           const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
             index: 'home-outline',
             atendimento: 'medkit-outline',
-            agendamentos: 'medkit-outline',
+            agendamentos: 'calendar-outline',
             customers: 'people-outline',
-            calendar: 'calendar-outline',
+            calendar: 'today-outline',
+            release: 'lock-open-outline',
+            'release-particular': 'cash-outline',
+            waitlist: 'people-circle-outline',
             more: 'ellipsis-horizontal-circle-outline',
           };
 
@@ -45,43 +50,59 @@ export default function TabsLayout() {
         },
       })}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Início',
-          href: canAccessFeature('dashboard') ? undefined : null,
-        }}
-      />
+      <Tabs.Screen name="index" options={{ title: 'Início' }} />
+
       <Tabs.Screen
         name="atendimento"
         options={{
           title: 'Atendimento',
-          href: canAccessFeature('atendimento') ? undefined : null,
+          href: isSelected('atendimento') ? undefined : null,
         }}
       />
       <Tabs.Screen
         name="agendamentos"
         options={{
           title: 'Agendamentos',
-          href: canAccessFeature('atendimentos') ? undefined : null,
+          href: isSelected('agendamentos') ? undefined : null,
         }}
       />
       <Tabs.Screen
         name="customers"
         options={{
           title: 'Pacientes',
-          href: canAccessFeature('pacientes') ? undefined : null,
+          href: isSelected('customers') ? undefined : null,
         }}
       />
       <Tabs.Screen
         name="calendar"
         options={{
           title: 'Agenda',
-          href: canAccessFeature('agenda') ? undefined : null,
+          href: isSelected('calendar') ? undefined : null,
         }}
       />
+      <Tabs.Screen
+        name="release"
+        options={{
+          title: 'Liberação',
+          href: isSelected('release') ? undefined : null,
+        }}
+      />
+      <Tabs.Screen
+        name="release-particular"
+        options={{
+          title: 'Particulares',
+          href: isSelected('releaseParticular') ? undefined : null,
+        }}
+      />
+      <Tabs.Screen
+        name="waitlist"
+        options={{
+          title: 'Fila',
+          href: isSelected('waitlist') ? undefined : null,
+        }}
+      />
+
       <Tabs.Screen name="more" options={{ title: 'Mais' }} />
     </Tabs>
   );
 }
-

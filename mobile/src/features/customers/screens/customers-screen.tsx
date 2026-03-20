@@ -1,18 +1,19 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, FlatList, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, FlatList, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
 import { PageHeader } from '@/components/layout/page-header';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
+import { BackToTopButton } from '@/components/ui/back-to-top-button';
 import { Button } from '@/components/ui/button';
 import { ListItem } from '@/components/ui/list-item';
 import { SearchBar } from '@/components/ui/search-bar';
 import { useAuth } from '@/features/auth/context/auth-context';
 import { hasRoutePermission } from '@/features/auth/permissions';
 import { CreatePatientSheet } from '@/features/customers/components/create-patient-sheet';
-import { createPatient, getConvenios, getPatients } from '@/features/customers/services/patients-api';
+import { createPatient, getConvenios, getPatientsPaginated } from '@/features/customers/services/patients-api';
 import type { Convenio, CreatePatientPayload, Patient } from '@/features/customers/types';
 import { routes } from '@/navigation/routes';
 import { useToast } from '@/providers/toast-provider';
@@ -77,17 +78,25 @@ export function CustomersScreen() {
   const { showToast } = useToast();
 
   const [query, setQuery] = useState('');
+  const [queryDebounced, setQueryDebounced] = useState('');
   const [patients, setPatients] = useState<Patient[]>([]);
   const [convenios, setConvenios] = useState<Convenio[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loadingConvenios, setLoadingConvenios] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const [newPatientVisible, setNewPatientVisible] = useState(false);
   const [creatingPatient, setCreatingPatient] = useState(false);
   const [formValues, setFormValues] = useState<PatientFormValues>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const pulse = useRef(new Animated.Value(0.45)).current;
+  const listRef = useRef<FlatList<Patient> | null>(null);
 
   const canCreatePatient = useMemo(() => {
     return hasRoutePermission(permissions, {
@@ -118,28 +127,65 @@ export function CustomersScreen() {
     return () => loop.stop();
   }, [pulse]);
 
-  const loadPatients = useCallback(async (isRefresh = false) => {
+  useEffect(() => {
+    const timer = setTimeout(() => setQueryDebounced(query.trim()), 450);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const loadPatients = useCallback(async (pageToLoad: number, mode: 'replace' | 'append', isRefresh = false) => {
     if (isRefresh) {
       setRefreshing(true);
+    } else if (pageToLoad > 1 && mode === 'append') {
+      setLoadingMore(true);
     } else {
       setLoading(true);
     }
 
-    setError(null);
+    if (pageToLoad === 1 || isRefresh) {
+      setError(null);
+    }
 
     try {
-      const data = await getPatients();
-      setPatients(data);
+      const response = await getPatientsPaginated({
+        page: pageToLoad,
+        limit,
+        search: queryDebounced || undefined,
+      });
+
+      setPatients((current) => {
+        if (mode === 'replace' || pageToLoad === 1) {
+          return response.data;
+        }
+
+        const merged = [...current];
+        const existingIds = new Set(current.map((item) => item.id));
+        for (const item of response.data) {
+          if (!existingIds.has(item.id)) {
+            merged.push(item);
+          }
+        }
+        return merged;
+      });
+
+      setPage(pageToLoad);
+      setTotal(response.pagination.total);
+      setTotalPages(response.pagination.totalPages || 1);
     } catch (err) {
-      setError(getErrorMessage(err));
+      if (pageToLoad === 1 || isRefresh) {
+        setError(getErrorMessage(err));
+      } else {
+        showToast({ message: getErrorMessage(err) });
+      }
     } finally {
       if (isRefresh) {
         setRefreshing(false);
+      } else if (pageToLoad > 1 && mode === 'append') {
+        setLoadingMore(false);
       } else {
         setLoading(false);
       }
     }
-  }, []);
+  }, [limit, queryDebounced, showToast]);
 
   const loadConvenios = useCallback(async () => {
     if (!canCreatePatient) {
@@ -159,23 +205,14 @@ export function CustomersScreen() {
   }, [canCreatePatient]);
 
   useEffect(() => {
-    void loadPatients();
+    void loadPatients(1, 'replace');
   }, [loadPatients]);
 
-  const filtered = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-
-    if (!normalizedQuery) {
-      return patients;
-    }
-
-    return patients.filter((patient) => {
-      const text = `${patient.nomeCompleto} ${patient.tipoServico} ${patient.whatsapp || ''} ${patient.nomeResponsavel || ''} ${
-        patient.convenio?.nome || ''
-      }`;
-      return text.toLowerCase().includes(normalizedQuery);
-    });
-  }, [patients, query]);
+  const handleEndReached = useCallback(() => {
+    if (loading || refreshing || loadingMore) return;
+    if (page >= totalPages) return;
+    void loadPatients(page + 1, 'append');
+  }, [loadPatients, loading, loadingMore, page, refreshing, totalPages]);
 
   const openNewPatientModal = useCallback(async () => {
     setFormValues(EMPTY_FORM);
@@ -264,7 +301,7 @@ export function CustomersScreen() {
       showToast({ message: 'Paciente cadastrado com sucesso.' });
       setNewPatientVisible(false);
       setFormValues(EMPTY_FORM);
-      await loadPatients(true);
+      await loadPatients(1, 'replace', true);
     } catch (err) {
       const message = getErrorMessage(err);
       setFormError(message);
@@ -286,6 +323,7 @@ export function CustomersScreen() {
         }
       />
       <SearchBar placeholder="Buscar por nome, serviço, convênio ou responsável" value={query} onChangeText={setQuery} />
+      <AppText className="mt-2 text-xs font-semibold text-content-muted">Exibindo {patients.length} de {total} pacientes</AppText>
 
       {loading ? (
         <View className="mt-4 gap-3">
@@ -306,14 +344,14 @@ export function CustomersScreen() {
         </View>
       ) : error ? (
         <View className="mt-4">
-          <ErrorState description={error} onRetry={() => void loadPatients()} />
+          <ErrorState description={error} onRetry={() => void loadPatients(1, 'replace')} />
         </View>
-      ) : filtered.length === 0 ? (
+      ) : patients.length === 0 ? (
         <View className="mt-4">
           <EmptyState
-            title={query ? 'Nenhum paciente encontrado' : 'Sem pacientes cadastrados'}
+            title={queryDebounced ? 'Nenhum paciente encontrado' : 'Sem pacientes cadastrados'}
             description={
-              query
+              queryDebounced
                 ? 'Ajuste os filtros para encontrar o paciente desejado.'
                 : 'Não há pacientes disponíveis para o seu perfil no momento.'
             }
@@ -324,14 +362,15 @@ export function CustomersScreen() {
                 return;
               }
 
-              void loadPatients(true);
+              void loadPatients(1, 'replace', true);
             }}
           />
         </View>
       ) : (
         <FlatList
+          ref={listRef}
           className="mt-4"
-          data={filtered}
+          data={patients}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ gap: 12, paddingBottom: 24 }}
@@ -339,8 +378,23 @@ export function CustomersScreen() {
           maxToRenderPerBatch={10}
           windowSize={7}
           removeClippedSubviews
-          onRefresh={() => void loadPatients(true)}
+          onRefresh={() => void loadPatients(1, 'replace', true)}
           refreshing={refreshing}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.35}
+          ListFooterComponent={
+            <View className="mb-6 mt-2 items-center">
+              {loadingMore ? (
+                <ActivityIndicator />
+              ) : page < totalPages ? (
+                <AppText className="text-xs text-content-muted">Role para carregar mais...</AppText>
+              ) : (
+                <View className="h-2" />
+              )}
+            </View>
+          }
+          onScroll={(event) => setShowBackToTop(event.nativeEvent.contentOffset.y > 280)}
+          scrollEventThrottle={16}
           renderItem={({ item: patient }) => {
             const status = getStatusInfo(patient);
             const convenioName = patient.convenio?.nome || 'Sem convênio';
@@ -362,6 +416,8 @@ export function CustomersScreen() {
         />
       )}
 
+      <BackToTopButton visible={showBackToTop} onPress={() => listRef.current?.scrollToOffset({ offset: 0, animated: true })} />
+
       <CreatePatientSheet
         visible={newPatientVisible}
         loading={creatingPatient}
@@ -376,3 +432,4 @@ export function CustomersScreen() {
     </AppScreen>
   );
 }
+

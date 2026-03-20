@@ -49,18 +49,62 @@ export class PacientesController {
   async list(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const querySchema = z.object({
       ativo: z.coerce.boolean().optional(),
+      page: z.coerce.number().int().min(1).optional(),
+      limit: z.coerce.number().int().min(1).max(100).optional(),
+      search: z.string().optional(),
     });
-    const { ativo } = querySchema.parse(request.query);
+    const { ativo, page, limit, search } = querySchema.parse(request.query);
+
+    const shouldPaginate = Boolean(page || limit || (search && search.trim().length > 0));
+    const pageValue = page || 1;
+    const limitValue = limit || 20;
+    const searchValue = search?.trim().toLowerCase() || '';
+
+    let pacientes: any[] = [];
 
     if (ativo === true) {
       const repo = container.resolve('PacientesRepository') as IPacientesRepository;
-      const pacientes = await repo.findAllActive();
+      pacientes = await repo.findAllActive();
+    } else {
+      const useCase = container.resolve(ListPacientesUseCase);
+      pacientes = await useCase.execute();
+    }
+
+    if (searchValue) {
+      pacientes = pacientes.filter((paciente) => {
+        const searchable = [
+          paciente.nomeCompleto,
+          paciente.tipoServico,
+          paciente.whatsapp,
+          paciente.nomeResponsavel,
+          paciente.convenio?.nome,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+
+        return searchable.includes(searchValue);
+      });
+    }
+
+    if (!shouldPaginate) {
       return reply.status(200).send(pacientes);
     }
 
-    const useCase = container.resolve(ListPacientesUseCase);
-    const pacientes = await useCase.execute();
-    return reply.status(200).send(pacientes);
+    const total = pacientes.length;
+    const totalPages = Math.max(1, Math.ceil(total / limitValue));
+    const start = (pageValue - 1) * limitValue;
+    const data = pacientes.slice(start, start + limitValue);
+
+    return reply.status(200).send({
+      data,
+      pagination: {
+        page: pageValue,
+        limit: limitValue,
+        total,
+        totalPages,
+      },
+    });
   }
 
   async update(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {

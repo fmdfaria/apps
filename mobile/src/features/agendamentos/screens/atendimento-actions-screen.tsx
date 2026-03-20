@@ -72,14 +72,6 @@ function formatDateTime(value?: string) {
   return `${data} às ${hora}`;
 }
 
-function renderDoneIcon() {
-  return (
-    <View className="rounded-full bg-emerald-100 px-1 py-1">
-      <Ionicons name="checkmark-circle" size={16} color="#16a34a" />
-    </View>
-  );
-}
-
 function renderTriStateIcon(value: boolean | null) {
   if (value === true) {
     return (
@@ -450,7 +442,13 @@ export function AtendimentoActionsScreen() {
           className="justify-between"
           onPress={handleOpenEvolucao}
           disabled={!evolucaoEnabled || actionLoading}
-          rightSlot={hasEvolucao ? renderDoneIcon() : undefined}
+          rightSlot={
+            hasEvolucao ? (
+              <View className="rounded-full bg-emerald-100 px-1 py-1">
+                <Ionicons name="checkmark-circle" size={16} color="#16a34a" />
+              </View>
+            ) : undefined
+          }
         />
 
         <Button
