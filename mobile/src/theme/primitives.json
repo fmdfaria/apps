@@ -1,0 +1,56 @@
+{
+  "colors": {
+    "background": "#f6f8fb",
+    "surface": "#ffffff",
+    "surfaceAlt": "#f1f5f9",
+    "border": "#dbe3eb",
+    "text": "#0f172a",
+    "textSecondary": "#334155",
+    "textMuted": "#64748b",
+    "textInverse": "#f8fafc",
+    "primary": "#155e75",
+    "primarySoft": "#e0f2fe",
+    "success": "#15803d",
+    "warning": "#b45309",
+    "danger": "#b42318",
+    "info": "#1d4ed8"
+  },
+  "brandScale": {
+    "50": "#f0f9ff",
+    "100": "#e0f2fe",
+    "200": "#bae6fd",
+    "300": "#7dd3fc",
+    "400": "#38bdf8",
+    "500": "#0ea5e9",
+    "600": "#0284c7",
+    "700": "#155e75",
+    "800": "#0f4c5f",
+    "900": "#083344"
+  },
+  "spacing": {
+    "xxs": 4,
+    "xs": 8,
+    "sm": 12,
+    "md": 16,
+    "lg": 20,
+    "xl": 24,
+    "xxl": 32
+  },
+  "radius": {
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "xxl": 20
+  },
+  "size": {
+    "control": 52,
+    "input": 52,
+    "avatarSm": 32,
+    "avatarMd": 40,
+    "avatarLg": 48,
+    "iconSm": 16,
+    "iconMd": 20,
+    "iconLg": 24
+  }
+}
