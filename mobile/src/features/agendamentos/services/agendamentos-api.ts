@@ -3,6 +3,7 @@ import type {
   Agendamento,
   GetAgendamentosParams,
   PaginatedAgendamentosResponse,
+  PrecoParticular,
   StatusAgendamento,
 } from '@/features/agendamentos/types';
 
@@ -51,10 +52,16 @@ type UpdateAgendamentoPayload = {
   assinaturaPaciente?: boolean | null;
   assinaturaProfissional?: boolean | null;
   motivoReprovacao?: string | null;
+  status?: StatusAgendamento;
 };
 
 export async function updateAgendamento(id: string, payload: UpdateAgendamentoPayload) {
   const response = await api.put<Agendamento>(`/agendamentos/${id}`, payload);
+  return mapAgendamento(response.data);
+}
+
+export async function getAgendamentoById(id: string) {
+  const response = await api.get<Agendamento>(`/agendamentos/${id}`);
   return mapAgendamento(response.data);
 }
 
@@ -124,6 +131,11 @@ export async function liberarAgendamentoParticular(
   });
 
   return mapAgendamento(response.data);
+}
+
+export async function getPrecosParticulares() {
+  const response = await api.get<PrecoParticular[]>('/precos-particulares');
+  return response.data;
 }
 
 type ConfigByEntityParams = {

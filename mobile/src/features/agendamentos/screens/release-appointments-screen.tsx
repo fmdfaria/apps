@@ -1,5 +1,6 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, View } from 'react-native';
+﻿import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
 import { SkeletonBlock } from '@/components/feedback/skeleton';
@@ -7,17 +8,13 @@ import { PageHeader } from '@/components/layout/page-header';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { BackToTopButton } from '@/components/ui/back-to-top-button';
-import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
-import { Input } from '@/components/ui/input';
 import { SearchBar } from '@/components/ui/search-bar';
 import { useAuth } from '@/features/auth/context/auth-context';
-import {
-  getAgendamentos,
-  liberarAgendamento,
-} from '@/features/agendamentos/services/agendamentos-api';
+import { getAgendamentos } from '@/features/agendamentos/services/agendamentos-api';
 import type { Agendamento } from '@/features/agendamentos/types';
+import { routes } from '@/navigation/routes';
 import { useToast } from '@/providers/toast-provider';
 
 function parseApiError(error: unknown, fallback: string) {
@@ -39,15 +36,12 @@ function formatDateTime(value: string) {
   return `${data} às ${hora}`;
 }
 
-function getTodayIso() {
-  return new Date().toISOString().split('T')[0];
-}
-
 function isParticular(item: Agendamento) {
   return !item.convenioId || !item.convenioNome || item.convenioNome.toLowerCase().includes('particular');
 }
 
 export function ReleaseAppointmentsScreen() {
+  const router = useRouter();
   const { permissions } = useAuth();
   const { showToast } = useToast();
 
@@ -59,8 +53,6 @@ export function ReleaseAppointmentsScreen() {
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<Agendamento[]>([]);
-  const [selected, setSelected] = useState<Agendamento | null>(null);
-  const [saving, setSaving] = useState(false);
 
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
@@ -68,9 +60,6 @@ export function ReleaseAppointmentsScreen() {
   const [totalPages, setTotalPages] = useState(1);
   const listRef = useRef<FlatList<Agendamento> | null>(null);
 
-  const [codLiberacao, setCodLiberacao] = useState('');
-  const [statusCodLiberacao, setStatusCodLiberacao] = useState('AUTORIZADO');
-  const [dataLiberacao, setDataLiberacao] = useState(getTodayIso());
   const canLiberarConvenio = useMemo(
     () => permissions.some((item) => item.path === '/agendamentos-liberar/:id' && item.method.toUpperCase() === 'PUT'),
     [permissions],
@@ -170,54 +159,6 @@ export function ReleaseAppointmentsScreen() {
     void fetchPage(page + 1, 'append');
   }, [fetchPage, loading, loadingMore, page, refreshing, totalPages]);
 
-  const openReleaseModal = useCallback((item: Agendamento) => {
-    setSelected(item);
-    setDataLiberacao(getTodayIso());
-    setCodLiberacao('');
-    setStatusCodLiberacao('AUTORIZADO');
-  }, []);
-
-  const handleLiberar = useCallback(async () => {
-    if (!selected) return;
-
-    if (!canLiberarConvenio) {
-      showToast({ message: 'Você não tem permissão para liberar atendimento de convênio.' });
-      return;
-    }
-
-    if (!dataLiberacao) {
-      showToast({ message: 'Informe a data de liberação.' });
-      return;
-    }
-
-    if (!codLiberacao.trim()) {
-      showToast({ message: 'Informe o código de liberação.' });
-      return;
-    }
-
-    if (!statusCodLiberacao.trim()) {
-      showToast({ message: 'Informe o status do código de liberação.' });
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await liberarAgendamento(selected.id, {
-        codLiberacao: codLiberacao.trim(),
-        statusCodLiberacao: statusCodLiberacao.trim(),
-        dataCodLiberacao: dataLiberacao,
-      });
-
-      showToast({ message: 'Agendamento liberado com sucesso.' });
-      setSelected(null);
-      await fetchPage(1, 'replace', true);
-    } catch (err) {
-      showToast({ message: parseApiError(err, 'Não foi possível liberar o agendamento.') });
-    } finally {
-      setSaving(false);
-    }
-  }, [canLiberarConvenio, codLiberacao, dataLiberacao, fetchPage, selected, showToast, statusCodLiberacao]);
-
   const header = (
     <View className="mb-3 gap-3">
       <PageHeader title="Liberação" subtitle="Libere agendamentos de convênio" />
@@ -279,75 +220,48 @@ export function ReleaseAppointmentsScreen() {
         onEndReachedThreshold={0.35}
         onScroll={(event) => setShowBackToTop(event.nativeEvent.contentOffset.y > 280)}
         scrollEventThrottle={16}
-        renderItem={({ item }) => {
-          return (
-            <View className="rounded-2xl border border-surface-border bg-surface-card p-4">
-              <View className="mb-2 flex-row items-start justify-between gap-3">
-                <View className="flex-1">
-                  <AppText className="text-base font-semibold text-content-primary">{item.pacienteNome || 'Paciente não informado'}</AppText>
-                  <AppText className="mt-1 text-sm text-content-secondary">{item.servicoNome || 'Serviço não informado'}</AppText>
-                </View>
-                <Chip label={item.status} tone={item.status === 'SOLICITADO' ? 'warning' : 'info'} />
+        renderItem={({ item }) => (
+          <Pressable
+            className="rounded-2xl border border-surface-border bg-surface-card p-4"
+            style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1 }]}
+            onPress={() =>
+              router.push(
+                routes.releaseActions({
+                  agendamentoId: item.id,
+                  pacienteId: item.pacienteId,
+                  pacienteNome: item.pacienteNome || item.paciente?.nomeCompleto || '',
+                  pacienteWhatsapp: item.paciente?.whatsapp || '',
+                  profissionalNome: item.profissionalNome || item.profissional?.nome || '',
+                  servicoNome: item.servicoNome || item.servico?.nome || '',
+                  convenioNome: item.convenioNome || item.convenio?.nome || '',
+                  dataHoraInicio: item.dataHoraInicio,
+                  status: item.status,
+                  codLiberacao: (item as any).codLiberacao || '',
+                  statusCodLiberacao: (item as any).statusCodLiberacao || '',
+                  dataCodLiberacao: item.dataCodLiberacao || '',
+                }),
+              )
+            }
+          >
+            <View className="mb-2 flex-row items-start justify-between gap-3">
+              <View className="flex-1">
+                <AppText className="text-base font-semibold text-content-primary">{item.pacienteNome || 'Paciente não informado'}</AppText>
+                <AppText className="mt-1 text-sm text-content-secondary">{item.servicoNome || 'Serviço não informado'}</AppText>
               </View>
-
-              <AppText className="text-sm text-content-secondary">{formatDateTime(item.dataHoraInicio)}</AppText>
-              <AppText className="mt-1 text-sm text-content-secondary">Profissional: {item.profissionalNome || 'Não informado'}</AppText>
-              <AppText className="mt-1 text-sm text-content-secondary">Convênio: {item.convenioNome || 'Particular'}</AppText>
-
-              <Button
-                className="mt-4"
-                variant={canLiberarConvenio ? 'primary' : 'secondary'}
-                label="Liberar convênio"
-                disabled={!canLiberarConvenio}
-                onPress={() => openReleaseModal(item)}
-              />
+              <Chip label={item.status} tone={item.status === 'SOLICITADO' ? 'warning' : 'info'} />
             </View>
-          );
-        }}
+
+            <AppText className="text-sm text-content-secondary">{formatDateTime(item.dataHoraInicio)}</AppText>
+            <AppText className="mt-1 text-sm text-content-secondary">Profissional: {item.profissionalNome || 'Não informado'}</AppText>
+            <AppText className="mt-1 text-sm text-content-secondary">Convênio: {item.convenioNome || 'Particular'}</AppText>
+
+            <AppText className="mt-3 text-xs font-semibold text-brand-700">
+              {canLiberarConvenio ? 'Toque para abrir ações da liberação' : 'Sem permissão para liberar convênio'}
+            </AppText>
+          </Pressable>
+        )}
       />
       <BackToTopButton visible={showBackToTop} onPress={() => listRef.current?.scrollToOffset({ offset: 0, animated: true })} />
-
-      <BottomSheet
-        visible={Boolean(selected)}
-        title="Liberar agendamento"
-        onClose={() => setSelected(null)}
-        footer={
-          <View className="flex-row gap-3">
-            <Button label="Cancelar" variant="secondary" className="flex-1" onPress={() => setSelected(null)} />
-            <Button label="Confirmar liberação" className="flex-1" onPress={() => void handleLiberar()} loading={saving} />
-          </View>
-        }
-      >
-        {selected ? (
-          <View className="pb-4">
-            <AppText className="text-sm text-content-secondary">Paciente: {selected.pacienteNome || 'Não informado'}</AppText>
-            <AppText className="mb-3 mt-1 text-sm text-content-secondary">Tipo: Convênio</AppText>
-
-            <Input
-              label="Código de liberação *"
-              value={codLiberacao}
-              onChangeText={setCodLiberacao}
-              placeholder="Digite o código"
-            />
-            <View className="mt-3">
-              <Input
-                label="Status do código *"
-                value={statusCodLiberacao}
-                onChangeText={setStatusCodLiberacao}
-                placeholder="Ex.: AUTORIZADO"
-              />
-            </View>
-
-            <Input
-              label="Data de liberação *"
-              value={dataLiberacao}
-              onChangeText={setDataLiberacao}
-              placeholder="AAAA-MM-DD"
-            />
-          </View>
-        ) : null}
-      </BottomSheet>
     </AppScreen>
   );
 }
-

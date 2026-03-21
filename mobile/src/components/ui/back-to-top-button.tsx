@@ -34,7 +34,7 @@ export function BackToTopButton({ visible, onPress, label = 'Filtros', extraBott
       style={{
         position: 'absolute',
         right: 16,
-        bottom: insets.bottom + 52 + extraBottom,
+        bottom: insets.bottom + 28 + extraBottom,
         opacity: anim,
         transform: [{ translateY }],
       }}

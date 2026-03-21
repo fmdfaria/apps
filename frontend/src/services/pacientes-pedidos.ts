@@ -61,3 +61,11 @@ export const getTodosPedidosMedicos = async (): Promise<PacientePedido[]> => {
   const response = await api.get(`/pacientes/pedidos`);
   return response.data;
 };
+
+export const marcarPedidoNotificado = async (
+  pedidoId: string,
+  tipo: '30dias' | '10dias' | 'vencido'
+): Promise<PacientePedido> => {
+  const response = await api.put(`/pacientes/pedidos/${pedidoId}/notificacao`, { tipo });
+  return response.data;
+};

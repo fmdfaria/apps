@@ -23,6 +23,8 @@
   customerEdit: (id: string) => `/customers/edit?id=${encodeURIComponent(id)}`,
   customerAttachments: (id: string, nome?: string) =>
     `/customers/attachments?id=${encodeURIComponent(id)}${nome ? `&nome=${encodeURIComponent(nome)}` : ''}`,
+  customerOrders: (id: string, nome?: string) =>
+    `/customers/orders?id=${encodeURIComponent(id)}${nome ? `&nome=${encodeURIComponent(nome)}` : ''}`,
   customerEvolutions: (
     id: string,
     nome?: string,
@@ -81,4 +83,71 @@
           ? '&assinaturaProfissional=false'
           : ''
     }${params.motivoReprovacao ? `&motivoReprovacao=${encodeURIComponent(params.motivoReprovacao)}` : ''}`,
+  releaseActions: (params: {
+    agendamentoId: string;
+    pacienteId: string;
+    pacienteNome?: string;
+    pacienteWhatsapp?: string;
+    profissionalNome?: string;
+    servicoNome?: string;
+    convenioNome?: string;
+    dataHoraInicio?: string;
+    status?: string;
+    codLiberacao?: string;
+    statusCodLiberacao?: string;
+    dataCodLiberacao?: string;
+  }) =>
+    `/agendamentos/release-actions?agendamentoId=${encodeURIComponent(params.agendamentoId)}&pacienteId=${encodeURIComponent(params.pacienteId)}${
+      params.pacienteNome ? `&pacienteNome=${encodeURIComponent(params.pacienteNome)}` : ''
+    }${params.pacienteWhatsapp ? `&pacienteWhatsapp=${encodeURIComponent(params.pacienteWhatsapp)}` : ''}${
+      params.profissionalNome ? `&profissionalNome=${encodeURIComponent(params.profissionalNome)}` : ''
+    }${params.servicoNome ? `&servicoNome=${encodeURIComponent(params.servicoNome)}` : ''}${
+      params.convenioNome ? `&convenioNome=${encodeURIComponent(params.convenioNome)}` : ''
+    }${params.dataHoraInicio ? `&dataHoraInicio=${encodeURIComponent(params.dataHoraInicio)}` : ''}${
+      params.status ? `&status=${encodeURIComponent(params.status)}` : ''
+    }${params.codLiberacao ? `&codLiberacao=${encodeURIComponent(params.codLiberacao)}` : ''}${
+      params.statusCodLiberacao ? `&statusCodLiberacao=${encodeURIComponent(params.statusCodLiberacao)}` : ''
+    }${params.dataCodLiberacao ? `&dataCodLiberacao=${encodeURIComponent(params.dataCodLiberacao)}` : ''}`,
+  releaseParticularActions: (params: {
+    agendamentoId: string;
+    pacienteId: string;
+    pacienteNome?: string;
+    pacienteWhatsapp?: string;
+    profissionalNome?: string;
+    servicoNome?: string;
+    servicoId?: string;
+    dataHoraInicio?: string;
+    status?: string;
+    recebimento?: boolean;
+    dataLiberacao?: string;
+    quantidade?: number;
+    precoUnitario?: number;
+    precoTotal?: number;
+    tipoPagamento?: string;
+    diaPagamento?: number | null;
+    pagamentoAntecipado?: boolean | null;
+  }) =>
+    `/agendamentos/release-particular-actions?agendamentoId=${encodeURIComponent(params.agendamentoId)}&pacienteId=${encodeURIComponent(params.pacienteId)}${
+      params.pacienteNome ? `&pacienteNome=${encodeURIComponent(params.pacienteNome)}` : ''
+    }${params.pacienteWhatsapp ? `&pacienteWhatsapp=${encodeURIComponent(params.pacienteWhatsapp)}` : ''}${
+      params.profissionalNome ? `&profissionalNome=${encodeURIComponent(params.profissionalNome)}` : ''
+    }${params.servicoNome ? `&servicoNome=${encodeURIComponent(params.servicoNome)}` : ''}${
+      params.servicoId ? `&servicoId=${encodeURIComponent(params.servicoId)}` : ''
+    }${
+      params.dataHoraInicio ? `&dataHoraInicio=${encodeURIComponent(params.dataHoraInicio)}` : ''
+    }${params.status ? `&status=${encodeURIComponent(params.status)}` : ''}${
+      params.recebimento === true ? '&recebimento=true' : params.recebimento === false ? '&recebimento=false' : ''
+    }${params.dataLiberacao ? `&dataLiberacao=${encodeURIComponent(params.dataLiberacao)}` : ''}${
+      typeof params.quantidade === 'number' ? `&quantidade=${params.quantidade}` : ''
+    }${typeof params.precoUnitario === 'number' ? `&precoUnitario=${params.precoUnitario}` : ''}${
+      typeof params.precoTotal === 'number' ? `&precoTotal=${params.precoTotal}` : ''
+    }${params.tipoPagamento ? `&tipoPagamento=${encodeURIComponent(params.tipoPagamento)}` : ''}${
+      typeof params.diaPagamento === 'number' ? `&diaPagamento=${params.diaPagamento}` : ''
+    }${
+      params.pagamentoAntecipado === true
+        ? '&pagamentoAntecipado=true'
+        : params.pagamentoAntecipado === false
+          ? '&pagamentoAntecipado=false'
+          : ''
+    }`,
 } as const;

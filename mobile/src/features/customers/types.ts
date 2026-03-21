@@ -87,6 +87,7 @@ export type ProfissionalOption = {
 export type PacientePedido = {
   id: string;
   pacienteId: string;
+  servicoId?: string | null;
   dataPedidoMedico?: string | null;
   crm?: string | null;
   cbo?: string | null;
@@ -98,3 +99,15 @@ export type PacientePedido = {
     nome: string;
   } | null;
 };
+
+export type CreatePacientePedidoPayload = {
+  servicoId?: string | null;
+  dataPedidoMedico?: string | null;
+  crm?: string | null;
+  cbo?: string | null;
+  cid?: string | null;
+  autoPedidos?: boolean | null;
+  descricao?: string | null;
+};
+
+export type UpdatePacientePedidoPayload = Partial<CreatePacientePedidoPayload>;

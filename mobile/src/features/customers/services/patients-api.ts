@@ -3,12 +3,14 @@ import type {
   Anexo,
   CreateEvolucaoPacientePayload,
   Convenio,
+  CreatePacientePedidoPayload,
   CreatePatientPayload,
   EvolucaoPaciente,
   PaginatedPatientsResponse,
   PacientePedido,
   Patient,
   ProfissionalOption,
+  UpdatePacientePedidoPayload,
   UpdatePatientPayload,
   UpdateEvolucaoPacientePayload,
 } from '@/features/customers/types';
@@ -192,4 +194,29 @@ export async function getProfissionaisOptions() {
 export async function getPatientPedidos(patientId: string) {
   const response = await api.get<PacientePedido[]>(`/pacientes/${patientId}/pedidos`);
   return response.data;
+}
+
+export async function createPatientPedido(patientId: string, payload: CreatePacientePedidoPayload) {
+  const response = await api.post<PacientePedido>(`/pacientes/${patientId}/pedidos`, payload);
+  return response.data;
+}
+
+export async function updatePatientPedido(patientId: string, pedidoId: string, payload: UpdatePacientePedidoPayload) {
+  const response = await api.put<PacientePedido>(`/pacientes/${patientId}/pedidos/${pedidoId}`, payload);
+  return response.data;
+}
+
+export async function deletePatientPedido(patientId: string, pedidoId: string) {
+  await api.delete(`/pacientes/${patientId}/pedidos/${pedidoId}`);
+}
+
+type ServicoOption = {
+  id: string;
+  nome: string;
+  ativo?: boolean;
+};
+
+export async function getServicosOptions() {
+  const response = await api.get<ServicoOption[]>('/servicos');
+  return response.data.filter((item) => item?.id && item?.nome && item.ativo !== false);
 }

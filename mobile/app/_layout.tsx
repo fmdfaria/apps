@@ -31,12 +31,24 @@ export default function RootLayout() {
               options={{ headerShown: true, title: 'Gerenciar anexos', headerBackButtonDisplayMode: 'minimal' }}
             />
             <Stack.Screen
+              name="customers/orders"
+              options={{ headerShown: true, title: 'Pedidos médicos', headerBackButtonDisplayMode: 'minimal' }}
+            />
+            <Stack.Screen
               name="customers/evolutions"
               options={{ headerShown: true, title: 'Evolução do paciente', headerBackButtonDisplayMode: 'minimal' }}
             />
             <Stack.Screen
               name="agendamentos/actions"
               options={{ headerShown: true, title: 'Ações do atendimento', headerBackButtonDisplayMode: 'minimal' }}
+            />
+            <Stack.Screen
+              name="agendamentos/release-actions"
+              options={{ headerShown: true, title: 'Ações da liberação', headerBackButtonDisplayMode: 'minimal' }}
+            />
+            <Stack.Screen
+              name="agendamentos/release-particular-actions"
+              options={{ headerShown: true, title: 'Ações da liberação particular', headerBackButtonDisplayMode: 'minimal' }}
             />
             <Stack.Screen name="waitlist" options={{ headerShown: false }} />
             <Stack.Screen name="release" options={{ headerShown: false }} />

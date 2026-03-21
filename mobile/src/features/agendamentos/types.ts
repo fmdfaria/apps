@@ -93,3 +93,19 @@ export type GetAgendamentosParams = {
   search?: string;
 };
 
+export type PrecoParticular = {
+  id: string;
+  pacienteId: string;
+  servicoId: string;
+  preco: number;
+  duracaoMinutos?: number;
+  percentualClinica?: number;
+  percentualProfissional?: number;
+  precoPaciente?: number;
+  tipoPagamento?: string | null;
+  pagamentoAntecipado?: boolean | null;
+  diaPagamento?: number | null;
+  notaFiscal?: boolean | null;
+  recibo?: boolean | null;
+};
+

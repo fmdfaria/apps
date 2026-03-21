@@ -10,7 +10,8 @@ import {
   FileText,
   Paperclip,
   Building2,
-  MessageCircle
+  MessageCircle,
+  Send
 } from 'lucide-react';
 import { ResponsivePagination, FilterButton } from '@/components/layout';
 import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
@@ -18,7 +19,7 @@ import { getPacientes, updatePaciente } from '@/services/pacientes';
 import { getConvenios } from '@/services/convenios';
 import { getServicos } from '@/services/servicos';
 import type { Servico } from '@/types/Servico';
-import { getTodosPedidosMedicos } from '@/services/pacientes-pedidos';
+import { getTodosPedidosMedicos, marcarPedidoNotificado } from '@/services/pacientes-pedidos';
 import type { Paciente } from '@/types/Paciente';
 import type { Convenio } from '@/types/Convenio';
 import { getAnexos } from '@/services/anexos';
@@ -139,6 +140,7 @@ const generateMockData = (): PedidoMedico[] => {
 };
 
 export const PedidosMedicosPage: React.FC = () => {
+  const WEBHOOK_PEDIDO_MEDICO_MANUAL = import.meta.env.VITE_WEBHOOK_PEDIDO_MEDICO_MANUAL;
   const [pedidos, setPedidos] = useState<PedidoMedico[]>([]);
   const [convenios, setConvenios] = useState<Convenio[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);
@@ -178,6 +180,7 @@ export const PedidosMedicosPage: React.FC = () => {
   // Modal Pedidos Médicos (novo fluxo)
   const [showPedidosModal, setShowPedidosModal] = useState(false);
   const [pacientePedidos, setPacientePedidos] = useState<Paciente | null>(null);
+  const [solicitandoPedidoIds, setSolicitandoPedidoIds] = useState<Record<string, boolean>>({});
 
   // Carregar dados reais da API
   useEffect(() => {
@@ -202,7 +205,7 @@ export const PedidosMedicosPage: React.FC = () => {
 
       // Montar lista final a partir dos pedidos e relacionamentos retornados
       const pedidosAgregados: PedidoMedico[] = pedidosApi
-        .filter(pp => !!pp.dataPedidoMedico)
+        .filter(pp => pp.autoPedidos === true && !!pp.dataPedidoMedico)
         .map(pp => {
           const paciente = pacientesData.find(p => p.id === pp.pacienteId);
           const convenio = conveniosData.find(c => c.id === (paciente?.convenioId));
@@ -419,6 +422,84 @@ export const PedidosMedicosPage: React.FC = () => {
     if (paciente) {
       setPacientePedidos(paciente);
       setShowPedidosModal(true);
+    }
+  };
+
+  const solicitarPedidoMedicoManual = async (pedido: PedidoMedico) => {
+    if (solicitandoPedidoIds[pedido.id]) return;
+
+    try {
+      if (!WEBHOOK_PEDIDO_MEDICO_MANUAL) {
+        throw new Error('URL do webhook não configurada no .env (VITE_WEBHOOK_PEDIDO_MEDICO_MANUAL).');
+      }
+
+      setSolicitandoPedidoIds(prev => ({ ...prev, [pedido.id]: true }));
+
+      const payload = {
+        origem: 'dashboard/pedidos-medicos',
+        tipoSolicitacao: 'manual',
+        solicitadoEm: new Date().toISOString(),
+        pedido: {
+          id: pedido.id,
+          pacienteId: pedido.pacienteId,
+          pacienteNome: pedido.pacienteNome,
+          pacienteWhatsapp: pedido.pacienteWhatsapp || null,
+          convenioNome: pedido.convenioNome || null,
+          numeroCarteirinha: pedido.numeroCarteirinha || null,
+          dataPedidoMedico: pedido.dataPedidoMedico || null,
+          dataVencimentoPedido: pedido.dataVencimento !== '-' ? pedido.dataVencimento : null,
+          status: pedido.status,
+          diasParaVencer: pedido.diasParaVencer,
+          crm: pedido.crm || null,
+          cbo: pedido.cbo || null,
+          autoPedidos: true,
+        },
+      };
+
+      const response = await fetch(WEBHOOK_PEDIDO_MEDICO_MANUAL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        throw new Error(errorText || `Falha ao enviar webhook (${response.status})`);
+      }
+
+      const proximaNotificacao =
+        pedido.enviado30dias !== true ? '30dias' :
+        pedido.enviado10dias !== true ? '10dias' :
+        null;
+
+      if (proximaNotificacao) {
+        const pedidoAtualizado = await marcarPedidoNotificado(pedido.id, proximaNotificacao);
+
+        setPedidos(prev => prev.map(item => {
+          if (item.id !== pedido.id) return item;
+          return {
+            ...item,
+            enviado30dias: pedidoAtualizado.enviado30dias ?? item.enviado30dias,
+            enviado10dias: pedidoAtualizado.enviado10dias ?? item.enviado10dias,
+            enviadoVencido: pedidoAtualizado.enviadoVencido ?? item.enviadoVencido,
+          };
+        }));
+      }
+
+      AppToast.success('Solicitação enviada', {
+        description: proximaNotificacao
+          ? `Pedido de ${pedido.pacienteNome} enviado ao n8n e notificação ${proximaNotificacao === '30dias' ? '30 dias' : '10 dias'} marcada.`
+          : `Pedido de ${pedido.pacienteNome} enviado ao n8n. As notificações de 30 e 10 dias já estavam marcadas.`,
+      });
+    } catch (error: unknown) {
+      const mensagemErro = error instanceof Error ? error.message : 'Não foi possível enviar para o webhook.';
+      AppToast.error('Erro ao solicitar pedido médico', {
+        description: mensagemErro,
+      });
+    } finally {
+      setSolicitandoPedidoIds(prev => ({ ...prev, [pedido.id]: false }));
     }
   };
 
@@ -707,6 +788,16 @@ export const PedidosMedicosPage: React.FC = () => {
                         >
                           <MessageCircle className="w-3.5 h-3.5 text-green-600" />
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => solicitarPedidoMedicoManual(pedido)}
+                          disabled={!!solicitandoPedidoIds[pedido.id]}
+                          className="h-7 w-7 p-0"
+                          title="Solicitar Pedido Médico"
+                        >
+                          <Send className="w-3.5 h-3.5 text-blue-600" />
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -760,6 +851,16 @@ export const PedidosMedicosPage: React.FC = () => {
                           className="h-7 w-7 p-0"
                         >
                           <MessageCircle className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => solicitarPedidoMedicoManual(pedido)}
+                          disabled={!!solicitandoPedidoIds[pedido.id]}
+                          className="h-7 w-7 p-0"
+                          title="Solicitar Pedido Médico"
+                        >
+                          <Send className="w-3.5 h-3.5 text-blue-600" />
                         </Button>
                       </div>
                     </td>
@@ -836,6 +937,16 @@ export const PedidosMedicosPage: React.FC = () => {
                     >
                       <MessageCircle className="w-3.5 h-3.5 mr-1" />
                       WhatsApp
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => solicitarPedidoMedicoManual(pedido)}
+                      disabled={!!solicitandoPedidoIds[pedido.id]}
+                      className="h-8 w-8 p-0"
+                      title="Solicitar Pedido Médico"
+                    >
+                      <Send className="w-3.5 h-3.5 text-blue-600" />
                     </Button>
                   </div>
                 </div>
