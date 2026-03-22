@@ -96,6 +96,7 @@ export default function EvolucaoPacientesModal({
   const isEditing = !!evolucaoParaEditar;
   const isProfissional = user?.roles?.includes('PROFISSIONAL');
   const isStandalone = !agendamentoInicial; // Evolução standalone (sem agendamento)
+  const isDataEvolucaoTravada = !!agendamentoInicial;
 
   // Carregar profissionais sempre que o modal abrir
   useEffect(() => {
@@ -186,7 +187,9 @@ export default function EvolucaoPacientesModal({
       setForm({
         pacienteId: evolucaoParaEditar.pacienteId,
         agendamentoId: evolucaoParaEditar.agendamentoId || undefined,
-        dataEvolucao: formatarDataParaInput(evolucaoParaEditar.dataEvolucao),
+        dataEvolucao:
+          formatDateToInput(agendamentoInicial?.dataCodLiberacao) ||
+          formatarDataParaInput(evolucaoParaEditar.dataEvolucao),
         objetivoSessao: evolucaoParaEditar.objetivoSessao || '',
         descricaoEvolucao: evolucaoParaEditar.descricaoEvolucao || '',
         profissionalId: '', // Será definido abaixo
@@ -307,7 +310,9 @@ export default function EvolucaoPacientesModal({
         pacienteId: form.pacienteId,
         ...(form.agendamentoId && { agendamentoId: form.agendamentoId }),
         profissionalId: (isProfissional && !isEditing) ? (user?.profissionalId || undefined) : (form.profissionalId || undefined),
-        dataEvolucao: form.dataEvolucao,
+        dataEvolucao: isDataEvolucaoTravada
+          ? (formatDateToInput(agendamentoInicial?.dataCodLiberacao) || form.dataEvolucao)
+          : form.dataEvolucao,
         objetivoSessao: form.objetivoSessao?.trim() || '',
         descricaoEvolucao: form.descricaoEvolucao?.trim() || '',
       };
@@ -351,7 +356,7 @@ export default function EvolucaoPacientesModal({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
-                  <span className="text-lg">👤</span>
+                  <User className="w-4 h-4" />
                   <span className="font-semibold">Paciente</span>
                 </label>
                 <Input
@@ -364,7 +369,7 @@ export default function EvolucaoPacientesModal({
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
-                  <span className="text-lg">👨‍⚕️</span>
+                  <Users className="w-4 h-4" />
                   <span className="font-semibold">Profissional</span>
                   {!isProfissional && <span className="text-red-500">*</span>}
                 </label>
@@ -422,10 +427,12 @@ export default function EvolucaoPacientesModal({
                   type="date"
                   value={form.dataEvolucao}
                   onChange={(e) => {
+                    if (isDataEvolucaoTravada) return;
                     setForm({ ...form, dataEvolucao: e.target.value });
                     setFormError('');
                   }}
-                  disabled={formLoading}
+                  disabled={formLoading || isDataEvolucaoTravada}
+                  className={isDataEvolucaoTravada ? 'bg-gray-50 cursor-not-allowed' : ''}
                   max={new Date().toISOString().split('T')[0]}
                 />
               </div>
