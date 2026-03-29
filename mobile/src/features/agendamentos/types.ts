@@ -9,6 +9,13 @@
   | 'PENDENTE';
 
 export type TipoAtendimento = 'presencial' | 'online';
+export type TipoRecorrencia = 'semanal' | 'quinzenal' | 'mensal';
+
+export type RecorrenciaAgendamento = {
+  tipo: TipoRecorrencia;
+  repeticoes?: number;
+  ate?: string;
+};
 
 export type Agendamento = {
   id: string;
@@ -58,6 +65,101 @@ export type Agendamento = {
     id: string;
     nome?: string;
   } | null;
+};
+
+export type CreateAgendamentoPayload = {
+  pacienteId: string;
+  profissionalId: string;
+  tipoAtendimento: TipoAtendimento;
+  recursoId: string;
+  convenioId: string;
+  servicoId: string;
+  dataHoraInicio: string;
+  recorrencia?: RecorrenciaAgendamento;
+  permitirConflitoPaciente?: boolean;
+};
+
+export type AgendamentoFormPaciente = {
+  id: string;
+  nomeCompleto: string;
+  whatsapp?: string | null;
+  convenioId?: string | null;
+  ativo?: boolean;
+};
+
+export type AgendamentoFormProfissional = {
+  id: string;
+  nome: string;
+  ativo?: boolean;
+};
+
+export type AgendamentoFormConvenio = {
+  id: string;
+  nome: string;
+  ativo?: boolean;
+};
+
+export type AgendamentoFormServico = {
+  id: string;
+  nome: string;
+  duracaoMinutos?: number;
+  convenioId?: string | null;
+  ativo?: boolean;
+};
+
+export type AgendamentoFormRecurso = {
+  id: string;
+  nome: string;
+  ativo?: boolean;
+};
+
+export type DisponibilidadeProfissional = {
+  id: string;
+  profissionalId?: string;
+  profissional_id?: string;
+  recursoId?: string | null;
+  recurso_id?: string | null;
+  diaSemana?: number | null;
+  dia_semana?: number | null;
+  dataEspecifica?: string | Date | null;
+  data_especifica?: string | Date | null;
+  horaInicio?: string | Date;
+  hora_inicio?: string | Date;
+  horaFim?: string | Date;
+  hora_fim?: string | Date;
+  tipo?: string | null;
+  recurso?: {
+    id?: string;
+    nome?: string;
+  } | null;
+};
+
+export type AgendamentoFormData = {
+  pacientes: AgendamentoFormPaciente[];
+  profissionais: AgendamentoFormProfissional[];
+  convenios: AgendamentoFormConvenio[];
+  servicos: AgendamentoFormServico[];
+  recursos: AgendamentoFormRecurso[];
+  disponibilidades: DisponibilidadeProfissional[];
+  agendamentos: Agendamento[];
+};
+
+export type ServicoConvenioProfissional = {
+  profissionalId: string;
+  servicos: Array<{
+    id: string;
+    nome: string;
+    duracaoMinutos?: number;
+    valor?: number;
+    convenio: {
+      id: string;
+      nome: string;
+    };
+  }>;
+  convenios: Array<{
+    id: string;
+    nome: string;
+  }>;
 };
 
 export type AgendamentosPagination = {

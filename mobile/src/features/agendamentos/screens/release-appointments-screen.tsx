@@ -255,9 +255,6 @@ export function ReleaseAppointmentsScreen() {
             <AppText className="mt-1 text-sm text-content-secondary">Profissional: {item.profissionalNome || 'Não informado'}</AppText>
             <AppText className="mt-1 text-sm text-content-secondary">Convênio: {item.convenioNome || 'Particular'}</AppText>
 
-            <AppText className="mt-3 text-xs font-semibold text-brand-700">
-              {canLiberarConvenio ? 'Toque para abrir ações da liberação' : 'Sem permissão para liberar convênio'}
-            </AppText>
           </Pressable>
         )}
       />

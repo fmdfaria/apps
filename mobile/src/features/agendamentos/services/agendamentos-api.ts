@@ -1,9 +1,12 @@
 ﻿import { api } from '@/services/api/client';
 import type {
   Agendamento,
+  AgendamentoFormData,
+  CreateAgendamentoPayload,
   GetAgendamentosParams,
   PaginatedAgendamentosResponse,
   PrecoParticular,
+  ServicoConvenioProfissional,
   StatusAgendamento,
 } from '@/features/agendamentos/types';
 
@@ -18,6 +21,25 @@ function mapAgendamento(agendamento: Agendamento): Agendamento {
   };
 }
 
+type ApiDataEnvelope<T> = {
+  data: T;
+};
+
+function unwrapData<T>(payload: T | ApiDataEnvelope<T>) {
+  if (payload && typeof payload === 'object' && 'data' in payload) {
+    return (payload as ApiDataEnvelope<T>).data;
+  }
+  return payload as T;
+}
+
+function sortByName<T extends { nome?: string; nomeCompleto?: string }>(list: T[]) {
+  return [...list].sort((a, b) =>
+    (a.nomeCompleto || a.nome || '').localeCompare(b.nomeCompleto || b.nome || '', 'pt-BR', {
+      sensitivity: 'base',
+    }),
+  );
+}
+
 export async function getAgendamentos(params: GetAgendamentosParams) {
   const response = await api.get<PaginatedAgendamentosResponse>('/agendamentos', {
     params: {
@@ -30,6 +52,71 @@ export async function getAgendamentos(params: GetAgendamentosParams) {
     ...response.data,
     data: response.data.data.map(mapAgendamento),
   };
+}
+
+async function getAgendamentosAllPages(params: GetAgendamentosParams) {
+  const limit = 200;
+  const firstPage = await getAgendamentos({
+    ...params,
+    page: 1,
+    limit,
+    includeArquivados: true,
+  });
+
+  const data = [...firstPage.data];
+  const totalPages = firstPage.pagination.totalPages || 1;
+
+  for (let page = 2; page <= totalPages; page += 1) {
+    const next = await getAgendamentos({
+      ...params,
+      page,
+      limit,
+      includeArquivados: true,
+    });
+    data.push(...next.data);
+  }
+
+  return data;
+}
+
+export async function getAgendamentoFormData(filtros?: { data?: string; profissionalId?: string }) {
+  const response = await api.get<AgendamentoFormData | ApiDataEnvelope<AgendamentoFormData>>('/agendamentos/form-data', {
+    params: filtros,
+  });
+
+  const payload = unwrapData(response.data);
+
+  let agendamentos = (payload.agendamentos || []).map(mapAgendamento);
+
+  if (filtros?.data) {
+    agendamentos = await getAgendamentosAllPages({
+      dataInicio: filtros.data,
+      dataFim: filtros.data,
+      ...(filtros.profissionalId ? { profissionalId: filtros.profissionalId } : {}),
+    });
+  }
+
+  return {
+    pacientes: sortByName(payload.pacientes || []),
+    profissionais: sortByName(payload.profissionais || []),
+    convenios: sortByName(payload.convenios || []),
+    servicos: sortByName(payload.servicos || []),
+    recursos: sortByName(payload.recursos || []),
+    disponibilidades: payload.disponibilidades || [],
+    agendamentos,
+  } satisfies AgendamentoFormData;
+}
+
+export async function getServicosConveniosByProfissional(profissionalId: string) {
+  const response = await api.get<ServicoConvenioProfissional>(`/profissionais/${profissionalId}/servicos-convenios`);
+  return response.data;
+}
+
+export async function createAgendamento(payload: CreateAgendamentoPayload) {
+  const response = await api.post<Agendamento>('/agendamentos', payload, {
+    headers: { 'Content-Type': 'application/json' },
+  });
+  return mapAgendamento(response.data);
 }
 
 export async function setStatusAgendamento(id: string, status: StatusAgendamento) {
@@ -65,6 +152,22 @@ export async function getAgendamentoById(id: string) {
   return mapAgendamento(response.data);
 }
 
+type SerieInfo = {
+  isSeries: boolean;
+  totalAgendamentos?: number;
+  posicaoNaSerie?: {
+    isAnterior: boolean;
+    isAtual: boolean;
+    isFuturo: boolean;
+    posicao: number;
+  };
+};
+
+export async function getAgendamentoSeriesInfo(id: string) {
+  const response = await api.get<SerieInfo>(`/agendamentos/${id}/series-info`);
+  return response.data;
+}
+
 export async function updateCompareceu(id: string, compareceu: boolean | null) {
   return updateAgendamento(id, { compareceu });
 }
@@ -79,6 +182,34 @@ export async function updateAssinaturaProfissional(id: string, assinaturaProfiss
 
 export async function updateMotivoReprovacao(id: string, motivoReprovacao: string | null) {
   return updateAgendamento(id, { motivoReprovacao });
+}
+
+export async function updateCodLiberacao(
+  id: string,
+  payload: {
+    codLiberacao: string | null;
+    pacienteId: string;
+    profissionalId: string;
+    servicoId: string;
+    convenioId: string;
+    recursoId: string;
+    tipoAtendimento: string;
+    status: StatusAgendamento;
+    dataHoraInicio: string;
+  },
+) {
+  const response = await api.put<Agendamento>(`/agendamentos/${id}`, payload);
+  return mapAgendamento(response.data);
+}
+
+export async function deleteAgendamento(
+  id: string,
+  tipoEdicaoRecorrencia?: 'apenas_esta' | 'esta_e_futuras' | 'toda_serie',
+) {
+  const url = tipoEdicaoRecorrencia
+    ? `/agendamentos/${id}?tipoEdicaoRecorrencia=${tipoEdicaoRecorrencia}`
+    : `/agendamentos/${id}`;
+  await api.delete(url);
 }
 
 export async function concluirAgendamento(

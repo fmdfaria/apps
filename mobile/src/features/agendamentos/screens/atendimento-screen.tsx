@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { EmptyState } from '@/components/feedback/empty-state';
 import { ErrorState } from '@/components/feedback/error-state';
 import { SkeletonBlock } from '@/components/feedback/skeleton';
@@ -11,13 +12,17 @@ import { AppText } from '@/components/ui/app-text';
 import { BackToTopButton } from '@/components/ui/back-to-top-button';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
+import { Input } from '@/components/ui/input';
 import { SearchBar } from '@/components/ui/search-bar';
+import { Select } from '@/components/ui/select';
 import { useAuth } from '@/features/auth/context/auth-context';
 import { hasRoutePermission } from '@/features/auth/permissions';
 import { getAgendamentos, getConfiguracoesByEntity, getMeuProfissional, getStatusEvolucoesPorAgendamentos } from '@/features/agendamentos/services/agendamentos-api';
 import type { Agendamento } from '@/features/agendamentos/types';
+import { getConvenios } from '@/features/customers/services/patients-api';
 import { routes } from '@/navigation/routes';
 import { useToast } from '@/providers/toast-provider';
+import { applyDateMaskSlash, dateBrSlashToIso, isValidDateBrSlash } from '@/utils/date';
 
 type AtendimentoConfig = {
   evolucao: boolean;
@@ -32,6 +37,8 @@ const DEFAULT_CONFIG: AtendimentoConfig = {
   assinatura_paciente: true,
   assinatura_profissional: true,
 };
+
+const ALL_CONVENIOS_VALUE = 'todos';
 
 function parseApiError(error: unknown, fallback: string) {
   if (typeof error === 'object' && error && 'response' in error) {
@@ -85,6 +92,14 @@ export function AtendimentoScreen() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [queryDebounced, setQueryDebounced] = useState('');
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [onlyPendingEvolutions, setOnlyPendingEvolutions] = useState(false);
+  const [convenioFilter, setConvenioFilter] = useState(ALL_CONVENIOS_VALUE);
+  const [conveniosCatalog, setConveniosCatalog] = useState<Array<{ id: string; nome: string }>>([]);
+  const [dataInicioInput, setDataInicioInput] = useState('');
+  const [dataFimInput, setDataFimInput] = useState('');
+  const [dataInicioFilter, setDataInicioFilter] = useState('');
+  const [dataFimFilter, setDataFimFilter] = useState('');
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [configsMap, setConfigsMap] = useState<Map<string, AtendimentoConfig>>(new Map());
   const [evolucoesMap, setEvolucoesMap] = useState<Map<string, boolean>>(new Map());
@@ -105,6 +120,93 @@ export function AtendimentoScreen() {
     const timer = setTimeout(() => setQueryDebounced(query.trim()), 400);
     return () => clearTimeout(timer);
   }, [query]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadConveniosCatalog() {
+      try {
+        const response = await getConvenios();
+        if (!active) return;
+
+        setConveniosCatalog(
+          response
+            .filter((item) => Boolean(item?.id && item?.nome))
+            .map((item) => ({ id: item.id, nome: item.nome }))
+            .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' })),
+        );
+      } catch {
+        if (!active) return;
+        setConveniosCatalog([]);
+      }
+    }
+
+    void loadConveniosCatalog();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const applyDataInicioFilter = useCallback(
+    (rawValue: string) => {
+      const value = rawValue.trim();
+
+      if (!value) {
+        setDataInicioInput('');
+        setDataInicioFilter('');
+        return;
+      }
+
+      if (!isValidDateBrSlash(value)) {
+        showToast({ message: 'Data início inválida. Use DD/MM/AAAA.' });
+        setDataInicioInput(dataInicioFilter);
+        return;
+      }
+
+      const nextInicioIso = dateBrSlashToIso(value);
+      const fimIso = dateBrSlashToIso(dataFimFilter);
+      if (nextInicioIso && fimIso && nextInicioIso > fimIso) {
+        showToast({ message: 'Data início não pode ser maior que data fim.' });
+        setDataInicioInput(dataInicioFilter);
+        return;
+      }
+
+      setDataInicioInput(value);
+      setDataInicioFilter(value);
+    },
+    [dataFimFilter, dataInicioFilter, showToast],
+  );
+
+  const applyDataFimFilter = useCallback(
+    (rawValue: string) => {
+      const value = rawValue.trim();
+
+      if (!value) {
+        setDataFimInput('');
+        setDataFimFilter('');
+        return;
+      }
+
+      if (!isValidDateBrSlash(value)) {
+        showToast({ message: 'Data fim inválida. Use DD/MM/AAAA.' });
+        setDataFimInput(dataFimFilter);
+        return;
+      }
+
+      const inicioIso = dateBrSlashToIso(dataInicioFilter);
+      const nextFimIso = dateBrSlashToIso(value);
+      if (inicioIso && nextFimIso && nextFimIso < inicioIso) {
+        showToast({ message: 'Data fim não pode ser menor que data início.' });
+        setDataFimInput(dataFimFilter);
+        return;
+      }
+
+      setDataFimInput(value);
+      setDataFimFilter(value);
+    },
+    [dataFimFilter, dataInicioFilter, showToast],
+  );
 
   const getConfigFor = useCallback(
     (agendamento: Agendamento) => {
@@ -221,6 +323,49 @@ export function AtendimentoScreen() {
     [canViewEvolucoes],
   );
 
+  const convenioOptions = useMemo(() => {
+    const map = new Map<string, string>();
+
+    conveniosCatalog.forEach((item) => {
+      if (item.id && item.nome) {
+        map.set(item.id, item.nome);
+      }
+    });
+
+    agendamentos.forEach((item) => {
+      if (item.convenioId) {
+        map.set(item.convenioId, item.convenioNome || item.convenio?.nome || 'Não informado');
+      }
+    });
+
+    const values = Array.from(map.entries())
+      .map(([id, nome]) => ({ value: id, label: nome }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR', { sensitivity: 'base' }));
+
+    return [{ value: ALL_CONVENIOS_VALUE, label: 'Todos os convênios' }, ...values];
+  }, [agendamentos, conveniosCatalog]);
+
+  const visibleAgendamentos = useMemo(() => {
+    if (!onlyPendingEvolutions) {
+      return agendamentos;
+    }
+
+    return agendamentos.filter((item) => {
+      const config = configsMap.get(item.id) || DEFAULT_CONFIG;
+      const hasEvolucao = evolucoesMap.get(item.id) === true;
+      return config.evolucao && !hasEvolucao;
+    });
+  }, [agendamentos, configsMap, evolucoesMap, onlyPendingEvolutions]);
+
+  const hasActiveFilters = useMemo(
+    () =>
+      onlyPendingEvolutions ||
+      convenioFilter !== ALL_CONVENIOS_VALUE ||
+      Boolean(dataInicioFilter) ||
+      Boolean(dataFimFilter),
+    [convenioFilter, dataFimFilter, dataInicioFilter, onlyPendingEvolutions],
+  );
+
   const fetchPage = useCallback(
     async (pageToLoad: number, mode: 'replace' | 'append', isRefresh = false) => {
       if (!canAccessPage) {
@@ -253,6 +398,9 @@ export function AtendimentoScreen() {
           status: 'LIBERADO';
           search?: string;
           profissionalId?: string;
+          convenioId?: string;
+          dataInicio?: string;
+          dataFim?: string;
           orderBy: 'dataHoraInicio';
           orderDirection: 'asc';
         } = {
@@ -265,6 +413,21 @@ export function AtendimentoScreen() {
 
         if (queryDebounced) {
           params.search = queryDebounced;
+        }
+
+        const dataInicioIso = dataInicioFilter ? dateBrSlashToIso(dataInicioFilter) : null;
+        const dataFimIso = dataFimFilter ? dateBrSlashToIso(dataFimFilter) : null;
+
+        if (convenioFilter && convenioFilter !== ALL_CONVENIOS_VALUE) {
+          params.convenioId = convenioFilter;
+        }
+
+        if (dataInicioIso) {
+          params.dataInicio = dataInicioIso;
+        }
+
+        if (dataFimIso) {
+          params.dataFim = dataFimIso;
         }
 
         if (isProfissional) {
@@ -316,7 +479,19 @@ export function AtendimentoScreen() {
         }
       }
     },
-    [canAccessPage, limit, loadConfigs, loadEvolucoesStatus, queryDebounced, showToast, user?.profissionalId, user?.roles],
+    [
+      canAccessPage,
+      convenioFilter,
+      dataFimFilter,
+      dataInicioFilter,
+      limit,
+      loadConfigs,
+      loadEvolucoesStatus,
+      queryDebounced,
+      showToast,
+      user?.profissionalId,
+      user?.roles,
+    ],
   );
 
   useEffect(() => {
@@ -336,18 +511,144 @@ export function AtendimentoScreen() {
     void fetchPage(page + 1, 'append');
   }, [fetchPage, loading, loadingMore, page, refreshing, totalPages]);
 
+  const getNextAtendimentoIndex = useCallback(() => {
+    if (!visibleAgendamentos.length) {
+      return -1;
+    }
+
+    const now = Date.now();
+    const nextIndex = visibleAgendamentos.findIndex((item) => {
+      const timestamp = new Date(item.dataHoraInicio).getTime();
+      return Number.isFinite(timestamp) && timestamp >= now;
+    });
+
+    if (nextIndex >= 0) {
+      return nextIndex;
+    }
+
+    return 0;
+  }, [visibleAgendamentos]);
+
+  const handleGoToProximoAtendimento = useCallback(() => {
+    const nextIndex = getNextAtendimentoIndex();
+
+    if (nextIndex < 0) {
+      showToast({ message: 'Nenhum atendimento disponível na lista.' });
+      return;
+    }
+
+    listRef.current?.scrollToIndex({
+      index: nextIndex,
+      animated: true,
+      viewPosition: 0,
+    });
+  }, [getNextAtendimentoIndex, showToast]);
+
+  const handleScrollToIndexFailed = useCallback(
+    (info: { index: number; averageItemLength: number }) => {
+      const fallbackOffset = Math.max(0, info.index * (info.averageItemLength || 180));
+      listRef.current?.scrollToOffset({ offset: fallbackOffset, animated: true });
+      setTimeout(() => {
+        listRef.current?.scrollToIndex({
+          index: info.index,
+          animated: true,
+          viewPosition: 0,
+        });
+      }, 120);
+    },
+    [],
+  );
+
   const header = (
     <View className="mb-3 gap-3">
       <PageHeader title="Atendimento" subtitle="Agendamentos liberados para atendimento" />
+      <View className="rounded-2xl border border-surface-border bg-surface-card p-3">
+        <View className="mb-2 flex-row items-center justify-between gap-2">
+          <AppText className="text-sm font-semibold text-content-primary">Filtros</AppText>
+          <Pressable
+            onPress={() => setFiltersExpanded((current) => !current)}
+            className="h-9 w-9 items-center justify-center rounded-full border border-surface-border bg-slate-100"
+            style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+          >
+            <Ionicons name={filtersExpanded ? 'chevron-up' : 'chevron-down'} size={18} color="#334155" />
+          </Pressable>
+        </View>
+
+        {filtersExpanded ? (
+          <View className="gap-3">
+            <Pressable
+              onPress={() => setOnlyPendingEvolutions((current) => !current)}
+              className="flex-row items-center gap-3"
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: onlyPendingEvolutions }}
+            >
+              <View
+                className={
+                  onlyPendingEvolutions
+                    ? 'h-5 w-5 items-center justify-center rounded border border-brand-700 bg-brand-700'
+                    : 'h-5 w-5 items-center justify-center rounded border border-surface-border bg-white'
+                }
+              >
+                {onlyPendingEvolutions ? <AppText className="text-[11px] font-bold text-white">X</AppText> : null}
+              </View>
+              <AppText className="text-sm font-semibold text-content-primary">Evoluções pendentes</AppText>
+            </Pressable>
+
+            <Select
+              label="Convênio"
+              value={convenioFilter}
+              onChange={setConvenioFilter}
+              options={convenioOptions}
+              placeholder="Todos os convênios"
+            />
+
+            <View className="flex-row gap-2">
+              <View className="flex-1">
+                <Input
+                  label="Data início"
+                  value={dataInicioInput}
+                  onChangeText={(value) => setDataInicioInput(applyDateMaskSlash(value))}
+                  onBlur={() => applyDataInicioFilter(dataInicioInput)}
+                  placeholder="DD/MM/AAAA"
+                  keyboardType="number-pad"
+                />
+              </View>
+              <View className="flex-1">
+                <Input
+                  label="Data fim"
+                  value={dataFimInput}
+                  onChangeText={(value) => setDataFimInput(applyDateMaskSlash(value))}
+                  onBlur={() => applyDataFimFilter(dataFimInput)}
+                  placeholder="DD/MM/AAAA"
+                  keyboardType="number-pad"
+                />
+              </View>
+            </View>
+          </View>
+        ) : null}
+      </View>
       <SearchBar placeholder="Buscar paciente, serviço ou profissional..." value={query} onChangeText={setQuery} />
-      <AppText className="text-xs font-semibold text-content-muted">Exibindo {agendamentos.length} de {total} atendimentos</AppText>
-      <Button
-        variant="secondary"
-        size="sm"
-        label={refreshing ? 'Atualizando...' : 'Atualizar lista'}
-        onPress={() => void fetchPage(1, 'replace', true)}
-        disabled={refreshing}
-      />
+      <AppText className="text-xs font-semibold text-content-muted">
+        Exibindo {visibleAgendamentos.length} de {total} atendimentos
+      </AppText>
+      <View className="flex-row gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          label={refreshing ? 'Atualizando...' : 'Atualizar lista'}
+          className="flex-1"
+          onPress={() => void fetchPage(1, 'replace', true)}
+          disabled={refreshing}
+        />
+        <Button
+          variant="secondary"
+          size="sm"
+          label="Próximo atendimento"
+          className="flex-1"
+          onPress={handleGoToProximoAtendimento}
+          disabled={!visibleAgendamentos.length}
+        />
+      </View>
     </View>
   );
 
@@ -371,15 +672,20 @@ export function AtendimentoScreen() {
 
   return (
     <AppScreen>
+      {header}
       <FlatList
         ref={listRef}
-        data={agendamentos}
+        className="mt-1"
+        data={visibleAgendamentos}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={header}
         ListEmptyComponent={
           <EmptyState
             title="Nenhum atendimento liberado"
-            description={queryDebounced ? 'Tente ajustar a busca para encontrar resultados.' : 'Não há agendamentos liberados no momento.'}
+            description={
+              queryDebounced || hasActiveFilters
+                ? 'Tente ajustar os filtros para encontrar resultados.'
+                : 'Não há agendamentos liberados no momento.'
+            }
           />
         }
         ListFooterComponent={
@@ -399,6 +705,7 @@ export function AtendimentoScreen() {
         refreshing={refreshing}
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.35}
+        onScrollToIndexFailed={handleScrollToIndexFailed}
         onScroll={(event) => setShowBackToTop(event.nativeEvent.contentOffset.y > 280)}
         scrollEventThrottle={16}
         renderItem={({ item }) => {
@@ -485,18 +792,20 @@ export function AtendimentoScreen() {
               style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1 }]}
             >
               <View className={`mb-3 h-1 rounded-full ${cardAccentClass}`} />
-              <View className="flex-row items-start justify-between">
-                <View className="flex-1 pr-3">
-                  <AppText className="text-base font-semibold text-content-primary">{item.pacienteNome || 'Paciente não informado'}</AppText>
-                  <AppText className="mt-1 text-xs text-content-secondary">{formatDateTime(item.dataHoraInicio)}</AppText>
-                  <AppText className="mt-1 text-xs text-content-secondary">
-                    Profissional: {item.profissionalNome || 'Não informado'}
-                  </AppText>
-                  <AppText className="mt-1 text-xs text-content-secondary">Serviço: {item.servicoNome || 'Não informado'}</AppText>
-                  <AppText className="mt-1 text-xs text-content-secondary">Tipo: {item.tipoAtendimento || 'Não informado'}</AppText>
-                </View>
+              <View className="flex-row items-start justify-between gap-2">
+                <AppText numberOfLines={1} className="flex-1 text-base font-semibold text-content-primary">
+                  Nome Paciente: {item.pacienteNome || 'Não informado'}
+                </AppText>
                 <Chip label={item.status} tone={item.status === 'LIBERADO' ? 'success' : 'neutral'} />
               </View>
+
+              <View className="mt-1 flex-row items-start justify-between gap-3">
+                <AppText className="flex-1 text-xs text-content-secondary">Data e Hora: {formatDateTime(item.dataHoraInicio)}</AppText>
+                <AppText className="text-xs text-content-secondary">Tipo: {item.tipoAtendimento || 'Não informado'}</AppText>
+              </View>
+
+              <AppText className="mt-1 text-xs text-content-secondary">Profissional: {item.profissionalNome || 'Não informado'}</AppText>
+              <AppText className="mt-1 text-xs text-content-secondary">Serviço: {item.servicoNome || 'Não informado'}</AppText>
 
               {pendingBadges.length > 0 ? (
                 <View className="mt-3 flex-row flex-wrap gap-2">
@@ -506,7 +815,6 @@ export function AtendimentoScreen() {
                 </View>
               ) : null}
 
-              <AppText className="mt-3 text-xs font-semibold text-brand-700">Toque para abrir ações do atendimento</AppText>
             </Pressable>
           );
         }}

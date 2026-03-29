@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, ScrollView, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, ScrollView, View } from 'react-native';
 import { ErrorState } from '@/components/feedback/error-state';
 import { SkeletonBlock } from '@/components/feedback/skeleton';
 import { SearchBar } from '@/components/ui/search-bar';
@@ -11,13 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { useAuth } from '@/features/auth/context/auth-context';
 import { hasRoutePermission } from '@/features/auth/permissions';
-import {
-  alterarStatusAgendamento,
-  getAgendamentos,
-  getMeuProfissional,
-  setStatusAgendamento,
-} from '@/features/agendamentos/services/agendamentos-api';
+import { getAgendamentos, getMeuProfissional } from '@/features/agendamentos/services/agendamentos-api';
 import type { Agendamento, StatusAgendamento } from '@/features/agendamentos/types';
+import { routes } from '@/navigation/routes';
+import { useRouter } from 'expo-router';
 import { useToast } from '@/providers/toast-provider';
 import type { StatusTone } from '@/types/status';
 
@@ -40,15 +37,6 @@ const STATUS_FILTROS: StatusItem[] = [
   { id: 'CANCELADO', label: 'Cancelado', tone: 'danger' },
   { id: 'ARQUIVADO', label: 'Arquivado', tone: 'neutral' },
 ];
-
-const PROXIMO_STATUS: Partial<Record<StatusAgendamento, StatusAgendamento>> = {
-  AGENDADO: 'LIBERADO',
-  SOLICITADO: 'AGENDADO',
-  LIBERADO: 'ATENDIDO',
-  ATENDIDO: 'FINALIZADO',
-  PENDENTE: 'AGENDADO',
-  CANCELADO: 'AGENDADO',
-};
 
 function parseApiError(error: unknown, fallback: string) {
   if (typeof error === 'object' && error && 'response' in error) {
@@ -102,8 +90,13 @@ function calcularDataFimPadrao() {
 }
 
 export function AgendamentosScreen() {
+  const router = useRouter();
   const { user, permissions } = useAuth();
   const { showToast } = useToast();
+  const canCreateAgendamento = useMemo(
+    () => hasRoutePermission(permissions, { path: '/agendamentos', method: 'POST' }),
+    [permissions],
+  );
 
   const [query, setQuery] = useState('');
   const [queryDebounced, setQueryDebounced] = useState('');
@@ -118,22 +111,7 @@ export function AgendamentosScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [statusLoadingId, setStatusLoadingId] = useState<string | null>(null);
   const listRef = useRef<FlatList<Agendamento> | null>(null);
-
-  const canCancel = useMemo(() => {
-    return hasRoutePermission(permissions, {
-      path: '/agendamentos/:id/status',
-      method: 'PATCH',
-    });
-  }, [permissions]);
-
-  const canAlterarStatusLivre = useMemo(() => {
-    return hasRoutePermission(permissions, {
-      path: '/agendamentos-alterar-status/:id',
-      method: 'PUT',
-    });
-  }, [permissions]);
 
   useEffect(() => {
     const timer = setTimeout(() => setQueryDebounced(query.trim()), 500);
@@ -247,69 +225,17 @@ export function AgendamentosScreen() {
     setPage((prev) => prev + 1);
   }, [loading, loadingMore, page, refreshing, totalPages]);
 
-  const handleToggleCancelamento = useCallback(
-    async (agendamento: Agendamento) => {
-      const statusAtual = agendamento.status;
-      const novoStatus: StatusAgendamento = statusAtual === 'CANCELADO' ? 'AGENDADO' : 'CANCELADO';
-
-      if (novoStatus === 'CANCELADO' && agendamento.recebimento) {
-        showToast({
-          message: 'Não é possível cancelar: este agendamento já possui recebimento registrado.',
-        });
-        return;
-      }
-
-      setStatusLoadingId(agendamento.id);
-      try {
-        await setStatusAgendamento(agendamento.id, novoStatus);
-        showToast({
-          message:
-            novoStatus === 'CANCELADO'
-              ? 'Agendamento cancelado com sucesso.'
-              : 'Agendamento reativado para agendado.',
-        });
-        await carregarAgendamentos();
-      } catch (err) {
-        showToast({ message: parseApiError(err, 'Não foi possível alterar o status do agendamento.') });
-      } finally {
-        setStatusLoadingId(null);
-      }
-    },
-    [carregarAgendamentos, showToast],
-  );
-
-  const handleAvancarStatus = useCallback(
-    async (agendamento: Agendamento) => {
-      const proximo = PROXIMO_STATUS[agendamento.status];
-
-      if (!proximo) {
-        return;
-      }
-
-      if (proximo === 'CANCELADO' && agendamento.recebimento) {
-        showToast({
-          message: 'Não é possível cancelar: este agendamento já possui recebimento registrado.',
-        });
-        return;
-      }
-
-      setStatusLoadingId(agendamento.id);
-      try {
-        await alterarStatusAgendamento(agendamento.id, proximo);
-        showToast({ message: `Status alterado para ${getStatusInfo(proximo).label}.` });
-        await carregarAgendamentos();
-      } catch (err) {
-        showToast({ message: parseApiError(err, 'Não foi possível alterar o status do agendamento.') });
-      } finally {
-        setStatusLoadingId(null);
-      }
-    },
-    [carregarAgendamentos, showToast],
-  );
-
   const renderHeader = (
     <View>
-      <PageHeader title="Agendamentos" subtitle="Pesquise por agendamentos" />
+      <PageHeader
+        title="Agendamentos"
+        subtitle="Pesquise por agendamentos"
+        rightSlot={
+          canCreateAgendamento ? (
+            <Button label="Novo Agendamento" size="sm" onPress={() => router.push(routes.agendamentosNew)} />
+          ) : undefined
+        }
+      />
 
       <SearchBar
         placeholder="Buscar agendamentos..."
@@ -408,66 +334,52 @@ export function AgendamentosScreen() {
         scrollEventThrottle={16}
         renderItem={({ item }) => {
           const status = getStatusInfo(item.status);
-          const proximoStatus = PROXIMO_STATUS[item.status];
-          const podeCancelar =
-            canCancel &&
-            (item.status === 'AGENDADO' ||
-              item.status === 'SOLICITADO' ||
-              item.status === 'LIBERADO' ||
-              item.status === 'CANCELADO');
 
           return (
-            <View className="rounded-2xl border border-surface-border bg-surface-card p-4">
-              <View className="mb-3 flex-row items-start justify-between gap-3">
-                <View className="flex-1">
-                  <AppText className="text-base font-semibold text-content-primary">
-                    {item.pacienteNome || 'Paciente não informado'}
-                  </AppText>
-                  <AppText className="mt-1 text-sm text-content-secondary">
-                    {item.servicoNome || 'Serviço não informado'}
-                  </AppText>
-                </View>
+            <Pressable
+              className="relative rounded-2xl border border-surface-border bg-surface-card p-4"
+              onPress={() =>
+                router.push(
+                  routes.agendamentosAppointmentActions({
+                    agendamentoId: item.id,
+                    pacienteId: item.pacienteId,
+                    profissionalId: item.profissionalId,
+                    recursoId: item.recursoId,
+                    convenioId: item.convenioId,
+                    servicoId: item.servicoId,
+                    pacienteNome: item.pacienteNome || '',
+                    profissionalNome: item.profissionalNome || '',
+                    servicoNome: item.servicoNome || '',
+                    convenioNome: item.convenioNome || '',
+                    recursoNome: item.recursoNome || '',
+                    dataHoraInicio: item.dataHoraInicio,
+                    dataHoraFim: item.dataHoraFim,
+                    tipoAtendimento: item.tipoAtendimento,
+                    status: item.status,
+                    recebimento: item.recebimento,
+                  }),
+                )
+              }
+            >
+              <View className="absolute right-4 top-4 z-10">
                 <Chip label={status.label} tone={status.tone} />
               </View>
 
+              <AppText className="mb-3 pr-24 text-base font-semibold text-content-primary">
+                {item.pacienteNome || 'Não informado'}
+              </AppText>
+
               <AppText className="text-sm text-content-secondary">
-                {formatarDataHoraIntervalo(item.dataHoraInicio, item.dataHoraFim)}
+                Data: {formatarDataHoraIntervalo(item.dataHoraInicio, item.dataHoraFim)} | Tipo:{' '}
+                {item.tipoAtendimento === 'online' ? 'Online' : 'Presencial'}
               </AppText>
               <AppText className="mt-1 text-sm text-content-secondary">
                 Profissional: {item.profissionalNome || 'Não informado'}
               </AppText>
               <AppText className="mt-1 text-sm text-content-secondary">
-                Convênio: {item.convenioNome || 'Não informado'}
+                Serviço: {item.servicoNome || 'Não informado'} | Recurso: {item.recursoNome || 'Não informado'}
               </AppText>
-              <AppText className="mt-1 text-sm text-content-secondary">
-                Recurso: {item.recursoNome || 'Não informado'}
-              </AppText>
-              <AppText className="mt-1 text-sm text-content-secondary">
-                Tipo: {item.tipoAtendimento === 'online' ? 'Online' : 'Presencial'}
-              </AppText>
-
-              <View className="mt-4 gap-2">
-                {podeCancelar ? (
-                  <Button
-                    size="sm"
-                    variant={item.status === 'CANCELADO' ? 'secondary' : 'ghost'}
-                    label={item.status === 'CANCELADO' ? 'Reativar para agendado' : 'Cancelar agendamento'}
-                    loading={statusLoadingId === item.id}
-                    onPress={() => void handleToggleCancelamento(item)}
-                  />
-                ) : null}
-
-                {canAlterarStatusLivre && proximoStatus ? (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    label={`Avançar para ${getStatusInfo(proximoStatus).label}`}
-                    loading={statusLoadingId === item.id}
-                    onPress={() => void handleAvancarStatus(item)}
-                  />
-                ) : null}
-              </View>
-            </View>
+            </Pressable>
           );
         }}
       />

@@ -396,10 +396,10 @@ export function FilaEsperaScreen() {
                     <Button
                       size="sm"
                       label="Excluir"
+                      className="flex-1 bg-red-600"
                       onPress={() => void handleDelete(item)}
                       loading={loadingItem}
                       disabled={loadingItem}
-                      className="flex-1"
                     />
                   ) : null}
                 </View>

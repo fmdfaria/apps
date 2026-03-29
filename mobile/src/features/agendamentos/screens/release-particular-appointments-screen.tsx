@@ -1,3 +1,4 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -9,12 +10,10 @@ import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { BackToTopButton } from '@/components/ui/back-to-top-button';
 import { Button } from '@/components/ui/button';
-import { Chip } from '@/components/ui/chip';
 import { SearchBar } from '@/components/ui/search-bar';
 import { getAgendamentos, getPrecosParticulares } from '@/features/agendamentos/services/agendamentos-api';
 import type { Agendamento, PrecoParticular } from '@/features/agendamentos/types';
 import { routes } from '@/navigation/routes';
-import { useToast } from '@/providers/toast-provider';
 
 const CONVENIO_PARTICULAR_ID = 'f4af6586-8b56-4cf3-8b87-d18605cea381';
 
@@ -65,6 +64,17 @@ function formatMoney(value?: number | null) {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+function formatarPagamento(precoInfo?: Pick<PrecoParticular, 'tipoPagamento' | 'diaPagamento' | 'pagamentoAntecipado'> | null) {
+  if (!precoInfo) return '-';
+
+  const parts: string[] = [];
+  if (precoInfo.tipoPagamento) parts.push(precoInfo.tipoPagamento);
+  if (precoInfo.diaPagamento) parts.push(String(precoInfo.diaPagamento));
+  parts.push(precoInfo.pagamentoAntecipado ? 'SIM' : 'NAO');
+
+  return parts.length > 0 ? parts.join(' - ') : '-';
+}
+
 function formatMesAno(mesAno: string) {
   const [ano, mes] = mesAno.split('-');
   const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -82,7 +92,7 @@ function getDataFimParticular() {
   const mesFinal = (hoje.getMonth() + 3) % 12;
   const anoFinal = hoje.getFullYear() + Math.floor((hoje.getMonth() + 3) / 12);
   const mes = String(mesFinal + 1).padStart(2, '0');
-  return `${anoFinal}-${mes}`;
+  return `${anoFinal}-${mes}-01`;
 }
 
 function isParticular(item: Agendamento) {
@@ -91,6 +101,16 @@ function isParticular(item: Agendamento) {
 
 function isGrouped(item: ReleaseParticularItem): item is AgendamentoAgrupado {
   return 'kind' in item && item.kind === 'group';
+}
+
+function getStatusBadgeClasses(status?: string) {
+  if (status === 'AGENDADO') {
+    return { box: 'border-blue-300 bg-blue-100', text: 'text-blue-800' };
+  }
+  if (status === 'SOLICITADO') {
+    return { box: 'border-orange-300 bg-orange-100', text: 'text-orange-800' };
+  }
+  return { box: 'border-gray-300 bg-gray-100', text: 'text-gray-700' };
 }
 
 function agruparAgendamentos(agendamentos: Agendamento[], precosParticulares: PrecoParticular[]) {
@@ -159,7 +179,6 @@ function agruparAgendamentos(agendamentos: Agendamento[], precosParticulares: Pr
 
 export function ReleaseParticularAppointmentsScreen() {
   const router = useRouter();
-  const { showToast } = useToast();
 
   const [query, setQuery] = useState('');
   const [queryDebounced, setQueryDebounced] = useState('');
@@ -172,10 +191,10 @@ export function ReleaseParticularAppointmentsScreen() {
   const [precosParticulares, setPrecosParticulares] = useState<PrecoParticular[]>([]);
 
   const [page, setPage] = useState(1);
-  const [limit] = useState(20);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const listRef = useRef<FlatList<ReleaseParticularItem> | null>(null);
+  const hasFocusedOnce = useRef(false);
 
   const items = useMemo(() => agruparAgendamentos(agendamentos, precosParticulares), [agendamentos, precosParticulares]);
 
@@ -185,92 +204,87 @@ export function ReleaseParticularAppointmentsScreen() {
   }, [query]);
 
   const fetchPage = useCallback(
-    async (pageToLoad: number, mode: 'replace' | 'append', isRefresh = false) => {
+    async (_pageToLoad: number, _mode: 'replace' | 'append', isRefresh = false) => {
       if (isRefresh) {
         setRefreshing(true);
-      } else if (pageToLoad > 1 && mode === 'append') {
-        setLoadingMore(true);
       } else {
         setLoading(true);
       }
 
-      if (pageToLoad === 1 || isRefresh) {
-        setError(null);
-      }
+      setError(null);
 
       try {
         const dataFim = getDataFimParticular();
+        const paramsBase = {
+          convenioId: CONVENIO_PARTICULAR_ID,
+          dataFim,
+          orderBy: 'dataHoraInicio' as const,
+          orderDirection: 'asc' as const,
+          search: queryDebounced || undefined,
+        };
 
-        const [agendados, solicitados, precos] = await Promise.all([
-          getAgendamentos({
-            page: pageToLoad,
-            limit,
-            status: 'AGENDADO',
-            convenioId: CONVENIO_PARTICULAR_ID,
-            dataFim,
-            orderBy: 'dataHoraInicio',
-            orderDirection: 'asc',
-            search: queryDebounced || undefined,
-          }),
-          getAgendamentos({
-            page: pageToLoad,
-            limit,
-            status: 'SOLICITADO',
-            convenioId: CONVENIO_PARTICULAR_ID,
-            dataFim,
-            orderBy: 'dataHoraInicio',
-            orderDirection: 'asc',
-            search: queryDebounced || undefined,
-          }),
+        const fetchAllByStatus = async (status: 'AGENDADO' | 'SOLICITADO') => {
+          const limit = 100;
+          const firstPage = await getAgendamentos({ ...paramsBase, status, page: 1, limit });
+          const totalPagesByStatus = Math.max(firstPage.pagination?.totalPages || 1, 1);
+
+          if (totalPagesByStatus === 1) {
+            return firstPage.data;
+          }
+
+          const otherPages = await Promise.all(
+            Array.from({ length: totalPagesByStatus - 1 }, (_, index) =>
+              getAgendamentos({ ...paramsBase, status, page: index + 2, limit }),
+            ),
+          );
+
+          return [firstPage, ...otherPages].flatMap((pageData) => pageData.data);
+        };
+
+        const [agendadosData, solicitadosData, precos] = await Promise.all([
+          fetchAllByStatus('AGENDADO'),
+          fetchAllByStatus('SOLICITADO'),
           getPrecosParticulares(),
         ]);
 
         setPrecosParticulares(precos);
 
-        const pageItems = [...agendados.data, ...solicitados.data]
+        const pageItems = [...agendadosData, ...solicitadosData]
           .filter((item) => isParticular(item))
           .sort((a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime());
 
-        setAgendamentos((current) => {
-          if (mode === 'replace' || pageToLoad === 1) {
-            return pageItems;
-          }
-
-          const merged = [...current];
-          const existingIds = new Set(current.map((item) => item.id));
-          for (const item of pageItems) {
-            if (!existingIds.has(item.id)) {
-              merged.push(item);
-            }
-          }
-          return merged;
-        });
-
-        setPage(pageToLoad);
-        setTotal((agendados.pagination?.total || 0) + (solicitados.pagination?.total || 0));
-        setTotalPages(Math.max(agendados.pagination?.totalPages || 1, solicitados.pagination?.totalPages || 1));
+        setAgendamentos(pageItems);
+        setPage(1);
+        setTotal(pageItems.length);
+        setTotalPages(1);
       } catch (err) {
-        if (pageToLoad === 1 || isRefresh) {
-          setError(parseApiError(err, 'Não foi possível carregar os agendamentos particulares para liberação.'));
-        } else {
-          showToast({ message: parseApiError(err, 'Não foi possível carregar mais agendamentos.') });
-        }
+        setError(parseApiError(err, 'Nao foi possivel carregar os agendamentos particulares para liberacao.'));
       } finally {
         if (isRefresh) {
           setRefreshing(false);
-        } else if (pageToLoad > 1 && mode === 'append') {
-          setLoadingMore(false);
         } else {
           setLoading(false);
         }
+        setLoadingMore(false);
       }
     },
-    [limit, queryDebounced, showToast],
+    [queryDebounced],
   );
 
   useEffect(() => {
     void fetchPage(1, 'replace');
   }, [fetchPage]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasFocusedOnce.current) {
+        hasFocusedOnce.current = true;
+        return;
+      }
+
+      void fetchPage(1, 'replace', true);
+    }, [fetchPage]),
+  );
 
   const handleEndReached = useCallback(() => {
     if (loading || refreshing || loadingMore) return;
@@ -349,18 +363,24 @@ export function ReleaseParticularAppointmentsScreen() {
         renderItem={({ item }) => {
           if (isGrouped(item)) {
             const base = item.firstAgendamento;
+            const precoInfo = precosParticulares.find((p) => p.pacienteId === item.pacienteId && p.servicoId === item.servicoId);
+            const statusClasses = getStatusBadgeClasses(item.status);
             return (
               <Pressable
                 onPress={() =>
                   router.push(
                 routes.releaseParticularActions({
                   agendamentoId: base.id,
+                  agendamentoRaw: JSON.stringify(base),
+                  agendamentoIds: item.agendamentos.map((agendamento) => agendamento.id).join(','),
                   pacienteId: base.pacienteId,
+                  convenioId: base.convenioId,
                   pacienteNome: item.pacienteNome,
                   pacienteWhatsapp: base.paciente?.whatsapp || '',
                   profissionalNome: item.profissionalNome,
                   servicoNome: item.servicoNome,
                   servicoId: item.servicoId,
+                  mesAnoDisplay: item.mesAnoDisplay,
                   dataHoraInicio: base.dataHoraInicio,
                   status: item.status,
                   recebimento: base.recebimento,
@@ -369,39 +389,28 @@ export function ReleaseParticularAppointmentsScreen() {
                   precoUnitario: item.precoUnitario,
                   precoTotal: item.precoTotal,
                   tipoPagamento: item.tipoPagamento,
-                  pagamentoAntecipado:
-                    precosParticulares.find((p) => p.pacienteId === item.pacienteId && p.servicoId === item.servicoId)
-                      ?.pagamentoAntecipado ?? null,
-                  diaPagamento:
-                    precosParticulares.find((p) => p.pacienteId === item.pacienteId && p.servicoId === item.servicoId)
-                      ?.diaPagamento ?? null,
+                  pagamentoAntecipado: precoInfo?.pagamentoAntecipado ?? null,
+                  diaPagamento: precoInfo?.diaPagamento ?? null,
                 }),
               )
             }
                 className="rounded-2xl border border-surface-border bg-surface-card p-4"
               >
-                <View className="mb-2 flex-row items-start justify-between gap-3">
-                  <View className="flex-1">
-                    <AppText className="text-base font-semibold text-content-primary">{item.pacienteNome}</AppText>
-                    <AppText className="mt-1 text-sm text-content-secondary">{item.servicoNome}</AppText>
-                    <AppText className="mt-1 text-xs font-semibold text-brand-700">{item.mesAnoOtimizado} - Mensal</AppText>
+                <View className="flex-row items-start justify-between gap-3">
+                  <AppText className="flex-1 text-base font-semibold text-content-primary">{item.pacienteNome}</AppText>
+                  <View className={`rounded-full border px-3 py-1.5 ${statusClasses.box}`}>
+                    <AppText className={`text-xs font-semibold ${statusClasses.text}`}>{item.status}</AppText>
                   </View>
-                  <Chip label={item.status} tone={item.status === 'SOLICITADO' ? 'warning' : 'info'} />
                 </View>
-
-                <AppText className="text-sm text-content-secondary">Mês: {item.mesAnoDisplay}</AppText>
+                <AppText className="mt-1 text-sm text-content-secondary">Serviço: {item.servicoNome}</AppText>
+                <AppText className="mt-1 text-sm text-content-secondary">Data / Hora: {formatDateTime(base.dataHoraInicio)}</AppText>
                 <AppText className="mt-1 text-sm text-content-secondary">Profissional: {item.profissionalNome}</AppText>
-
-                <View className="mt-2 flex-row gap-2">
-                  <View className="flex-1 rounded-xl border border-surface-border bg-surface-background px-3 py-2">
-                    <AppText className="text-[11px] font-semibold text-content-muted">Qtd</AppText>
-                    <AppText className="text-xs text-content-primary">{item.quantidadeAgendamentos}x</AppText>
-                  </View>
-                  <View className="flex-1 rounded-xl border border-surface-border bg-surface-background px-3 py-2">
-                    <AppText className="text-[11px] font-semibold text-content-muted">Preço total</AppText>
-                    <AppText className="text-xs text-content-primary">{formatMoney(item.precoTotal)}</AppText>
-                  </View>
-                </View>
+                <AppText className="mt-1 text-sm text-content-secondary">
+                  Qtd | Preço: {item.quantidadeAgendamentos}x | {formatMoney(item.precoTotal)}
+                </AppText>
+                <AppText className="mt-1 text-sm text-content-secondary">
+                  Pag - Dia - Antec: {formatarPagamento(precoInfo)}
+                </AppText>
               </Pressable>
             );
           }
@@ -409,13 +418,16 @@ export function ReleaseParticularAppointmentsScreen() {
           return (
             (() => {
               const precoInfo = precosParticulares.find((p) => p.pacienteId === item.pacienteId && p.servicoId === item.servicoId);
+              const statusClasses = getStatusBadgeClasses(item.status);
               return (
             <Pressable
               onPress={() =>
                 router.push(
                   routes.releaseParticularActions({
                     agendamentoId: item.id,
+                    agendamentoRaw: JSON.stringify(item),
                     pacienteId: item.pacienteId,
+                    convenioId: item.convenioId,
                     pacienteNome: item.pacienteNome || '',
                     pacienteWhatsapp: item.paciente?.whatsapp || '',
                     profissionalNome: item.profissionalNome || '',
@@ -436,34 +448,25 @@ export function ReleaseParticularAppointmentsScreen() {
               }
               className="rounded-2xl border border-surface-border bg-surface-card p-4"
             >
-              <View className="mb-2 flex-row items-start justify-between gap-3">
-                <View className="flex-1">
-                  <AppText className="text-base font-semibold text-content-primary">
-                    {item.pacienteNome || 'Paciente não informado'}
-                  </AppText>
-                  <AppText className="mt-1 text-sm text-content-secondary">
-                    {item.servicoNome || 'Serviço não informado'}
-                  </AppText>
-                </View>
-                <Chip label={item.status} tone={item.status === 'SOLICITADO' ? 'warning' : 'info'} />
+              <View className="flex-row items-start justify-between gap-3">
+                <AppText className="flex-1 text-base font-semibold text-content-primary">
+                  {item.pacienteNome || 'Paciente não informado'}
+                </AppText>
+                <View className={`rounded-full border px-3 py-1.5 ${statusClasses.box}`}>
+                    <AppText className={`text-xs font-semibold ${statusClasses.text}`}>{item.status}</AppText>
+                  </View>
               </View>
-
-              <AppText className="text-sm text-content-secondary">{formatDateTime(item.dataHoraInicio)}</AppText>
+              <AppText className="mt-1 text-sm text-content-secondary">
+                Serviço: {item.servicoNome || 'Não informado'}
+              </AppText>
+              <AppText className="mt-1 text-sm text-content-secondary">Data / Hora: {formatDateTime(item.dataHoraInicio)}</AppText>
               <AppText className="mt-1 text-sm text-content-secondary">
                 Profissional: {item.profissionalNome || 'Não informado'}
               </AppText>
-              <View className="mt-2 flex-row gap-2">
-                <View className="flex-1 rounded-xl border border-surface-border bg-surface-background px-3 py-2">
-                  <AppText className="text-[11px] font-semibold text-content-muted">Qtd</AppText>
-                  <AppText className="text-xs text-content-primary">1</AppText>
-                </View>
-                <View className="flex-1 rounded-xl border border-surface-border bg-surface-background px-3 py-2">
-                  <AppText className="text-[11px] font-semibold text-content-muted">Preço</AppText>
-                  <AppText className="text-xs text-content-primary">
-                    {formatMoney(precoInfo?.preco)}
-                  </AppText>
-                </View>
-              </View>
+              <AppText className="mt-1 text-sm text-content-secondary">Qtd | Preço: 1x | {formatMoney(precoInfo?.preco)}</AppText>
+              <AppText className="mt-1 text-sm text-content-secondary">
+                Pag - Dia - Antec: {formatarPagamento(precoInfo)}
+              </AppText>
             </Pressable>
               );
             })()

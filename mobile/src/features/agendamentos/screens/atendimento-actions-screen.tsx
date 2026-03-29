@@ -484,7 +484,7 @@ export function AtendimentoActionsScreen() {
           className="justify-between"
           onPress={() => setMotivoSheet(true)}
           disabled={!motivoReprovacaoEnabled || actionLoading}
-          rightSlot={<Ionicons name="alert-circle" size={18} color="#f97316" />}
+          rightSlot={motivoReprovacao.trim() ? <Ionicons name="alert-circle" size={18} color="#f97316" /> : undefined}
         />
 
         <Button

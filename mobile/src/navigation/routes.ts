@@ -8,6 +8,7 @@
   tabsAgenda: '/(tabs)/calendar',
   tabsRelease: '/(tabs)/release',
   tabsReleaseParticular: '/(tabs)/release-particular',
+  agendamentosNew: '/agendamentos/new',
   tabsWaitlist: '/(tabs)/waitlist',
   modalQuickActions: '/modals/quick-actions',
   waitlist: '/waitlist',
@@ -17,6 +18,30 @@
   finance: '/finance/index',
   notifications: '/notifications/index',
   settings: '/settings',
+  agendaActions: (params: {
+    agendamentoId: string;
+    pacienteId: string;
+    profissionalId: string;
+    recursoId: string;
+    convenioId: string;
+    servicoId: string;
+    pacienteNome?: string;
+    profissionalNome?: string;
+    servicoNome?: string;
+    dataHoraInicio?: string;
+    dataHoraFim?: string;
+    tipoAtendimento?: string;
+    status?: string;
+  }) =>
+    `/agenda/actions?agendamentoId=${encodeURIComponent(params.agendamentoId)}&pacienteId=${encodeURIComponent(params.pacienteId)}&profissionalId=${encodeURIComponent(params.profissionalId)}&recursoId=${encodeURIComponent(params.recursoId)}&convenioId=${encodeURIComponent(params.convenioId)}&servicoId=${encodeURIComponent(params.servicoId)}${
+      params.pacienteNome ? `&pacienteNome=${encodeURIComponent(params.pacienteNome)}` : ''
+    }${params.profissionalNome ? `&profissionalNome=${encodeURIComponent(params.profissionalNome)}` : ''}${
+      params.servicoNome ? `&servicoNome=${encodeURIComponent(params.servicoNome)}` : ''
+    }${params.dataHoraInicio ? `&dataHoraInicio=${encodeURIComponent(params.dataHoraInicio)}` : ''}${
+      params.dataHoraFim ? `&dataHoraFim=${encodeURIComponent(params.dataHoraFim)}` : ''
+    }${params.tipoAtendimento ? `&tipoAtendimento=${encodeURIComponent(params.tipoAtendimento)}` : ''}${
+      params.status ? `&status=${encodeURIComponent(params.status)}` : ''
+    }`,
   customerDetails: (id: string) => `/customers/${id}`,
   customerActions: (id: string, nome?: string) =>
     `/customers/actions?id=${encodeURIComponent(id)}${nome ? `&nome=${encodeURIComponent(nome)}` : ''}`,
@@ -83,6 +108,37 @@
           ? '&assinaturaProfissional=false'
           : ''
     }${params.motivoReprovacao ? `&motivoReprovacao=${encodeURIComponent(params.motivoReprovacao)}` : ''}`,
+  agendamentosAppointmentActions: (params: {
+    agendamentoId: string;
+    pacienteId: string;
+    profissionalId: string;
+    recursoId: string;
+    convenioId: string;
+    servicoId: string;
+    pacienteNome?: string;
+    profissionalNome?: string;
+    servicoNome?: string;
+    convenioNome?: string;
+    recursoNome?: string;
+    dataHoraInicio?: string;
+    dataHoraFim?: string;
+    tipoAtendimento?: string;
+    status?: string;
+    recebimento?: boolean;
+  }) =>
+    `/agendamentos/appointment-actions?agendamentoId=${encodeURIComponent(params.agendamentoId)}&pacienteId=${encodeURIComponent(params.pacienteId)}&profissionalId=${encodeURIComponent(params.profissionalId)}&recursoId=${encodeURIComponent(params.recursoId)}&convenioId=${encodeURIComponent(params.convenioId)}&servicoId=${encodeURIComponent(params.servicoId)}${
+      params.pacienteNome ? `&pacienteNome=${encodeURIComponent(params.pacienteNome)}` : ''
+    }${params.profissionalNome ? `&profissionalNome=${encodeURIComponent(params.profissionalNome)}` : ''}${
+      params.servicoNome ? `&servicoNome=${encodeURIComponent(params.servicoNome)}` : ''
+    }${params.convenioNome ? `&convenioNome=${encodeURIComponent(params.convenioNome)}` : ''}${
+      params.recursoNome ? `&recursoNome=${encodeURIComponent(params.recursoNome)}` : ''
+    }${params.dataHoraInicio ? `&dataHoraInicio=${encodeURIComponent(params.dataHoraInicio)}` : ''}${
+      params.dataHoraFim ? `&dataHoraFim=${encodeURIComponent(params.dataHoraFim)}` : ''
+    }${params.tipoAtendimento ? `&tipoAtendimento=${encodeURIComponent(params.tipoAtendimento)}` : ''}${
+      params.status ? `&status=${encodeURIComponent(params.status)}` : ''
+    }${
+      params.recebimento === true ? '&recebimento=true' : params.recebimento === false ? '&recebimento=false' : ''
+    }`,
   releaseActions: (params: {
     agendamentoId: string;
     pacienteId: string;
@@ -110,12 +166,16 @@
     }${params.dataCodLiberacao ? `&dataCodLiberacao=${encodeURIComponent(params.dataCodLiberacao)}` : ''}`,
   releaseParticularActions: (params: {
     agendamentoId: string;
+    agendamentoRaw?: string;
+    agendamentoIds?: string;
     pacienteId: string;
+    convenioId?: string;
     pacienteNome?: string;
     pacienteWhatsapp?: string;
     profissionalNome?: string;
     servicoNome?: string;
     servicoId?: string;
+    mesAnoDisplay?: string;
     dataHoraInicio?: string;
     status?: string;
     recebimento?: boolean;
@@ -127,7 +187,9 @@
     diaPagamento?: number | null;
     pagamentoAntecipado?: boolean | null;
   }) =>
-    `/agendamentos/release-particular-actions?agendamentoId=${encodeURIComponent(params.agendamentoId)}&pacienteId=${encodeURIComponent(params.pacienteId)}${
+    `/agendamentos/release-particular-actions?agendamentoId=${encodeURIComponent(params.agendamentoId)}${
+      params.agendamentoRaw ? `&agendamentoRaw=${encodeURIComponent(params.agendamentoRaw)}` : ''
+    }&pacienteId=${encodeURIComponent(params.pacienteId)}${
       params.pacienteNome ? `&pacienteNome=${encodeURIComponent(params.pacienteNome)}` : ''
     }${params.pacienteWhatsapp ? `&pacienteWhatsapp=${encodeURIComponent(params.pacienteWhatsapp)}` : ''}${
       params.profissionalNome ? `&profissionalNome=${encodeURIComponent(params.profissionalNome)}` : ''
@@ -149,5 +211,38 @@
         : params.pagamentoAntecipado === false
           ? '&pagamentoAntecipado=false'
           : ''
+    }${params.agendamentoIds ? `&agendamentoIds=${encodeURIComponent(params.agendamentoIds)}` : ''}${
+      params.convenioId ? `&convenioId=${encodeURIComponent(params.convenioId)}` : ''
+    }${params.mesAnoDisplay ? `&mesAnoDisplay=${encodeURIComponent(params.mesAnoDisplay)}` : ''}`,
+  financeCreateContaReceber: (params: {
+    agendamentoId: string;
+    agendamentoIds?: string;
+    pacienteId: string;
+    convenioId?: string;
+    pacienteNome?: string;
+    servicoNome?: string;
+    mesAnoDisplay?: string;
+    quantidade?: number;
+    valorOriginal?: number;
+    pagamentoAntecipado?: boolean | null;
+    dataLiberacao?: string;
+    isGrupoMensal?: boolean;
+  }) =>
+    `/finance/create-conta-receber?agendamentoId=${encodeURIComponent(params.agendamentoId)}${
+      params.agendamentoIds ? `&agendamentoIds=${encodeURIComponent(params.agendamentoIds)}` : ''
+    }&pacienteId=${encodeURIComponent(params.pacienteId)}${
+      params.convenioId ? `&convenioId=${encodeURIComponent(params.convenioId)}` : ''
+    }${params.pacienteNome ? `&pacienteNome=${encodeURIComponent(params.pacienteNome)}` : ''}${
+      params.servicoNome ? `&servicoNome=${encodeURIComponent(params.servicoNome)}` : ''
+    }${params.mesAnoDisplay ? `&mesAnoDisplay=${encodeURIComponent(params.mesAnoDisplay)}` : ''}${
+      typeof params.quantidade === 'number' ? `&quantidade=${params.quantidade}` : ''
+    }${typeof params.valorOriginal === 'number' ? `&valorOriginal=${params.valorOriginal}` : ''}${
+      params.pagamentoAntecipado === true
+        ? '&pagamentoAntecipado=true'
+        : params.pagamentoAntecipado === false
+          ? '&pagamentoAntecipado=false'
+          : ''
+    }${params.dataLiberacao ? `&dataLiberacao=${encodeURIComponent(params.dataLiberacao)}` : ''}${
+      params.isGrupoMensal ? '&isGrupoMensal=true' : ''
     }`,
 } as const;

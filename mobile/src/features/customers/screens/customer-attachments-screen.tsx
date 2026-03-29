@@ -285,7 +285,7 @@ export function CustomerAttachmentsScreen() {
                       <Button
                         label="Excluir"
                         size="sm"
-                        className="flex-1"
+                        className="flex-1 bg-red-600"
                         loading={deletingAnexoId === anexo.id}
                         onPress={() => confirmDeleteAnexo(anexo.id)}
                       />

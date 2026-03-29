@@ -705,7 +705,7 @@ export function CustomerEvolutionsScreen() {
                               <Button
                                 label="Excluir"
                                 size="sm"
-                                className="flex-1"
+                                className="flex-1 bg-red-600"
                                 loading={deletingAnexoId === anexo.id}
                                 onPress={() => void handleDeleteAnexo(anexo.id)}
                               />
@@ -739,7 +739,7 @@ export function CustomerEvolutionsScreen() {
                           <Button
                             label="Excluir"
                             size="sm"
-                            variant="secondary"
+                            className="bg-red-600"
                             loading={deletingEvolucaoId === evolucao.id}
                             onPress={() => void handleDeleteEvolucao(evolucao.id)}
                           />

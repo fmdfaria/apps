@@ -56,6 +56,24 @@ export async function setAppointmentStatus(id: string, status: AppointmentStatus
   return response.data;
 }
 
+type EditAppointmentPayload = {
+  pacienteId: string;
+  profissionalId: string;
+  tipoAtendimento: 'presencial' | 'online';
+  recursoId: string;
+  convenioId: string;
+  servicoId: string;
+  dataHoraInicio: string;
+  tipoEdicaoRecorrencia?: 'apenas_esta' | 'esta_e_futuras' | 'toda_serie';
+};
+
+export async function editAppointment(id: string, payload: EditAppointmentPayload) {
+  const response = await api.put(`/agendamentos/${id}`, payload, {
+    headers: { 'Content-Type': 'application/json' },
+  });
+  return response.data;
+}
+
 export async function getMyProfessional() {
   const response = await api.get<{ id: string; nome: string }>('/profissionais/me');
   return response.data;

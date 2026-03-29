@@ -50,11 +50,27 @@ export default function RootLayout() {
               name="agendamentos/release-particular-actions"
               options={{ headerShown: true, title: 'Ações da liberação particular', headerBackButtonDisplayMode: 'minimal' }}
             />
+            <Stack.Screen
+              name="agendamentos/appointment-actions"
+              options={{ headerShown: true, title: 'Ações do agendamento', headerBackButtonDisplayMode: 'minimal' }}
+            />
+            <Stack.Screen
+              name="agendamentos/new"
+              options={{ headerShown: true, title: 'Novo agendamento', headerBackButtonDisplayMode: 'minimal' }}
+            />
+            <Stack.Screen
+              name="agenda/actions"
+              options={{ headerShown: true, title: 'Ações do agendamento', headerBackButtonDisplayMode: 'minimal' }}
+            />
             <Stack.Screen name="waitlist" options={{ headerShown: false }} />
             <Stack.Screen name="release" options={{ headerShown: false }} />
             <Stack.Screen name="release-particular" options={{ headerShown: false }} />
             <Stack.Screen name="tasks/index" options={{ headerShown: true, title: 'Tarefas' }} />
             <Stack.Screen name="finance/index" options={{ headerShown: true, title: 'Financeiro' }} />
+            <Stack.Screen
+              name="finance/create-conta-receber"
+              options={{ headerShown: true, title: 'Criar conta a receber', headerBackButtonDisplayMode: 'minimal' }}
+            />
             <Stack.Screen name="notifications/index" options={{ headerShown: true, title: 'Notificações' }} />
             <Stack.Screen name="settings" options={{ headerShown: true, title: 'Configurações' }} />
             <Stack.Screen

@@ -1,5 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { ErrorState } from '@/components/feedback/error-state';
 import { SkeletonBlock } from '@/components/feedback/skeleton';
 import { PageHeader } from '@/components/layout/page-header';
@@ -8,9 +11,9 @@ import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { useAuth } from '@/features/auth/context/auth-context';
-import { getMyProfessional, getProfessionalAppointments, setAppointmentStatus } from '@/features/agenda/services/my-agenda-api';
+import { getMyProfessional, getProfessionalAppointments } from '@/features/agenda/services/my-agenda-api';
 import type { AppointmentStatus, ProfessionalAgendaAppointment } from '@/features/agenda/types';
-import { useToast } from '@/providers/toast-provider';
+import { routes } from '@/navigation/routes';
 import type { StatusTone } from '@/types/status';
 
 type WeekDay = {
@@ -41,7 +44,7 @@ function getMonday(date: Date) {
 function getWeekDays(weekDate: Date): WeekDay[] {
   const monday = getMonday(weekDate);
 
-  return Array.from({ length: 6 }).map((_, index) => {
+  return Array.from({ length: 7 }).map((_, index) => {
     const day = new Date(monday);
     day.setDate(monday.getDate() + index);
 
@@ -72,21 +75,14 @@ function endOfDay(date: Date) {
 function parseApiError(error: unknown) {
   if (typeof error === 'object' && error && 'response' in error) {
     const message = (error as { response?: { data?: { message?: string } } }).response?.data?.message;
-    if (message) {
-      return message;
-    }
+    if (message) return message;
   }
-
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-
+  if (error instanceof Error && error.message) return error.message;
   return 'Não foi possível carregar a agenda.';
 }
 
 function normalizeStatus(status: string | undefined | null): AppointmentStatus | 'DESCONHECIDO' {
   const value = (status || '').toUpperCase().trim();
-
   const valid: AppointmentStatus[] = [
     'AGENDADO',
     'SOLICITADO',
@@ -97,16 +93,13 @@ function normalizeStatus(status: string | undefined | null): AppointmentStatus |
     'ARQUIVADO',
     'PENDENTE',
   ];
-
   return valid.includes(value as AppointmentStatus) ? (value as AppointmentStatus) : 'DESCONHECIDO';
 }
 
 function getStatusBadge(status: string | undefined | null): { label: string; tone: StatusTone } {
   const normalized = normalizeStatus(status);
 
-  if (normalized === 'DESCONHECIDO') {
-    return { label: 'Status desconhecido', tone: 'neutral' };
-  }
+  if (normalized === 'DESCONHECIDO') return { label: 'Status desconhecido', tone: 'neutral' };
 
   switch (normalized) {
     case 'AGENDADO':
@@ -133,27 +126,22 @@ function getStatusBadge(status: string | undefined | null): { label: string; ton
 function formatHourRange(appointment: ProfessionalAgendaAppointment) {
   const start = new Date(appointment.dataHoraInicio);
   const end = appointment.dataHoraFim ? new Date(appointment.dataHoraFim) : null;
-
   const startText = start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-  if (!end) {
-    return startText;
-  }
-
+  if (!end) return startText;
   const endText = end.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   return `${startText} - ${endText}`;
 }
 
 export function AgendaScreen() {
+  const router = useRouter();
   const { user } = useAuth();
-  const { showToast } = useToast();
   const [weekDate, setWeekDate] = useState(new Date());
   const [selectedDayKey, setSelectedDayKey] = useState<string>(formatDateKey(new Date()));
   const [statusFilter, setStatusFilter] = useState<'TODOS' | AppointmentStatus>('TODOS');
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [appointments, setAppointments] = useState<ProfessionalAgendaAppointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statusLoadingId, setStatusLoadingId] = useState<string | null>(null);
   const [professionalName, setProfessionalName] = useState<string>('');
 
   const weekDays = useMemo(() => getWeekDays(weekDate), [weekDate]);
@@ -161,10 +149,7 @@ export function AgendaScreen() {
   useEffect(() => {
     const firstDay = weekDays[0]?.key;
     const hasSelectedInsideWeek = weekDays.some((day) => day.key === selectedDayKey);
-
-    if (!hasSelectedInsideWeek && firstDay) {
-      setSelectedDayKey(firstDay);
-    }
+    if (!hasSelectedInsideWeek && firstDay) setSelectedDayKey(firstDay);
   }, [selectedDayKey, weekDays]);
 
   const loadAgenda = useCallback(async () => {
@@ -176,10 +161,7 @@ export function AgendaScreen() {
 
     const first = weekDays[0];
     const last = weekDays[weekDays.length - 1];
-
-    if (!first || !last) {
-      return;
-    }
+    if (!first || !last) return;
 
     setLoading(true);
     setError(null);
@@ -190,7 +172,6 @@ export function AgendaScreen() {
         dataInicio: startOfDay(first.date).toISOString(),
         dataFim: endOfDay(last.date).toISOString(),
       });
-
       setAppointments(response.data);
     } catch (err) {
       setError(parseApiError(err));
@@ -203,13 +184,18 @@ export function AgendaScreen() {
     void loadAgenda();
   }, [loadAgenda]);
 
+  useFocusEffect(
+    useCallback(() => {
+      void loadAgenda();
+    }, [loadAgenda]),
+  );
+
   useEffect(() => {
     const loadProfessionalName = async () => {
       if (!user?.profissionalId) {
         setProfessionalName('');
         return;
       }
-
       try {
         const professional = await getMyProfessional();
         setProfessionalName(professional.nome || '');
@@ -217,7 +203,6 @@ export function AgendaScreen() {
         setProfessionalName('');
       }
     };
-
     void loadProfessionalName();
   }, [user?.profissionalId]);
 
@@ -254,25 +239,6 @@ export function AgendaScreen() {
     setSelectedDayKey(formatDateKey(new Date()));
   };
 
-  const handleToggleCancel = async (appointment: ProfessionalAgendaAppointment) => {
-    const normalizedStatus = normalizeStatus(appointment.status);
-    const nextStatus: AppointmentStatus = normalizedStatus === 'CANCELADO' ? 'AGENDADO' : 'CANCELADO';
-    setStatusLoadingId(appointment.id);
-
-    try {
-      await setAppointmentStatus(appointment.id, nextStatus);
-      showToast({
-        message:
-          nextStatus === 'CANCELADO' ? 'Agendamento cancelado com sucesso.' : 'Agendamento reativado como agendado.',
-      });
-      await loadAgenda();
-    } catch (err) {
-      showToast({ message: parseApiError(err) });
-    } finally {
-      setStatusLoadingId(null);
-    }
-  };
-
   if (!user?.profissionalId) {
     return (
       <AppScreen>
@@ -290,46 +256,61 @@ export function AgendaScreen() {
       <PageHeader title="Minha Agenda" subtitle={`Profissional: ${professionalName || user.nome}`} />
 
       <View className="mb-4 rounded-2xl border border-surface-border bg-surface-card p-3">
-        <View className="mb-3 flex-row items-center gap-2">
-          <Button label="Semana -" size="sm" variant="secondary" onPress={goToPreviousWeek} />
-          <Button label="Hoje" size="sm" variant="primary" onPress={goToCurrentWeek} />
-          <Button label="Semana +" size="sm" variant="secondary" onPress={goToNextWeek} />
+        <View className="mb-2 flex-row items-center justify-between gap-2">
+          <AppText className="text-sm font-semibold text-content-primary">Filtros</AppText>
+          <Pressable
+            onPress={() => setFiltersExpanded((current) => !current)}
+            className="h-9 w-9 items-center justify-center rounded-full border border-surface-border bg-slate-100"
+            style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+          >
+            <Ionicons name={filtersExpanded ? 'chevron-up' : 'chevron-down'} size={18} color="#334155" />
+          </Pressable>
         </View>
 
-        <AppText className="mb-2 text-xs font-semibold text-content-muted">Dias da semana</AppText>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="mb-3"
-          contentContainerStyle={{ gap: 8, paddingVertical: 4, paddingHorizontal: 2 }}
-        >
-          {weekDays.map((day) => (
-            <Chip
-              key={day.key}
-              label={day.label}
-              tone={day.key === selectedDayKey ? 'info' : 'neutral'}
-              selected={day.key === selectedDayKey}
-              onPress={() => setSelectedDayKey(day.key)}
-            />
-          ))}
-        </ScrollView>
+        {filtersExpanded ? (
+          <>
+            <View className="mb-3 flex-row items-center gap-2">
+              <Button label="Semana -" size="sm" variant="secondary" onPress={goToPreviousWeek} />
+              <Button label="Hoje" size="sm" variant="primary" onPress={goToCurrentWeek} />
+              <Button label="Semana +" size="sm" variant="secondary" onPress={goToNextWeek} />
+            </View>
 
-        <AppText className="mb-2 text-xs font-semibold text-content-muted">Status</AppText>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 8, paddingVertical: 4, paddingHorizontal: 2 }}
-        >
-          {statusFilters.map((status) => (
-            <Chip
-              key={status.id}
-              label={status.label}
-              tone={status.tone}
-              selected={statusFilter === status.id}
-              onPress={() => setStatusFilter(status.id)}
-            />
-          ))}
-        </ScrollView>
+            <AppText className="mb-2 text-xs font-semibold text-content-muted">Dias da semana</AppText>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              className="mb-3"
+              contentContainerStyle={{ gap: 8, paddingVertical: 4, paddingHorizontal: 2 }}
+            >
+              {weekDays.map((day) => (
+                <Chip
+                  key={day.key}
+                  label={day.label}
+                  tone={day.key === selectedDayKey ? 'info' : 'neutral'}
+                  selected={day.key === selectedDayKey}
+                  onPress={() => setSelectedDayKey(day.key)}
+                />
+              ))}
+            </ScrollView>
+
+            <AppText className="mb-2 text-xs font-semibold text-content-muted">Status</AppText>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 8, paddingVertical: 4, paddingHorizontal: 2 }}
+            >
+              {statusFilters.map((status) => (
+                <Chip
+                  key={status.id}
+                  label={status.label}
+                  tone={status.tone}
+                  selected={statusFilter === status.id}
+                  onPress={() => setStatusFilter(status.id)}
+                />
+              ))}
+            </ScrollView>
+          </>
+        ) : null}
       </View>
 
       <AppText className="mb-3 text-sm font-semibold text-content-secondary">
@@ -353,16 +334,32 @@ export function AgendaScreen() {
           />
         ) : (
           visibleAppointments.map((appointment) => {
-            const normalizedStatus = normalizeStatus(appointment.status);
-            const status = getStatusBadge(normalizedStatus);
-            const canToggleCancel =
-              normalizedStatus === 'CANCELADO' ||
-              normalizedStatus === 'AGENDADO' ||
-              normalizedStatus === 'SOLICITADO' ||
-              normalizedStatus === 'LIBERADO';
+            const status = getStatusBadge(appointment.status);
 
             return (
-              <View key={appointment.id} className="rounded-2xl border border-surface-border bg-surface-card p-4">
+              <Pressable
+                key={appointment.id}
+                onPress={() =>
+                  router.push(
+                    routes.agendaActions({
+                      agendamentoId: appointment.id,
+                      pacienteId: appointment.pacienteId,
+                      profissionalId: appointment.profissionalId,
+                      recursoId: appointment.recursoId,
+                      convenioId: appointment.convenioId,
+                      servicoId: appointment.servicoId,
+                      pacienteNome: appointment.pacienteNome || '',
+                      profissionalNome: appointment.profissionalNome || '',
+                      servicoNome: appointment.servicoNome || '',
+                      dataHoraInicio: appointment.dataHoraInicio,
+                      dataHoraFim: appointment.dataHoraFim,
+                      tipoAtendimento: appointment.tipoAtendimento,
+                      status: appointment.status,
+                    }),
+                  )
+                }
+                className="rounded-2xl border border-surface-border bg-surface-card p-4"
+              >
                 <View className="mb-2 flex-row items-start justify-between gap-3">
                   <View className="flex-1">
                     <AppText className="text-base font-semibold text-content-primary">
@@ -384,19 +381,7 @@ export function AgendaScreen() {
                 <AppText className="mt-1 text-sm text-content-secondary">
                   Recurso: {appointment.recursoNome || 'Não informado'}
                 </AppText>
-
-                {canToggleCancel ? (
-                  <View className="mt-3">
-                    <Button
-                      size="sm"
-                      variant={normalizedStatus === 'CANCELADO' ? 'secondary' : 'ghost'}
-                      label={normalizedStatus === 'CANCELADO' ? 'Reativar para Agendado' : 'Cancelar agendamento'}
-                      loading={statusLoadingId === appointment.id}
-                      onPress={() => void handleToggleCancel(appointment)}
-                    />
-                  </View>
-                ) : null}
-              </View>
+              </Pressable>
             );
           })
         )}

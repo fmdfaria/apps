@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+﻿import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Linking, ScrollView, View } from 'react-native';
 import { AppScreen } from '@/components/ui/app-screen';
@@ -43,6 +43,15 @@ function formatDateTime(value?: string) {
   const data = date.toLocaleDateString('pt-BR');
   const hora = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   return `${data} às ${hora}`;
+}
+
+function formatDateTimeForWhatsapp(value?: string) {
+  if (!value) return 'Data não informada';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const data = date.toLocaleDateString('pt-BR');
+  const hora = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  return `${data} - ${hora}`;
 }
 
 function normalizeWhatsapp(value?: string) {
@@ -105,13 +114,29 @@ export function ReleaseActionsScreen() {
       return;
     }
 
-    const url = `https://api.whatsapp.com/send/?phone=${phone}`;
+    const nomePaciente = params.pacienteNome || 'Paciente';
+    const dataConsulta = formatDateTimeForWhatsapp(params.dataHoraInicio);
+    const profissional = params.profissionalNome || 'Profissional não informado';
+    const mensagem = `Olá, tudo bem?
+
+A consulta para *${nomePaciente}* no dia \u{1F5D3}\uFE0F *${dataConsulta}* com profissional *${profissional}* está confirmada!
+
+Por favor, poderia gerar o *Token* e me enviar por gentileza.
+
+Agradecemos pela confiança! \u{1F499}
+Clinica CelebraMente`;
+
+    const encodedMessage = encodeURIComponent(mensagem);
+    const appUrl = `whatsapp://send?phone=${phone}&text=${encodedMessage}`;
+    const fallbackUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
+
     try {
-      await Linking.openURL(url);
+      const canOpenApp = await Linking.canOpenURL(appUrl);
+      await Linking.openURL(canOpenApp ? appUrl : fallbackUrl);
     } catch {
       showToast({ message: 'Não foi possível abrir o WhatsApp.' });
     }
-  }, [params.pacienteWhatsapp, showToast]);
+  }, [params.dataHoraInicio, params.pacienteNome, params.pacienteWhatsapp, params.profissionalNome, showToast]);
 
   const handleOpenPedidos = useCallback(() => {
     if (!canPedidos) {
@@ -200,14 +225,16 @@ export function ReleaseActionsScreen() {
   return (
     <AppScreen>
       <View className="mb-3 rounded-2xl border border-surface-border bg-surface-card p-4">
-        <AppText className="text-base font-semibold text-content-primary">{params.pacienteNome || 'Paciente não informado'}</AppText>
+        <View className="flex-row items-center justify-between gap-2">
+          <AppText className="flex-1 text-base font-semibold text-content-primary">
+            {params.pacienteNome || 'Paciente não informado'}
+          </AppText>
+          <Chip label={status} tone={status === 'SOLICITADO' ? 'warning' : status === 'LIBERADO' ? 'success' : 'info'} />
+        </View>
         <AppText className="mt-1 text-xs text-content-secondary">{formatDateTime(params.dataHoraInicio)}</AppText>
         <AppText className="mt-1 text-xs text-content-secondary">Profissional: {params.profissionalNome || 'Não informado'}</AppText>
         <AppText className="mt-1 text-xs text-content-secondary">Serviço: {params.servicoNome || 'Não informado'}</AppText>
         <AppText className="mt-1 text-xs text-content-secondary">Convênio: {params.convenioNome || 'Não informado'}</AppText>
-        <View className="mt-2 flex-row items-center gap-2">
-          <Chip label={status} tone={status === 'SOLICITADO' ? 'warning' : status === 'LIBERADO' ? 'success' : 'info'} />
-        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 24 }}>
@@ -302,4 +329,6 @@ export function ReleaseActionsScreen() {
     </AppScreen>
   );
 }
+
+
 

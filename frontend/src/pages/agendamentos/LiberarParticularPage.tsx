@@ -824,15 +824,15 @@ export const LiberarParticularPage = () => {
     switch (status) {
       case 'AGENDADO':
         return {
-          bg: 'bg-yellow-100',
-          text: 'text-yellow-700',
-          border: 'border-yellow-400'
+          bg: 'bg-blue-100',
+          text: 'text-blue-800',
+          border: 'border-blue-300'
         };
       case 'SOLICITADO':
         return {
-          bg: 'bg-blue-100',
-          text: 'text-blue-700',
-          border: 'border-blue-400'
+          bg: 'bg-orange-100',
+          text: 'text-orange-800',
+          border: 'border-orange-300'
         };
       default:
         return {
