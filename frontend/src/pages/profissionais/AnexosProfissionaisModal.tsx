@@ -7,7 +7,7 @@ import { File } from 'lucide-react';
 import { AppToast } from '@/services/toast';
 import type { Profissional } from '@/types/Profissional';
 import type { Anexo } from '@/types/Anexo';
-import { uploadAnexo, getAnexos, deleteAnexo } from '@/services/anexos';
+import { uploadAnexo, getAnexos, deleteAnexo, getAnexoDownloadUrl } from '@/services/anexos';
 
 interface AnexosProfissionaisModalProps {
   showModal: boolean;
@@ -48,6 +48,18 @@ export default function AnexosProfissionaisModal({
   onAnexoToDeleteChange,
   onDeletingAnexoChange
 }: AnexosProfissionaisModalProps) {
+
+  const handleDownloadAnexo = async (anexo: Anexo) => {
+    try {
+      const downloadUrl = await getAnexoDownloadUrl(anexo.id);
+      window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error('Erro ao obter URL de download do anexo:', error);
+      AppToast.error('Erro ao abrir anexo', {
+        description: 'Nao foi possivel gerar o link de download. Tente novamente.'
+      });
+    }
+  };
 
   const handleSalvarAnexo = async () => {
     if (!profissional || anexoFiles.length === 0) {
@@ -161,15 +173,14 @@ export default function AnexosProfissionaisModal({
                         <File className="w-4 h-4 text-violet-500 flex-shrink-0" />
                         
                         <div className="flex-1 min-w-0">
-                          <a 
-                            href={anexo.url || '#'} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="text-violet-600 hover:text-violet-800 font-medium underline block truncate text-sm"
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadAnexo(anexo)}
+                            className="text-violet-600 hover:text-violet-800 font-medium underline block truncate text-sm text-left w-full"
                             title={anexo.nomeArquivo}
                           >
                             {anexo.nomeArquivo}
-                          </a>
+                          </button>
                           {anexo.descricao && (
                             <p className="text-xs text-gray-500 truncate">{anexo.descricao}</p>
                           )}

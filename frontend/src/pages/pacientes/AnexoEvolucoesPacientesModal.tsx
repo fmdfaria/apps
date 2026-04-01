@@ -9,7 +9,7 @@ import { File } from 'lucide-react';
 import { AppToast } from '@/services/toast';
 import type { Paciente } from '@/types/Paciente';
 import type { Anexo } from '@/types/Anexo';
-import { uploadAnexo, getAnexos, deleteAnexo } from '@/services/anexos';
+import { uploadAnexo, getAnexos, deleteAnexo, getAnexoDownloadUrl } from '@/services/anexos';
 
 interface AnexoEvolucoesPacientesModalProps {
   showModal: boolean;
@@ -56,6 +56,18 @@ export default function AnexoEvolucoesPacientesModal({
   const canPostAnexo = hasPermission('/anexos', 'POST');
   const canUpload = canPostEvolucoes && canPostAnexo;
   const canDeleteAnexoForId = (id: string) => canPostEvolucoes && hasPermission(`/anexos/${id}`, 'DELETE');
+
+  const handleDownloadAnexo = async (anexo: Anexo) => {
+    try {
+      const downloadUrl = await getAnexoDownloadUrl(anexo.id);
+      window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error('Erro ao obter URL de download do anexo:', error);
+      AppToast.error('Erro ao abrir anexo', {
+        description: 'Nao foi possivel gerar o link de download. Tente novamente.'
+      });
+    }
+  };
 
   const handleSalvarAnexo = async () => {
     if (!canUpload) {
@@ -176,15 +188,14 @@ export default function AnexoEvolucoesPacientesModal({
                         <File className="w-4 h-4 text-blue-500 flex-shrink-0" />
                         
                         <div className="flex-1 min-w-0">
-                          <a 
-                            href={anexo.url || '#'} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="text-blue-600 hover:text-blue-800 font-medium underline block truncate text-sm"
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadAnexo(anexo)}
+                            className="text-blue-600 hover:text-blue-800 font-medium underline block truncate text-sm text-left w-full"
                             title={anexo.nomeArquivo}
                           >
                             {anexo.nomeArquivo}
-                          </a>
+                          </button>
                           {anexo.descricao && (
                             <p className="text-xs text-gray-500 truncate">{anexo.descricao}</p>
                           )}

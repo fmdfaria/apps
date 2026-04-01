@@ -24,6 +24,50 @@ export class AnexosController {
     this.s3Service = new S3StorageService();
   }
 
+  private extractS3KeyFromUrl(url?: string | null): string | null {
+    if (!url) return null;
+
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) return null;
+
+    // Em alguns registros antigos, o campo `url` ja contem somente a key.
+    if (!trimmedUrl.includes('://')) {
+      return trimmedUrl.replace(/^\/+/, '') || null;
+    }
+
+    try {
+      const parsedUrl = new URL(trimmedUrl);
+      const bucketName = (process.env.AWS_S3_BUCKET || 'probotec-clinica-files').toLowerCase();
+      const host = parsedUrl.hostname.toLowerCase();
+      const isLikelyS3Host = host.includes('amazonaws.com') || host.startsWith(`${bucketName}.`);
+
+      if (!isLikelyS3Host) {
+        return null;
+      }
+
+      const rawPath = parsedUrl.pathname.replace(/^\/+/, '');
+      if (!rawPath) {
+        return null;
+      }
+
+      const pathParts = rawPath.split('/').filter(Boolean);
+      if (pathParts.length === 0) {
+        return null;
+      }
+
+      // URL no formato path-style: s3.amazonaws.com/bucket/key
+      if (pathParts[0].toLowerCase() === bucketName) {
+        const keyFromPathStyle = pathParts.slice(1).join('/');
+        return keyFromPathStyle || null;
+      }
+
+      // URL no formato virtual-hosted-style: bucket.s3.amazonaws.com/key
+      return rawPath;
+    } catch {
+      return null;
+    }
+  }
+
   async create(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     try {
       const mp = await request.file();
@@ -132,9 +176,10 @@ export class AnexosController {
         return reply.status(404).send({ message: 'Anexo não encontrado.' });
       }
 
-      // Remover do S3 se tiver s3Key
-      if (anexo.s3Key) {
-        await this.s3Service.deleteFile(anexo.s3Key);
+      // Remover do S3 com fallback para registros antigos sem s3Key salvo
+      const s3Key = anexo.s3Key || this.extractS3KeyFromUrl(anexo.url);
+      if (s3Key) {
+        await this.s3Service.deleteFile(s3Key);
       }
 
       // Remover do banco
@@ -184,9 +229,10 @@ export class AnexosController {
 
       // Se veio novo arquivo, faz upload e remove o antigo
       if (mp && mp.filename) {
-        // Remover arquivo antigo do S3
-        if (anexoAtual.s3Key) {
-          await this.s3Service.deleteFile(anexoAtual.s3Key);
+        // Remover arquivo antigo do S3 (com fallback para URL legada)
+        const oldS3Key = anexoAtual.s3Key || this.extractS3KeyFromUrl(anexoAtual.url);
+        if (oldS3Key) {
+          await this.s3Service.deleteFile(oldS3Key);
         }
 
         // Upload novo arquivo
@@ -216,6 +262,7 @@ export class AnexosController {
         descricao: fields.descricao,
         nomeArquivo,
         url,
+        s3Key,
       });
 
       return reply.status(200).send(updated);
@@ -243,13 +290,27 @@ export class AnexosController {
         return reply.status(404).send({ message: 'Anexo não encontrado.' });
       }
 
-      if (!anexo.s3Key) {
+      const resolvedS3Key = anexo.s3Key || this.extractS3KeyFromUrl(anexo.url);
+      if (!resolvedS3Key) {
         return reply.status(400).send({ message: 'Anexo não possui referência S3.' });
+      }
+
+      // Persistir key recuperada para evitar novas tentativas de fallback.
+      if (!anexo.s3Key) {
+        try {
+          const prisma = container.resolve<PrismaClient>('PrismaClient');
+          await prisma.anexo.update({
+            where: { id: anexo.id },
+            data: { s3Key: resolvedS3Key }
+          });
+        } catch (persistError) {
+          console.warn('Não foi possível persistir s3Key legada do anexo:', persistError);
+        }
       }
 
       // Gerar URL presignada para download (válida por 1 hora)
       const downloadUrl = await this.s3Service.generatePresignedUrl({
-        s3Key: anexo.s3Key,
+        s3Key: resolvedS3Key,
         operation: 'download',
         expiresIn: 3600 // 1 hora
       });
@@ -413,3 +474,4 @@ export class AnexosController {
     }
   }
 } 
+

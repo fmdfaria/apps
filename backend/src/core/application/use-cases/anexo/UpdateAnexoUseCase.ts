@@ -8,6 +8,7 @@ interface IRequest {
   descricao?: string | null;
   nomeArquivo?: string;
   url?: string;
+  s3Key?: string | null;
 }
 
 @injectable()
@@ -17,7 +18,7 @@ export class UpdateAnexoUseCase {
     private anexosRepository: IAnexosRepository
   ) {}
 
-  async execute({ id, descricao, nomeArquivo, url }: IRequest): Promise<Anexo> {
+  async execute({ id, descricao, nomeArquivo, url, s3Key }: IRequest): Promise<Anexo> {
     const anexo = await this.anexosRepository.findById(id);
     if (!anexo) {
       throw new AppError('Anexo não encontrado.', 404);
@@ -26,6 +27,7 @@ export class UpdateAnexoUseCase {
       descricao,
       nomeArquivo,
       url,
+      s3Key,
     });
     return updated;
   }

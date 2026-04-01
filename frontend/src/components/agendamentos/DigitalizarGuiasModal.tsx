@@ -178,6 +178,18 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
     }
   };
 
+  const handleDownloadAnexo = async (anexo: Anexo) => {
+    try {
+      const downloadUrl = await getAnexoDownloadUrl(anexo.id);
+      window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error('Erro ao obter URL de download do anexo:', error);
+      AppToast.error('Erro ao abrir documento', {
+        description: 'Nao foi possivel gerar o link de download. Tente novamente.'
+      });
+    }
+  };
+
   // Função para gerar o nome completo do arquivo
   const gerarNomeCompleto = (textoBase: string, usarPadrao: boolean, isPdf: boolean = false) => {
     if (!textoBase.trim()) return '';
@@ -432,17 +444,15 @@ export const DigitalizarGuiasModal: React.FC<DigitalizarGuiasModalProps> = ({
                           </div>
                           
                           <div className="flex flex-col sm:flex-row gap-2">
-                            {anexo.url && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => window.open(anexo.url, '_blank')}
-                                className="border-blue-300 text-blue-600 hover:bg-blue-50 flex-1 sm:flex-none"
-                              >
-                                <Download className="w-4 h-4 mr-1" />
-                                Visualizar
-                              </Button>
-                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDownloadAnexo(anexo)}
+                              className="border-blue-300 text-blue-600 hover:bg-blue-50 flex-1 sm:flex-none"
+                            >
+                              <Download className="w-4 h-4 mr-1" />
+                              Visualizar
+                            </Button>
                             <Button
                               size="sm"
                               variant="outline"
