@@ -14,7 +14,7 @@ import { hasRoutePermission } from '@/features/auth/permissions';
 import { getAgendamentos, getMeuProfissional } from '@/features/agendamentos/services/agendamentos-api';
 import type { Agendamento, StatusAgendamento } from '@/features/agendamentos/types';
 import { routes } from '@/navigation/routes';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useToast } from '@/providers/toast-provider';
 import type { StatusTone } from '@/types/status';
 
@@ -89,8 +89,17 @@ function calcularDataFimPadrao() {
   return dataFim.toISOString().split('T')[0];
 }
 
+function parseStatusParam(status?: string): FiltroStatus {
+  const normalized = status?.trim().toUpperCase();
+  const match = STATUS_FILTROS.find((item) => item.id === normalized);
+  return match?.id ?? 'TODOS';
+}
+
 export function AgendamentosScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const rawStatusParam = Array.isArray(params.status) ? params.status[0] : params.status;
+  const statusParamFilter = useMemo(() => parseStatusParam(rawStatusParam), [rawStatusParam]);
   const { user, permissions } = useAuth();
   const { showToast } = useToast();
   const canCreateAgendamento = useMemo(
@@ -100,7 +109,7 @@ export function AgendamentosScreen() {
 
   const [query, setQuery] = useState('');
   const [queryDebounced, setQueryDebounced] = useState('');
-  const [statusFilter, setStatusFilter] = useState<FiltroStatus>('TODOS');
+  const [statusFilter, setStatusFilter] = useState<FiltroStatus>(statusParamFilter);
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
@@ -117,6 +126,10 @@ export function AgendamentosScreen() {
     const timer = setTimeout(() => setQueryDebounced(query.trim()), 500);
     return () => clearTimeout(timer);
   }, [query]);
+
+  useEffect(() => {
+    setStatusFilter(statusParamFilter);
+  }, [statusParamFilter]);
 
   useEffect(() => {
     setPage(1);

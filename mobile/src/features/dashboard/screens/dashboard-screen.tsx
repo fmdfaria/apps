@@ -3,8 +3,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View, useWindowDimensions } from 'react-native';
+import { BrandedLoadingState } from '@/components/feedback/branded-loading-state';
 import { ErrorState } from '@/components/feedback/error-state';
-import { SkeletonBlock } from '@/components/feedback/skeleton';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { useAuth } from '@/features/auth/context/auth-context';
@@ -95,58 +95,37 @@ function getMonthRangeYmd(base = new Date()) {
   };
 }
 
-async function getAgendamentosHoje(params: { profissionalId?: string }) {
+async function getProximosAgendamentosLiberados(params: { profissionalId?: string }) {
+  const limit = 10;
+  const maxItems = 10;
   const dataHoje = toYmd(new Date());
-  const limit = 100;
+  const now = Date.now();
+  const proximos: Agendamento[] = [];
+  let page = 1;
+  let totalPages = 1;
 
-  const first = await getAgendamentos({
-    page: 1,
-    limit,
-    dataInicio: dataHoje,
-    dataFim: dataHoje,
-    ...(params.profissionalId ? { profissionalId: params.profissionalId } : {}),
-  });
-
-  const all = [...first.data];
-  const totalPages = first.pagination.totalPages || 1;
-
-  for (let page = 2; page <= totalPages; page += 1) {
-    const next = await getAgendamentos({
-      page,
-      limit,
-      dataInicio: dataHoje,
-      dataFim: dataHoje,
-      ...(params.profissionalId ? { profissionalId: params.profissionalId } : {}),
-    });
-    all.push(...next.data);
-  }
-
-  return all;
-}
-
-async function getAgendamentosLiberados(params: { profissionalId?: string }) {
-  const limit = 100;
-  const first = await getAgendamentos({
-    page: 1,
-    limit,
-    status: 'LIBERADO',
-    ...(params.profissionalId ? { profissionalId: params.profissionalId } : {}),
-  });
-
-  const all = [...first.data];
-  const totalPages = first.pagination.totalPages || 1;
-
-  for (let page = 2; page <= totalPages; page += 1) {
-    const next = await getAgendamentos({
+  while (page <= totalPages && proximos.length < maxItems) {
+    const response = await getAgendamentos({
       page,
       limit,
       status: 'LIBERADO',
+      dataInicio: dataHoje,
+      orderBy: 'dataHoraInicio',
+      orderDirection: 'asc',
       ...(params.profissionalId ? { profissionalId: params.profissionalId } : {}),
     });
-    all.push(...next.data);
+
+    totalPages = response.pagination.totalPages || 1;
+    proximos.push(
+      ...response.data.filter((item) => {
+        const date = new Date(item.dataHoraInicio);
+        return !Number.isNaN(date.getTime()) && date.getTime() >= now;
+      }),
+    );
+    page += 1;
   }
 
-  return all;
+  return proximos.slice(0, maxItems);
 }
 
 async function getAgendamentosTotal(params: GetAgendamentosParams) {
@@ -177,24 +156,30 @@ async function getEvolucoesPendentesLiberados(agendamentosLiberados: Agendamento
 }
 
 function parseDashboardData(params: {
-  agendamentosHoje: Agendamento[];
-  agendamentosLiberados: Agendamento[];
+  proximosAtendimentosLiberados: Agendamento[];
   liberadosHoje: number;
   evolucoesPendentesLiberados: number;
   finalizadosMes: number;
+  solicitadosHoje: number;
   filaEsperaAtiva: number;
 }): DashboardData {
-  const { agendamentosHoje, agendamentosLiberados, liberadosHoje, evolucoesPendentesLiberados, finalizadosMes, filaEsperaAtiva } = params;
-  const ativos = agendamentosHoje.filter((item) => item.status !== 'CANCELADO' && item.status !== 'ARQUIVADO');
-  const solicitadosHoje = ativos.filter((item) => item.status === 'SOLICITADO').length;
+  const {
+    proximosAtendimentosLiberados,
+    liberadosHoje,
+    evolucoesPendentesLiberados,
+    finalizadosMes,
+    solicitadosHoje,
+    filaEsperaAtiva,
+  } = params;
 
-  const proximosAtendimentos = agendamentosLiberados
+  const proximosAtendimentos = proximosAtendimentosLiberados
     .filter((item) => item.status === 'LIBERADO')
     .filter((item) => {
       const date = new Date(item.dataHoraInicio);
       return !Number.isNaN(date.getTime()) && date.getTime() >= Date.now();
     })
-    .sort((a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime());
+    .sort((a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime())
+    .slice(0, 10);
 
   return {
     liberadosHoje,
@@ -211,19 +196,40 @@ function StatCard({
   value,
   label,
   bgClassName,
+  onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   value: number;
   label: string;
   bgClassName: string;
+  onPress?: () => void;
 }) {
-  return (
-    <View className={`flex-1 rounded-2xl px-3 py-3 ${bgClassName}`}>
+  const content = (
+    <>
       <View className="flex-row items-center justify-between">
         <Ionicons name={icon} size={19} color="#ffffff" />
         <AppText className="text-xl font-extrabold text-white">{value}</AppText>
       </View>
       <AppText className="mt-1 text-xs font-semibold text-white">{label}</AppText>
+    </>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        className={`flex-1 rounded-2xl px-3 py-3 ${bgClassName}`}
+        onPress={onPress}
+        style={({ pressed }) => ({ opacity: pressed ? 0.92 : 1 })}
+      >
+        {content}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View className={`flex-1 rounded-2xl px-3 py-3 ${bgClassName}`}>
+      {content}
     </View>
   );
 }
@@ -464,13 +470,18 @@ export function DashboardScreen() {
 
       const hoje = toYmd(new Date());
       const monthRange = getMonthRangeYmd(new Date());
-      const agendamentosLiberadosPromise = getAgendamentosLiberados({ profissionalId });
+      const proximosAtendimentosPromise = getProximosAgendamentosLiberados({ profissionalId });
 
-      const [agendamentosHoje, agendamentosLiberados, liberadosHoje, finalizadosMes, filaEspera] = await Promise.all([
-        getAgendamentosHoje({ profissionalId }),
-        agendamentosLiberadosPromise,
+      const [proximosAtendimentosLiberados, liberadosHoje, solicitadosHoje, finalizadosMes, filaEspera] = await Promise.all([
+        proximosAtendimentosPromise,
         getAgendamentosTotal({
           status: 'LIBERADO',
+          dataInicio: hoje,
+          dataFim: hoje,
+          ...(profissionalId ? { profissionalId } : {}),
+        }),
+        getAgendamentosTotal({
+          status: 'SOLICITADO',
           dataInicio: hoje,
           dataFim: hoje,
           ...(profissionalId ? { profissionalId } : {}),
@@ -483,15 +494,15 @@ export function DashboardScreen() {
         }),
         canViewFila ? getFilaEspera({ ativo: true }) : Promise.resolve([]),
       ]);
-      const evolucoesPendentesLiberados = await getEvolucoesPendentesLiberados(agendamentosLiberados);
+      const evolucoesPendentesLiberados = await getEvolucoesPendentesLiberados(proximosAtendimentosLiberados);
 
       setData(
         parseDashboardData({
-          agendamentosHoje,
-          agendamentosLiberados,
+          proximosAtendimentosLiberados,
           liberadosHoje,
           evolucoesPendentesLiberados,
           finalizadosMes,
+          solicitadosHoje,
           filaEsperaAtiva: filaEspera.length,
         }),
       );
@@ -528,17 +539,7 @@ export function DashboardScreen() {
   );
 
   if (loading) {
-    return (
-      <AppScreen contentClassName="px-4 pt-2 pb-3">
-        <View className="flex-1 gap-3">
-          <SkeletonBlock lines={3} />
-          <SkeletonBlock lines={3} />
-          <View className="flex-1">
-            <SkeletonBlock lines={8} />
-          </View>
-        </View>
-      </AppScreen>
-    );
+    return <BrandedLoadingState subtitle="Preparando os indicadores da Home..." />;
   }
 
   if (error) {
@@ -573,16 +574,28 @@ export function DashboardScreen() {
           </View>
 
           <View className="mt-3 flex-row gap-2">
-            <StatCard icon="calendar-outline" value={data.liberadosHoje} label="Liberados hoje" bgClassName="bg-blue-600" />
-              <StatCard
-                icon="document-text-outline"
-                value={data.evolucoesPendentesLiberados}
-                label="Evoluções pendentes"
-                bgClassName="bg-orange-500"
-              />
-              <StatCard icon="checkmark-circle-outline" value={data.finalizadosMes} label="Finalizados no mês" bgClassName="bg-emerald-600" />
-            </View>
+            <StatCard
+              icon="calendar-outline"
+              value={data.liberadosHoje}
+              label="Liberados hoje"
+              bgClassName="bg-blue-600"
+              onPress={() => router.push(routes.tabsAtendimento)}
+            />
+            <StatCard
+              icon="document-text-outline"
+              value={data.evolucoesPendentesLiberados}
+              label="Evoluções pendentes"
+              bgClassName="bg-orange-500"
+            />
+            <StatCard
+              icon="checkmark-circle-outline"
+              value={data.finalizadosMes}
+              label="Finalizados no mês"
+              bgClassName="bg-emerald-600"
+              onPress={() => router.push(routes.tabsAgendamentosFiltered({ status: 'FINALIZADO' }))}
+            />
           </View>
+        </View>
 
         <View className="rounded-2xl border border-surface-border bg-surface-card p-4">
           <View className="flex-row items-center justify-between">
@@ -663,27 +676,6 @@ export function DashboardScreen() {
             {quickActions.map((action) => (
               <QuickActionCard key={action.id} action={action} />
             ))}
-          </View>
-
-          <View className="mt-4 rounded-2xl border border-surface-border bg-slate-50 p-3">
-            <View className="mb-2 flex-row items-center gap-2">
-              <Ionicons name="warning-outline" size={18} color="#ea580c" />
-              <AppText className="text-sm font-semibold text-content-primary">Alertas</AppText>
-            </View>
-
-            <View className="gap-2">
-              <View className="flex-row items-center justify-between rounded-xl bg-white px-3 py-2">
-                <AppText className="text-sm text-content-primary">Liberações pendentes</AppText>
-                <AppText className="text-sm font-bold text-orange-600">{data.solicitadosHoje}</AppText>
-              </View>
-
-              {canViewFila ? (
-                <View className="flex-row items-center justify-between rounded-xl bg-white px-3 py-2">
-                  <AppText className="text-sm text-content-primary">Fila de espera ativa</AppText>
-                  <AppText className="text-sm font-bold text-cyan-700">{data.filaEsperaAtiva}</AppText>
-                </View>
-              ) : null}
-            </View>
           </View>
         </View>
       </ScrollView>

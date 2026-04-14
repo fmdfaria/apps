@@ -21,9 +21,7 @@ type PendingRequest = {
   reject: (error: unknown) => void;
 };
 
-const API_BASE_URL = ((globalThis as { process?: { env?: { EXPO_PUBLIC_API_URL?: string } } }).process?.env
-  ?.EXPO_PUBLIC_API_URL ||
-  'http://localhost:3333') as string;
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3333';
 
 const AUTH_401_IGNORE_PREFIXES = [
   '/login',

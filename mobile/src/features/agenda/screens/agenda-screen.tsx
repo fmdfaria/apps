@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { ErrorState } from '@/components/feedback/error-state';
 import { SkeletonBlock } from '@/components/feedback/skeleton';
 import { PageHeader } from '@/components/layout/page-header';
@@ -141,6 +141,7 @@ export function AgendaScreen() {
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [appointments, setAppointments] = useState<ProfessionalAgendaAppointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [professionalName, setProfessionalName] = useState<string>('');
 
@@ -152,7 +153,7 @@ export function AgendaScreen() {
     if (!hasSelectedInsideWeek && firstDay) setSelectedDayKey(firstDay);
   }, [selectedDayKey, weekDays]);
 
-  const loadAgenda = useCallback(async () => {
+  const loadAgenda = useCallback(async (isRefresh = false) => {
     if (!user?.profissionalId) {
       setLoading(false);
       setError('Usuário não vinculado a profissional. Esta página é exclusiva para profissionais.');
@@ -163,7 +164,11 @@ export function AgendaScreen() {
     const last = weekDays[weekDays.length - 1];
     if (!first || !last) return;
 
-    setLoading(true);
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -176,7 +181,11 @@ export function AgendaScreen() {
     } catch (err) {
       setError(parseApiError(err));
     } finally {
-      setLoading(false);
+      if (isRefresh) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   }, [user?.profissionalId, weekDays]);
 
@@ -317,7 +326,11 @@ export function AgendaScreen() {
         {selectedDayLabel ? `Agenda de ${selectedDayLabel}` : 'Agenda do dia'}
       </AppText>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 24 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ gap: 12, paddingBottom: 24 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadAgenda(true)} />}
+      >
         {loading ? (
           <>
             <SkeletonBlock lines={4} />

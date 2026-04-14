@@ -4,6 +4,8 @@
   tabsRoot: '/(tabs)',
   tabsAtendimento: '/(tabs)/atendimento',
   tabsAgendamentos: '/(tabs)/agendamentos',
+  tabsAgendamentosFiltered: (params: { status?: string }) =>
+    `/(tabs)/agendamentos${params.status ? `?status=${encodeURIComponent(params.status)}` : ''}`,
   tabsPacientes: '/(tabs)/customers',
   tabsAgenda: '/(tabs)/calendar',
   tabsRelease: '/(tabs)/release',

@@ -100,8 +100,7 @@ function convertToLocalIso(value?: string | null) {
 }
 
 function getWebhookUrl() {
-  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-  return env?.EXPO_PUBLIC_WEBHOOK_SOLICITAR_LIBERACAO_PARTICULAR_URL || '';
+  return process.env.EXPO_PUBLIC_WEBHOOK_SOLICITAR_LIBERACAO_PARTICULAR_URL || '';
 }
 
 function findPrecoParticular(precos: PrecoParticular[], pacienteId: string, servicoId: string) {

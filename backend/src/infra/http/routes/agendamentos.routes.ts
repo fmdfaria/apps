@@ -14,6 +14,10 @@ export async function agendamentosRoutes(app: FastifyInstance) {
     preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos/form-data', 'GET')] 
   }, controller.getFormData);
 
+  app.get('/agendamentos/:id', {
+    preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos/:id', 'GET')]
+  }, controller.getById);
+
   app.get('/agendamentos/:id/series-info', { 
     preHandler: [ensureAuthenticated, ensureAuthorized('/agendamentos/:id', 'GET')] 
   }, controller.getSeriesInfo);

@@ -80,6 +80,13 @@ function normalizeRoles(roles: unknown[] | undefined) {
   });
 }
 
+function formatDateToBrSlash(date: Date) {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = String(date.getFullYear());
+  return `${day}/${month}/${year}`;
+}
+
 export function AtendimentoScreen() {
   const router = useRouter();
   const { showToast } = useToast();
@@ -107,7 +114,11 @@ export function AtendimentoScreen() {
   const [limit] = useState(20);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [goingToNext, setGoingToNext] = useState(false);
   const listRef = useRef<FlatList<Agendamento> | null>(null);
+  const pageRef = useRef(1);
+  const totalPagesRef = useRef(1);
+  const visibleAgendamentosRef = useRef<Agendamento[]>([]);
 
   const canAccessPage = useMemo(
     () => hasRoutePermission(permissions, { path: '/agendamentos-atender-page', method: 'GET' }),
@@ -357,6 +368,18 @@ export function AtendimentoScreen() {
     });
   }, [agendamentos, configsMap, evolucoesMap, onlyPendingEvolutions]);
 
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  useEffect(() => {
+    totalPagesRef.current = totalPages;
+  }, [totalPages]);
+
+  useEffect(() => {
+    visibleAgendamentosRef.current = visibleAgendamentos;
+  }, [visibleAgendamentos]);
+
   const hasActiveFilters = useMemo(
     () =>
       onlyPendingEvolutions ||
@@ -366,8 +389,35 @@ export function AtendimentoScreen() {
     [convenioFilter, dataFimFilter, dataInicioFilter, onlyPendingEvolutions],
   );
 
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (onlyPendingEvolutions) count += 1;
+    if (convenioFilter !== ALL_CONVENIOS_VALUE) count += 1;
+    if (dataInicioFilter) count += 1;
+    if (dataFimFilter) count += 1;
+    return count;
+  }, [convenioFilter, dataFimFilter, dataInicioFilter, onlyPendingEvolutions]);
+
+  const handleClearFilters = useCallback(() => {
+    setOnlyPendingEvolutions(false);
+    setConvenioFilter(ALL_CONVENIOS_VALUE);
+    setDataInicioInput('');
+    setDataFimInput('');
+    setDataInicioFilter('');
+    setDataFimFilter('');
+  }, []);
+
   const fetchPage = useCallback(
-    async (pageToLoad: number, mode: 'replace' | 'append', isRefresh = false) => {
+    async (
+      pageToLoad: number,
+      mode: 'replace' | 'append',
+      isRefresh = false,
+      overrides?: {
+        dataInicioFilter?: string;
+        dataFimFilter?: string;
+        convenioFilter?: string;
+      },
+    ) => {
       if (!canAccessPage) {
         setError('Você não tem permissão para acessar esta página.');
         setLoading(false);
@@ -415,11 +465,15 @@ export function AtendimentoScreen() {
           params.search = queryDebounced;
         }
 
-        const dataInicioIso = dataInicioFilter ? dateBrSlashToIso(dataInicioFilter) : null;
-        const dataFimIso = dataFimFilter ? dateBrSlashToIso(dataFimFilter) : null;
+        const effectiveConvenioFilter = overrides?.convenioFilter ?? convenioFilter;
+        const effectiveDataInicioFilter = overrides?.dataInicioFilter ?? dataInicioFilter;
+        const effectiveDataFimFilter = overrides?.dataFimFilter ?? dataFimFilter;
 
-        if (convenioFilter && convenioFilter !== ALL_CONVENIOS_VALUE) {
-          params.convenioId = convenioFilter;
+        const dataInicioIso = effectiveDataInicioFilter ? dateBrSlashToIso(effectiveDataInicioFilter) : null;
+        const dataFimIso = effectiveDataFimFilter ? dateBrSlashToIso(effectiveDataFimFilter) : null;
+
+        if (effectiveConvenioFilter && effectiveConvenioFilter !== ALL_CONVENIOS_VALUE) {
+          params.convenioId = effectiveConvenioFilter;
         }
 
         if (dataInicioIso) {
@@ -431,9 +485,8 @@ export function AtendimentoScreen() {
         }
 
         if (isProfissional) {
-          const profissionalIdUsuario = user?.profissionalId || null;
-          const profissionalId = profissionalIdUsuario || (await getMeuProfissional()).id;
-          params.profissionalId = profissionalId;
+          const meuProfissional = await getMeuProfissional();
+          params.profissionalId = meuProfissional.id;
         }
 
         const response = await getAgendamentos(params);
@@ -489,7 +542,6 @@ export function AtendimentoScreen() {
       loadEvolucoesStatus,
       queryDebounced,
       showToast,
-      user?.profissionalId,
       user?.roles,
     ],
   );
@@ -511,13 +563,13 @@ export function AtendimentoScreen() {
     void fetchPage(page + 1, 'append');
   }, [fetchPage, loading, loadingMore, page, refreshing, totalPages]);
 
-  const getNextAtendimentoIndex = useCallback(() => {
-    if (!visibleAgendamentos.length) {
+  const getNextAtendimentoIndex = useCallback((list: Agendamento[]) => {
+    if (!list.length) {
       return -1;
     }
 
     const now = Date.now();
-    const nextIndex = visibleAgendamentos.findIndex((item) => {
+    const nextIndex = list.findIndex((item) => {
       const timestamp = new Date(item.dataHoraInicio).getTime();
       return Number.isFinite(timestamp) && timestamp >= now;
     });
@@ -526,23 +578,83 @@ export function AtendimentoScreen() {
       return nextIndex;
     }
 
-    return 0;
-  }, [visibleAgendamentos]);
+    return -1;
+  }, []);
 
-  const handleGoToProximoAtendimento = useCallback(() => {
-    const nextIndex = getNextAtendimentoIndex();
-
-    if (nextIndex < 0) {
-      showToast({ message: 'Nenhum atendimento disponível na lista.' });
-      return;
-    }
-
+  const scrollToAtendimentoIndex = useCallback((index: number) => {
     listRef.current?.scrollToIndex({
-      index: nextIndex,
+      index,
       animated: true,
       viewPosition: 0,
     });
-  }, [getNextAtendimentoIndex, showToast]);
+  }, []);
+
+  const handleGoToProximoAtendimento = useCallback(async () => {
+    if (goingToNext || loading || refreshing) return;
+
+    setGoingToNext(true);
+    try {
+      const now = new Date();
+      const todayIso = now.toISOString().slice(0, 10);
+      const todayBr = formatDateToBrSlash(now);
+
+      const currentInicioIso = dataInicioFilter ? dateBrSlashToIso(dataInicioFilter) : null;
+      const mustApplyTodayFilter = !currentInicioIso || currentInicioIso < todayIso;
+      const overrideDataInicioFilter = mustApplyTodayFilter ? todayBr : undefined;
+
+      if (mustApplyTodayFilter) {
+        setDataInicioInput(todayBr);
+        setDataInicioFilter(todayBr);
+        await fetchPage(1, 'replace', true, { dataInicioFilter: todayBr });
+        await new Promise((resolve) => setTimeout(resolve, 120));
+      }
+
+      let nextIndex = getNextAtendimentoIndex(visibleAgendamentosRef.current);
+      if (nextIndex >= 0) {
+        scrollToAtendimentoIndex(nextIndex);
+        return;
+      }
+
+      if (pageRef.current >= totalPagesRef.current) {
+        showToast({ message: 'Nenhum próximo atendimento encontrado.' });
+        return;
+      }
+
+      let currentPage = pageRef.current;
+      let guard = 0;
+
+      while (currentPage < totalPagesRef.current && guard < 100) {
+        const targetPage = currentPage + 1;
+        await fetchPage(targetPage, 'append', false, {
+          dataInicioFilter: overrideDataInicioFilter,
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 120));
+
+        nextIndex = getNextAtendimentoIndex(visibleAgendamentosRef.current);
+        if (nextIndex >= 0) {
+          scrollToAtendimentoIndex(nextIndex);
+          return;
+        }
+
+        currentPage = Math.max(targetPage, pageRef.current);
+        guard += 1;
+      }
+
+      showToast({ message: 'Nenhum próximo atendimento encontrado.' });
+    } finally {
+      setGoingToNext(false);
+    }
+  }, [
+    dataInicioFilter,
+    fetchPage,
+    getNextAtendimentoIndex,
+    goingToNext,
+    loading,
+    refreshing,
+    scrollToAtendimentoIndex,
+    showToast,
+  ]);
 
   const handleScrollToIndexFailed = useCallback(
     (info: { index: number; averageItemLength: number }) => {
@@ -564,35 +676,57 @@ export function AtendimentoScreen() {
       <PageHeader title="Atendimento" subtitle="Agendamentos liberados para atendimento" />
       <View className="rounded-2xl border border-surface-border bg-surface-card p-3">
         <View className="mb-2 flex-row items-center justify-between gap-2">
-          <AppText className="text-sm font-semibold text-content-primary">Filtros</AppText>
+          <View className="flex-row items-center gap-2">
+            <AppText className="text-sm font-semibold text-content-primary">Filtros</AppText>
+            {hasActiveFilters ? (
+              <View className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5">
+                <AppText className="text-[11px] font-semibold text-amber-700">
+                  {activeFiltersCount} ativo{activeFiltersCount > 1 ? 's' : ''}
+                </AppText>
+              </View>
+            ) : null}
+          </View>
           <Pressable
             onPress={() => setFiltersExpanded((current) => !current)}
-            className="h-9 w-9 items-center justify-center rounded-full border border-surface-border bg-slate-100"
+            className={`h-9 w-9 items-center justify-center rounded-full border ${
+              hasActiveFilters ? 'border-amber-300 bg-amber-50' : 'border-surface-border bg-slate-100'
+            }`}
             style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] }]}
           >
-            <Ionicons name={filtersExpanded ? 'chevron-up' : 'chevron-down'} size={18} color="#334155" />
+            <Ionicons name={filtersExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={hasActiveFilters ? '#b45309' : '#334155'} />
           </Pressable>
         </View>
 
         {filtersExpanded ? (
           <View className="gap-3">
-            <Pressable
-              onPress={() => setOnlyPendingEvolutions((current) => !current)}
-              className="flex-row items-center gap-3"
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: onlyPendingEvolutions }}
-            >
-              <View
-                className={
-                  onlyPendingEvolutions
-                    ? 'h-5 w-5 items-center justify-center rounded border border-brand-700 bg-brand-700'
-                    : 'h-5 w-5 items-center justify-center rounded border border-surface-border bg-white'
-                }
+            <View className="flex-row items-center gap-2">
+              <Pressable
+                onPress={() => setOnlyPendingEvolutions((current) => !current)}
+                className="flex-1 flex-row items-center gap-3"
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: onlyPendingEvolutions }}
               >
-                {onlyPendingEvolutions ? <AppText className="text-[11px] font-bold text-white">X</AppText> : null}
-              </View>
-              <AppText className="text-sm font-semibold text-content-primary">Evoluções pendentes</AppText>
-            </Pressable>
+                <View
+                  className={
+                    onlyPendingEvolutions
+                      ? 'h-5 w-5 items-center justify-center rounded border border-brand-700 bg-brand-700'
+                      : 'h-5 w-5 items-center justify-center rounded border border-surface-border bg-white'
+                  }
+                >
+                  {onlyPendingEvolutions ? <AppText className="text-[11px] font-bold text-white">X</AppText> : null}
+                </View>
+                <AppText className="text-sm font-semibold text-content-primary">Evoluções pendentes</AppText>
+              </Pressable>
+
+              <Button
+                label="Limpar"
+                size="sm"
+                variant="secondary"
+                className="mr-4"
+                onPress={handleClearFilters}
+                disabled={!hasActiveFilters}
+              />
+            </View>
 
             <Select
               label="Convênio"
@@ -645,8 +779,9 @@ export function AtendimentoScreen() {
           size="sm"
           label="Próximo atendimento"
           className="flex-1"
+          loading={goingToNext}
           onPress={handleGoToProximoAtendimento}
-          disabled={!visibleAgendamentos.length}
+          disabled={goingToNext || loading || refreshing || total === 0}
         />
       </View>
     </View>

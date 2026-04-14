@@ -1,11 +1,12 @@
 ﻿import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { showConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button } from '@/components/ui/button';
+import { getAgendamentoById } from '@/features/agendamentos/services/agendamentos-api';
 import { Chip } from '@/components/ui/chip';
 import { Input } from '@/components/ui/input';
 import { editAppointment, setAppointmentStatus } from '@/features/agenda/services/my-agenda-api';
@@ -117,7 +118,8 @@ export function AgendaActionsScreen() {
   const { showToast } = useToast();
 
   const [status, setStatus] = useState((params.status || 'AGENDADO').toUpperCase() as AppointmentStatus);
-  const [tipoAtendimento] = useState<'presencial' | 'online'>(params.tipoAtendimento === 'online' ? 'online' : 'presencial');
+  const [refreshing, setRefreshing] = useState(false);
+  const [tipoAtendimento, setTipoAtendimento] = useState<'presencial' | 'online'>(params.tipoAtendimento === 'online' ? 'online' : 'presencial');
   const initialDateTime = useMemo(() => getDateAndTimeFromIso(params.dataHoraInicio), [params.dataHoraInicio]);
   const [dataInicio, setDataInicio] = useState(formatYmdToBr(initialDateTime.date));
   const [horaInicio, setHoraInicio] = useState(initialDateTime.time);
@@ -136,6 +138,13 @@ export function AgendaActionsScreen() {
   const [recursosAlternativos, setRecursosAlternativos] = useState<
     Array<{ recursoId: string; recursoNome: string; horaInicio: string; horaFim: string }>
   >([]);
+  const autoRefreshOnceRef = useRef(false);
+  const [summary, setSummary] = useState({
+    pacienteNome: params.pacienteNome || 'Paciente não informado',
+    profissionalNome: params.profissionalNome || 'Não informado',
+    servicoNome: params.servicoNome || 'Não informado',
+    dataHoraInicio: params.dataHoraInicio,
+  });
 
   const statusBadge = useMemo(() => getStatusBadge(status), [status]);
   const isCancelado = status === 'CANCELADO';
@@ -155,6 +164,46 @@ export function AgendaActionsScreen() {
     () => horariosVerificados.filter((item) => item.verificacao.status === 'disponivel'),
     [horariosVerificados],
   );
+
+  const handleRefresh = useCallback(
+    async (showSuccessToast = true) => {
+      if (refreshing || savingEdit || savingStatus) return;
+
+      setRefreshing(true);
+      try {
+        const agendamento = await getAgendamentoById(params.agendamentoId);
+        setStatus((agendamento.status || 'AGENDADO').toUpperCase() as AppointmentStatus);
+        setTipoAtendimento(agendamento.tipoAtendimento === 'online' ? 'online' : 'presencial');
+        setRecursoId(agendamento.recursoId || params.recursoId);
+
+        const dateTime = getDateAndTimeFromIso(agendamento.dataHoraInicio);
+        if (dateTime.date) setDataInicio(formatYmdToBr(dateTime.date));
+        if (dateTime.time) setHoraInicio(dateTime.time);
+
+        setSummary((current) => ({
+          pacienteNome: agendamento.pacienteNome || agendamento.paciente?.nomeCompleto || current.pacienteNome,
+          profissionalNome: agendamento.profissionalNome || agendamento.profissional?.nome || current.profissionalNome,
+          servicoNome: agendamento.servicoNome || agendamento.servico?.nome || current.servicoNome,
+          dataHoraInicio: agendamento.dataHoraInicio || current.dataHoraInicio,
+        }));
+
+        if (showSuccessToast) {
+          showToast({ message: 'Dados atualizados.' });
+        }
+      } catch (error) {
+        showToast({ message: parseApiError(error, 'Não foi possível atualizar os dados do agendamento.') });
+      } finally {
+        setRefreshing(false);
+      }
+    },
+    [params.agendamentoId, params.recursoId, refreshing, savingEdit, savingStatus, showToast],
+  );
+
+  useEffect(() => {
+    if (autoRefreshOnceRef.current) return;
+    autoRefreshOnceRef.current = true;
+    void handleRefresh(false);
+  }, [handleRefresh]);
 
   useEffect(() => {
     if (!editVisible) return;
@@ -308,45 +357,57 @@ export function AgendaActionsScreen() {
       routes.atendimentoActions({
         agendamentoId: params.agendamentoId,
         pacienteId: params.pacienteId,
-        ...(params.pacienteNome ? { pacienteNome: params.pacienteNome } : {}),
+        ...(summary.pacienteNome ? { pacienteNome: summary.pacienteNome } : {}),
         ...(params.profissionalId ? { profissionalId: params.profissionalId } : {}),
-        ...(params.profissionalNome ? { profissionalNome: params.profissionalNome } : {}),
+        ...(summary.profissionalNome ? { profissionalNome: summary.profissionalNome } : {}),
         ...(params.convenioId ? { convenioId: params.convenioId } : {}),
         ...(params.tipoAtendimento ? { tipoAtendimento: params.tipoAtendimento } : {}),
-        ...(params.dataHoraInicio ? { dataHoraInicio: params.dataHoraInicio } : {}),
-        ...(params.servicoNome ? { servicoNome: params.servicoNome } : {}),
+        ...(summary.dataHoraInicio ? { dataHoraInicio: summary.dataHoraInicio } : {}),
+        ...(summary.servicoNome ? { servicoNome: summary.servicoNome } : {}),
         ...(status ? { status } : {}),
       }),
     );
   }, [
     params.agendamentoId,
     params.convenioId,
-    params.dataHoraInicio,
     params.pacienteId,
-    params.pacienteNome,
     params.profissionalId,
-    params.profissionalNome,
-    params.servicoNome,
     params.tipoAtendimento,
     router,
     status,
+    summary.dataHoraInicio,
+    summary.pacienteNome,
+    summary.profissionalNome,
+    summary.servicoNome,
   ]);
 
   return (
     <AppScreen>
-      <View className="mb-3 rounded-2xl border border-surface-border bg-surface-card p-4">
-        <View className="flex-row items-start justify-between gap-3">
-          <AppText className="flex-1 text-base font-semibold text-content-primary">
-            {params.pacienteNome || 'Paciente não informado'}
-          </AppText>
-          <Chip label={statusBadge.label} tone={statusBadge.tone} />
-        </View>
-        <AppText className="mt-1 text-xs text-content-secondary">Profissional: {params.profissionalNome || 'Não informado'}</AppText>
-        <AppText className="mt-1 text-xs text-content-secondary">Serviço: {params.servicoNome || 'Não informado'}</AppText>
-        <AppText className="mt-1 text-xs text-content-secondary">Início: {params.dataHoraInicio ? new Date(params.dataHoraInicio).toLocaleString('pt-BR') : 'Não informado'}</AppText>
-      </View>
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ gap: 8, paddingBottom: 24, flexGrow: 1 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} />}
+      >
+        <Button
+          label={refreshing ? 'Atualizando...' : 'Atualizar'}
+          variant="secondary"
+          size="sm"
+          className="w-full"
+          onPress={() => void handleRefresh()}
+          disabled={refreshing || savingEdit || savingStatus}
+        />
 
-      <View className="gap-2">
+        <View className="mb-3 w-full rounded-xl border border-surface-border bg-slate-200 px-4 py-3 min-h-11 justify-center">
+          <View className="flex-row items-start justify-between gap-3">
+            <AppText className="flex-1 text-base font-semibold text-content-primary">{summary.pacienteNome}</AppText>
+            <Chip label={statusBadge.label} tone={statusBadge.tone} />
+          </View>
+          <AppText className="mt-1 text-xs text-content-secondary">Profissional: {summary.profissionalNome}</AppText>
+          <AppText className="mt-1 text-xs text-content-secondary">Serviço: {summary.servicoNome}</AppText>
+          <AppText className="mt-1 text-xs text-content-secondary">Início: {summary.dataHoraInicio ? new Date(summary.dataHoraInicio).toLocaleString('pt-BR') : 'Não informado'}</AppText>
+        </View>
+
         <Button label="Registrar Atendimento" className="bg-amber-500" onPress={handleRegistrarAtendimento} />
         <Button label="Editar Agendamento" onPress={() => setEditVisible(true)} />
         <Button
@@ -356,7 +417,7 @@ export function AgendaActionsScreen() {
           loading={savingStatus}
           onPress={() => void handleCancelar()}
         />
-      </View>
+      </ScrollView>
 
       <BottomSheet
         visible={editVisible}

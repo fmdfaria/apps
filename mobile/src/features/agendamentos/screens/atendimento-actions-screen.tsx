@@ -1,7 +1,7 @@
 ﻿import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Linking, Pressable, ScrollView, View } from 'react-native';
+import { Linking, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
@@ -13,7 +13,9 @@ import { useAuth } from '@/features/auth/context/auth-context';
 import { hasRoutePermission } from '@/features/auth/permissions';
 import {
   concluirAgendamento,
+  getAgendamentoById,
   getConfiguracoesByEntity,
+  getStatusEvolucoesPorAgendamentos,
   updateAssinaturaPaciente,
   updateAssinaturaProfissional,
   updateCompareceu,
@@ -119,6 +121,8 @@ export function AtendimentoActionsScreen() {
   const [config, setConfig] = useState<AtendimentoConfig>(DEFAULT_CONFIG);
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [status, setStatus] = useState(params.status || 'LIBERADO');
 
   const [hasEvolucao, setHasEvolucao] = useState(params.hasEvolucao === 'true');
   const [compareceu, setCompareceu] = useState<boolean | null>(parseBooleanParam(params.compareceu));
@@ -128,6 +132,7 @@ export function AtendimentoActionsScreen() {
 
   const [statusSheet, setStatusSheet] = useState<StatusEditable | null>(null);
   const [motivoSheet, setMotivoSheet] = useState(false);
+  const autoRefreshOnceRef = useRef(false);
 
   const canFinalize = useMemo(
     () => hasRoutePermission(permissions, { path: '/agendamentos-atender/:id', method: 'PUT' }),
@@ -155,42 +160,42 @@ export function AtendimentoActionsScreen() {
   );
   const canViewEvolucoes = useMemo(() => hasRoutePermission(permissions, { path: '/evolucoes', method: 'GET' }), [permissions]);
 
-  useEffect(() => {
-    const loadConfig = async () => {
-      if (!params.convenioId) {
+  const loadConfig = useCallback(async () => {
+    if (!params.convenioId) {
+      setConfig(DEFAULT_CONFIG);
+      setLoadingConfig(false);
+      return;
+    }
+
+    setLoadingConfig(true);
+    try {
+      const response = await getConfiguracoesByEntity({
+        entidadeTipo: 'convenio',
+        entidadeId: params.convenioId,
+        contexto: getContexto(params.tipoAtendimento),
+      });
+      const hasAnyConfig = Object.keys(response || {}).length > 0;
+      if (!hasAnyConfig) {
         setConfig(DEFAULT_CONFIG);
-        setLoadingConfig(false);
         return;
       }
 
-      setLoadingConfig(true);
-      try {
-        const response = await getConfiguracoesByEntity({
-          entidadeTipo: 'convenio',
-          entidadeId: params.convenioId,
-          contexto: getContexto(params.tipoAtendimento),
-        });
-        const hasAnyConfig = Object.keys(response || {}).length > 0;
-        if (!hasAnyConfig) {
-          setConfig(DEFAULT_CONFIG);
-          return;
-        }
-
-        setConfig({
-          evolucao: parseConfigValue(response.evolucao),
-          compareceu: parseConfigValue(response.compareceu),
-          assinatura_paciente: parseConfigValue(response.assinatura_paciente),
-          assinatura_profissional: parseConfigValue(response.assinatura_profissional),
-        });
-      } catch {
-        setConfig(DEFAULT_CONFIG);
-      } finally {
-        setLoadingConfig(false);
-      }
-    };
-
-    void loadConfig();
+      setConfig({
+        evolucao: parseConfigValue(response.evolucao),
+        compareceu: parseConfigValue(response.compareceu),
+        assinatura_paciente: parseConfigValue(response.assinatura_paciente),
+        assinatura_profissional: parseConfigValue(response.assinatura_profissional),
+      });
+    } catch {
+      setConfig(DEFAULT_CONFIG);
+    } finally {
+      setLoadingConfig(false);
+    }
   }, [params.convenioId, params.tipoAtendimento]);
+
+  useEffect(() => {
+    void loadConfig();
+  }, [loadConfig]);
 
   const pendingBadges = useMemo(() => {
     const badges: Array<{ label: string; tone: 'warning' | 'danger' }> = [];
@@ -256,6 +261,42 @@ export function AtendimentoActionsScreen() {
       showToast({ message: 'Não foi possível abrir o link da chamada.' });
     }
   }, [params.urlMeet, showToast]);
+
+  const handleRefresh = useCallback(async (showSuccessToast = true) => {
+    if (refreshing || actionLoading) return;
+
+    setRefreshing(true);
+    try {
+      const [agendamentoAtualizado, evolucoes] = await Promise.all([
+        getAgendamentoById(params.agendamentoId),
+        getStatusEvolucoesPorAgendamentos([params.agendamentoId]),
+      ]);
+
+      setCompareceu(agendamentoAtualizado.compareceu ?? null);
+      setAssinaturaPaciente(agendamentoAtualizado.assinaturaPaciente ?? null);
+      setAssinaturaProfissional(agendamentoAtualizado.assinaturaProfissional ?? null);
+      setMotivoReprovacao(agendamentoAtualizado.motivoReprovacao ?? '');
+      setStatus(agendamentoAtualizado.status || params.status || 'LIBERADO');
+
+      const hasEvolucaoAtualizada = evolucoes.find((item) => item.agendamentoId === params.agendamentoId)?.temEvolucao ?? false;
+      setHasEvolucao(hasEvolucaoAtualizada);
+
+      await loadConfig();
+      if (showSuccessToast) {
+        showToast({ message: 'Dados atualizados.' });
+      }
+    } catch (err) {
+      showToast({ message: parseApiError(err, 'Não foi possível atualizar os dados do atendimento.') });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [actionLoading, loadConfig, params.agendamentoId, params.status, refreshing, showToast]);
+
+  useEffect(() => {
+    if (autoRefreshOnceRef.current) return;
+    autoRefreshOnceRef.current = true;
+    void handleRefresh(false);
+  }, [handleRefresh]);
 
   const handleOpenEvolucao = useCallback(() => {
     if (!canEvolucaoPageAction || !canViewEvolucoes) {
@@ -412,26 +453,40 @@ export function AtendimentoActionsScreen() {
 
   return (
     <AppScreen>
-      <View className="mb-3 rounded-2xl border border-surface-border bg-surface-card p-4">
-        <AppText className="text-base font-semibold text-content-primary">{params.pacienteNome || 'Paciente não informado'}</AppText>
-        <AppText className="mt-1 text-xs text-content-secondary">{formatDateTime(params.dataHoraInicio)}</AppText>
-        <AppText className="mt-1 text-xs text-content-secondary">Profissional: {params.profissionalNome || 'Não informado'}</AppText>
-        <AppText className="mt-1 text-xs text-content-secondary">Serviço: {params.servicoNome || 'Não informado'}</AppText>
-        <View className="mt-2 flex-row items-center gap-2">
-          <Chip label={params.status || 'LIBERADO'} tone={params.status === 'LIBERADO' ? 'success' : 'neutral'} />
-          {loadingConfig ? <AppText className="text-xs text-content-muted">Carregando regras...</AppText> : null}
-        </View>
-      </View>
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ gap: 8, paddingBottom: 24, flexGrow: 1 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} />}
+      >
+        <Button
+          label={refreshing ? 'Atualizando...' : 'Atualizar'}
+          variant="secondary"
+          size="sm"
+          className="w-full"
+          onPress={() => void handleRefresh()}
+          disabled={actionLoading || refreshing}
+        />
 
-      {pendingBadges.length > 0 ? (
-        <View className="mb-3 flex-row flex-wrap gap-2">
-          {pendingBadges.map((badge) => (
-            <Chip key={`${badge.label}-${badge.tone}`} label={badge.label} tone={badge.tone} />
-          ))}
+        <View className="mb-3 w-full rounded-xl border border-surface-border bg-slate-200 px-4 py-3 min-h-11 justify-center">
+          <AppText className="text-base font-semibold text-content-primary">{params.pacienteNome || 'Paciente não informado'}</AppText>
+          <AppText className="mt-1 text-xs text-content-secondary">{formatDateTime(params.dataHoraInicio)}</AppText>
+          <AppText className="mt-1 text-xs text-content-secondary">Profissional: {params.profissionalNome || 'Não informado'}</AppText>
+          <AppText className="mt-1 text-xs text-content-secondary">Serviço: {params.servicoNome || 'Não informado'}</AppText>
+          <View className="mt-2 flex-row items-center gap-2">
+            <Chip label={status} tone={status === 'LIBERADO' ? 'success' : 'neutral'} />
+            {loadingConfig ? <AppText className="text-xs text-content-muted">Carregando regras...</AppText> : null}
+          </View>
         </View>
-      ) : null}
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 24 }}>
+        {pendingBadges.length > 0 ? (
+          <View className="mb-3 flex-row flex-wrap gap-2">
+            {pendingBadges.map((badge) => (
+              <Chip key={`${badge.label}-${badge.tone}`} label={badge.label} tone={badge.tone} />
+            ))}
+          </View>
+        ) : null}
+
         {params.tipoAtendimento === 'online' && params.urlMeet ? (
           <Button label="Entrar no Meet" variant="secondary" onPress={() => void handleOpenMeet()} disabled={actionLoading} />
         ) : null}

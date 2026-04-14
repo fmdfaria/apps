@@ -2,8 +2,8 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BrandedLoadingState } from '@/components/feedback/branded-loading-state';
 import { ErrorState } from '@/components/feedback/error-state';
-import { SkeletonBlock } from '@/components/feedback/skeleton';
 import { PageHeader } from '@/components/layout/page-header';
 import { showConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AppScreen } from '@/components/ui/app-screen';
@@ -839,14 +839,7 @@ export function CreateAgendamentoScreen() {
   }
 
   if (loading) {
-    return (
-      <AppScreen>
-        <PageHeader title="Novo agendamento" subtitle="Carregando dados do formulario" />
-        <View className="mt-3">
-          <SkeletonBlock lines={8} />
-        </View>
-      </AppScreen>
-    );
+    return <BrandedLoadingState subtitle="Carregando dados do novo agendamento..." />;
   }
 
   if (error) {

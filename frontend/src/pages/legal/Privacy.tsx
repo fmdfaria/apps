@@ -110,7 +110,7 @@ const Privacy = () => {
             </p>
             <p className="mt-4">
               <strong>Clínica CelebraMente</strong><br />
-              E-mail: contato@celebramente.com<br />
+              E-mail: contato@celebramente.com.br<br />
             </p>
           </section>
 

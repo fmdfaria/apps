@@ -1,6 +1,6 @@
 ﻿import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { RefreshControl, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ErrorState } from '@/components/feedback/error-state';
 import { SkeletonBlock } from '@/components/feedback/skeleton';
@@ -38,6 +38,7 @@ export function CustomerActionsScreen() {
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canUpdate = useMemo(() => hasRoutePermission(permissions, { path: '/pacientes/:id', method: 'PUT' }), [permissions]);
@@ -70,6 +71,26 @@ export function CustomerActionsScreen() {
   useEffect(() => {
     void loadPatient();
   }, [loadPatient]);
+
+  const handleRefresh = useCallback(
+    async (showSuccessToast = true) => {
+      if (!id || refreshing) return;
+
+      setRefreshing(true);
+      try {
+        const data = await getPatientById(id);
+        setPatient(data);
+        if (showSuccessToast) {
+          showToast({ message: 'Dados atualizados.' });
+        }
+      } catch (err) {
+        showToast({ message: getErrorMessage(err, 'Não foi possível atualizar os dados do paciente.') });
+      } finally {
+        setRefreshing(false);
+      }
+    },
+    [id, refreshing, showToast],
+  );
 
   const handleTogglePatientStatus = useCallback(async () => {
     if (!patient || !canToggleStatus) {
@@ -156,7 +177,20 @@ export function CustomerActionsScreen() {
           <ErrorState description={error} onRetry={() => void loadPatient()} />
         </View>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingTop: 8, paddingBottom: 24 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8, paddingTop: 8, paddingBottom: 24 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} />}
+        >
+          <Button
+            label={refreshing ? 'Atualizando...' : 'Atualizar'}
+            variant="secondary"
+            size="sm"
+            className="w-full"
+            onPress={() => void handleRefresh()}
+            disabled={refreshing}
+          />
+
           {actionButtons.map((action) => {
             const enabled = action.enabled;
             const variant = enabled ? 'primary' : 'secondary';

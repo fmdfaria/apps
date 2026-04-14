@@ -100,6 +100,20 @@ export class AgendamentosController {
     return reply.status(200).send(result);
   }
 
+  async getById(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const paramsSchema = z.object({ id: z.string().uuid() });
+    const { id } = paramsSchema.parse(request.params);
+
+    const repo = container.resolve<any>('AgendamentosRepository');
+    const agendamento = await repo.findById(id);
+
+    if (!agendamento) {
+      return reply.status(404).send({ message: 'Agendamento não encontrado.' });
+    }
+
+    return reply.status(200).send(agendamento);
+  }
+
   async getFormData(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const querySchema = z.object({
       data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data deve estar no formato YYYY-MM-DD').optional(),

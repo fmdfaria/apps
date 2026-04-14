@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { RefreshControl, ScrollView, View } from 'react-native';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
@@ -14,6 +14,7 @@ import { hasRoutePermission } from '@/features/auth/permissions';
 import {
   alterarStatusAgendamento,
   deleteAgendamento,
+  getAgendamentoById,
   getAgendamentoSeriesInfo,
   setStatusAgendamento,
   updateCodLiberacao,
@@ -94,6 +95,8 @@ export function AgendamentoActionsScreen() {
   const { showToast } = useToast();
 
   const [status, setStatus] = useState<StatusAgendamento>((params.status as StatusAgendamento) || 'AGENDADO');
+  const [refreshing, setRefreshing] = useState(false);
+  const [recebimento, setRecebimento] = useState(parseBooleanParam(params.recebimento));
   const [loadingAction, setLoadingAction] = useState(false);
   const [editFieldsVisible, setEditFieldsVisible] = useState(false);
   const [alterStatusVisible, setAlterStatusVisible] = useState(false);
@@ -103,8 +106,16 @@ export function AgendamentoActionsScreen() {
   const [selectedStatus, setSelectedStatus] = useState<StatusAgendamento>((params.status as StatusAgendamento) || 'AGENDADO');
   const [seriesCount, setSeriesCount] = useState(1);
   const [futureCount, setFutureCount] = useState(0);
-
-  const recebimento = parseBooleanParam(params.recebimento);
+  const autoRefreshOnceRef = useRef(false);
+  const [summary, setSummary] = useState({
+    pacienteNome: params.pacienteNome || 'Paciente não informado',
+    profissionalNome: params.profissionalNome || 'Não informado',
+    servicoNome: params.servicoNome || 'Não informado',
+    convenioNome: params.convenioNome || 'Não informado',
+    recursoNome: params.recursoNome || 'Não informado',
+    dataHoraInicio: params.dataHoraInicio,
+    dataHoraFim: params.dataHoraFim,
+  });
 
   const canEdit = useMemo(
     () => hasRoutePermission(permissions, { path: '/agendamentos/:id', method: 'PUT' }),
@@ -123,6 +134,44 @@ export function AgendamentoActionsScreen() {
     [permissions],
   );
 
+  const handleRefresh = useCallback(
+    async (showSuccessToast = true) => {
+      if (refreshing || loadingAction) return;
+
+      setRefreshing(true);
+      try {
+        const agendamento = await getAgendamentoById(params.agendamentoId);
+        setStatus((agendamento.status as StatusAgendamento) || 'AGENDADO');
+        setSelectedStatus((agendamento.status as StatusAgendamento) || 'AGENDADO');
+        setRecebimento(Boolean(agendamento.recebimento));
+        setSummary((current) => ({
+          pacienteNome: agendamento.pacienteNome || agendamento.paciente?.nomeCompleto || current.pacienteNome,
+          profissionalNome: agendamento.profissionalNome || agendamento.profissional?.nome || current.profissionalNome,
+          servicoNome: agendamento.servicoNome || agendamento.servico?.nome || current.servicoNome,
+          convenioNome: agendamento.convenioNome || agendamento.convenio?.nome || current.convenioNome,
+          recursoNome: agendamento.recursoNome || agendamento.recurso?.nome || current.recursoNome,
+          dataHoraInicio: agendamento.dataHoraInicio || current.dataHoraInicio,
+          dataHoraFim: agendamento.dataHoraFim || current.dataHoraFim,
+        }));
+
+        if (showSuccessToast) {
+          showToast({ message: 'Dados atualizados.' });
+        }
+      } catch (err) {
+        showToast({ message: parseApiError(err, 'Não foi possível atualizar os dados do agendamento.') });
+      } finally {
+        setRefreshing(false);
+      }
+    },
+    [loadingAction, params.agendamentoId, refreshing, showToast],
+  );
+
+  useEffect(() => {
+    if (autoRefreshOnceRef.current) return;
+    autoRefreshOnceRef.current = true;
+    void handleRefresh(false);
+  }, [handleRefresh]);
+
   const handleOpenEditAppointment = useCallback(() => {
     if (!canEdit) {
       showToast({ message: 'Você não tem permissão para editar agendamento.' });
@@ -136,11 +185,11 @@ export function AgendamentoActionsScreen() {
         recursoId: params.recursoId,
         convenioId: params.convenioId,
         servicoId: params.servicoId,
-        pacienteNome: params.pacienteNome || '',
-        profissionalNome: params.profissionalNome || '',
-        servicoNome: params.servicoNome || '',
-        dataHoraInicio: params.dataHoraInicio || '',
-        dataHoraFim: params.dataHoraFim || '',
+        pacienteNome: summary.pacienteNome || '',
+        profissionalNome: summary.profissionalNome || '',
+        servicoNome: summary.servicoNome || '',
+        dataHoraInicio: summary.dataHoraInicio || '',
+        dataHoraFim: summary.dataHoraFim || '',
         tipoAtendimento: params.tipoAtendimento || 'presencial',
         status,
       }),
@@ -152,16 +201,18 @@ export function AgendamentoActionsScreen() {
     params.dataHoraFim,
     params.dataHoraInicio,
     params.pacienteId,
-    params.pacienteNome,
     params.profissionalId,
-    params.profissionalNome,
     params.recursoId,
     params.servicoId,
-    params.servicoNome,
     params.tipoAtendimento,
     router,
     showToast,
     status,
+    summary.dataHoraFim,
+    summary.dataHoraInicio,
+    summary.pacienteNome,
+    summary.profissionalNome,
+    summary.servicoNome,
   ]);
 
   const handleSaveEditFields = useCallback(async () => {
@@ -347,25 +398,39 @@ export function AgendamentoActionsScreen() {
 
   return (
     <AppScreen>
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ gap: 8, paddingBottom: 24, flexGrow: 1 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} />}
+      >
+      <Button
+        label={refreshing ? 'Atualizando...' : 'Atualizar'}
+        variant="secondary"
+        size="sm"
+        className="w-full"
+        onPress={() => void handleRefresh()}
+        disabled={loadingAction || refreshing}
+      />
+
       <View className="mb-3 rounded-2xl border border-surface-border bg-surface-card p-4">
         <View className="flex-row items-start justify-between gap-3">
           <AppText className="flex-1 text-base font-semibold text-content-primary">
-            {params.pacienteNome || 'Paciente não informado'}
+            {summary.pacienteNome}
           </AppText>
           <Chip label={status} tone={getStatusTone(status)} />
         </View>
         <AppText className="mt-1 text-xs text-content-secondary">
-          {formatDateTime(params.dataHoraInicio, params.dataHoraFim)}
+          {formatDateTime(summary.dataHoraInicio, summary.dataHoraFim)}
         </AppText>
         <AppText className="mt-1 text-xs text-content-secondary">
-          Profissional: {params.profissionalNome || 'Não informado'}
+          Profissional: {summary.profissionalNome}
         </AppText>
-        <AppText className="mt-1 text-xs text-content-secondary">Serviço: {params.servicoNome || 'Não informado'}</AppText>
-        <AppText className="mt-1 text-xs text-content-secondary">Convênio: {params.convenioNome || 'Não informado'}</AppText>
-        <AppText className="mt-1 text-xs text-content-secondary">Recurso: {params.recursoNome || 'Não informado'}</AppText>
+        <AppText className="mt-1 text-xs text-content-secondary">Servico: {summary.servicoNome}</AppText>
+        <AppText className="mt-1 text-xs text-content-secondary">Convenio: {summary.convenioNome}</AppText>
+        <AppText className="mt-1 text-xs text-content-secondary">Recurso: {summary.recursoNome}</AppText>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 24 }}>
         <Button label="Editar agendamento" variant={canEdit ? 'primary' : 'secondary'} disabled={!canEdit} onPress={handleOpenEditAppointment} />
 
         <Button
@@ -464,3 +529,4 @@ export function AgendamentoActionsScreen() {
     </AppScreen>
   );
 }
+

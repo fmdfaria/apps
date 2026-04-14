@@ -1,0 +1,13 @@
+{
+  "build": {
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.probotec.com.br/",
+        "EXPO_PUBLIC_WEBHOOK_SOLICITAR_LIBERACAO_PARTICULAR_URL": "https://n8n.lolgamesup.com.br/webhook/solicitar-liberacao-particular"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  }
+}
