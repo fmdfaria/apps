@@ -1,6 +1,7 @@
 ﻿import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { Linking, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
@@ -132,7 +133,6 @@ export function AtendimentoActionsScreen() {
 
   const [statusSheet, setStatusSheet] = useState<StatusEditable | null>(null);
   const [motivoSheet, setMotivoSheet] = useState(false);
-  const autoRefreshOnceRef = useRef(false);
 
   const canFinalize = useMemo(
     () => hasRoutePermission(permissions, { path: '/agendamentos-atender/:id', method: 'PUT' }),
@@ -292,11 +292,24 @@ export function AtendimentoActionsScreen() {
     }
   }, [actionLoading, loadConfig, params.agendamentoId, params.status, refreshing, showToast]);
 
-  useEffect(() => {
-    if (autoRefreshOnceRef.current) return;
-    autoRefreshOnceRef.current = true;
-    void handleRefresh(false);
-  }, [handleRefresh]);
+  const refreshEvolucaoOnlyOnFocus = useCallback(async () => {
+    if (!canViewEvolucoes) return;
+
+    try {
+      const evolucoes = await getStatusEvolucoesPorAgendamentos([params.agendamentoId]);
+      const hasEvolucaoAtualizada = evolucoes.find((item) => item.agendamentoId === params.agendamentoId)?.temEvolucao ?? false;
+      setHasEvolucao(hasEvolucaoAtualizada);
+    } catch {
+      // Atualização silenciosa para não impactar o fluxo ao voltar da tela de evolução.
+    }
+  }, [canViewEvolucoes, params.agendamentoId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshEvolucaoOnlyOnFocus();
+      return undefined;
+    }, [refreshEvolucaoOnlyOnFocus]),
+  );
 
   const handleOpenEvolucao = useCallback(() => {
     if (!canEvolucaoPageAction || !canViewEvolucoes) {
@@ -624,6 +637,7 @@ export function AtendimentoActionsScreen() {
     </AppScreen>
   );
 }
+
 
 
 
