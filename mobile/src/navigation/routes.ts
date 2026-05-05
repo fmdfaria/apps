@@ -20,6 +20,7 @@
   finance: '/finance/index',
   notifications: '/notifications/index',
   settings: '/settings',
+  about: '/about',
   agendaActions: (params: {
     agendamentoId: string;
     pacienteId: string;

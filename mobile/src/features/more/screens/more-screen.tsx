@@ -67,6 +67,8 @@ export function MoreScreen() {
 
         <MenuItem title="Configurações" subtitle="Preferências do app" icon="settings-outline" onPress={() => router.push(routes.settings)} />
 
+        <MenuItem title="Sobre" subtitle="Versão atual do aplicativo" icon="information-circle-outline" onPress={() => router.push(routes.about)} />
+
         <MenuItem
           title="Sair"
           subtitle="Encerrar sessão deste dispositivo"

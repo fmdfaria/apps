@@ -33,8 +33,34 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function getErrorMessage(error: unknown, fallback: string) {
+  const response = typeof error === 'object' && error && 'response' in error
+    ? (error as { response?: { status?: number; data?: { message?: string } } }).response
+    : undefined;
+  const status = response?.status;
+  const maybeMessage = response?.data?.message?.trim();
+
+  const normalizedMessage = maybeMessage
+    ? maybeMessage
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+    : '';
+
+  if (
+    status === 401 ||
+    normalizedMessage.includes('credenciais invalidas') ||
+    normalizedMessage.includes('usuario ou senha invalidos') ||
+    normalizedMessage.includes('usuario nao encontrado') ||
+    normalizedMessage.includes('senha incorreta')
+  ) {
+    return 'Usuário ou senha inválidos. Confira os dados e tente novamente.';
+  }
+
+  if (status === 429) {
+    return 'Muitas tentativas de login. Aguarde alguns minutos e tente novamente.';
+  }
+
   if (typeof error === 'object' && error && 'response' in error) {
-    const maybeMessage = (error as { response?: { data?: { message?: string } } }).response?.data?.message;
     if (maybeMessage) {
       return maybeMessage;
     }

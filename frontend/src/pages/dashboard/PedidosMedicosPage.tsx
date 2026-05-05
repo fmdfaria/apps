@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Search,
   RefreshCw,
@@ -11,7 +13,8 @@ import {
   Paperclip,
   Building2,
   MessageCircle,
-  Send
+  Send,
+  Bell
 } from 'lucide-react';
 import { ResponsivePagination, FilterButton } from '@/components/layout';
 import { AdvancedFilter, type FilterField } from '@/components/ui/advanced-filter';
@@ -181,6 +184,10 @@ export const PedidosMedicosPage: React.FC = () => {
   const [showPedidosModal, setShowPedidosModal] = useState(false);
   const [pacientePedidos, setPacientePedidos] = useState<Paciente | null>(null);
   const [solicitandoPedidoIds, setSolicitandoPedidoIds] = useState<Record<string, boolean>>({});
+  const [atualizandoNotificacaoIds, setAtualizandoNotificacaoIds] = useState<Record<string, boolean>>({});
+  const [showNotificacaoModal, setShowNotificacaoModal] = useState(false);
+  const [pedidoNotificacaoSelecionado, setPedidoNotificacaoSelecionado] = useState<PedidoMedico | null>(null);
+  const [acaoNotificacaoSelecionada, setAcaoNotificacaoSelecionada] = useState<'limpar' | '30dias' | '10dias' | ''>('');
 
   // Carregar dados reais da API
   useEffect(() => {
@@ -503,6 +510,70 @@ export const PedidosMedicosPage: React.FC = () => {
     }
   };
 
+  const abrirModalNotificacao = (pedido: PedidoMedico) => {
+    setPedidoNotificacaoSelecionado(pedido);
+    setAcaoNotificacaoSelecionada('');
+    setShowNotificacaoModal(true);
+  };
+
+  const confirmarAcaoNotificacao = async () => {
+    const pedido = pedidoNotificacaoSelecionado;
+    if (!pedido || !acaoNotificacaoSelecionada || atualizandoNotificacaoIds[pedido.id]) return;
+
+    try {
+      setAtualizandoNotificacaoIds(prev => ({ ...prev, [pedido.id]: true }));
+
+      if (acaoNotificacaoSelecionada === 'limpar') {
+        const [pedido30dias, pedido10dias] = await Promise.all([
+          marcarPedidoNotificado(pedido.id, '30dias', 'desatribuir'),
+          marcarPedidoNotificado(pedido.id, '10dias', 'desatribuir'),
+        ]);
+
+        setPedidos(prev => prev.map(item => item.id !== pedido.id ? item : ({
+          ...item,
+          enviado30dias: pedido30dias.enviado30dias ?? false,
+          enviado10dias: pedido10dias.enviado10dias ?? false,
+        })));
+      }
+
+      if (acaoNotificacaoSelecionada === '30dias') {
+        const pedidoAtualizado = await marcarPedidoNotificado(pedido.id, '30dias', 'atribuir');
+        setPedidos(prev => prev.map(item => item.id !== pedido.id ? item : ({
+          ...item,
+          enviado30dias: pedidoAtualizado.enviado30dias ?? item.enviado30dias,
+        })));
+      }
+
+      if (acaoNotificacaoSelecionada === '10dias') {
+        const pedidoAtualizado = await marcarPedidoNotificado(pedido.id, '10dias', 'atribuir');
+        setPedidos(prev => prev.map(item => item.id !== pedido.id ? item : ({
+          ...item,
+          enviado10dias: pedidoAtualizado.enviado10dias ?? item.enviado10dias,
+        })));
+      }
+
+      AppToast.success('Notificação atualizada', {
+        description:
+          acaoNotificacaoSelecionada === 'limpar'
+            ? `Status limpo para ${pedido.pacienteNome}.`
+            : acaoNotificacaoSelecionada === '30dias'
+              ? `Notificação de 30 dias atribuída para ${pedido.pacienteNome}.`
+              : `Notificação de 10 dias atribuída para ${pedido.pacienteNome}.`,
+      });
+
+      setShowNotificacaoModal(false);
+      setPedidoNotificacaoSelecionado(null);
+      setAcaoNotificacaoSelecionada('');
+    } catch (error: unknown) {
+      const mensagemErro = error instanceof Error ? error.message : 'Não foi possível atualizar a notificação.';
+      AppToast.error('Erro ao atualizar notificação', {
+        description: mensagemErro,
+      });
+    } finally {
+      setAtualizandoNotificacaoIds(prev => ({ ...prev, [pedido.id]: false }));
+    }
+  };
+
   // Funções para fechar modais
   // Removido fecharModal de edição
 
@@ -798,6 +869,16 @@ export const PedidosMedicosPage: React.FC = () => {
                         >
                           <Send className="w-3.5 h-3.5 text-blue-600" />
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => abrirModalNotificacao(pedido)}
+                          disabled={!!atualizandoNotificacaoIds[pedido.id]}
+                          className="h-7 w-7 p-0"
+                          title="Atualizar Notificação"
+                        >
+                          <Bell className={`w-3.5 h-3.5 ${pedido.enviado30dias || pedido.enviado10dias ? 'text-orange-600' : 'text-gray-600'}`} />
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -861,6 +942,16 @@ export const PedidosMedicosPage: React.FC = () => {
                           title="Solicitar Pedido Médico"
                         >
                           <Send className="w-3.5 h-3.5 text-blue-600" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => abrirModalNotificacao(pedido)}
+                          disabled={!!atualizandoNotificacaoIds[pedido.id]}
+                          className="h-7 w-7 p-0"
+                          title="Atualizar Notificação"
+                        >
+                          <Bell className={`w-3.5 h-3.5 ${pedido.enviado30dias || pedido.enviado10dias ? 'text-orange-600' : 'text-gray-600'}`} />
                         </Button>
                       </div>
                     </td>
@@ -947,6 +1038,16 @@ export const PedidosMedicosPage: React.FC = () => {
                       title="Solicitar Pedido Médico"
                     >
                       <Send className="w-3.5 h-3.5 text-blue-600" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => abrirModalNotificacao(pedido)}
+                      disabled={!!atualizandoNotificacaoIds[pedido.id]}
+                      className="h-8 w-8 p-0"
+                      title="Atualizar Notificação"
+                    >
+                      <Bell className={`w-3.5 h-3.5 ${pedido.enviado30dias || pedido.enviado10dias ? 'text-orange-600' : 'text-gray-600'}`} />
                     </Button>
                   </div>
                 </div>
@@ -1110,6 +1211,51 @@ export const PedidosMedicosPage: React.FC = () => {
         servicos={servicos}
         onClose={() => { setShowPedidosModal(false); setPacientePedidos(null); }}
       />
+
+      <Dialog open={showNotificacaoModal} onOpenChange={(open) => {
+        setShowNotificacaoModal(open);
+        if (!open) {
+          setPedidoNotificacaoSelecionado(null);
+          setAcaoNotificacaoSelecionada('');
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Atualizar Notificação</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <p className="text-sm text-gray-600">
+              {pedidoNotificacaoSelecionado?.pacienteNome}
+            </p>
+            <Select
+              value={acaoNotificacaoSelecionada}
+              onValueChange={(value) => setAcaoNotificacaoSelecionada(value as 'limpar' | '30dias' | '10dias')}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione uma ação..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="limpar">Limpar Status</SelectItem>
+                <SelectItem value="30dias">Atribuir 30 dias</SelectItem>
+                <SelectItem value="10dias">Atribuir 10 dias</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNotificacaoModal(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmarAcaoNotificacao}
+              disabled={!pedidoNotificacaoSelecionado || !acaoNotificacaoSelecionada || !!(pedidoNotificacaoSelecionado && atualizandoNotificacaoIds[pedidoNotificacaoSelecionado.id])}
+            >
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

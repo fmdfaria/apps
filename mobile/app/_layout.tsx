@@ -73,6 +73,7 @@ export default function RootLayout() {
             />
             <Stack.Screen name="notifications/index" options={{ headerShown: true, title: 'Notificações' }} />
             <Stack.Screen name="settings" options={{ headerShown: true, title: 'Configurações' }} />
+            <Stack.Screen name="about" options={{ headerShown: true, title: 'Sobre' }} />
             <Stack.Screen
               name="modals/quick-actions"
               options={{ presentation: 'modal', title: 'Ações rápidas', headerShown: true }}

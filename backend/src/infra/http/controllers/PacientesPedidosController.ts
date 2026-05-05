@@ -93,13 +93,14 @@ export class PacientesPedidosController {
 
     const bodySchema = z.object({
       tipo: z.enum(['30dias', '10dias', 'vencido']),
+      acao: z.enum(['atribuir', 'desatribuir']).default('atribuir'),
     });
 
     const { id } = paramsSchema.parse(request.params);
-    const { tipo } = bodySchema.parse(request.body);
+    const { tipo, acao } = bodySchema.parse(request.body);
 
     const useCase = container.resolve(MarcarPedidoNotificadoUseCase);
-    const pedido = await useCase.execute({ id, tipo });
+    const pedido = await useCase.execute({ id, tipo, acao });
 
     return reply.status(200).send(pedido);
   }
