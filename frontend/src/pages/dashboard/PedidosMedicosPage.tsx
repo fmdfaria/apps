@@ -524,10 +524,8 @@ export const PedidosMedicosPage: React.FC = () => {
       setAtualizandoNotificacaoIds(prev => ({ ...prev, [pedido.id]: true }));
 
       if (acaoNotificacaoSelecionada === 'limpar') {
-        const [pedido30dias, pedido10dias] = await Promise.all([
-          marcarPedidoNotificado(pedido.id, '30dias', 'desatribuir'),
-          marcarPedidoNotificado(pedido.id, '10dias', 'desatribuir'),
-        ]);
+        const pedido30dias = await marcarPedidoNotificado(pedido.id, '30dias', 'desatribuir');
+        const pedido10dias = await marcarPedidoNotificado(pedido.id, '10dias', 'desatribuir');
 
         setPedidos(prev => prev.map(item => item.id !== pedido.id ? item : ({
           ...item,
