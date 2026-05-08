@@ -219,6 +219,19 @@ export const VerificarAgendaPage: React.FC = () => {
       const slots: SlotDisponivel[] = [];
       const diaSemanaAPISelecionado = diaSelecionado ? parseInt(diaSelecionado.id) : null; // 1-6 (API: Segunda=1, Terça=2, etc.)
       const tipoAtendimento = tipoAgendamentoSelecionado.id as 'presencial' | 'online';
+      const normalizarTipoDisponibilidade = (tipo?: string | null): string =>
+        (tipo || '').toString().trim().toLowerCase();
+      const isTipoBloqueio = (tipo?: string | null): boolean => {
+        const t = normalizarTipoDisponibilidade(tipo);
+        return t === 'folga' || t === 'bloqueio' || t === 'blocked';
+      };
+      const isTipoDisponivelParaAtendimento = (
+        tipo: string | null | undefined,
+        tipoAtendimentoSelecionado: 'presencial' | 'online'
+      ): boolean => {
+        const t = normalizarTipoDisponibilidade(tipo);
+        return t === tipoAtendimentoSelecionado || t === 'disponivel';
+      };
       
       
       // Para os próximos 30 dias
@@ -244,30 +257,38 @@ export const VerificarAgendaPage: React.FC = () => {
         
         // Para cada profissional que presta o serviço
         for (const profServico of profissionaisDoServico) {
-          // Buscar disponibilidades do profissional para este dia específico
-          const disponibilidadesDoProfissional = disponibilidades.filter(disp => {
-            const mesmoProf = disp.profissionalId === profServico.profissionalId;
-            const mesmoTipo = disp.tipo === tipoAtendimento;
-            const diaSemanaParaComparar = diaSemanaAPISelecionado ?? diaSemanaAPICorrespondente;
-            
-            // Verificar se é disponibilidade semanal para este dia OU data específica
-            const temDisponibilidadeSemanal = disp.diaSemana === diaSemanaParaComparar;
-            const temDataEspecifica = disp.dataEspecifica && 
-              disp.dataEspecifica.toISOString().split('T')[0] === dataStr;
-            
-            const disponivel = mesmoProf && mesmoTipo && (temDisponibilidadeSemanal || temDataEspecifica);
-            
-            // Disponibilidade verificada
-            
-            return disponivel;
-          });
-          
+                    const disponibilidadesProfissional = disponibilidades.filter(
+            disp => disp.profissionalId === profServico.profissionalId
+          );
+
+          const disponibilidadesDataEspecifica = disponibilidadesProfissional.filter(
+            disp => disp.dataEspecifica && disp.dataEspecifica.toISOString().split('T')[0] === dataStr
+          );
+
+          const diaSemanaParaComparar = diaSemanaAPISelecionado ?? diaSemanaAPICorrespondente;
+          const disponibilidadesSemanais = disponibilidadesProfissional.filter(
+            disp => !disp.dataEspecifica && disp.diaSemana === diaSemanaParaComparar
+          );
+
+          // Prioridade: se há Data Específica no dia, ela sobrescreve horário semanal.
+          const disponibilidadesDoDiaBase =
+            disponibilidadesDataEspecifica.length > 0 ? disponibilidadesDataEspecifica : disponibilidadesSemanais;
+
           // Se não tem disponibilidade cadastrada para este dia, pula
-          if (disponibilidadesDoProfissional.length === 0) {
+          if (disponibilidadesDoDiaBase.length === 0) {
             continue;
           }
-          
-          for (const disponibilidade of disponibilidadesDoProfissional) {
+
+          const bloqueiosDoDia = disponibilidadesDoDiaBase.filter(disp => isTipoBloqueio(disp.tipo));
+          const disponibilidadesDoTipoSelecionado = disponibilidadesDoDiaBase.filter(disp =>
+            !isTipoBloqueio(disp.tipo) && isTipoDisponivelParaAtendimento(disp.tipo, tipoAtendimento)
+          );
+
+          if (disponibilidadesDoTipoSelecionado.length === 0) {
+            continue;
+          }
+
+          for (const disponibilidade of disponibilidadesDoTipoSelecionado) {
             // Gerar slots de horário baseado na duração do serviço
             const inicio = new Date(disponibilidade.horaInicio);
             const fim = new Date(disponibilidade.horaFim);
@@ -300,6 +321,22 @@ export const VerificarAgendaPage: React.FC = () => {
             while (horaAtual.getTime() + (duracaoServico * 60000) <= fim.getTime()) {
               const horaSlot = `${horaAtual.getHours().toString().padStart(2, '0')}:${horaAtual.getMinutes().toString().padStart(2, '0')}`;
               const fimSlot = new Date(horaAtual.getTime() + (duracaoServico * 60000));
+
+              // Bloqueio/Folga da data (específica ou semanal vigente) remove slot da lista.
+              const inicioSlotMin = horaAtual.getHours() * 60 + horaAtual.getMinutes();
+              const fimSlotMin = inicioSlotMin + duracaoServico;
+              const temBloqueioNoHorario = bloqueiosDoDia.some(bloqueio => {
+                const inicioBloqueio = new Date(bloqueio.horaInicio);
+                const fimBloqueio = new Date(bloqueio.horaFim);
+                const inicioBloqueioMin = inicioBloqueio.getHours() * 60 + inicioBloqueio.getMinutes();
+                const fimBloqueioMin = fimBloqueio.getHours() * 60 + fimBloqueio.getMinutes();
+                return inicioSlotMin < fimBloqueioMin && fimSlotMin > inicioBloqueioMin;
+              });
+
+              if (temBloqueioNoHorario) {
+                horaAtual.setMinutes(horaAtual.getMinutes() + 30);
+                continue;
+              }
               
               // Verificar se já existe agendamento neste horário (considerando sobreposição)
               const temAgendamento = agendamentos.some(ag => {
@@ -556,10 +593,12 @@ export const VerificarAgendaPage: React.FC = () => {
                 <SingleSelectDropdown
                   options={servicos.map(s => ({ id: s.id, nome: s.nome }))}
                   selected={servicoSelecionado}
-                  onChange={setServicoSelecionado}
+                  onChange={(selected) =>
+                    setServicoSelecionado(selected ? { id: selected.id, nome: selected.nome || '' } : null)
+                  }
                   placeholder={carregandoServicos ? "Carregando..." : "Selecione um serviço"}
                   headerText="Serviços disponíveis"
-                  dotColor="emerald"
+                  dotColor="green"
                   disabled={carregandoServicos}
                 />
               </div>
@@ -569,7 +608,9 @@ export const VerificarAgendaPage: React.FC = () => {
                 <SingleSelectDropdown
                   options={TIPOS_AGENDAMENTO}
                   selected={tipoAgendamentoSelecionado}
-                  onChange={setTipoAgendamentoSelecionado}
+                  onChange={(selected) =>
+                    setTipoAgendamentoSelecionado(selected ? { id: selected.id, nome: selected.nome || '' } : null)
+                  }
                   placeholder="Selecione o tipo"
                   headerText="Tipos de agendamento"
                   dotColor="orange"
@@ -581,7 +622,9 @@ export const VerificarAgendaPage: React.FC = () => {
                 <SingleSelectDropdown
                   options={DIAS_SEMANA}
                   selected={diaSelecionado}
-                  onChange={setDiaSelecionado}
+                  onChange={(selected) =>
+                    setDiaSelecionado(selected ? { id: selected.id, nome: selected.nome || '' } : null)
+                  }
                   placeholder="Selecione um dia"
                   headerText="Dias da semana"
                   dotColor="blue"
@@ -593,7 +636,9 @@ export const VerificarAgendaPage: React.FC = () => {
                 <SingleSelectDropdown
                   options={PERIODOS}
                   selected={periodoSelecionado}
-                  onChange={setPeriodoSelecionado}
+                  onChange={(selected) =>
+                    setPeriodoSelecionado(selected ? { id: selected.id, nome: selected.nome || '' } : null)
+                  }
                   placeholder="Selecione um período"
                   headerText="Períodos do dia"
                   dotColor="purple"
@@ -826,3 +871,4 @@ export const VerificarAgendaPage: React.FC = () => {
   }
 
 };
+

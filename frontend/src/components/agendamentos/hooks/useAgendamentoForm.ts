@@ -567,6 +567,12 @@ export const useAgendamentoForm = ({
         tipoAtendimento: preenchimentoInicial.tipoAtendimento || prev.tipoAtendimento
       }));
 
+      // Se o modal abriu com recurso pré-preenchido, tratar como seleção fixa inicial
+      // para não ser apagado por auto-seleção em ciclos iniciais de carregamento.
+      if (preenchimentoInicial.recursoId) {
+        setUserSelectedResource(true);
+      }
+
       // Preencher data e hora se disponíveis
       if (preenchimentoInicial.dataHoraInicio) {
         const [data, hora] = preenchimentoInicial.dataHoraInicio.split('T');
@@ -965,13 +971,8 @@ export const useAgendamentoForm = ({
           });
         }
       } else {
-        // Se não há recurso compatível, limpar seleção atual
-        if (formData.recursoId) {
-          updateFormDataAuto({
-            recursoId: '',
-            tipoAtendimento: 'presencial'
-          });
-        }
+        // Não limpar recurso automaticamente para evitar apagar seleção
+        // durante recargas assíncronas (ex.: após selecionar paciente).
       }
     }
   }, [
@@ -984,6 +985,7 @@ export const useAgendamentoForm = ({
     formData.recursoId, // Incluído para detectar mudanças, mas com proteção contra loops
     userSelectedResource, // Controla se deve executar auto-seleção
     loadingData, // Aguarda carregamento completo dos dados
+    preenchimentoInicial?.recursoId,
     autoSelecionarRecurso,
     updateFormDataAuto
   ]);
