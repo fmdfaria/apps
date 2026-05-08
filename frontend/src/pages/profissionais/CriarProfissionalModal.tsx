@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,9 +6,11 @@ import { FormErrorMessage } from '@/components/form-error-message';
 import { createProfissional } from '@/services/profissionais';
 import { createUser } from '@/services/users';
 import { rbacService } from '@/services/rbac';
+import { AppToast } from '@/services/toast';
 import { useInputMask } from '@/hooks/useInputMask';
 import { WhatsAppInput } from '@/components/ui/whatsapp-input';
 import { isValidWhatsApp } from '@/utils/whatsapp';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface CriarProfissionalModalProps {
   open: boolean;
@@ -16,7 +18,7 @@ interface CriarProfissionalModalProps {
   onSuccess: () => void;
 }
 
-// WhatsApp tratado pelo componente WhatsAppInput; form.whatsapp mantém apenas dígitos
+// WhatsApp tratado pelo componente WhatsAppInput; form.whatsapp mantÃ©m apenas dÃ­gitos
 
 export default function CriarProfissionalModal({ open, onClose, onSuccess }: CriarProfissionalModalProps) {
   const [form, setForm] = useState({
@@ -27,6 +29,7 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
   });
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
+  const [criarUsuario, setCriarUsuario] = useState(true);
 
   const maskCPF = useInputMask('999.999.999-99');
 
@@ -39,6 +42,7 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
       whatsapp: '',
     });
     setFormError('');
+    setCriarUsuario(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,15 +53,15 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
     }
     const cpfLimpo = form.cpf.replace(/\D/g, '');
     if (!cpfLimpo || cpfLimpo.length !== 11) {
-      setFormError('CPF inválido. Exemplo: xxx.xxx.xxx-xx.');
+      setFormError('CPF invÃ¡lido. Exemplo: xxx.xxx.xxx-xx.');
       return;
     }
     if (!form.email.trim() || !form.email.includes('@')) {
-      setFormError('E-mail inválido. Exemplo: nome@email.com');
+      setFormError('E-mail invÃ¡lido. Exemplo: nome@email.com');
       return;
     }
     if (!form.whatsapp || !isValidWhatsApp(form.whatsapp.trim())) {
-      setFormError('WhatsApp obrigatório e deve ser válido. Exemplos: +55 (11) 99999-9999, +1 (250) 999-9999');
+      setFormError('WhatsApp obrigatÃ³rio e deve ser vÃ¡lido. Exemplos: +55 (11) 99999-9999, +1 (250) 999-9999');
       return;
     }
 
@@ -73,24 +77,24 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
       };
 
       const profissional = await createProfissional(profissionalPayload);
-
-      // Criar usuário vinculado ao profissional recém-criado
-      const created = await createUser({
-        nome: form.nome.trim(),
-        email: form.email.trim(),
-        whatsapp: form.whatsapp.replace(/\D/g, ''),
-        profissionalId: profissional.id,
-      });
-
-      // Atribuir role PROFISSIONAL ao usuário criado (best-effort)
-      try {
-        const roles = await rbacService.getRoles(true);
-        const profissionalRole = roles.find((r: any) => r.nome === 'PROFISSIONAL');
-        if (profissionalRole && created?.user?.id) {
-          await rbacService.assignRoleToUser({ userId: created.user.id, roleId: profissionalRole.id });
+      if (criarUsuario) {
+        // Criar usuário vinculado ao profissional recém-criado
+        const created = await createUser({
+          nome: form.nome.trim(),
+          email: form.email.trim(),
+          whatsapp: form.whatsapp.replace(/\D/g, ''),
+          profissionalId: profissional.id,
+        });
+        // Atribuir role PROFISSIONAL ao usuário criado (best-effort)
+        try {
+          const roles = await rbacService.getRoles(true);
+          const profissionalRole = roles.find((r: any) => r.nome === 'PROFISSIONAL');
+          if (profissionalRole && created?.user?.id) {
+            await rbacService.assignRoleToUser({ userId: created.user.id, roleId: profissionalRole.id });
+          }
+        } catch (e) {
+          console.warn('Não foi possível atribuir a role PROFISSIONAL automaticamente:', e);
         }
-      } catch (e) {
-        console.warn('Não foi possível atribuir a role PROFISSIONAL automaticamente:', e);
       }
       onSuccess();
       fecharModal();
@@ -106,6 +110,9 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
         }
       }
       setFormError(msg);
+      AppToast.error('Erro ao criar profissional', {
+        description: msg
+      });
     } finally {
       setFormLoading(false);
     }
@@ -121,8 +128,7 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
           <div className="py-3 space-y-4">
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
-                <span className="text-lg">👤</span>
-                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">Nome Completo</span>
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">Nome</span>
                 <span className="text-red-500">*</span>
               </label>
               <Input
@@ -137,7 +143,6 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
             </div>
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
-                <span className="text-lg">📄</span>
                 <span className="bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent font-semibold">CPF</span>
                 <span className="text-red-500">*</span>
               </label>
@@ -153,7 +158,6 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
             </div>
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
-                <span className="text-lg">📧</span>
                 <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent font-semibold">E-mail</span>
                 <span className="text-red-500">*</span>
               </label>
@@ -168,7 +172,6 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
             </div>
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
-                <span className="text-lg">📱</span>
                 <span className="bg-gradient-to-r from-emerald-600 to-cyan-600 bg-clip-text text-transparent font-semibold">WhatsApp</span>
               </label>
               <WhatsAppInput
@@ -179,11 +182,28 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
                 placeholder="+55 (11) 99999-9999"
               />
             </div>
+            <div className="flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2">
+              <Checkbox
+                id="criar-usuario"
+                checked={criarUsuario}
+                onCheckedChange={(checked) => setCriarUsuario(checked === true)}
+                disabled={formLoading}
+              />
+              <label htmlFor="criar-usuario" className="text-sm font-medium text-violet-900 cursor-pointer">
+                Deseja criar usuário?
+              </label>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+              <p className="text-xs text-amber-900">
+                Se o profissional não precisar de acesso ao sistema, deixe o checkbox desmarcado.
+                Exemplo: funcionários com contratos com empresas terceiras.
+              </p>
+            </div>
             <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl shadow-sm">
               <p className="text-sm text-blue-700 flex items-start gap-2">
                 <span className="text-lg flex-shrink-0 mt-0.5">📝</span>
                 <span>
-                  <strong className="font-semibold">Informação:</strong> Após criar o profissional, você poderá editar as informações complementares como endereço, especialidades, dados bancários etc.
+                  <strong className="font-semibold">Informação:</strong> após criar o profissional, você poderá editar as informações complementares como endereço, especialidades, dados bancários etc.
                 </span>
               </p>
             </div>
@@ -207,7 +227,7 @@ export default function CriarProfissionalModal({ open, onClose, onSuccess }: Cri
             >
               {formLoading ? (
                 <>
-                  <span className="mr-2">⏳</span>
+                  <span className="mr-2">â³</span>
                   Salvando...
                 </>
               ) : (

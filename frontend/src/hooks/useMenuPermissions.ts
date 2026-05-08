@@ -32,7 +32,7 @@ const routePermissionMap: Record<string, { path: string; method: string }> = {
   'conselhos': { path: '/conselhos', method: 'GET' },
   'bancos': { path: '/bancos', method: 'GET' },
   'administracao/usuarios': { path: '/users', method: 'GET' },
-  'administracao/roles': { path: '/roles', method: 'GET' },
+  'administracao/roles': { path: '/roles-page', method: 'GET' },
   'administracao/rotas': { path: '/routes', method: 'GET' },
   'administracao/usuarios-roles': { path: '/user-roles', method: 'GET' },
   'administracao/permissoes': { path: '/role-routes', method: 'GET' },
