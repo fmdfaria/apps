@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, DollarSign, Calendar, User, Building2, MessageCircle, Eye } from 'lucide-react';
+import { Plus, Edit, Trash2, DollarSign, Calendar, User, Building2, MessageCircle, Eye, QrCode } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AppToast } from '@/services/toast';
@@ -47,6 +47,8 @@ import PagarContaModal from './PagarContaModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import ConfirmacaoModal from '@/components/ConfirmacaoModal';
 import { ListarAgendamentosModal } from '@/components/agendamentos/ListarAgendamentosModal';
+import PixProfissionalModal from './PixProfissionalModal';
+import ConfirmationDialog from '@/components/ui/confirmation-dialog';
 
 interface PrecoServicoProfissional {
   id: string;
@@ -109,6 +111,10 @@ export const ContasPagarPage = () => {
   const [agendamentosVinculados, setAgendamentosVinculados] = useState<Agendamento[]>([]);
   const [contaSelecionada, setContaSelecionada] = useState<ContaPagar | null>(null);
   const [precosServicoProfissional, setPrecosServicoProfissional] = useState<PrecoServicoProfissional[]>([]);
+  const [showPixProfissionalModal, setShowPixProfissionalModal] = useState(false);
+  const [contaPixSelecionada, setContaPixSelecionada] = useState<ContaPagar | null>(null);
+  const [showPixPagoConfirmation, setShowPixPagoConfirmation] = useState(false);
+  const [contaPixPendente, setContaPixPendente] = useState<ContaPagar | null>(null);
 
   // Hooks responsivos
   const { viewMode, setViewMode } = useViewMode({ defaultMode: 'table', persistMode: true, localStorageKey: 'contas-pagar-view' });
@@ -224,6 +230,17 @@ export const ContasPagarPage = () => {
               <MessageCircle className="w-4 h-4" />
             )}
           </ActionButton>
+
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => handlePixProfissionalClick(item)}
+            disabled={!item.profissionalId}
+            title={item.profissionalId ? 'Pix Profissional' : 'Conta sem profissional vinculado'}
+            className="h-8 w-8 p-0 bg-violet-600 hover:bg-violet-700 text-white"
+          >
+            <QrCode className="w-4 h-4" />
+          </Button>
 
           <ActionButton
             variant="view"
@@ -529,6 +546,36 @@ export const ContasPagarPage = () => {
     }
   };
 
+  const abrirModalPixProfissional = (conta: ContaPagar) => {
+    setContaPixSelecionada(conta);
+    setShowPixProfissionalModal(true);
+  };
+
+  const handlePixProfissionalClick = (conta: ContaPagar) => {
+    if (!conta.profissionalId) return;
+
+    if (conta.status === 'PAGO') {
+      setContaPixPendente(conta);
+      setShowPixPagoConfirmation(true);
+      return;
+    }
+
+    abrirModalPixProfissional(conta);
+  };
+
+  const handleConfirmPixPago = () => {
+    if (contaPixPendente) {
+      abrirModalPixProfissional(contaPixPendente);
+    }
+    setShowPixPagoConfirmation(false);
+    setContaPixPendente(null);
+  };
+
+  const handleCancelPixPago = () => {
+    setShowPixPagoConfirmation(false);
+    setContaPixPendente(null);
+  };
+
   const enviarWhatsApp = async (conta: ContaPagar) => {
     // Adicionar conta ao loading
     setWhatsappLoadingIds(prev => new Set(prev).add(conta.id));
@@ -692,6 +739,16 @@ export const ContasPagarPage = () => {
             <MessageCircle className="w-4 h-4" />
           )}
         </ActionButton>
+        <Button
+          variant="default"
+          size="sm"
+          onClick={() => handlePixProfissionalClick(conta)}
+          disabled={!conta.profissionalId}
+          title={conta.profissionalId ? 'Pix Profissional' : 'Conta sem profissional vinculado'}
+          className="h-8 w-8 p-0 bg-violet-600 hover:bg-violet-700 text-white"
+        >
+          <QrCode className="w-4 h-4" />
+        </Button>
         <ActionButton
           variant="view"
           module="financeiro"
@@ -889,6 +946,29 @@ export const ContasPagarPage = () => {
           calcularValor={calcularValorProfissional}
           contaPagar={contaSelecionada || undefined}
           onClose={() => setShowAgendamentosModal(false)}
+        />
+
+        <PixProfissionalModal
+          isOpen={showPixProfissionalModal}
+          profissionalId={contaPixSelecionada?.profissionalId}
+          profissionalNome={contaPixSelecionada?.profissional?.nome}
+          valorOriginal={contaPixSelecionada?.valorOriginal}
+          onClose={() => {
+            setShowPixProfissionalModal(false);
+            setContaPixSelecionada(null);
+          }}
+        />
+
+        <ConfirmationDialog
+          open={showPixPagoConfirmation}
+          onClose={handleCancelPixPago}
+          type="warning"
+          title="Conta já paga"
+          description="Essa conta a pagar está com status PAGO, realmente deseja continuar?"
+          confirmText="Sim"
+          cancelText="Cancelar"
+          onConfirm={handleConfirmPixPago}
+          onCancel={handleCancelPixPago}
         />
       </PageContainer>
     </TooltipProvider>
